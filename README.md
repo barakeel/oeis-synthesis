@@ -32,8 +32,8 @@ load "mcts"; open mcts;
 search_target 60.0 [1,2,4,8,16]; 
 ```
 
-You can choose the sequence you desire to look for instead of
-[1,2,4,8,16] and set the timeout to an other value than 60.0 seconds.
+Choose the sequence you desire to look for instead of
+[1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
 
 
 #### Train oeis-syntheis (requires 200GB of ram and 20 cores):
