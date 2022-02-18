@@ -26,11 +26,11 @@ Holmake
 ``
 ## Test oeis-synthesis:
 In this directory:
-``
-rlwrap hol  
+```
+rlwrap hol
 load "mcts"; open mcts;
 search_target 60.0 [1,2,4,8,16]; 
-``
+```
 
 You can choose the sequence you desire to look for instead of
 [1,2,4,8,16] and set the timeout to an other value than 60.0 seconds.
