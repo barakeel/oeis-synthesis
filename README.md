@@ -17,13 +17,13 @@ In this directory:
 
 Edit the file kernel.sml and change the line
 `val selfdir = "/home/thibault/oeis-synthesis";`
-to `val seldir = "your_oeis-synthesis directory";`
+to `val seldir = "your_oeis-synthesis_directory";`
 
 Then run the commands:
-``
+```
 Holmake cleanAll
 Holmake
-``
+```
 ## Test oeis-synthesis:
 In this directory:
 ```
@@ -38,14 +38,14 @@ You can choose the sequence you desire to look for instead of
 
 ## Train oeis-syntheis (requires 200GB of ram and 20 cores):
 In this directory:
-``
+```
 rlwrap hol
 load "mcts"; open mcts;
 expname := "your_experiment_name";
 time_opt := SOME 600.0;
 (* use_mkl := true; if you have installed mkl *)
 rl_search "" 0;
-``
+```
 
 ## Install MKL libary (optional for faster training)
 Downloading mkl:
