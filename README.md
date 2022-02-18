@@ -48,10 +48,10 @@ rl_search "" 0;
 ```
 
 #### Install MKL libary (optional for faster training)
-Downloading mkl:
-  Ubuntu 20.04: sudo apt install intel-mkl
-  Ubuntu 18.04: https://github.com/eddelbuettel/mkl4deb 
-
+Downloading/Installing MKL:
+```
+Ubuntu 20.04: sudo apt install intel-mkl
+Ubuntu 18.04: https://github.com/eddelbuettel/mkl4deb 
 ```
 Initializing bash variables:
   export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH
