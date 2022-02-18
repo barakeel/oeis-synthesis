@@ -1,42 +1,50 @@
 ## Install a modified HOL (required)
-
-Install HOL:
 ```
+sudo apt install rlwrap
 sudo apt install polyml
 git clone https://hol-theorem-prover.org/HOL
 cd HOL
 git checkout 3ff450a0a80a45ab2336801759b9dc3426cfe8c5
 poly < "tools/smart-configure.sml"
+bin/build
 ```
 
 Edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=~/HOL/bin:$PATH
 
+## Install oeis-synthesis:
+In this directory:
 
-## Install OEIS-synthesis:
-Change directory value of selfdir in kernel.sml 
-to the directory where this README is located.
-Run Holmake in the directory in which this file is located.
+Edit the file kernel.sml and change the line
+`val selfdir = "/home/thibault/oeis-synthesis";`
+to `val seldir = "your_oeis-synthesis directory";`
 
-## Test OEIS-synthesis:
-  
-
-
-
-
-
-
-
-
-
-## Train OEIS-syntheis: 
-  (only do this if you have 200GB of ram and 20 cores or 
-   figure how to change these parameters in mcts.sml)
+Then run the commands:
+``
+Holmake cleanAll
+Holmake
+``
+## Test oeis-synthesis:
+In this directory:
+``
+rlwrap hol  
 
 
 
 
 
+``
+
+
+
+## Train oeis-syntheis (requires 200GB of ram and 20 cores):
+In this directory:
+``
+rlwrap hol
+
+
+
+``
 
 ## Install MKL libary (optional for faster training)
 Downloading mkl:
