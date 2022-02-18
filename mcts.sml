@@ -227,15 +227,15 @@ fun update_wind p pi sem =
     if !b then eaddi pi progwind else ()
   end
 
-exception ResultP of prog
+exception ResultP of prog;
 
 fun check_simple_target p =
   let 
     val f = mk_exec p
-    fun test (x,e) = f(x,0) = e handle Div => false | Overflow => false
+    fun test (x,e) = fst (f(x,0)) = e handle Div => false
   in
     if all test (number_fst 0 (!simple_target))
-    then ResultP p
+    then raise ResultP p
     else ()
   end
 
@@ -260,7 +260,7 @@ fun exec_fun_insearch p (leafn,pi) plb =
         (
         if !simple_search
         then check_simple_target p
-        else update_wind p pi sem
+        else update_wind p pi sem;
         eaddi pi progd;
         (if !use_semb then badd sem semb else eaddi sem semd); 
         SOME (C1 (leafn,pi) :: plb)
@@ -1166,8 +1166,9 @@ fun search tnn coreid =
 
 fun search_target tim target =
   let
-    val tnn = read_tnn (selfdir ^ "/main_tnn"))
+    val tnn = read_tnn (selfdir ^ "/main_tnn")
     val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
+    val _ = simple_search := true
     val _ = time_opt := SOME tim;
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := false
@@ -1182,7 +1183,7 @@ fun search_target tim target =
     val _ = in_search := false
   in
     print_endline
-      ("could not find a solution in "  ^ rts_round 2 t ^ " seconds");
+      ("could not find a solution in "  ^ rts_round 2 t ^ " seconds")
   end
   handle ResultP p => print_endline (human (minimize p))
 
@@ -1330,37 +1331,23 @@ and rl_train tmpname ngen =
 end (* struct *)
 
 (* -------------------------------------------------------------------------
-   Test MCTS
-   ------------------------------------------------------------------------- *)
+   Test oeis-synthesis
+   ------------------------------------------------------------------------- 
 
-(*
-load "mcts"; 
-open kernel mcts; 
+load "mcts"; open mcts;
+kernel.polynorm_flag := true;
+val _ = search_target 60.0 [1,2,4,8,16];
 
-polynorm_flag := true;
-val _ = search 60.0 [];
-stats_sol (selfdir ^ "/test/") (map unzip_prog (aiLib.elist (!progwind)));
-*)
+ -------------------------------------------------------------------------
+  Train oeis-synthesis
+   ------------------------------------------------------------------------- 
 
-(* -------------------------------------------------------------------------
-   Reinforcement learning
-   ------------------------------------------------------------------------- *)
-(*
 load "mcts"; open mcts;
 expname := "run102";
 time_opt := SOME 600.0;
 use_para := false;
 use_mkl := true;
 use_ob := false;
-rl_search "_init6" 4;
+rl_search "_init6" 0;
 
-
-load "mcts"; open mcts;
-expname := "run112";
-time_opt := SOME 60.0;
-use_mkl := true;
-use_ob := true;
-rl_search_only "_test" 0;
-rl_train_only "_test" 0;
-val ex = read_tnnex "debug_ex";
 *)

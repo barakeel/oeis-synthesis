@@ -29,6 +29,7 @@ In this directory:
 ```
 rlwrap hol
 load "mcts"; open mcts;
+kernel.polynorm_flag := true; (* for nicer output *)
 search_target 60.0 [1,2,4,8,16]; 
 ```
 
