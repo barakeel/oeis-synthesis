@@ -1,3 +1,6 @@
+Solutions found during a training run can be inspected in the file
+`result/full_prog_poly`.
+
 ### Install a modified HOL (required)
 ```
 sudo apt install rlwrap
