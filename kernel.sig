@@ -16,7 +16,7 @@ sig
   type seq = int list
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
-      
+ 
   (* program *)
   type id = int
   datatype prog = Ins of (id * prog list)
@@ -41,6 +41,7 @@ sig
   val constnorm_flag : bool ref
   val polynorm_flag : bool ref
   val human : prog -> string
+  val rm_par : string -> string
 
   (* inputs *)
   val entryl : (int * int) list

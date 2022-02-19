@@ -1188,7 +1188,7 @@ fun search_target tim target =
        " seconds after exploring " ^ its (tree_size newtree) ^ 
        " search nodes")
   end
-  handle ResultP p => print_endline (human (minimize p))
+  handle ResultP p => print_endline (rm_par (human (minimize p)))
 
 
 
@@ -1338,11 +1338,10 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
-kernel.polynorm_flag := true;
-val _ = search_target 60.0 [1,2,4,8,16];
+search_target 60.0 [1,2,4,8,16];
 
 (* more tests *)
-val _ = search_target 600.0 [3,1,4];
+search_target 600.0 [3,1,4];
 
  -------------------------------------------------------------------------
   Train oeis-synthesis
