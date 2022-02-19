@@ -27,7 +27,7 @@ Then run the commands:
 Holmake cleanAll
 Holmake
 ```
-### Test oeis-synthesis:
+### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds):
 In this directory:
 ```
 rlwrap hol

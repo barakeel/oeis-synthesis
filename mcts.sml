@@ -1111,9 +1111,8 @@ fun init_dicts pl =
     progwind := eempty progi_compare;
     initd := enew progi_compare pil;
     minid := dnew seq_compare (map g psemtiml);
-    app (fn x => eaddi x semd) seml;
-    print_endline ("initialized with " ^ its (length pl) ^ " programs")
-  end 
+    app (fn x => eaddi x semd) seml
+  end
 
 (* -------------------------------------------------------------------------
    Main search function
@@ -1172,6 +1171,8 @@ fun search_target tim target =
     val _ = time_opt := SOME tim;
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := false
+    val _ = use_semb := false
+    val _ = kernel.polynorm_flag := false
     val _ = simple_target := target
     val _ = target_glob := target
     val _ = init_dicts (elist sold)
@@ -1183,7 +1184,9 @@ fun search_target tim target =
     val _ = in_search := false
   in
     print_endline
-      ("could not find a solution in "  ^ rts_round 2 t ^ " seconds")
+      ("Could not find a solution in "  ^ rts_round 2 t ^ 
+       " seconds after exploring " ^ its (tree_size newtree) ^ 
+       " search nodes")
   end
   handle ResultP p => print_endline (human (minimize p))
 
@@ -1338,16 +1341,21 @@ load "mcts"; open mcts;
 kernel.polynorm_flag := true;
 val _ = search_target 60.0 [1,2,4,8,16];
 
+(* more tests *)
+val _ = search_target 600.0 [3,1,4];
+
  -------------------------------------------------------------------------
   Train oeis-synthesis
    ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
 expname := "run102";
-time_opt := SOME 600.0;
+time_opt := SOME 60.0;
 use_para := false;
 use_mkl := true;
 use_ob := false;
 rl_search "_init6" 0;
+
+
 
 *)

@@ -74,6 +74,6 @@ sig
  
   (* reading solutions *)
   val read_sold : int -> prog set
-  
+  val read_result : string -> prog list
 
 end

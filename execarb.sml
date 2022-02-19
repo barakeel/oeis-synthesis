@@ -22,6 +22,19 @@ fun find_arbmax l = case l of
 
 val maxarb = find_arbmax (List.concat (dkeys aod))
 
+(* 
+fun find_arbmin_aux a m = case m of
+    [] => a
+  | a1 :: m1 => Arbint.min (a, find_arbmin_aux a1 m1)
+
+fun find_arbmin l = case l of
+   [] => raise ERR "find_arbmin" ""
+ | a :: m => find_arbmin_aux a m;
+
+val minarb = find_arbmin (List.concat (dkeys aod));
+*)
+
+
 (* time limit per instruction *)
 val arbmaxinput = ref 16
 fun timescale () = !arbmaxinput
@@ -32,7 +45,10 @@ exception ArbOverflow;
 
 local open Arbint in
 
-fun protect r = if r > maxarb then raise ArbOverflow else r
+val minarb = ~maxarb;
+
+fun protect r = if r > maxarb orelse r < minarb 
+  then raise ArbOverflow else r
 
 val arb_zero_f = (fn _ => zero)
 val arb_one_f = (fn _ => one)
@@ -125,11 +141,17 @@ fun arb_seq_of_prog n p =
   in 
     map f (first_n n arbentryl) 
   end
+
+val minlength = ref 0
   
+fun longereq n l =
+  if n <= 0 then true else if null l then false else longereq (n-1) (tl l)
 
 fun mk_aodnv n =
   let
-    val ln = map (first_n n) (dkeys aod)
+    val l0 = filter (longereq (!minlength)) (dkeys aod)
+    val _ = print_endline (its n ^ " :total " ^ its (length l0)) 
+    val ln = map (first_n n) l0
     val aodvref = Vector.tabulate (n + 1, 
       fn _ => ref (eempty (list_compare Arbint.compare)))
     fun f seq = 
@@ -141,13 +163,6 @@ fun mk_aodnv n =
   in
     r
   end
-
-end (* struct *)
-
-(* 
-load "mcts"; load "execarb";  open aiLib mcts execarb;
-expname := "run112";
-val pl = elist (read_sold 0);
 
 fun arb_update_wind wind n aodv seq =
   let
@@ -161,22 +176,29 @@ fun arb_update_wind wind n aodv seq =
     ()
   end ;
 
-fun number_sol n = 
+fun number_sol pl n = 
   let
-    val aod16v = mk_aodnv n;
+    val aodnv = mk_aodnv n;
     val wind = ref (eempty (list_compare Arbint.compare));
     val seql = map (arb_seq_of_prog n) pl;
   in
-    app (arb_update_wind wind n aod16v) seql;
+    app (arb_update_wind wind n aodnv) seql;
     elength (!wind)
   end;
 
-List.tabulate (17, fn x => number_sol (16 + x));
 
+end (* struct *)
 
+(* 
+load "mcts"; load "execarb";  open aiLib mcts execarb;
+PolyML.print_depth 10;
+val pl = read_result "main_sold";
+PolyML.print_depth 40;
 
+minlength := 32;
+map (number_sol pl) (List.tabulate (17, fn x => 16 + x));
 
-
+val ERR = mk_HOL_ERR "test";
 *)
 
 
