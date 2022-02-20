@@ -7,11 +7,12 @@ In your /home/your_username directory:
 ```
 sudo apt install rlwrap
 sudo apt install polyml
-git clone https://hol-theorem-prover.org/HOL
+git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
 git checkout 0782c4413311d5debebda3f2e6cac9560911cb64
 poly < "tools/smart-configure.sml"
-bin/build
+cat tools/sequences/kernel tools/sequences/core-theories > shortseq
+bin/build --seq=shortseq
 ```
 
 Edit your .bashrc (or .bash_aliases) by adding the following line:
@@ -22,7 +23,7 @@ In this directory, edit the file kernel.sml by replacing the value of
 `val selfdir = "/home/thibault/oeis-synthesis"` by 
 `val selfdir = "the_directory_where_this_file_is_located"`.
 
-Save the file and run:
+Save the file and run in this directory:
 ```
 Holmake
 ```

@@ -143,15 +143,28 @@ fun arb_seq_of_prog n p =
   end
 
 val minlength = ref 0
-  
+val mininfo = ref 0.0
+
 fun longereq n l =
   if n <= 0 then true else if null l then false else longereq (n-1) (tl l)
+
+val ln2 = Math.ln 2.0;
+fun log2 i = Math.ln (Real.abs (Real.fromInt i)) / ln2;
+fun info_int i = if i = 0 then 1.0 else log2 i + 1.0;
+
+fun info_arb x = 
+   if Arbint.> (x,Arbint.fromInt error) orelse
+      Arbint.< (x, Arbint.~ (Arbint.fromInt error))
+   then 1.0 else info_int (Arbint.toInt x)
+fun info_seq il = sum_real (map info_arb (first_n 16 il))
 
 fun mk_aodnv n =
   let
     val l0 = filter (longereq (!minlength)) (dkeys aod)
-    val _ = print_endline (its n ^ " :total " ^ its (length l0)) 
-    val ln = map (first_n n) l0
+    val _ = print_endline (its n ^ " :l0 " ^ its (length l0)) 
+    val l1 = filter (fn x => info_seq x > (!mininfo)) l0
+    val _ = print_endline (its n ^ " :l1 " ^ its (length l1)) 
+    val ln = map (first_n n) l1
     val aodvref = Vector.tabulate (n + 1, 
       fn _ => ref (eempty (list_compare Arbint.compare)))
     fun f seq = 
@@ -176,7 +189,7 @@ fun arb_update_wind wind n aodv seq =
     ()
   end ;
 
-fun number_sol pl n = 
+fun number_seq pl n = 
   let
     val aodnv = mk_aodnv n;
     val wind = ref (eempty (list_compare Arbint.compare));
@@ -184,8 +197,7 @@ fun number_sol pl n =
   in
     app (arb_update_wind wind n aodnv) seql;
     elength (!wind)
-  end;
-
+  end
 
 end (* struct *)
 
@@ -196,9 +208,25 @@ val pl = read_result "main_sold";
 PolyML.print_depth 40;
 
 minlength := 32;
-map (number_sol pl) (List.tabulate (17, fn x => 16 + x));
+mininfo := 48.0;
+val l1 = List.tabulate (17, fn x => number_seq pl (16+x));
+val l1freq = map (fn x => int_div x (hd l1)) l1;
 
-val ERR = mk_HOL_ERR "test";
+minlength := 32;
+mininfo := 0.0;
+number_seq pl 16;
+val l2 = List.tabulate (17, fn x => number_seq pl (16+x));
+val l2freq = map (fn x => int_div x (hd l2)) l2;
+
+> 16 :l0 194071
+16 :l1 136622
+val it = 15122: int
+> val it = (): unit
+> 16 :l0 194071
+16 :l1 194071
+val it = 26873: int
+
+
 *)
 
 
