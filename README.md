@@ -1,3 +1,6 @@
+This contains the software and data accompanying the paper
+"Program Synthesis for the OEIS" authored by Thibault Gauthier.
+
 Solutions found during a training run can be inspected in the file
 `result/full_prog_poly`.
 
