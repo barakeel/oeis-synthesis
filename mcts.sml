@@ -263,15 +263,14 @@ fun exec_fun_insearch p (leafn,pi) plb =
       NONE => (eaddi pi notprogd; NONE) 
     | SOME (sem,tim) =>
       (
+      if !simple_search then check_simple_target p else ();
       update_minid p (leafn,pi) (sem,tim);
       if not (ememi pi initd) andalso 
          (if !use_semb then bmem sem semb else ememi sem semd) 
       then (eaddi pi notprogd; NONE) 
       else (* unseen sequence *)
         (
-        if !simple_search
-        then check_simple_target p
-        else update_wind p pi sem;
+        if not (!simple_search) then update_wind p pi sem else ();
         eaddi pi progd;
         (if !use_semb then badd sem semb else eaddi sem semd); 
         SOME (C1 (leafn,pi) :: plb)

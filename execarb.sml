@@ -207,6 +207,9 @@ PolyML.print_depth 10;
 val pl = read_result "main_sold";
 PolyML.print_depth 40;
 
+minlength := 0;
+number_seq pl 16;
+
 minlength := 32;
 mininfo := 48.0;
 val l1 = List.tabulate (17, fn x => number_seq pl (16+x));
