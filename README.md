@@ -9,7 +9,7 @@ sudo apt install rlwrap
 sudo apt install polyml
 git clone https://hol-theorem-prover.org/HOL
 cd HOL
-git checkout 3ff450a0a80a45ab2336801759b9dc3426cfe8c5
+git checkout 0782c4413311d5debebda3f2e6cac9560911cb64
 poly < "tools/smart-configure.sml"
 bin/build
 ```
