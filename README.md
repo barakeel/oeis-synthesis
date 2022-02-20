@@ -1,4 +1,4 @@
-This repository contains the software accompanying "Program Synthesis for the OEIS" authored by Thibault Gauthier.
+This repository contains the software accompanying the paper "Program Synthesis for the OEIS".
 
 Solutions found during a training run can be inspected in the file
 `result/full_prog_poly`.
