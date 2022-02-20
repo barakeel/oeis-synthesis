@@ -1099,11 +1099,13 @@ fun zerob b =
     loop 0
   end
 
+fun wins_prog p = not (null (find_wins p (seq_of_prog p)))
 
 fun init_dicts pl =
   let
-    val pil = map zip_prog pl
-    val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
+    val pltemp = filter wins_prog pl
+    val pil = map zip_prog pltemp
+    val psemtiml = map_assoc (valOf o semtimo_of_prog) pltemp
       handle Option => raise ERR "init_dicts" ""  
     val seml = map (fst o snd) psemtiml
     fun g (p,(sem,tim)) = (sem, (spacetime (prog_size p) tim, zip_prog p))
@@ -1197,8 +1199,6 @@ fun search_target_aux tim target =
     val _ = time_opt := SOME tim;
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := false
-    val _ = use_semb := false
-    val _ = kernel.polynorm_flag := false
     val _ = simple_target := target
     val _ = target_glob := target
     val _ = init_dicts (elist sold)
@@ -1216,7 +1216,11 @@ fun search_target_aux tim target =
   handle ResultP p => (true, rm_par (human (minimize p)))
 
 fun search_target tim target =
+  (
+  use_semb := false;
+  kernel.polynorm_flag := true;
   print_endline (snd (search_target_aux tim target))
+  )
 
 fun parsearch_target tim target =
   let val ((b,s),t) = add_time (search_target_aux tim) target in
@@ -1231,6 +1235,7 @@ val partargetspec : (real, seq, bool * string * real) extspec =
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (default_buildheap_dir), 
+     "mcts.use_semb := " ^ bts (!use_semb),
      "mcts.use_ob := " ^ bts (!use_ob)] 
     ^ ")"),
   function = parsearch_target,
@@ -1375,7 +1380,7 @@ end (* struct *)
 
 load "mcts"; open mcts;
 
-search_target 60.0 [1,2,4,8,16];
+search_target 60.0 [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53];
 search_target 200.0 [3,1,4];
 
 parsearch_targetl 2 60.0 [[1,2,4,8,16],[3,1,4]];
