@@ -104,18 +104,13 @@ val two_f = (fn _ => 2)
 val var_f = (fn (a:int,b:int) => a)
 val ind_f = (fn (a:int,b:int) => b)
 
-val temp_bound = int_pow 2 32
-fun temp_protect f x = 
-  let val r = f x in
-    if r > temp_bound orelse r < ~temp_bound then raise Overflow else r
-  end
 (* first-order *)
-val addi_f = temp_protect (op +)
-val diff_f = temp_protect (op -)
-val mult_f = temp_protect (op *)
-val divi_f = temp_protect (op div)
-val modu_f = temp_protect (op mod)
-val cond_f = temp_protect (fn (a,b,c) => if a <= 0 then b else c)
+val addi_f = op +
+val diff_f = op -
+val mult_f = op *
+val divi_f = op div
+val modu_f = op mod
+fun cond_f (a,b,c) = if a <= 0 then b else c
 
 (* higher-order operator *)
 fun loop_f_aux i f n x = 

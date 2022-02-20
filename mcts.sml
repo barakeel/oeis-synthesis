@@ -1099,13 +1099,10 @@ fun zerob b =
     loop 0
   end
 
-fun wins_prog p = not (null (find_wins p (seq_of_prog p)))
-
 fun init_dicts pl =
   let
-    val pltemp = filter wins_prog pl
-    val pil = map zip_prog pltemp
-    val psemtiml = map_assoc (valOf o semtimo_of_prog) pltemp
+    val pil = map zip_prog pl
+    val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
       handle Option => raise ERR "init_dicts" ""  
     val seml = map (fst o snd) psemtiml
     fun g (p,(sem,tim)) = (sem, (spacetime (prog_size p) tim, zip_prog p))
