@@ -245,7 +245,7 @@ val l2 =
     0.4077698805, 0.4046440665]: real list
 
 val freq = number_fst 16 (combine (l1freq,l2freq));
-fun f (a,b,c) = its a ^ " " ^ rts b ^ " " ^ rts c;
+fun f (a,(b,c)) = its a ^ " " ^ rts b ^ " " ^ rts c;
 writel "gendata" (map f freq);
 *)
 

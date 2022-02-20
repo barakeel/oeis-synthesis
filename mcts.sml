@@ -1248,7 +1248,10 @@ val partargetspec : (real, seq, bool * string * real) extspec =
   }
 
 fun parsearch_targetl ncore tim targetl =
+  (
+  buildheap_options := "--maxheap 10000";
   parmap_queue_extern ncore partargetspec tim targetl
+  )
 
 (* -------------------------------------------------------------------------
    Statistics
