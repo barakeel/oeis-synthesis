@@ -72,6 +72,11 @@ sig
   (* standalone search function *)
   val search_target : real -> seq -> unit
  
+  (* parallel search function *)
+  val partargetspec : (real, seq, bool * string * real) smlParallel.extspec
+  val parsearch_targetl : 
+    int -> real -> seq list -> (bool * string * real) list  
+
   (* reading solutions *)
   val read_sold : int -> prog set
   val read_result : string -> prog list

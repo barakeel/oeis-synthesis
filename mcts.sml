@@ -21,6 +21,17 @@ val ncore = 20 (* 20 *)
 val ntarget = 20 * 6 * 2 (* 20 * 12 * 2 *)
 
 (* -------------------------------------------------------------------------
+   Conversions betwen lists of reals/ints and strings
+   ------------------------------------------------------------------------- *)
+
+fun string_to_real x = valOf (Real.fromString x)
+
+fun ilts x = String.concatWith " " (map its x)
+fun stil x = map string_to_int (String.tokens Char.isSpace x)
+fun rlts x = String.concatWith " " (map rts x)
+fun strl x = map string_to_real (String.tokens Char.isSpace x)
+
+(* -------------------------------------------------------------------------
    Parameters
    ------------------------------------------------------------------------- *)
 
@@ -480,13 +491,13 @@ fun get_tnndim () =
     [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] 
 
 (* -------------------------------------------------------------------------
-   OpenBlas FFI
+   OpenBlas Foreign Function Interface
+   Be aware that using it (use_ob := true + installing openblas) 
+   creates a difficult to reproduce bug.
    ------------------------------------------------------------------------- *)
 
 fun fp_op_default oper embl = Vector.fromList [100.0]
-  
 val fp_op_glob = ref fp_op_default
-
 val biais = Vector.fromList ([1.0])
 
 local open Foreign in
@@ -497,7 +508,6 @@ fun update_fp_op () =
     val fp_op_sym = getSymbol lib "fp_op";
     val cra = cArrayPointer cDouble;
     val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid);
-    val biais = Vector.fromList [1.0]
     fun fp_op oper embl =
       let 
         val n = dfind oper opernd 
@@ -512,8 +522,7 @@ fun update_fp_op () =
     fp_op_glob := fp_op
   end
 
-end 
-
+end (* local *)
 
 (* -------------------------------------------------------------------------
    Create the sequence of moves that would produce a program p
@@ -718,9 +727,6 @@ fun create_exl seqprogl =
 (* -------------------------------------------------------------------------
    Export examples to C
    ------------------------------------------------------------------------- *)
-
-fun ilts x = String.concatWith " " (map its x)
-fun rlts x = String.concatWith " " (map rts x)
 
 fun order_subtm tml =
   let
@@ -943,14 +949,14 @@ val schedule =
     batch_size = 16, nepoch = 10}
   ];
 
-fun str x = valOf (Real.fromString x)
+
 
 fun read_mat acc sl = case sl of
     [] => (rev acc, [])
   | "A" :: m => (rev acc, sl)
   | x :: m => 
     let 
-      val line1 = map str (String.tokens Char.isSpace x)
+      val line1 = strl x
       val line2 = last line1 :: butlast line1 
       val line = Vector.fromList line2
     in
@@ -1104,14 +1110,12 @@ fun init_dicts pl =
   in
     progd := eempty progi_compare;
     notprogd := eempty progi_compare;
-    semd := eempty seq_compare;
-    if !use_semb then zerob semb else ();
+    if !use_semb then zerob semb else semd := eempty seq_compare;
     embd := dempty Term.compare;
     seqwind := eempty seq_compare;
     progwind := eempty progi_compare;
     initd := enew progi_compare pil;
-    minid := dnew seq_compare (map g psemtiml);
-    app (fn x => eaddi x semd) seml
+    minid := dnew seq_compare (map g psemtiml)
   end
 
 (* -------------------------------------------------------------------------
@@ -1123,9 +1127,6 @@ val wnoise_flag = ref false
 fun search tnn coreid =
   let
     val _ = print_endline "initialization"
-    (* val _ = if !use_ob andalso !ngen_glob > 0
-            then update_fp_op ()
-            else () *)
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache
     val sold = if !ngen_glob <= 0
@@ -1163,35 +1164,6 @@ fun search tnn coreid =
     minwinl
   end
 
-fun search_target tim target =
-  let
-    val tnn = read_tnn (selfdir ^ "/main_tnn")
-    val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
-    val _ = simple_search := true
-    val _ = time_opt := SOME tim;
-    val _ = player_glob := player_wtnn_cache
-    val _ = noise_flag := false
-    val _ = use_semb := false
-    val _ = kernel.polynorm_flag := false
-    val _ = simple_target := target
-    val _ = target_glob := target
-    val _ = init_dicts (elist sold)
-    val _ = in_search := true
-    val _ = avoid_lose := true
-    val tree = starting_tree (mctsobj tnn) []
-    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
-    val _ = avoid_lose := false
-    val _ = in_search := false
-  in
-    print_endline
-      ("Could not find a solution in "  ^ rts_round 2 t ^ 
-       " seconds after exploring " ^ its (tree_size newtree) ^ 
-       " search nodes")
-  end
-  handle ResultP p => print_endline (rm_par (human (minimize p)))
-
-
-
 val parspec : (tnn,int,prog list) extspec =
   {
   self_dir = selfdir,
@@ -1216,6 +1188,67 @@ val parspec : (tnn,int,prog list) extspec =
   write_result = write_result,
   read_result = read_result
   }
+
+fun search_target_aux tim target =
+  let
+    val tnn = read_tnn (selfdir ^ "/main_tnn")
+    val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
+    val _ = simple_search := true
+    val _ = time_opt := SOME tim;
+    val _ = player_glob := player_wtnn_cache
+    val _ = noise_flag := false
+    val _ = use_semb := false
+    val _ = kernel.polynorm_flag := false
+    val _ = simple_target := target
+    val _ = target_glob := target
+    val _ = init_dicts (elist sold)
+    val _ = in_search := true
+    val _ = avoid_lose := true
+    val tree = starting_tree (mctsobj tnn) []
+    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
+    val _ = avoid_lose := false
+    val _ = in_search := false
+  in
+    (false, "Could not find a solution in "  ^ rts_round 2 t ^ 
+     " seconds after exploring " ^ its (tree_size newtree) ^ 
+     " search nodes")
+  end
+  handle ResultP p => (true, rm_par (human (minimize p)))
+
+fun search_target tim target =
+  print_endline (snd (search_target_aux tim target))
+
+fun parsearch_target tim target =
+  let val ((b,s),t) = add_time (search_target_aux tim) target in
+    (b,s,t)
+  end
+
+val partargetspec : (real, seq, bool * string * real) extspec =
+  {
+  self_dir = selfdir,
+  self = "mcts.partargetspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (default_buildheap_dir), 
+     "mcts.use_ob := " ^ bts (!use_ob)] 
+    ^ ")"),
+  function = parsearch_target,
+  write_param = let fun f file param = writel file [rts param] in f end,
+  read_param =  let fun f file = string_to_real (hd (readl file)) in f end,
+  write_arg = let fun f file arg = writel file [ilts arg] in f end,
+  read_arg = let fun f file = stil (hd (readl file)) in f end,
+  write_result = let fun f file (b,s,t) = writel file [bts b, s, rts t] 
+     in f end,
+  read_result = let fun f file = 
+       let val (s1,s2,s3) = triple_of_list (readl file) in 
+         (string_to_bool s1, s2, string_to_real s3)
+       end
+     in f end
+  }
+
+fun parsearch_targetl ncore tim targetl =
+  parmap_queue_extern ncore partargetspec tim targetl
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -1338,23 +1371,20 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
+
 search_target 60.0 [1,2,4,8,16];
+search_target 200.0 [3,1,4];
 
-(* more tests *)
-search_target 600.0 [3,1,4];
+parsearch_targetl 2 60.0 [[1,2,4,8,16],[3,1,4]];
 
- -------------------------------------------------------------------------
+  -------------------------------------------------------------------------
   Train oeis-synthesis
    ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
 expname := "run102";
-time_opt := SOME 60.0;
-use_para := false;
-use_mkl := true;
-use_ob := false;
+time_opt := SOME 600.0;
+(* use_mkl := true; *)
 rl_search "_init6" 0;
-
-
 
 *)

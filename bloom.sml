@@ -122,7 +122,6 @@ val (odv,odname) =
     val r = Vector.map ! odvref
     val odname_aux = dregroup seq_compare l
   in
-    print_endline (string_of_seq (vector_to_list ((Vector.map elength r))));
     print_endline ("selected: " ^ its (dlength odname_aux));
     (r, odname_aux)
   end

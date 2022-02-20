@@ -3,7 +3,9 @@ struct
 
 open HolKernel Abbrev boolLib aiLib;
 val ERR = mk_HOL_ERR "kernel";
-val selfdir = "/home/thibault/oeis-synthesis";
+
+(* change me to the directory where this file is located *)                    
+val selfdir = "/home/thibault/oeis-synthesis" 
 
 (* -------------------------------------------------------------------------
    Globals
