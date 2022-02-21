@@ -1102,12 +1102,21 @@ val use_cache = ref false
 
 fun init_dicts pl =
   let
-    val _ = if !use_cache then app check_simple_target pl else ()
+    val _ = if not (!use_cache) then () else 
+      let 
+        fun test p = (check_simple_target p; NONE) 
+          handle ResultP _ => SOME p
+        val plsol = List.mapPartial test pl 
+      in
+        if null plsol then () else 
+        raise ResultP (hd (dict_sort prog_compare_size plsol))
+      end
     val pil = map zip_prog pl
     val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
       handle Option => raise ERR "init_dicts" ""  
     val seml = map (fst o snd) psemtiml
-    fun g (p,(sem,tim)) = (sem, (spacetime (prog_size p) tim, zip_prog p))
+    fun g (p,(sem,tim)) = 
+      (sem, (spacetime (prog_size p) tim, zip_prog p))
   in
     progd := eempty progi_compare;
     notprogd := eempty progi_compare;
@@ -1221,7 +1230,7 @@ fun search_target_aux tim target =
 fun search_target tim target =
   (
   use_semb := false;
-  use_cache := false;
+  use_cache := true;
   print_endline (snd (search_target_aux tim target))
   )
 
