@@ -40,9 +40,6 @@ val _ = search_target 60.0 [1,2,4,8,16];
 
 Choose the sequence you desire to look for instead of
 [1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
-
-Results are printed with compressed polynomials in x.
-For example, 2 * x * x * x + 2 + 2 is printed as 2x3 + 4.
 Compared to the paper, compr(\\(x.i).p,a,b) is written compr(\\x.p,a,b)
 as p should never depend on i.
 
