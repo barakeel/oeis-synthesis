@@ -41,6 +41,7 @@ sig
   val random_prog : int -> prog
   
   (* search parameters *)
+  val use_cache : bool ref
   val use_ob : bool ref
   val wnoise_flag : bool ref
   val noise_coeff_glob : real ref

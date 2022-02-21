@@ -35,7 +35,7 @@ In this directory:
 ```
 rlwrap hol
 load "mcts"; open mcts;
-search_target 60.0 [1,2,4,8,16]; 
+val _ = search_target 60.0 [1,2,4,8,16]; 
 ```
 
 Choose the sequence you desire to look for instead of

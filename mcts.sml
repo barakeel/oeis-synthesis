@@ -1098,8 +1098,11 @@ fun zerob b =
     loop 0
   end
 
+val use_cache = ref false
+
 fun init_dicts pl =
   let
+    val _ = if !use_cache then app check_simple_target pl else ()
     val pil = map zip_prog pl
     val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
       handle Option => raise ERR "init_dicts" ""  
@@ -1187,6 +1190,10 @@ val parspec : (tnn,int,prog list) extspec =
   read_result = read_result
   }
 
+val _ = print_endline "Loading weights..."
+val main_tnn = read_tnn (selfdir ^ "/main_tnn")
+val main_sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
+
 fun search_target_aux tim target =
   let
     val tnn = read_tnn (selfdir ^ "/main_tnn")
@@ -1214,7 +1221,7 @@ fun search_target_aux tim target =
 fun search_target tim target =
   (
   use_semb := false;
-  kernel.polynorm_flag := true;
+  use_cache := false;
   print_endline (snd (search_target_aux tim target))
   )
 
@@ -1376,8 +1383,8 @@ end (* struct *)
 
 load "mcts"; open mcts;
 
-search_target 60.0 [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53];
-search_target 200.0 [3,1,4];
+val _ = search_target 60.0 [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53];
+val _ = search_target 200.0 [3,1,4];
 
 parsearch_targetl 2 60.0 [[1,2,4,8,16],[3,1,4]];
 
