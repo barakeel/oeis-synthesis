@@ -43,6 +43,11 @@ Choose the sequence you desire to look for instead of
 Compared to the paper, compr(\\(x.i).p,a,b) is written compr(\\x.p,a,b)
 as p should never depend on i.
 
+You can set the following flag to prevent polynomial normalization of the program:
+```
+kernel.polynorm_flag := false;
+```
+
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
 In this directory:
 ```

@@ -331,7 +331,7 @@ fun papp_ternop id (p1,p2,p3) = Ins (id,[p1,p2,p3])
    ------------------------------------------------------------------------- *)
 
 val constnorm_flag = ref false
-val polynorm_flag = ref false
+val polynorm_flag = ref true
 
 fun constnorm prog = case prog of
     Ins (0,[]) => 0
