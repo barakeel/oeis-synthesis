@@ -201,11 +201,29 @@ fun number_seq pl n =
 
 end (* struct *)
 
+(* Checking Fibonnaci 
+
+fun loop f n l = 
+  if n <= 0 then l else loop f (n-1) (f (hd l) :: l);
+
+fun fibonnaci (a,b) = (b, a + b);
+val l1 = rev (map fst (loop fibonnaci 20 [(0,1)]));
+
+fun subf x = (x div 4) + 1;
+fun iterf x = (((x mod (subf x)) + x) div 2) + x + 1;
+
+val l2 = loop iterf 20 [1];
+val l3 = rev (map (fn x => ((x div 2) + 1) div 2) l2);
+*)
+
+
+
 (* 
 load "mcts"; load "execarb";  open aiLib mcts execarb;
 PolyML.print_depth 10;
-val pl = read_result "main_sold";
+val pl = read_result "sold34";
 PolyML.print_depth 40;
+length pl;
 
 minlength := 0;
 number_seq pl 16;
@@ -251,6 +269,5 @@ val freq = number_fst 16 (combine (l1freq,l2freq));
 fun f (a,(b,c)) = its a ^ " " ^ rts b ^ " " ^ rts c;
 writel "gendata" (map f freq);
 *)
-
 
 
