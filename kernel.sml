@@ -1,11 +1,10 @@
 structure kernel :> kernel =
 struct
 
-open HolKernel Abbrev boolLib aiLib;
+open HolKernel Abbrev boolLib aiLib dir;
 val ERR = mk_HOL_ERR "kernel";
-
-(* change me to the directory where this file is located *)                    
-val selfdir = "/home/thibault/oeis-synthesis" 
+               
+val selfdir = dir.selfdir 
 
 (* -------------------------------------------------------------------------
    Globals
