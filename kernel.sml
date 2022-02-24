@@ -475,7 +475,7 @@ and reg_add p =
     case (polyo,pl1b,pl2b) of
       (NONE,[],[]) => raise ERR "reg_add 2" ""
     | (NONE,_,[]) => human_addl pl1b
-    | (NONE,[],_) => "~" ^ human_addl pl2b
+    | (NONE,[],_) => "-" ^ human_addl pl2b
     | (NONE,_,_) => "(" ^ human_addl pl1b ^ " - " ^ human_addl pl2b ^ ")"
     | (SOME poly,[],[]) => string_of_poly poly 
     | (SOME poly,_,[]) => "(" ^ string_of_poly poly ^ 
