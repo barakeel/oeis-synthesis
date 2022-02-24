@@ -5,7 +5,8 @@ Solutions found during a training run can be inspected in the file
 
 ### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/synt.html
-The web interface has a limited timeout and a limited number of predictions. 
+The web interface allows to run programs for a limited time and gives 
+a limited number of predictions for the next elements in the sequence.
 
 ### Install a modified HOL (required)
 In your /home/your_username directory:
