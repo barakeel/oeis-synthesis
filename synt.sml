@@ -17,7 +17,8 @@ val main_tnn = read_tnn (selfdir ^ "/main_tnn")
 val main_sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
 
 fun parse_seq s = 
-  map string_to_int (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t"]) s)
+  map string_to_int 
+    (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
 
 fun synt tim target =
   let 
