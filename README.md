@@ -1,10 +1,11 @@
-This repository contains the software accompanying the paper "Program Synthesis for the OEIS".
+This repository contains the software OmegaSynt accompanying the paper "Program Synthesis for the OEIS".
 
 Solutions found during a training run can be inspected in the file
 `result/full_prog`.
 
-### Try the Web interface (limited timeout)
+### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/synt.html
+The web interface has a limited timeout and a limited number of predictions. 
 
 ### Install a modified HOL (required)
 In your /home/your_username directory:
