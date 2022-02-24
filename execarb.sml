@@ -11,7 +11,7 @@ val arbentryl = List.tabulate (101,fn x => (Arbint.fromInt x,Arbint.zero))
    ------------------------------------------------------------------------- *)
 
 val aits = Arbint.toString
-val (aol,aod) = import_arbseq ()
+
 fun find_arbmax_aux a m = case m of
     [] => a
   | a1 :: m1 => Arbint.max (a, find_arbmax_aux a1 m1)
@@ -19,21 +19,6 @@ fun find_arbmax_aux a m = case m of
 fun find_arbmax l = case l of
    [] => raise ERR "find_arbmax" ""
  | a :: m => find_arbmax_aux a m
-
-val maxarb = find_arbmax (List.concat (dkeys aod))
-
-(* 
-fun find_arbmin_aux a m = case m of
-    [] => a
-  | a1 :: m1 => Arbint.min (a, find_arbmin_aux a1 m1)
-
-fun find_arbmin l = case l of
-   [] => raise ERR "find_arbmin" ""
- | a :: m => find_arbmin_aux a m;
-
-val minarb = find_arbmin (List.concat (dkeys aod));
-*)
-
 
 (* time limit per instruction *)
 val arbmaxinput = ref 16
@@ -45,6 +30,9 @@ exception ArbOverflow;
 
 local open Arbint in
 
+fun aint_pow (a,b) = if b <= zero then one else a * aint_pow (a, b - one)
+
+val maxarb = (fromInt 5) * aint_pow (fromInt 10, fromInt 284);
 val minarb = ~maxarb;
 
 fun protect r = if r > maxarb orelse r < minarb 
@@ -160,6 +148,7 @@ fun info_seq il = sum_real (map info_arb (first_n 16 il))
 
 fun mk_aodnv n =
   let
+    val (_,aod) = import_arbseq ()
     val l0 = filter (longereq (!minlength)) (dkeys aod)
     val _ = print_endline (its n ^ " :l0 " ^ its (length l0)) 
     val l1 = filter (fn x => info_seq x > (!mininfo)) l0

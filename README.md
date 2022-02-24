@@ -37,6 +37,9 @@ rlwrap hol
 load "synt"; open synt;
 val _ = synt 60.0 [1,2,4,8,16]; 
 val _ = synt 30.0 [2,4,8,16,32]; 
+
+val po = synt 20.0 [1,2,3,4];
+seq 10 (valOf po);
 ```
 
 Choose the sequence you desire to look for instead of

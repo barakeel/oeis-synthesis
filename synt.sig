@@ -1,6 +1,7 @@
 signature synt =
 sig
 
-val synt : real -> mcts.seq -> unit
+val synt : real -> int list -> kernel.prog option
+val seq : int -> kernel.prog -> unit
 
 end
