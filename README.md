@@ -3,6 +3,9 @@ This repository contains the software accompanying the paper "Program Synthesis 
 Solutions found during a training run can be inspected in the file
 `result/full_prog`.
 
+### Try the Web interface (limited timeout)
+http://grid01.ciirc.cvut.cz/~thibault/synt.html
+
 ### Install a modified HOL (required)
 In your /home/your_username directory:
 
