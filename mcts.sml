@@ -1199,14 +1199,8 @@ val parspec : (tnn,int,prog list) extspec =
   read_result = read_result
   }
 
-val _ = print_endline "Loading weights..."
-val main_tnn = read_tnn (selfdir ^ "/main_tnn")
-val main_sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
-
-fun search_target_aux tim target =
+fun search_target_aux (tnn,sold) tim target =
   let
-    val tnn = read_tnn (selfdir ^ "/main_tnn")
-    val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
     val _ = simple_search := true
     val _ = time_opt := SOME tim;
     val _ = player_glob := player_wtnn_cache
@@ -1221,22 +1215,17 @@ fun search_target_aux tim target =
     val _ = avoid_lose := false
     val _ = in_search := false
   in
-    (false, "Could not find a solution in "  ^ rts_round 2 t ^ 
-     " seconds after exploring " ^ its (tree_size newtree) ^ 
-     " search nodes")
+    NONE
   end
-  handle ResultP p => (true, rm_par (human (minimize p)))
-
-fun search_target tim target =
-  (
-  use_semb := false;
-  use_cache := true;
-  print_endline (snd (search_target_aux tim target))
-  )
+  handle ResultP p => SOME (minimize p)
 
 fun parsearch_target tim target =
-  let val ((b,s),t) = add_time (search_target_aux tim) target in
-    (b,s,t)
+  let 
+    val tnn = read_tnn (selfdir ^ "/main_tnn")
+    val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
+    val (p,t) = add_time (search_target_aux (tnn,sold) tim) target 
+  in
+    (true,human (valOf p),t) handle Option => (false, "", t)
   end
 
 val partargetspec : (real, seq, bool * string * real) extspec =
@@ -1246,7 +1235,7 @@ val partargetspec : (real, seq, bool * string * real) extspec =
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (default_buildheap_dir), 
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
      "mcts.use_semb := " ^ bts (!use_semb),
      "mcts.use_ob := " ^ bts (!use_ob)] 
     ^ ")"),

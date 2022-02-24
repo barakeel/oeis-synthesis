@@ -71,7 +71,7 @@ sig
   val parspec : (tnn,int,prog list) smlParallel.extspec
 
   (* standalone search function *)
-  val search_target : real -> seq -> unit
+  val search_target_aux : tnn * kernel.prog set -> real -> seq -> prog option
  
   (* parallel search function *)
   val partargetspec : (real, seq, bool * string * real) smlParallel.extspec
