@@ -109,7 +109,10 @@ fun badd_check seq b =
     app f malw
   end
 
-val (odv,odname) = 
+val odv_glob = ref (Vector.fromList [])
+val odname_glob = ref (dempty seq_compare)
+
+fun init_od () =
   let
     val l = import_oseq () 
     val odvref = Vector.tabulate (!maxinput + 1, 
@@ -119,11 +122,11 @@ val (odv,odname) =
         odref := eadd seq (!odref)
       end  
     val _ = app f (map fst l)
-    val r = Vector.map ! odvref
     val odname_aux = dregroup seq_compare l
   in
     print_endline ("selected: " ^ its (dlength odname_aux));
-    (r, odname_aux)
+    odname_glob := odname_aux;
+    odv_glob := Vector.map ! odvref
   end
 
 fun find_wins p sem =
@@ -131,7 +134,7 @@ fun find_wins p sem =
   let
     val seql = List.tabulate (!maxinput + 1, fn i => 
       let val subseq = first_n i sem in
-        if emem subseq (Vector.sub (odv,i))
+        if emem subseq (Vector.sub (!odv_glob,i))
         then SOME subseq
         else NONE
       end)
@@ -140,10 +143,11 @@ fun find_wins p sem =
   end 
 
 
-(* load "bloom"; open aiLib bloom;
-  val (l,d) = import_arbseq (); 
-  dlength d;
- *)
+(* 
+load "bloom"; open aiLib bloom;
+val (l,d) = import_arbseq (); 
+dlength d;
+*)
 
 
 end (* struct *)

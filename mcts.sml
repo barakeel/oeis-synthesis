@@ -69,7 +69,7 @@ val progwind = ref (eempty progi_compare)
 val progd = ref (eempty progi_compare)
 val notprogd = ref (eempty progi_compare)
 
-val semb = BoolArray.tabulate (bmod, fn _ => false)
+val semb = ref (BoolArray.fromList [])
 val use_semb = ref true
 val semd = ref (eempty seq_compare)
 val progsemd = ref (eempty seq_compare)
@@ -266,13 +266,13 @@ fun exec_fun_insearch p (leafn,pi) plb =
       if !simple_search then check_simple_target p else ();
       update_minid p (leafn,pi) (sem,tim);
       if not (ememi pi initd) andalso 
-         (if !use_semb then bmem sem semb else ememi sem semd) 
+         (if !use_semb then bmem sem (!semb) else ememi sem semd) 
       then (eaddi pi notprogd; NONE) 
       else (* unseen sequence *)
         (
         if not (!simple_search) then update_wind p pi sem else ();
         eaddi pi progd;
-        (if !use_semb then badd sem semb else eaddi sem semd); 
+        (if !use_semb then badd sem (!semb) else eaddi sem semd); 
         SOME (C1 (leafn,pi) :: plb)
         )
       )
@@ -1090,7 +1090,7 @@ fun minimize_winl winl =
 
 fun zerob b =
   let 
-    val n = BoolArray.length semb
+    val n = BoolArray.length b
     fun loop i = 
       if i >= n then () else 
       (BoolArray.update (b,i,false); loop (i+1))
@@ -1120,7 +1120,7 @@ fun init_dicts pl =
   in
     progd := eempty progi_compare;
     notprogd := eempty progi_compare;
-    if !use_semb then zerob semb else semd := eempty seq_compare;
+    if !use_semb then zerob (!semb) else semd := eempty seq_compare;
     embd := dempty Term.compare;
     seqwind := eempty seq_compare;
     progwind := eempty progi_compare;
@@ -1145,7 +1145,7 @@ fun search tnn coreid =
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
-    val (targetseq,seqnamel) = random_elem (dlist odname)
+    val (targetseq,seqnamel) = random_elem (dlist (!odname_glob))
     val _ = target_glob := targetseq
     val _ = print_endline 
       ("target: " ^ String.concatWith "-" seqnamel ^ ": " ^ 
@@ -1181,7 +1181,8 @@ val parspec : (tnn,int,prog list) extspec =
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+    ["bloom.init_od ()",
+     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "mcts.expname := " ^ mlquote (!expname),
      "mcts.ngen_glob := " ^ its (!ngen_glob),
      "mcts.coreid_glob := " ^ its (!coreid_glob),
@@ -1269,7 +1270,7 @@ fun human_progseq p =
     val seql = find_wins p seq
     val _ = if null seql 
       then log ("Error: human_progseq 1: " ^ (human p)) else ()
-    fun f x = String.concatWith "-" (dfind x odname) ^ ": " ^ 
+    fun f x = String.concatWith "-" (dfind x (!odname_glob)) ^ ": " ^ 
       String.concatWith " " (map its x)
   in
     human p ^ "\n" ^ String.concatWith "\n" (map f seql)
@@ -1357,7 +1358,7 @@ and rl_search tmpname ngen =
   (rl_search_only tmpname ngen; rl_train tmpname ngen)
 
 and rl_train_only tmpname ngen =
-  let 
+  let
     val expdir = mk_dirs ()
     val _ = log ("Train " ^ its ngen)
     val _ = buildheap_dir := expdir ^ "/train" ^ its ngen ^ tmpname
@@ -1394,6 +1395,7 @@ load "mcts"; open mcts;
 expname := "run102";
 time_opt := SOME 600.0;
 (* use_mkl := true; *)
+bloom.init_od ();
 rl_search "_init6" 0;
 
 *)

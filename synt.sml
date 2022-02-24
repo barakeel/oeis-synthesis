@@ -30,6 +30,5 @@ fun synt tim target =
   end
 
 fun seq n p = print_endline (ailts (arb_seq_of_prog n p))
-  
 
 end (* struct *)

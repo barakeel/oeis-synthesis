@@ -9,8 +9,8 @@ sig
     (Arbint.int list * string) list * 
     (Arbint.int list, string list) Redblackmap.dict
   
-  val odname : (seq, string list) Redblackmap.dict
-  val odv : (seq Redblackset.set) vector
+  val odname_glob : (seq, string list) Redblackmap.dict ref
+  val odv_glob : (seq Redblackset.set) vector ref
   val find_wins : prog -> seq -> seq list
 
   val bmod : int
@@ -23,5 +23,7 @@ sig
   val pi_to_hl : progi -> int list
   val bmem_hl : int list -> BoolArray.array -> bool
   val badd_hl : int list -> BoolArray.array -> unit
+
+  val init_od : unit -> unit
 
 end
