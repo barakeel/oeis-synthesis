@@ -24,6 +24,8 @@ fun synt tim target =
   let 
     val _ = use_semb := false
     val _ = use_cache := true
+    val _ = noise_flag := true
+    val _ = uniform_flag := true
     val (po,t) = add_time (search_target_aux (main_tnn,main_sold) tim) target
   in
     case po of 
@@ -42,6 +44,6 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "synt"; open synt;
-val po = synt 60.0 [2,3,5,7,11,13];
+val (po,t) = aiLib.add_time (synt 600.0) [1,12,123,1234];
 
 *)

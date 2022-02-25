@@ -37,7 +37,7 @@ fun strl x = map string_to_real (String.tokens Char.isSpace x)
 
 val target_glob = ref []
 val maxbigsteps = 1
-val noise_flag = ref true
+val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref (NONE)
 val time_opt = ref (SOME 60.0)
@@ -48,12 +48,13 @@ fun string_of_timeo () = (case !time_opt of
 
 fun spiky_noise () = if random_real () > 0.9 then 1.0 else 0.0
 fun uniform_noise () = 1.0
+val uniform_flag = ref false
 fun random_noise () = random_real ()
 
 fun mctsparam () =
   {explo_coeff = 1.0,
    noise = !noise_flag, noise_coeff = !noise_coeff_glob, 
-   noise_gen = random_noise,
+   noise_gen = if !uniform_flag then uniform_noise else random_noise,
    nsim = !nsim_opt : int option, time = !time_opt: real option};
 
 
@@ -1205,7 +1206,6 @@ fun search_target_aux (tnn,sold) tim target =
     val _ = simple_search := true
     val _ = time_opt := SOME tim;
     val _ = player_glob := player_wtnn_cache
-    val _ = noise_flag := false
     val _ = simple_target := target
     val _ = target_glob := target
     val _ = init_dicts (elist sold)

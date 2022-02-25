@@ -43,6 +43,7 @@ sig
   (* search parameters *)
   val use_cache : bool ref
   val use_ob : bool ref
+  val uniform_flag : bool ref
   val wnoise_flag : bool ref
   val noise_coeff_glob : real ref
   val noise_flag : bool ref
