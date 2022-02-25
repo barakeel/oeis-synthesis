@@ -1,4 +1,4 @@
-This repository contains the software OmegaSynt accompanying the paper "Program Synthesis for the OEIS".
+This repository contains the software QSynt accompanying the paper "Program Synthesis for the OEIS".
 
 Solutions found during a training run can be inspected in the file
 `result/full_prog`.

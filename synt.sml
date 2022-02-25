@@ -16,9 +16,9 @@ val _ = print_endline "Loading weights"
 val main_tnn = read_tnn (selfdir ^ "/main_tnn")
 val main_sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
 
-fun parse_seq s = 
+fun parse_seq s = first_n 50 (
   map string_to_int 
-    (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
+    (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s))
 
 fun synt tim target =
   let 
@@ -42,6 +42,6 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "synt"; open synt;
-val po = synt 60.0 (parse_seq "2,3,5,7,11,13");
+val po = synt 60.0 [2,3,5,7,11,13];
 
 *)
