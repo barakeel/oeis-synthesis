@@ -246,7 +246,8 @@ fun check_simple_target p =
     val f = mk_exec p
     fun test (x,e) = fst (f(x,0)) = e handle Div => false
   in
-    if all test (number_fst 0 (!simple_target))
+    if exists (fn i => all test (number_fst i (!simple_target))) 
+       (List.tabulate (16,I))
     then raise ResultP p
     else ()
   end
