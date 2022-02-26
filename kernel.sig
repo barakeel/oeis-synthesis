@@ -27,6 +27,7 @@ sig
   val depend_on_i : prog -> bool
   val under_lambda : prog -> prog list  
   val has_lambdai : prog -> bool
+  val shift_prog : int -> prog -> prog
   val same_sem : prog -> prog -> bool  
 
   (* compressed programs *)

@@ -245,11 +245,13 @@ fun check_simple_target p =
   let 
     val f = mk_exec p
     fun test (x,e) = fst (f(x,0)) = e handle Div => false
+    fun loop i maxn = 
+      if i >= maxn then () else
+      if all test (number_fst i (!simple_target)) 
+      then raise ResultP (shift_prog i p)
+      else loop (i+1) maxn
   in
-    if exists (fn i => all test (number_fst i (!simple_target))) 
-       (List.tabulate (16,I))
-    then raise ResultP p
-    else ()
+    loop 0 16
   end
 
 fun is_incr newc board = case board of
@@ -298,7 +300,11 @@ fun apply_moveo move board = case move of
       if not (is_binary id) andalso not (id = compr_id) then NONE else
       let val doubleo = permute_double ord (ca,cb) in
         case doubleo of NONE => NONE | SOME ((na,pia),(nb,pib)) =>
-        let val p = papp_binop id (unzip_prog pia,unzip_prog pib) in
+        let 
+          val (pa,pb) = (unzip_prog pia,unzip_prog pib)
+          val p = papp_binop id (pa,pb)
+        in
+          if id = compr_id andalso depend_on_i pa then NONE else 
           exec_fun p (na + nb) plb
         end     
       end
@@ -1107,7 +1113,7 @@ fun init_dicts pl =
     val _ = if not (!use_cache) then () else 
       let 
         fun test p = (check_simple_target p; NONE) 
-          handle ResultP _ => SOME p
+          handle ResultP newp => SOME newp
         val plsol = List.mapPartial test pl 
       in
         if null plsol then () else 

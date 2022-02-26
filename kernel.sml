@@ -178,6 +178,15 @@ fun has_lambdai p = case p of
      orelse has_lambdai p2 orelse has_lambdai p3
   | Ins (_,pl) => exists has_lambdai pl
 
+fun suc_prog n p = if n <= 0 then p else 
+  Ins (addi_id, [suc_prog (n-1) p, Ins (one_id,[])])
+
+fun shift_prog n p = case p of 
+    Ins (id,[]) => if id = var_id then suc_prog n p else p 
+  | Ins (9,[p1,p2,p3]) => Ins (9,[p1, shift_prog n p2, shift_prog n p3])
+  | Ins (12,[p1,p2]) => Ins (12,[p1, shift_prog n p2])
+  | Ins (id,pl) => Ins (id, map (shift_prog n) pl)
+
 (* -------------------------------------------------------------------------
    Compressed programs
    ------------------------------------------------------------------------- *)

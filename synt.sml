@@ -45,5 +45,5 @@ end (* struct *)
 
 load "synt"; open synt;
 val (po,t) = aiLib.add_time (synt 600.0) [1,12,123,1234];
-
+seq 16 (valOf po);
 *)
