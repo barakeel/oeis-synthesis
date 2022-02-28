@@ -118,16 +118,21 @@ fun arb_mk_exec_aux prog = case prog of
 
 fun arb_mk_exec p =
   let val exec = start (arb_mk_exec_aux p) in
-    (fn x => (exec x handle Div => Arbint.fromInt error 
-                          | ArbOverflow => Arbint.fromInt error))
+    (fn x => (SOME (exec x) handle Div => NONE 
+                          | ArbOverflow => NONE))
   end 
+
+fun firstPartial l = case l of
+    [] => []
+  | SOME a :: m => a :: firstPartial m
+  | NONE :: _ => []
 
 fun arb_seq_of_prog n p =
   let 
     val _ = arbmaxinput := n
     val f = arb_mk_exec p 
   in 
-    map f (first_n n arbentryl) 
+    firstPartial (map f (first_n n arbentryl)) 
   end
 
 val minlength = ref 0

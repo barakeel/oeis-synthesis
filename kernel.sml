@@ -340,6 +340,10 @@ fun papp_ternop id (p1,p2,p3) = Ins (id,[p1,p2,p3])
 
 val constnorm_flag = ref false
 val polynorm_flag = ref true
+val imperative_flag = ref false
+val xn_glob = ref 0
+
+fun mk_xn () = if !xn_glob = 0 then "x" else "x" ^ its (!xn_glob)
 
 fun constnorm prog = case prog of
     Ins (0,[]) => 0
@@ -391,8 +395,12 @@ fun polynorm prog = case prog of
 
 fun string_of_mono (a,i) = 
   (if a = 1 andalso i <> 0 then "" else 
-   if a = ~1 andalso i <> 0 then "~" else its a) ^ 
-  (if i = 0 then "" else if i = 1 then "x" else "x" ^ its i)
+   if a = ~1 andalso i <> 0 then "~" else its a) ^
+  (if (a = 1 andalso i <> 0) orelse
+      (a = ~1 andalso i <> 0) orelse
+      (i = 0)
+   then "" else "*") ^
+  (if i = 0 then "" else if i = 1 then mk_xn () else mk_xn () ^ "^" ^ its i)
 
 fun string_of_poly l = 
   let val l1 = filter (fn x => fst x <> 0) (number_snd 0 l) in
@@ -458,11 +466,38 @@ fun human prog =
   | Ins (8,[p1,p2,p3]) => 
      "(if " ^  human p1 ^ " <= 0 then " ^ human p2 ^ " else " ^ human p3 ^ ")"
   | Ins (9,[p1,p2,p3]) => 
-    "loop(\\(x,i)." ^ human p1 ^ "," ^ human p2 ^ "," ^ human p3 ^ ")"
-  | Ins (10,[]) => "x"
+      let 
+        val s3 = rm_par (human p3)
+        val s2 = rm_par (human p2)
+        val _ = incr xn_glob
+        val xs = mk_xn ()
+        val s1 = rm_par (human p1)
+      in
+        if !imperative_flag then
+        "{" ^ xs ^ " = " ^ s3 ^ "; " ^
+        "for(i=1; i <= " ^ s2 ^ "; i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
+        "return " ^ xs ^ ";}"
+        else
+         "loop(\\(" ^ xs ^ ",i)." ^ s1  ^ ", " ^ s2  ^ ", " ^ s3 ^ ")"
+      end
+  | Ins (10,[]) => mk_xn ()
   | Ins (11,[]) => "i"
   | Ins (12,[p1,p2]) => 
-    "compr(\\x." ^ human p1 ^ "," ^ human p2 ^ ")" 
+    let 
+      val s2 = rm_par (human p2)
+      val _ = incr xn_glob
+      val xs = mk_xn ()
+      val s1 = rm_par (human p1)
+    in
+      if !imperative_flag then
+        "{" ^ xs ^ " = 0; " ^ "j = 0; " ^ 
+        "while(j < " ^ s2 ^ ") {" ^
+        "if (" ^ s1 ^ " <= 0) {j++;} " ^
+        xs ^ "++;} " ^
+        "return " ^ xs ^ " - 1" ^ ";}"
+      else
+        "compr(\\" ^ xs ^ "." ^ s1 ^ ", " ^ s2 ^ ")" 
+    end
   | Ins (s,[]) => its s
   | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map human l) ^ ")"
 
@@ -512,6 +547,35 @@ and reg_mult p =
     | (SOME poly,_) => "(" ^ string_of_poly poly ^ " * " ^ 
       human_multl plb ^ ")"
   end
+
+fun humanf p =
+  let 
+    val _ = imperative_flag := false
+    val _ = xn_glob := 0;
+    val s = human p
+    val _ = xn_glob := 0
+    val _ = imperative_flag := false
+  in s end
+
+fun humani p =
+  let 
+    val _ = imperative_flag := true
+    val _ = xn_glob := 0;
+    val s = human p
+    val _ = xn_glob := 0
+    val _ = imperative_flag := false
+  in s end
+
+
+
+(*
+load "mcts"; open aiLib kernel mcts;
+let val p = random_prog 20 in 
+  print_endline (human p ^ "\n"); 
+  print_endline (humani p) 
+end;
+
+*)
 
 (* -------------------------------------------------------------------------
    Timer

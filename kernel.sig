@@ -41,7 +41,8 @@ sig
   (* pretty printing *)
   val constnorm_flag : bool ref
   val polynorm_flag : bool ref
-  val human : prog -> string
+  val humanf : prog -> string
+  val humani : prog -> string
   val rm_par : string -> string
 
   (* inputs *)

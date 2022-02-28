@@ -32,10 +32,22 @@ fun synt tim target =
       NONE => 
       (print_endline ("Could not find a program in " ^ rts t ^ " seconds.");
        NONE)
-    | SOME p => (print_endline ("Program: " ^ rm_par (human p)); SOME p)
+    | SOME p => 
+  (
+  print_endline 
+    "Functional program with loop/compr definitions from the paper:";
+  print_endline ("  f(x) := " ^ rm_par (humanf p));
+  print_endline "Imperative program with unfolded definitions:";
+  print_endline ("  f(x) := " ^ rm_par (humani p));
+  SOME p)
   end
 
-fun seq n p = print_endline ("Predictions: " ^ ailts (arb_seq_of_prog n p))
+fun seq n p = 
+  let val r = arb_seq_of_prog n p in
+    print_endline ("First " ^ its (length r) ^ " generated numbers " ^
+      "(f(0),f(1),f(2),...):");
+    print_endline ("  " ^ ailts r)
+  end
 
 end (* struct *)
 

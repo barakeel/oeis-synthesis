@@ -181,7 +181,7 @@ fun clausex_compare (a,b) = case (a,b) of
   | (C2 _ , C1 _ ) => GREATER
   | (C2 a', C2 b') => cpl_compare clause_compare clause_compare (a',b')
 
-fun string_of_clause clause = human (unzip_prog (snd clause))
+fun string_of_clause clause = humanf (unzip_prog (snd clause))
 fun string_of_clausex clausex = case clausex of
     C1 a => string_of_clause a
   | C2 (a,b) => "(pair " ^ string_of_clause a ^ " " ^ string_of_clause b ^ ")"
@@ -557,7 +557,7 @@ fun invapp_move board = case board of
       let 
         val prev = m 
         val move = valOf (List.find (is_appsyn target prev) movelg) 
-          handle Option => raise ERR "invapp_move" (human target)
+          handle Option => raise ERR "invapp_move" (humanf target)
       in
         SOME (prev, move)
       end
@@ -570,7 +570,7 @@ fun invapp_move board = case board of
             (
             print_endline (string_of_board board);
             print_endline (string_of_board prev);
-            print_endline (human p1 ^ " " ^ human p2);
+            print_endline (humanf p1 ^ " " ^ humanf p2);
             raise ERR "invapp_move" (string_of_board board)
             )
       in
@@ -582,7 +582,7 @@ fun invapp_move board = case board of
           (dict_sort clause_compare (map prog_to_clause [p1,p2,p3]))
         val prev = C1 c1 :: C2 (c2,c3) :: m
         val move = valOf (List.find (is_appsyn target prev) movelg) 
-          handle Option => raise ERR "invapp_move" (human target)
+          handle Option => raise ERR "invapp_move" (humanf target)
       in
         SOME (prev, move)
       end
@@ -628,7 +628,7 @@ fun rewrite_winl winl =
          else if equal_prog (p,newp) then SOME newp
          else if same_sem newp p then (incr i; SOME newp) else NONE
        end
-       handle Rewrite x => (log ("rewrite_winl: " ^ human x); NONE)
+       handle Rewrite x => (log ("rewrite_winl: " ^ humanf x); NONE)
      val r = List.mapPartial f winl
    in
      (r,!i)
@@ -1081,7 +1081,7 @@ fun minimize_winl winl =
    let 
      val i = ref 0
      fun f p = 
-       if not (is_executable p) then raise ERR "minimize_winl" (human p) else
+       if not (is_executable p) then raise ERR "minimize_winl" (humanf p) else
        let val newp = commute (minimize p) in
          if equal_prog (p,newp) orelse depend_on_i newp then p
          else if same_sem newp p then (incr i; newp) else p
@@ -1233,7 +1233,7 @@ fun parsearch_target tim target =
     val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
     val (p,t) = add_time (search_target_aux (tnn,sold) tim) target 
   in
-    (true,human (valOf p),t) handle Option => (false, "", t)
+    (true,humanf (valOf p),t) handle Option => (false, "", t)
   end
 
 val partargetspec : (real, seq, bool * string * real) extspec =
@@ -1276,16 +1276,16 @@ fun human_progseq p =
     val seq = seq_of_prog p
     val seql = find_wins p seq
     val _ = if null seql 
-      then log ("Error: human_progseq 1: " ^ (human p)) else ()
+      then log ("Error: human_progseq 1: " ^ (humanf p)) else ()
     fun f x = String.concatWith "-" (dfind x (!odname_glob)) ^ ": " ^ 
       String.concatWith " " (map its x)
   in
-    human p ^ "\n" ^ String.concatWith "\n" (map f seql)
+    humanf p ^ "\n" ^ String.concatWith "\n" (map f seql)
   end
   handle Interrupt => raise Interrupt | _ => 
-    (log ("Error: human_progseq 2: " ^ (human p)); "")
+    (log ("Error: human_progseq 2: " ^ (humanf p)); "")
 
-fun human_progfreq (prog,freq) = its freq ^ ": " ^ human prog;
+fun human_progfreq (prog,freq) = its freq ^ ": " ^ humanf prog;
 
 fun compute_freq f sol1 =
   let val freql = dlist 

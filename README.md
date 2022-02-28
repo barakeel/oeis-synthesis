@@ -49,8 +49,6 @@ seq 10 (valOf po);
 
 Choose the sequence you desire to look for instead of
 [1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
-Compared to the paper, compr(\\(x.i).p,a,b) is written compr(\\x.p,a,b)
-as p should never depend on i.
 
 You can set the following flag to prevent polynomial normalization of the program:
 ```
