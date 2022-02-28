@@ -474,7 +474,7 @@ fun human prog =
         val s1 = rm_par (human p1)
       in
         if !imperative_flag then
-        "{xs ^ " = " ^ s3 ^ "; " ^
+        "{" ^ xs ^ " = " ^ s3 ^ "; " ^
         "for(i=1;i<= " ^ s2 ^ "; i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
         "return " ^ xs ^ ";}"
         else
