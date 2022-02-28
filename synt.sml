@@ -37,8 +37,10 @@ fun synt tim target =
   print_endline 
     "Functional program with loop/compr definitions from the paper:";
   print_endline ("  f(x) := " ^ rm_par (humanf p));
+  print_endline "";
   print_endline "Imperative program with unfolded definitions:";
   print_endline ("  f(x) := " ^ rm_par (humani p));
+  print_endline "\n";
   SOME p)
   end
 
