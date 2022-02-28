@@ -475,7 +475,7 @@ fun human prog =
       in
         if !imperative_flag then
         "{" ^ xs ^ " = " ^ s3 ^ "; " ^
-        "for(i=1;i<= " ^ s2 ^ "; i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
+        "for(i=1;i<= " ^ s2 ^ ";i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
         "return " ^ xs ^ ";}"
         else
          "loop(\\(" ^ xs ^ ",i)." ^ s1  ^ ", " ^ s2  ^ ", " ^ s3 ^ ")"
