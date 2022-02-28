@@ -474,8 +474,8 @@ fun human prog =
         val s1 = rm_par (human p1)
       in
         if !imperative_flag then
-        "{int " ^ xs ^ " = " ^ s3 ^ "; " ^
-        "for(int i=1; i <= " ^ s2 ^ "; i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
+        "{xs ^ " = " ^ s3 ^ "; " ^
+        "for(i=1;i<= " ^ s2 ^ "; i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
         "return " ^ xs ^ ";}"
         else
          "loop(\\(" ^ xs ^ ",i)." ^ s1  ^ ", " ^ s2  ^ ", " ^ s3 ^ ")"
@@ -490,8 +490,8 @@ fun human prog =
       val s1 = rm_par (human p1)
     in
       if !imperative_flag then
-        "{int " ^ xs ^ " = 0; " ^ "int j = 0; " ^ 
-        "while(j < " ^ s2 ^ ") {" ^
+        "{" ^ xs ^ " = 0; " ^ "j=0; " ^ 
+        "while(j< " ^ s2 ^ ") {" ^
         "if (" ^ s1 ^ " <= 0) {j++;} " ^
         xs ^ "++;} " ^
         "return " ^ xs ^ " - 1" ^ ";}"
