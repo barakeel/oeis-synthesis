@@ -41,10 +41,7 @@ fun synt tim n target =
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n\n");
         print_endline ("Execute the following Python program " ^ 
         "<a href=\"https://" ^
-        "colab.research.google.com/#create=true\">here</a>. " ^
-        "Inspect the behavior of subprograms by changing for"  ^   
-        "example print(f(x)) to print(f1(x))."
-        ^ "\n");
+        "colab.research.google.com/#create=true\">here</a>:\n");
         print_endline (humani p);
         SOME p
       end
