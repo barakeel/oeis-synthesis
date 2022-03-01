@@ -41,11 +41,11 @@ fun synt tim n target =
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n\n");
         print_endline ("Execute the following Python program " ^ 
         "<a href=\"https://" ^
-        "colab.research.google.com/#create=true\"> here </a>. " ^
-        "For example, copy-paste it and change print(f(16)) to print(f(17))."
+        "colab.research.google.com/#create=true\">here</a>. " ^
+        "Inspect the behavior of subprograms by changing for"  ^   
+        "example print(f(x)) to print(f1(x))."
         ^ "\n");
         print_endline (humani p);
-        print_endline "print(f(16))";
         SOME p
       end
   end
@@ -59,6 +59,6 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "synt"; open synt;
-val (po,t) = aiLib.add_time (synt 600.0) [1,12,123,1234];
-seq 16 (valOf po);
+val _ = synt 600.0 16 [1,12,123,1234];
+val _ = synt 600.0 16 [2,3,5,7,11,13,17,19,23,29];
 *)

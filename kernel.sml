@@ -341,10 +341,9 @@ fun papp_ternop id (p1,p2,p3) = Ins (id,[p1,p2,p3])
 val constnorm_flag = ref false
 val polynorm_flag = ref true
 val imperative_flag = ref false
-val xn_glob = ref 0
 
-fun mk_xn () = if !xn_glob = 0 then "x" else "x" ^ its (!xn_glob)
-fun mk_in () = "i" ^ its (!xn_glob)
+fun mk_xn vn = if vn = 0 then "x" else "x" ^ its vn
+fun mk_in vn = "i" ^ its vn
 
 fun constnorm prog = case prog of
     Ins (0,[]) => 0
@@ -394,19 +393,19 @@ fun polynorm prog = case prog of
   | Ins (10,[]) => [0,1]
   | _ => raise ERR "polynorm" ""
 
-fun string_of_mono (a,i) = 
+fun string_of_mono vn (a,i) = 
   (if a = 1 andalso i <> 0 then "" else 
    if a = ~1 andalso i <> 0 then "-" else its a) ^
   (if (a = 1 andalso i <> 0) orelse
       (a = ~1 andalso i <> 0) orelse
       (i = 0)
    then "" else "*") ^
-  (if i = 0 then "" else if i = 1 then mk_xn () else mk_xn () ^ "^" ^ its i)
+  (if i = 0 then "" else if i = 1 then mk_xn vn else mk_xn vn ^ "^" ^ its i)
 
-fun string_of_poly l = 
+fun string_of_poly vn l = 
   let val l1 = filter (fn x => fst x <> 0) (number_snd 0 l) in
     if null l1 then "0" else
-    let val s = String.concatWith " + " (map string_of_mono (rev l1)) in
+    let val s = String.concatWith " + " (map (string_of_mono vn) (rev l1)) in
       if length l1 = 1 then s else "(" ^ s ^ ")"
     end
   end
@@ -454,90 +453,103 @@ fun inlinable (Ins(id,pl)) =
   not (mem id [8,9,12]) andalso all inlinable pl
 
 val ctxt = ref []
-
+val funn = ref 0
 fun incrs s = s ^ " = " ^ s ^ " + 1";
 fun decrs s = s ^ " = " ^ s ^ " - 1";
 
-fun human prog = 
+fun human vn prog =
   if !constnorm_flag andalso can constnorm prog then its (constnorm prog) else
   case prog of
     Ins (3,[p1,p2]) => 
     if !polynorm_flag 
-    then reg_add prog
-    else "(" ^ human p1 ^ " + " ^ human p2 ^ ")"   
+    then reg_add vn prog
+    else "(" ^ human vn p1 ^ " + " ^ human vn p2 ^ ")"   
   | Ins (4,[p1,p2]) =>  
     if !polynorm_flag 
-    then reg_add prog
-    else "(" ^ human p1 ^ " - " ^ human p2 ^ ")"   
+    then reg_add vn prog
+    else "(" ^ human vn p1 ^ " - " ^ human vn p2 ^ ")"   
   | Ins (5,[p1,p2]) =>
     if !polynorm_flag 
-    then reg_mult prog
-    else "(" ^ human p1 ^ " * " ^ human p2 ^ ")"
+    then reg_mult vn prog
+    else "(" ^ human vn p1 ^ " * " ^ human vn p2 ^ ")"
   | Ins (6,[p1,p2]) => 
     if !imperative_flag
-    then "(" ^ human p1 ^ " // " ^ human p2 ^ ")"
-    else "(" ^ human p1 ^ " div " ^ human p2 ^ ")"
+    then "(" ^ human vn p1 ^ " // " ^ human vn p2 ^ ")"
+    else "(" ^ human vn p1 ^ " div " ^ human vn p2 ^ ")"
   | Ins (7,[p1,p2]) => 
     if !imperative_flag
-    then "(" ^ human p1 ^ " % " ^ human p2 ^ ")"
-    else "(" ^ human p1 ^ " mod " ^ human p2 ^ ")"
+    then "(" ^ human vn p1 ^ " % " ^ human vn p2 ^ ")"
+    else "(" ^ human vn p1 ^ " mod " ^ human vn p2 ^ ")"
   | Ins (8,[p1,p2,p3]) => 
      if !imperative_flag
-     then "(" ^ rm_par (human p2) ^ " if " ^ 
-                rm_par (human p1) ^ " <= 0 else " ^
-                rm_par (human p3) ^ ")"
+     then "(" ^ rm_par (human vn p2) ^ " if " ^ 
+                rm_par (human vn p1) ^ " <= 0 else " ^
+                rm_par (human vn p3) ^ ")"
      else "(if " ^ 
-       rm_par (human p1) ^ " <= 0 then " ^ rm_par (human p2)  ^ " else " ^ 
-       rm_par (human p3) ^ ")"
+       rm_par (human vn p1) ^ " <= 0 then " ^ rm_par (human vn p2)  ^ " else " ^ 
+       rm_par (human vn p3) ^ ")"
   | Ins (9,[p1,p2,p3]) => 
-      let 
-        val s3 = rm_par (human p3)
-        val s2 = rm_par (human p2)
-        val _ = incr xn_glob
-        val xs = mk_xn ()
-        val is = mk_in ()
-        val s1 = rm_par (human p1)
+      let
+        val s2 = human vn p2
+        val s3 = rm_par (human vn p3)
+        val s1 = rm_par (human (vn + 1) p1)
+        val xs = mk_xn (vn + 1)
+        val is = mk_in (vn + 1)
+        val fs = "f" ^ its (!funn)   
+        val fprev = if depend_on_i prog 
+          then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
+          else fs ^ "(" ^ mk_xn vn ^ ")"
+        val fs_head = "def " ^ fprev ^ ":"
+        val _ = incr funn
       in
         if !imperative_flag then
-          let val cs = [
-            xs ^ " = " ^ s3,
-            "for " ^ is ^ " in range (1," ^ s2  ^ "):",
-            "  " ^ xs ^ " = " ^ s1]
+          let val cs = 
+            [fs_head,
+             "  " ^ xs ^ " = " ^ s3,
+             "  " ^ "for " ^ is ^ " in range (1," ^ s2 ^ " + 1" ^ "):",
+             "    " ^ xs ^ " = " ^ s1,
+             "  return " ^ xs, ""]
           in
-            ctxt := !ctxt @ cs; xs
+            ctxt := !ctxt @ cs; fprev
           end
         else
           "loop(\\(" ^ xs ^ "," ^ is  ^ ")." ^ s1  ^ ", " ^ 
                        s2  ^ ", " ^ s3 ^ ")"
       end
-  | Ins (10,[]) => mk_xn ()
-  | Ins (11,[]) => mk_in ()
+  | Ins (10,[]) => mk_xn vn
+  | Ins (11,[]) => mk_in vn
   | Ins (12,[p1,p2]) => 
-    let 
-      val s2 = rm_par (human p2)
-      val _ = incr xn_glob
-      val xs = mk_xn ()
-      val is = mk_in ()
-      val s1 = rm_par (human p1)
+    let
+      val s2 = rm_par (human vn p2)
+      val s1 = rm_par (human (vn + 1) p1)
+      val xs = mk_xn (vn + 1)
+      val is = mk_in (vn + 1)
+      val fs = "f" ^ its (!funn)   
+      val fprev = if depend_on_i prog 
+        then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
+        else fs ^ "(" ^ mk_xn vn ^ ")"
+      val fs_head = "def " ^ fprev ^ ":"
+      val _ = incr funn
     in
       if !imperative_flag then
-        let val cs = [
-          xs ^ "," ^ is ^ " = 0,0",
-          "while " ^ is ^ " <= " ^ s2 ^ ":",
-          "  if " ^ s1 ^ " <= 0:",
-          "    " ^ incrs is,
-          "  " ^ incrs xs,
-          decrs xs]
+        let val cs = [fs_head,
+          "  " ^ xs ^ "," ^ is ^ " = 0,0",
+          "  while " ^ is ^ " <= " ^ s2 ^ ":",
+          "    if " ^ s1 ^ " <= 0:",
+          "      " ^ incrs is,
+          "    " ^ incrs xs,
+          "  return " ^ xs ^ " - 1", ""]
         in
-          ctxt := !ctxt @ cs; xs
+          ctxt := !ctxt @ cs; fprev
         end
       else
         "compr(\\" ^ xs ^ "." ^ s1 ^ ", " ^ s2 ^ ")" 
     end
   | Ins (s,[]) => its s
-  | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map human l) ^ ")"
+  | Ins (s,l) => "(" ^ its s ^ " " ^ 
+      String.concatWith " " (map (human vn) l) ^ ")"
 
-and reg_add p = 
+and reg_add vn p = 
   let 
     val (pl1,pl2) = strip_addi p
     val (pl1a,pl1b) = partition (can polynorm) pl1
@@ -546,8 +558,8 @@ and reg_add p =
     val pl2n = map polynorm pl2a
     fun human_addl pl = case pl of 
          [] => raise ERR "reg_add" ""
-       | [a] => human a 
-       | _ => "(" ^ String.concatWith " + " (map human pl) ^ ")"
+       | [a] => human vn a 
+       | _ => "(" ^ String.concatWith " + " (map (human vn) pl) ^ ")"
     val polyo = if null pl1n andalso null pl2n then NONE else 
       SOME (polydiff (polyaddil pl1n) (polyaddil pl2n)) 
   in
@@ -556,40 +568,38 @@ and reg_add p =
     | (NONE,_,[]) => human_addl pl1b
     | (NONE,[],_) => "-" ^ human_addl pl2b
     | (NONE,_,_) => "(" ^ human_addl pl1b ^ " - " ^ human_addl pl2b ^ ")"
-    | (SOME poly,[],[]) => string_of_poly poly 
-    | (SOME poly,_,[]) => "(" ^ string_of_poly poly ^ 
+    | (SOME poly,[],[]) => string_of_poly vn poly 
+    | (SOME poly,_,[]) => "(" ^ string_of_poly vn poly ^ 
       " + " ^ human_addl pl1b ^ ")"
-    | (SOME poly,[],_) => "(" ^ string_of_poly poly ^ 
+    | (SOME poly,[],_) => "(" ^ string_of_poly vn poly ^ 
       " - " ^ human_addl pl2b ^ ")"
-    | (SOME poly,_,_) => "(" ^ string_of_poly poly ^ 
+    | (SOME poly,_,_) => "(" ^ string_of_poly vn poly ^ 
       " + " ^ human_addl pl1b ^ " - " ^ human_addl pl2b ^ ")"
   end
 
-and reg_mult p =
+and reg_mult vn p =
   let 
     val pl = strip_mult p 
     val (pla,plb) = partition (can polynorm) pl
     fun human_multl pl = case pl of 
          [] => raise ERR "reg_mult" ""
-       | [a] => human a 
-       | _ => "(" ^ String.concatWith " * " (map human pl) ^ ")"
+       | [a] => human vn a 
+       | _ => "(" ^ String.concatWith " * " (map (human vn) pl) ^ ")"
     val polyo = if null pla then NONE else 
       SOME (polymultl (map polynorm pla))  
   in
     case (polyo,plb) of 
       (NONE,[]) => raise ERR "reg_mult 2" ""
     | (NONE,_) => human_multl plb
-    | (SOME poly,[]) => string_of_poly poly
-    | (SOME poly,_) => "(" ^ string_of_poly poly ^ " * " ^ 
+    | (SOME poly,[]) => string_of_poly vn poly
+    | (SOME poly,_) => "(" ^ string_of_poly vn poly ^ " * " ^ 
       human_multl plb ^ ")"
   end
 
 fun humanf p =
   let 
     val _ = imperative_flag := false
-    val _ = xn_glob := 0;
-    val s = human p
-    val _ = xn_glob := 0
+    val s = human 0 p
     val _ = imperative_flag := false
   in s end
 
@@ -597,11 +607,10 @@ fun humani p =
   let 
     val _ = imperative_flag := true
     val _ = ctxt := [] 
-    val _ = xn_glob := 0;
-    val head = "def f(x):"
-    val body = "return " ^ rm_par (human p)
-    val ps = String.concatWith "\n  " ((head :: !ctxt) @ [body])
-    val _ = xn_glob := 0
+    val _ = funn := 1
+    val head = "def f(x):\n  return " ^ rm_par (human 0 p) ^ "\n"
+    val test = "for x in range(16):\n  print (f(x))"
+    val ps = String.concatWith "\n" (!ctxt @ [head,test])
     val _ = ctxt := [] 
     val _ = imperative_flag := false
   in ps end

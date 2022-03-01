@@ -40,13 +40,14 @@ In this directory:
 ```
 rlwrap hol
 load "synt"; open synt;
-val _ = synt 60.0 [1,2,4,8,16]; 
-val _ = synt 30.0 [2,4,8,16,32]; 
-val _ = synt 20.0 [1,2,3,4];
+val _ = synt 60.0 16 [1,2,4,8,16]; 
+val _ = synt 30.0 16 [2,4,8,16,32]; 
+val _ = synt 20.0 16 [1,2,3,4];
 ```
 
 Choose the sequence you desire to look for instead of
 [1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
+The second argument (16) precises the number of generated numbers (predictions).
 
 You can set the following flag to prevent polynomial normalization of the program:
 ```
