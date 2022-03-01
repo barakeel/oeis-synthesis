@@ -344,6 +344,7 @@ val imperative_flag = ref false
 val xn_glob = ref 0
 
 fun mk_xn () = if !xn_glob = 0 then "x" else "x" ^ its (!xn_glob)
+fun mk_in () = "i" ^ its (!xn_glob)
 
 fun constnorm prog = case prog of
     Ins (0,[]) => 0
@@ -395,7 +396,7 @@ fun polynorm prog = case prog of
 
 fun string_of_mono (a,i) = 
   (if a = 1 andalso i <> 0 then "" else 
-   if a = ~1 andalso i <> 0 then "~" else its a) ^
+   if a = ~1 andalso i <> 0 then "-" else its a) ^
   (if (a = 1 andalso i <> 0) orelse
       (a = ~1 andalso i <> 0) orelse
       (i = 0)
@@ -449,52 +450,87 @@ fun strip_mult p = case p of
     Ins (5,[p1,p2]) => strip_mult p1 @ strip_mult p2 
   | _ => [p]
 
+fun inlinable (Ins(id,pl)) = 
+  not (mem id [8,9,12]) andalso all inlinable pl
+
+val ctxt = ref []
+
+fun incrs s = s ^ " = " ^ s ^ " + 1";
+fun decrs s = s ^ " = " ^ s ^ " - 1";
+
 fun human prog = 
   if !constnorm_flag andalso can constnorm prog then its (constnorm prog) else
   case prog of
     Ins (3,[p1,p2]) => 
-    if !polynorm_flag then reg_add prog
+    if !polynorm_flag 
+    then reg_add prog
     else "(" ^ human p1 ^ " + " ^ human p2 ^ ")"   
   | Ins (4,[p1,p2]) =>  
-    if !polynorm_flag then reg_add prog
+    if !polynorm_flag 
+    then reg_add prog
     else "(" ^ human p1 ^ " - " ^ human p2 ^ ")"   
   | Ins (5,[p1,p2]) =>
-    if !polynorm_flag then reg_mult prog
+    if !polynorm_flag 
+    then reg_mult prog
     else "(" ^ human p1 ^ " * " ^ human p2 ^ ")"
-  | Ins (6,[p1,p2]) => "(" ^ human p1 ^ " div " ^ human p2 ^ ")"
-  | Ins (7,[p1,p2]) => "(" ^ human p1 ^ " mod " ^ human p2 ^ ")"
+  | Ins (6,[p1,p2]) => 
+    if !imperative_flag
+    then "(" ^ human p1 ^ " // " ^ human p2 ^ ")"
+    else "(" ^ human p1 ^ " div " ^ human p2 ^ ")"
+  | Ins (7,[p1,p2]) => 
+    if !imperative_flag
+    then "(" ^ human p1 ^ " % " ^ human p2 ^ ")"
+    else "(" ^ human p1 ^ " mod " ^ human p2 ^ ")"
   | Ins (8,[p1,p2,p3]) => 
-     "(if " ^  human p1 ^ " <= 0 then " ^ human p2 ^ " else " ^ human p3 ^ ")"
+     if !imperative_flag
+     then "(" ^ rm_par (human p2) ^ " if " ^ 
+                rm_par (human p1) ^ " <= 0 else " ^
+                rm_par (human p3) ^ ")"
+     else "(if " ^ 
+       rm_par (human p1) ^ " <= 0 then " ^ rm_par (human p2)  ^ " else " ^ 
+       rm_par (human p3) ^ ")"
   | Ins (9,[p1,p2,p3]) => 
       let 
         val s3 = rm_par (human p3)
         val s2 = rm_par (human p2)
         val _ = incr xn_glob
         val xs = mk_xn ()
+        val is = mk_in ()
         val s1 = rm_par (human p1)
       in
         if !imperative_flag then
-        "{" ^ xs ^ " = " ^ s3 ^ "; " ^
-        "for(i=1;i <= " ^ s2 ^ ";i++) {" ^ xs ^ " = " ^  s1 ^ ";} " ^
-        "return " ^ xs ^ ";}"
+          let val cs = [
+            xs ^ " = " ^ s3,
+            "for " ^ is ^ " in range (1," ^ s2  ^ "):",
+            "  " ^ xs ^ " = " ^ s1]
+          in
+            ctxt := cs @ !ctxt; xs
+          end
         else
-         "loop(\\(" ^ xs ^ ",i)." ^ s1  ^ ", " ^ s2  ^ ", " ^ s3 ^ ")"
+          "loop(\\(" ^ xs ^ "," ^ is  ^ ")." ^ s1  ^ ", " ^ 
+                       s2  ^ ", " ^ s3 ^ ")"
       end
   | Ins (10,[]) => mk_xn ()
-  | Ins (11,[]) => "i"
+  | Ins (11,[]) => mk_in ()
   | Ins (12,[p1,p2]) => 
     let 
       val s2 = rm_par (human p2)
       val _ = incr xn_glob
       val xs = mk_xn ()
+      val is = mk_in ()
       val s1 = rm_par (human p1)
     in
       if !imperative_flag then
-        "{" ^ xs ^ " = 0; " ^ "j=0; " ^ 
-        "while(j < " ^ s2 ^ ") {" ^
-        "if (" ^ s1 ^ " <= 0) {j++;} " ^
-        xs ^ "++;} " ^
-        "return " ^ xs ^ " - 1" ^ ";}"
+        let val cs = [
+          xs ^ "," ^ is ^ " = 0,0",
+          "while " ^ is ^ " <= " ^ s2 ^ ":",
+          "  if " ^ s1 ^ " <= 0:",
+          "    " ^ incrs is,
+          "  " ^ incrs xs,
+          decrs xs]
+        in
+          ctxt := cs @ !ctxt; xs
+        end
       else
         "compr(\\" ^ xs ^ "." ^ s1 ^ ", " ^ s2 ^ ")" 
     end
@@ -560,18 +596,22 @@ fun humanf p =
 fun humani p =
   let 
     val _ = imperative_flag := true
+    val _ = ctxt := [] 
     val _ = xn_glob := 0;
-    val s = human p
+    val head = "def f(x):"
+    val body = "return " ^ rm_par (human p)
+    val ps = String.concatWith "\n  " ((head :: !ctxt) @ [body])
     val _ = xn_glob := 0
+    val _ = ctxt := [] 
     val _ = imperative_flag := false
-  in s end
+  in ps end
 
 
 
 (*
 load "mcts"; open aiLib kernel mcts;
 let val p = random_prog 20 in 
-  print_endline (human p ^ "\n"); 
+  print_endline (humanf p ^ "\n"); 
   print_endline (humani p) 
 end;
 

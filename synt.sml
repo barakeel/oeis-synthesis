@@ -20,8 +20,8 @@ fun parse_seq s = first_n 50 (
   map string_to_int 
     (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s))
 
-fun synt tim target =
-  let 
+fun synt tim n target =
+  let
     val _ = use_semb := false
     val _ = use_cache := true
     val _ = noise_flag := true
@@ -30,26 +30,28 @@ fun synt tim target =
   in
     case po of 
       NONE => 
-      (print_endline ("Could not find a program in " ^ rts t ^ " seconds.");
-       NONE)
+        (print_endline ("Could not find a program in " ^ rts t ^ " seconds.");
+         NONE)
     | SOME p => 
-  (
-  print_endline 
-    "Functional program with loop/compr definitions from the paper:";
-  print_endline ("  f(x) := " ^ rm_par (humanf p));
-  print_endline "";
-  print_endline "Imperative program with unfolded definitions:";
-  print_endline ("  f(x) := " ^ rm_par (humani p));
-  print_endline "\n";
-  SOME p)
+      let val r = arb_seq_of_prog n p in
+        print_endline ("First " ^ its (length r) ^ " generated numbers " ^
+          "(f(0),f(1),f(2),...):");
+        print_endline (ailts r);
+        print_endline 
+          "Program with loop/compr definitions from the paper:";
+        print_endline ("f(x) := " ^ rm_par (humanf p));
+        print_endline "";
+        print_endline ("Execute the following Python program " ^ 
+        "<a href=\"https://" ^
+        "colab.research.google.com/#create=true\"> here </a>. " ^
+        "For example, copy-paste it and change print(f(16)) to print(f(17)).");
+        print_endline (humani p);
+        print_endline "print(f(16))";
+        SOME p
+      end
   end
 
-fun seq n p = 
-  let val r = arb_seq_of_prog n p in
-    print_endline ("First " ^ its (length r) ^ " generated numbers " ^
-      "(f(0),f(1),f(2),...):");
-    print_endline ("  " ^ ailts r)
-  end
+fun add_gap n = print_endline (String.concat (List.tabulate (n,fn _ => "\n")));
 
 end (* struct *)
 
