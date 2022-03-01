@@ -449,8 +449,7 @@ fun strip_mult p = case p of
     Ins (5,[p1,p2]) => strip_mult p1 @ strip_mult p2 
   | _ => [p]
 
-fun inlinable (Ins(id,pl)) = 
-  not (mem id [8,9,12]) andalso all inlinable pl
+fun is_loop (Ins(id,pl)) = (mem id [9,12])
 
 val ctxt = ref []
 val funn = ref 0
@@ -495,7 +494,7 @@ fun human vn prog =
         val s1 = rm_par (human (vn + 1) p1)
         val xs = mk_xn (vn + 1)
         val is = mk_in (vn + 1)
-        val fs = "f" ^ its (!funn)   
+        val fs = if !funn = 0 then "f" else "f" ^ its (!funn)
         val fprev = if depend_on_i prog 
           then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
           else fs ^ "(" ^ mk_xn vn ^ ")"
@@ -524,7 +523,7 @@ fun human vn prog =
       val s1 = rm_par (human (vn + 1) p1)
       val xs = mk_xn (vn + 1)
       val is = mk_in (vn + 1)
-      val fs = "f" ^ its (!funn)   
+      val fs = if !funn = 0 then "f" else "f" ^ its (!funn)
       val fprev = if depend_on_i prog 
         then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
         else fs ^ "(" ^ mk_xn vn ^ ")"
@@ -607,10 +606,13 @@ fun humani p =
   let 
     val _ = imperative_flag := true
     val _ = ctxt := [] 
-    val _ = funn := 1
-    val head = "def f(x):\n  return " ^ rm_par (human 0 p) ^ "\n"
+    val _ = if is_loop p then funn := 0 else funn := 1
+    val head = "def f(x):\n  return " ^ rm_par (human 0 p)
     val test = "for x in range(16):\n  print (f(x))"
-    val ps = String.concatWith "\n" (!ctxt @ [head,test])
+    val ps = 
+       if is_loop p 
+       then String.concatWith "\n" (!ctxt @ [test])
+       else String.concatWith "\n" (!ctxt @ [head,"",test])
     val _ = ctxt := [] 
     val _ = imperative_flag := false
   in ps end
