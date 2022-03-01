@@ -44,7 +44,9 @@ fun synt tim n target =
         "<a href=\"https://" ^
         "colab.research.google.com/#create=true" ^ 
         "\" target=\"_blank\">here</a>:\n");
+        print "<code>";
         print_endline (humani p);
+        print "</code>";
         SOME p
       end
   end
