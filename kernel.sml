@@ -400,7 +400,7 @@ fun string_of_mono vn (a,i) =
       (a = ~1 andalso i <> 0) orelse
       (i = 0)
    then "" else "*") ^
-  (if i = 0 then "" else if i = 1 then mk_xn vn else mk_xn vn ^ "^" ^ its i)
+  (if i = 0 then "" else if i = 1 then mk_xn vn else mk_xn vn ^ "**" ^ its i)
 
 fun string_of_poly vn l = 
   let val l1 = filter (fn x => fst x <> 0) (number_snd 0 l) in
