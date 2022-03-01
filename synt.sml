@@ -35,16 +35,15 @@ fun synt tim n target =
     | SOME p => 
       let val r = arb_seq_of_prog n p in
         print_endline ("First " ^ its (length r) ^ " generated numbers " ^
-          "(f(0),f(1),f(2),...):");
-        print_endline (ailts r);
-        print_endline 
-          "Program with loop/compr definitions from the paper:";
-        print_endline ("f(x) := " ^ rm_par (humanf p));
-        print_endline "";
+          "(f(0),f(1),f(2),...):\n");
+        print_endline (ailts r ^ "\n\n");
+        print_endline "Program with definitions from the paper:\n";
+        print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n\n");
         print_endline ("Execute the following Python program " ^ 
         "<a href=\"https://" ^
         "colab.research.google.com/#create=true\"> here </a>. " ^
-        "For example, copy-paste it and change print(f(16)) to print(f(17)).");
+        "For example, copy-paste it and change print(f(16)) to print(f(17))."
+        ^ "\n");
         print_endline (humani p);
         print_endline "print(f(16))";
         SOME p

@@ -504,7 +504,7 @@ fun human prog =
             "for " ^ is ^ " in range (1," ^ s2  ^ "):",
             "  " ^ xs ^ " = " ^ s1]
           in
-            ctxt := cs @ !ctxt; xs
+            ctxt := !ctxt @ cs; xs
           end
         else
           "loop(\\(" ^ xs ^ "," ^ is  ^ ")." ^ s1  ^ ", " ^ 
@@ -529,7 +529,7 @@ fun human prog =
           "  " ^ incrs xs,
           decrs xs]
         in
-          ctxt := cs @ !ctxt; xs
+          ctxt := !ctxt @ cs; xs
         end
       else
         "compr(\\" ^ xs ^ "." ^ s1 ^ ", " ^ s2 ^ ")" 
