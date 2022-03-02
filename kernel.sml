@@ -541,8 +541,8 @@ fun human vn prog =
           "  x,i = 0,0",
           "  while i <= " ^ s2 ^ ":",
           "    if " ^ s1 ^ " <= 0:",
-          "      i + 1",
-          "    x + 1",
+          "      i = i + 1",
+          "    x = x + 1",
           "  return x - 1", ""]
         in
           ctxt := !ctxt @ cs; fprev2
