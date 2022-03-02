@@ -342,8 +342,10 @@ val constnorm_flag = ref false
 val polynorm_flag = ref true
 val imperative_flag = ref false
 
-fun mk_xn vn = if vn = 0 then "x" else "x" ^ its vn
-fun mk_in vn = "i" ^ its vn
+fun itsm i = if i < 0 then "-" ^ its (~i) else its i
+
+fun mk_xn vn = if vn = ~1 then "x" else "X"
+fun mk_in vn = if vn = ~1 then "i" else "I"
 
 fun constnorm prog = case prog of
     Ins (0,[]) => 0
@@ -395,7 +397,7 @@ fun polynorm prog = case prog of
 
 fun string_of_mono vn (a,i) = 
   (if a = 1 andalso i <> 0 then "" else 
-   if a = ~1 andalso i <> 0 then "-" else its a) ^
+   if a = ~1 andalso i <> 0 then "-" else itsm a) ^
   (if (a = 1 andalso i <> 0) orelse
       (a = ~1 andalso i <> 0) orelse
       (i = 0)
@@ -489,60 +491,64 @@ fun human vn prog =
        rm_par (human vn p3) ^ ")"
   | Ins (9,[p1,p2,p3]) => 
       let
-        val s2 = human vn p2
-        val s3 = rm_par (human vn p3)
-        val s1 = rm_par (human (vn + 1) p1)
-        val xs = mk_xn (vn + 1)
-        val is = mk_in (vn + 1)
-        val fs = if !funn = 0 then "f" else "f" ^ its (!funn)
-        val fprev = if depend_on_i prog 
+        val wn = (!funn)
+        val _ = incr funn
+        val s1 = rm_par (human (~1) p1)
+        val s2 = human wn p2 ^ " + 1"
+        val s3 = rm_par (human wn p3)
+        val fs = "f" ^ its wn
+        val fprev1 = if depend_on_i prog 
+          then fs ^ "(" ^ mk_xn wn ^ "," ^ mk_in wn ^ ")"
+          else fs ^ "(" ^ mk_xn wn ^ ")"
+        val fprev2 = if depend_on_i prog 
           then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
           else fs ^ "(" ^ mk_xn vn ^ ")"
-        val fs_head = "def " ^ fprev ^ ":"
-        val _ = incr funn
+        val fs_head = "def " ^ fprev1 ^ ":"
       in
         if !imperative_flag then
           let val cs = 
             [fs_head,
-             "  " ^ xs ^ " = " ^ s3,
-             "  " ^ "for " ^ is ^ " in range (1," ^ s2 ^ " + 1" ^ "):",
-             "    " ^ xs ^ " = " ^ s1,
-             "  return " ^ xs, ""]
+             "  x = " ^ s3,
+             "  " ^ "for i in range (1," ^ s2 ^ "):",
+             "    x = " ^ s1,
+             "  return x", ""]
           in
-            ctxt := !ctxt @ cs; fprev
+            ctxt := !ctxt @ cs; fprev2
           end
         else
-          "loop(\\(" ^ xs ^ "," ^ is  ^ ")." ^ s1  ^ ", " ^ 
-                       s2  ^ ", " ^ s3 ^ ")"
+          "loop(\\(x,i)." ^ s1  ^ ", " ^ 
+          rm_par (human (~1) p2)  ^ ", " ^ rm_par (human (~1) p3) ^ ")"
       end
   | Ins (10,[]) => mk_xn vn
   | Ins (11,[]) => mk_in vn
   | Ins (12,[p1,p2]) => 
     let
-      val s2 = rm_par (human vn p2)
-      val s1 = rm_par (human (vn + 1) p1)
-      val xs = mk_xn (vn + 1)
-      val is = mk_in (vn + 1)
-      val fs = if !funn = 0 then "f" else "f" ^ its (!funn)
-      val fprev = if depend_on_i prog 
+      val wn = (!funn)
+      val _ = incr funn
+      val s1 = rm_par (human (~1) p1)
+      val s2 = rm_par (human wn p2)
+      val fs = "f" ^ its wn
+      val fprev1 = if depend_on_i prog 
+        then fs ^ "(" ^ mk_xn wn ^ "," ^ mk_in wn ^ ")"
+        else fs ^ "(" ^ mk_xn wn ^ ")"
+      val fprev2 = if depend_on_i prog 
         then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_in vn ^ ")"
         else fs ^ "(" ^ mk_xn vn ^ ")"
-      val fs_head = "def " ^ fprev ^ ":"
-      val _ = incr funn
+      val fs_head = "def " ^ fprev1 ^ ":"
     in
       if !imperative_flag then
         let val cs = [fs_head,
-          "  " ^ xs ^ "," ^ is ^ " = 0,0",
-          "  while " ^ is ^ " <= " ^ s2 ^ ":",
+          "  x,i = 0,0",
+          "  while i <= " ^ s2 ^ ":",
           "    if " ^ s1 ^ " <= 0:",
-          "      " ^ incrs is,
-          "    " ^ incrs xs,
-          "  return " ^ xs ^ " - 1", ""]
+          "      i + 1",
+          "    x + 1",
+          "  return x - 1", ""]
         in
-          ctxt := !ctxt @ cs; fprev
+          ctxt := !ctxt @ cs; fprev2
         end
       else
-        "compr(\\" ^ xs ^ "." ^ s1 ^ ", " ^ s2 ^ ")" 
+        "compr(\\x." ^ s1 ^ ", " ^ rm_par (human (~1) p2) ^ ")" 
     end
   | Ins (s,[]) => its s
   | Ins (s,l) => "(" ^ its s ^ " " ^ 
@@ -598,7 +604,7 @@ and reg_mult vn p =
 fun humanf p =
   let 
     val _ = imperative_flag := false
-    val s = human 0 p
+    val s = human (~1) p
     val _ = imperative_flag := false
   in s end
 
@@ -606,18 +612,32 @@ fun humani p =
   let 
     val _ = imperative_flag := true
     val _ = ctxt := [] 
-    val _ = if is_loop p then funn := 0 else funn := 1
-    val head = "def f(x):\n  return " ^ rm_par (human 0 p)
-    val test = "for x in range(16):\n  print (f(x))"
+    val _ = funn := 0
     val ps = 
-       if is_loop p 
-       then String.concatWith "\n" (!ctxt @ [test])
-       else String.concatWith "\n" (!ctxt @ [head,"",test])
+      if not (is_loop p) then
+      let
+        val wn = !funn
+        val _ = incr funn
+        val fs = "f" ^ its wn
+        val xs = mk_xn wn
+        val s = rm_par (human wn p)
+        val head = "def " ^ fs ^ "(" ^ xs ^ "):\n  return " ^ s ^ "\n"
+        val test = "for x in range(16):\n  print (" ^ fs ^ "(x))"    
+        val ps' = String.concatWith "\n" (!ctxt @ [head,test])
+      in ps' end
+      else
+      let
+        val wn = !funn
+        val fs = "f" ^ its wn
+        val s = rm_par (human wn p)
+        val test = "for x in range(16):\n  print (" ^ fs ^ "(x))"    
+        val ps' = String.concatWith "\n" (!ctxt @ [test])
+      in ps' end
     val _ = ctxt := [] 
     val _ = imperative_flag := false
-  in ps end
-
-
+  in
+    ps
+  end
 
 (*
 load "mcts"; open aiLib kernel mcts;

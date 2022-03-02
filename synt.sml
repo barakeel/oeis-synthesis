@@ -34,16 +34,11 @@ fun synt tim n target =
          NONE)
     | SOME p => 
       let val r = arb_seq_of_prog n p in
-        
         print_endline ("First " ^ its (length r) ^ " generated numbers " ^
           "(f(0),f(1),f(2),...):\n");
         print_endline (ailts r ^ "\n\n");
         print_endline "Program with definitions from the paper:\n";
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n\n");
-        print_endline ("Execute the following Python program " ^ 
-        "<a href=\"https://" ^
-        "colab.research.google.com/#create=true" ^ 
-        "\" target=\"_blank\">here</a>:\n");
         print "<code>";
         print_endline (humani p);
         print "</code>";
