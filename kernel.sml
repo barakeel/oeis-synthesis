@@ -608,7 +608,7 @@ fun humanf p =
     val _ = imperative_flag := false
   in s end
 
-fun humani p =
+fun humani ntop p =
   let 
     val _ = imperative_flag := true
     val _ = ctxt := [] 
@@ -622,7 +622,8 @@ fun humani p =
         val xs = mk_xn wn
         val s = rm_par (human wn p)
         val head = "def " ^ fs ^ "(" ^ xs ^ "):\n  return " ^ s ^ "\n"
-        val test = "for x in range(16):\n  print (" ^ fs ^ "(x))"    
+        val test = "for x in range(" ^ its ntop ^ 
+          "):\n  print (" ^ fs ^ "(x))"    
         val ps' = String.concatWith "\n" (!ctxt @ [head,test])
       in ps' end
       else
@@ -630,7 +631,8 @@ fun humani p =
         val wn = !funn
         val fs = "f" ^ its wn
         val s = rm_par (human wn p)
-        val test = "for x in range(16):\n  print (" ^ fs ^ "(x))"    
+        val test = "for x in range(" ^ its ntop ^ 
+          "):\n  print (" ^ fs ^ "(x))"    
         val ps' = String.concatWith "\n" (!ctxt @ [test])
       in ps' end
     val _ = ctxt := [] 
