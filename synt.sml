@@ -92,7 +92,7 @@ fun synt tim n target =
         print_endline "";
         print_endline ("Program found in " ^ rts_round 2 t ^ 
           " seconds (see " ^ 
-          "<a href=https://arxiv.org/abs/2202.11908>preprint</a>): " ^
+          "<a href=https://arxiv.org/abs/2202.11908>preprint</a>): ");
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n");
         print "<code>";
         print_endline (humani (Int.min (length gseq,n)) p);
