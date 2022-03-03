@@ -79,7 +79,8 @@ fun synt tim n target =
   in
     case po of 
       NONE => 
-        (print_endline ("Could not find a program in " ^ rts t ^ " seconds.");
+        (print_endline ("Could not find a program in " ^ rts_round 2 t ^ 
+         " seconds.");
          NONE)
     | SOME p => 
       let val gseq = arb_seq_of_prog 100 p in
@@ -89,8 +90,9 @@ fun synt tim n target =
         print_endline (ailts (first_n n gseq));
         app print_match (map fst (score_matchl gseq));
         print_endline "";
-        print_endline ("Program found in " ^ rts t ^ 
-          " seconds displayed with definitions from the paper:");
+        print_endline ("Program found in " ^ rts_round 2 t ^ 
+          " seconds (see " ^ 
+          "<a href=https://arxiv.org/abs/2202.11908>preprint</a>): " ^
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n");
         print "<code>";
         print_endline (humani (Int.min (length gseq,n)) p);
