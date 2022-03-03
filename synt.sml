@@ -47,9 +47,9 @@ fun score_match gseq (seq,anum) =
       if null cseq orelse shiftn >= n then [] else
       let val (matchn,contb) = nmatch_seq (gseq,cseq) in
         ((matchn,contb,shiftn,anum), scoref (matchn,contb,shiftn))
-        :: loop (shiftn + 1) n cseq
+        :: loop (shiftn + 1) n (tl cseq)
       end
-    val l = loop 0 10 seq
+    val l = loop 0 16 seq
   in    
     if null l then NONE else 
     SOME (find_largest (hd l) (tl l))
