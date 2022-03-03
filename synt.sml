@@ -91,7 +91,7 @@ fun synt tim n target =
         print_endline "";
         print_endline "Program with definitions from the paper:";
         print_endline ("f(x) := " ^ rm_par (humanf p) ^ "\n");
-        print_endline "<code>";
+        print "<code>";
         print_endline (humani n p);
         print_endline "</code>";
         SOME p
