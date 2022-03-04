@@ -58,8 +58,7 @@ fun score_match gseq (seq,anum) =
 fun string_match (matchn,contb,shiftn,anum) =
   let val anums =  "A" ^ its anum in
     "<a href=https://oeis.org/search?q=" ^ anums ^ ">" ^ anums ^ "</a>" ^
-    "(" ^ its shiftn ^ "-" ^ 
-    (if contb then "?" else its (shiftn + matchn)) ^ ")"
+    "(" ^ its shiftn ^ "-" ^ its (shiftn + matchn) ^ ")"
   end
 
 fun print_matchl n gseq =
