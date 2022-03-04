@@ -72,7 +72,7 @@ fun print_matchl n gseq =
     then 
       print_endline (
         "Proposed sequence does not match any " ^
-        "<a href=https://oeis.org>OEIS</a> sequence. ")
+        "<a href=https://oeis.org>OEIS</a> sequences. ")
     else 
       print_endline ("Generated sequence matches best with: " ^ 
         String.concatWith ", " (map string_match l3)) 
