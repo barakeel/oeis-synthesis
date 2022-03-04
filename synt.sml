@@ -66,7 +66,7 @@ fun print_matchl n gseq =
     val l = List.mapPartial (score_match gseq) aol2 
     fun test (x,_) = #1 x >= n
     val l2 = filter test l
-    val l3 = map fst (first_n 3 (dict_sort compare_rmax l))
+    val l3 = map fst (first_n 3 (dict_sort compare_rmax l2))
   in
     if null l3
     then 
