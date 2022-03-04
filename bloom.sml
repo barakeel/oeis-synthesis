@@ -41,6 +41,22 @@ fun import_arbseq () =
     (r1,r2)
   end
 
+fun import_arbseq_fst () =
+  let 
+    val sl = readl (selfdir ^ "/data/oeis");
+    val _ = print_endline ("oeis: " ^ its (length sl))
+    fun f s =
+      let 
+        val aseq = (String.tokens (fn x => x = #",") s)
+        val anum = (hd o String.tokens Char.isSpace o hd) aseq
+        val seq1 = map Arbint.fromString (tl aseq)
+      in 
+         (seq1,anum)
+      end
+  in
+    map f sl
+  end
+
 val bmod = 4093082899
 val bmodw = Word.fromInt bmod
 val zerow = Word.fromInt 0

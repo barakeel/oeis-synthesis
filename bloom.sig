@@ -8,7 +8,10 @@ sig
   val import_arbseq :  unit ->
     (Arbint.int list * string) list * 
     (Arbint.int list, string list) Redblackmap.dict
-  
+  val import_arbseq_fst :  unit ->
+    (Arbint.int list * string) list
+
+
   val odname_glob : (seq, string list) Redblackmap.dict ref
   val odv_glob : (seq Redblackset.set) vector ref
   val find_wins : prog -> seq -> seq list
