@@ -42,7 +42,7 @@ fun score_match gseq (seq,anum) =
   let 
     val anumr = Real.fromInt anum / 10000000.0
     fun scoref (matchn,contb,shiftn) =
-      Real.fromInt matchn - (Real.fromInt shiftn / 100.0) - anumr
+      Real.fromInt matchn * Math.pow (0.95, Real.fromInt shiftn) - anumr
     fun loop shiftn n cseq = 
       if null cseq orelse shiftn >= n then [] else
       let val (matchn,contb) = nmatch_seq (gseq,cseq) in
