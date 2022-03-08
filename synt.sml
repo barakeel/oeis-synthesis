@@ -104,6 +104,9 @@ fun synt tim n target =
           " seconds (see " ^ 
           "<a href=https://arxiv.org/abs/2202.11908>preprint</a>): ");
         print_endline ("f(x) := " ^ rm_par (humanf p));
+        print_endline "";
+        print_endline "Python program:";
+        print_endline (humani (Int.min (length gseq,n)) p);
         print "<code>";
         print_endline (humani (Int.min (length gseq,n)) p);
         print_endline "</code>";
