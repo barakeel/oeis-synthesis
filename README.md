@@ -1,4 +1,4 @@
-This repository contains the software QSynt accompanying the paper "Program Synthesis for the OEIS".
+This repository contains the software QSynt accompanying the paper "Program Synthesis for the OEIS". The preprint is available [here](https://arxiv.org/abs/2202.11908).
 
 Solutions found during a training run can be inspected in the file
 `result/full_prog`.
