@@ -1014,6 +1014,7 @@ fun trainf tmpname =
     val sold = read_sold (!ngen_glob) 
     val _ = print_endline ("reading sold " ^ (its (elength sold)))
     val seqpl = find_minirep_train (elist sold)
+      handle Subscript => raise ERR "find_minirep_train" ""
     val _ = print_endline (its (length seqpl) ^ " minimal representants")
     val ex = create_exl (shuffle seqpl)
     val _ = print_endline (its (length ex) ^ " examples created")
