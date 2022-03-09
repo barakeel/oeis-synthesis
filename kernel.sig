@@ -82,6 +82,8 @@ sig
   val ind_id : id
   val compr_f : exec -> int -> int
   val compr_id : id
+  val loop2_f : exec -> exec -> int -> int
+  val loop2_id : id
 
   (* associate id and function *)
   val nullaryl : (id * exec) list

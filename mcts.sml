@@ -121,7 +121,8 @@ val movelg_org =
   map (fn x => Oper (cond_id,x)) l05 @
   map (fn x => Oper (loop_id,x)) l05 @
   [Pair] @
-  map (fn x => Oper (compr_id,x)) [0,1]
+  map (fn x => Oper (compr_id,x)) [0,1] @
+  map (fn x => Oper (loop2_id,x)) l05
 
 fun id_of_move m = case m of 
     Unit id => [id] 
@@ -309,7 +310,7 @@ fun apply_moveo move board = case move of
         end     
       end
     | [C1 cc, C2 (cb,ca)] => 
-      if not (mem id [cond_id,loop_id]) then NONE else
+      if not (mem id [cond_id,loop_id,loop2_id]) then NONE else
       let val tripleo = permute_triple ord (ca,cb,cc) in
         case tripleo of NONE => NONE | SOME ((na,pia),(nb,pib),(nc,pic)) =>
         let val p = papp_ternop id 
@@ -327,7 +328,8 @@ fun apply_moveo move board = case move of
      | _ => NONE))
   
 fun apply_move move board = valOf (apply_moveo move board)
-  handle Option => raise ERR "apply_move" ""
+  handle Option => raise ERR "apply_move" "option"
+       | Subscript => raise ERR "apply_move" "subscript"
 
 (* -------------------------------------------------------------------------
    Available moves
@@ -349,6 +351,7 @@ fun is_extendable_aux board = case board of
 fun is_extendable board = is_extendable_aux (rev board)
 
 fun available_move board move = isSome (apply_moveo move board)
+
 fun available_movel board = 
   filter (available_move board) 
   (if is_extendable board then movelg else movelg_nounit)
@@ -864,11 +867,13 @@ fun player_wtnn_cache tnn board =
     val prepolie = fp_emb_either tnn prepoli [preboarde]
     val pol1 = Vector.fromList (descale_out (fp_emb_either tnn head_poli 
       [prepolie]))
-    val amovel = available_movel board 
+    val amovel = available_movel board
     val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move x))) amovel
+      handle Subscript => raise ERR "player_wtnn_cache" "2"
   in
     (rewardf board, pol2)
   end
+  
 
 (* -------------------------------------------------------------------------
    Search
@@ -1095,7 +1100,6 @@ fun minimize_winl winl =
    Initialized dictionaries with previous solutions and their subterms
    ------------------------------------------------------------------------- *)
 
-
 fun zerob b =
   let 
     val n = BoolArray.length b
@@ -1128,7 +1132,10 @@ fun init_dicts pl =
   in
     progd := eempty progi_compare;
     notprogd := eempty progi_compare;
-    if !use_semb then zerob (!semb) else semd := eempty seq_compare;
+    if !use_semb then 
+       (semb := BoolArray.tabulate (bmod, fn _ => false);
+        zerob (!semb)) 
+    else semd := eempty seq_compare;
     embd := dempty Term.compare;
     seqwind := eempty seq_compare;
     progwind := eempty progi_compare;
@@ -1335,6 +1342,7 @@ fun rl_search_only tmpname ngen =
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
     val _ = buildheap_options := "--maxheap 10000"
+    val loop2_tm = Vector.sub (operv,13)
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -1384,7 +1392,7 @@ and rl_train tmpname ngen =
 end (* struct *)
 
 
-(*  
+(*
   -------------------------------------------------------------------------
   Train oeis-synthesis
   ------------------------------------------------------------------------- 
@@ -1392,8 +1400,32 @@ end (* struct *)
 load "mcts"; open mcts;
 expname := "run102";
 time_opt := SOME 600.0;
-(* use_mkl := true; *)
+use_mkl := true;
 bloom.init_od ();
-rl_search "_init6" 0;
+rl_train "_init7" 95;
+
+
+(* testing *)
+load "mcts"; open mcts;
+time_opt := SOME 60.0;
+val tnn = mlTreeNeuralNetworkAlt.random_tnn (get_tnndim ());
+bloom.init_od ();
+use_semb := true;
+val x = search tnn 0;
+
+open kernel;
+fun has_loop2 p = case p of
+    Ins (id,[]) => false
+  | Ins (13,[p1,p2,p3]) => true
+  | Ins (_,pl) => exists has_loop2 pl;
+
+val x2 = filter has_loop2 x;
+
+map humanf x2;
+
+
+
+
+
 
 *)

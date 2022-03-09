@@ -65,6 +65,7 @@ val loop_id = 9
 val var_id = 10
 val ind_id = 11
 val compr_id = 12
+val loop2_id = 13
 
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
@@ -82,7 +83,8 @@ val operv = Vector.fromList
    mk_var ("loop",alpha4),
    mk_var ("var",alpha),
    mk_var ("ind",alpha),
-   mk_var ("compr",alpha3)
+   mk_var ("compr",alpha3),
+   mk_var ("loop2",alpha4)
   ]
 
 val maxoper = Vector.length operv
@@ -136,6 +138,17 @@ fun compr_f_aux x f n0 n =
 fun compr_f f n =
   if n > !timelimit orelse n < 0 then raise Div else compr_f_aux 0 f 0 n
 
+fun loop2_f_aux f1 f2 n x = 
+   (
+   incr counter;
+   if !counter > !timelimit then raise Div
+   else if n <= 0 then fst x 
+   else loop2_f_aux f1 f2 (n-1) (f1 x, f2 x)
+   )
+
+fun loop2_f f1 f2 n =
+  if n > !timelimit then raise Div else loop2_f_aux f1 f2 n (0,0)
+
 (* regroup by arity *)
 val nullaryl =
  [(zero_id,zero_f),(one_id,one_f),(two_id,two_f),(var_id,var_f),(ind_id,ind_f)]
@@ -165,6 +178,8 @@ val binaryidl_nocomm = filter (fn x => not (is_comm x)) binaryidl
 fun depend_on_i p = case p of 
     Ins (id,[]) => id = ind_id 
   | Ins (9,[p1,p2,p3]) => depend_on_i p2 orelse depend_on_i p3
+  | Ins (12,[p1,p2]) => depend_on_i p2
+  | Ins (13,[p1,p2,p3]) => depend_on_i p3
   | Ins (_,pl) => exists depend_on_i pl  
 
 fun under_lambda p = case p of
@@ -185,6 +200,7 @@ fun shift_prog n p = case p of
     Ins (id,[]) => if id = var_id then suc_prog n p else p 
   | Ins (9,[p1,p2,p3]) => Ins (9,[p1, shift_prog n p2, shift_prog n p3])
   | Ins (12,[p1,p2]) => Ins (12,[p1, shift_prog n p2])
+  | Ins (13,[p1,p2,p3]) => Ins (13,[p1, p2, shift_prog n p3])
   | Ins (id,pl) => Ins (id, map (shift_prog n) pl)
 
 (* -------------------------------------------------------------------------
@@ -269,6 +285,8 @@ fun mk_exec_aux prog = case prog of
     compose3 cond_f (mk_exec_aux p1) (mk_exec_aux p2) (mk_exec_aux p3)
   | Ins (9,[p1,p2,p3]) =>
     compose2 (loop_f (mk_exec_aux p1)) (mk_exec_aux p2) (mk_exec_aux p3)
+  | Ins (13,[p1,p2,p3]) =>
+    compose1 (loop2_f (mk_exec_aux p1) (mk_exec_aux p2)) (mk_exec_aux p3)
   | _ => raise ERR "mk_exec" ""  
 
 fun mk_exec p =
@@ -452,7 +470,7 @@ fun strip_mult p = case p of
     Ins (5,[p1,p2]) => strip_mult p1 @ strip_mult p2 
   | _ => [p]
 
-fun is_loop (Ins(id,pl)) = (mem id [9,12])
+fun is_loop (Ins(id,pl)) = (mem id [9,12,13])
 
 val ctxt = ref []
 val funn = ref 0
@@ -551,6 +569,9 @@ fun human vn prog =
       else
         "compr(\\x." ^ s1 ^ ", " ^ rm_par (human (~1) p2) ^ ")" 
     end
+  | Ins (13,[p1,p2,p3]) => 
+    "loop2(\\(x,i)." ^ rm_par (human (~1) p1)  ^ ", \\(x,i)." ^ 
+     rm_par (human (~1) p2)  ^ ", " ^ rm_par (human (~1) p3) ^ ")"
   | Ins (s,[]) => its s
   | Ins (s,l) => "(" ^ its s ^ " " ^ 
       String.concatWith " " (map (human vn) l) ^ ")"
