@@ -1012,11 +1012,11 @@ fun read_ctnn_fixed () =
 fun trainf tmpname =
   let 
     val sold = read_sold (!ngen_glob) 
-    val _ = print_endline ("reading sold " ^ (its (dlength sold)))
+    val _ = print_endline ("reading sold " ^ (its (elength sold)))
     val seqpl = find_minirep_train (elist sold)
     val _ = print_endline (its (length seqpl) ^ " minimal representants")
     val ex = create_exl (shuffle seqpl)
-    val _ = print_endline (its (length exl) ^ " examples created")
+    val _ = print_endline (its (length ex) ^ " examples created")
   in
     if !use_mkl then
       let
