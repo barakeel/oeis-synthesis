@@ -8,7 +8,7 @@ http://grid01.ciirc.cvut.cz/~thibault/synt.html
 The web interface allows to run programs for a limited time and gives 
 a limited number of predictions for the next elements in the sequence.
 
-### Install a modified HOL (required)
+### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
 
 ```
