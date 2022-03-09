@@ -1012,8 +1012,11 @@ fun read_ctnn_fixed () =
 fun trainf tmpname =
   let 
     val sold = read_sold (!ngen_glob) 
+    val _ = print_endline ("reading sold " ^ (its (dlength sold)))
     val seqpl = find_minirep_train (elist sold)
+    val _ = print_endline (its (length seqpl) ^ " minimal representants")
     val ex = create_exl (shuffle seqpl)
+    val _ = print_endline (its (length exl) ^ " examples created")
   in
     if !use_mkl then
       let
@@ -1383,7 +1386,7 @@ and rl_train_only tmpname ngen =
     val (_,t) = add_time (wrap_trainf ngen) tmpname 
     val _ = log ("train time: " ^ rts_round 6 t)
   in
-    () 
+    ()
   end
 
 and rl_train tmpname ngen = 
