@@ -668,11 +668,12 @@ fun find_minirep_merge pl =
 
 fun find_minirep_train pl = 
   let 
-    val l = find_minirep_aux pl 
+    val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
   in
     map f l
   end
+  handle Subscript => raise ERR "find_minirep_train" ""
 
 fun merge_sol pl =
   let
@@ -1014,7 +1015,6 @@ fun trainf tmpname =
     val sold = read_sold (!ngen_glob) 
     val _ = print_endline ("reading sold " ^ (its (elength sold)))
     val seqpl = find_minirep_train (elist sold)
-      handle Subscript => raise ERR "find_minirep_train" ""
     val _ = print_endline (its (length seqpl) ^ " minimal representants")
     val ex = create_exl (shuffle seqpl)
     val _ = print_endline (its (length ex) ^ " examples created")
@@ -1068,6 +1068,7 @@ fun wrap_trainf ngen tmpname =
      "mcts.use_mkl := " ^ bts (!use_mkl) ^ ";",
      "mcts.use_para := " ^ bts (!use_para) ^ ";",
      "mcts.use_ob := " ^ bts (!use_ob) ^ ";",
+     "bloom.init_od ();",
      "trainf " ^ mlquote tmpname];
      exec_script scriptfile
   end
@@ -1254,7 +1255,8 @@ val partargetspec : (real, seq, bool * string * real) extspec =
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
+    ["bloom.init_od ()",
+     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
      "mcts.use_semb := " ^ bts (!use_semb),
      "mcts.use_ob := " ^ bts (!use_ob)] 
     ^ ")"),
@@ -1406,7 +1408,7 @@ expname := "run102";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_train "_init7" 95;
+rl_train "_init8" 95;
 
 
 (* testing *)
