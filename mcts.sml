@@ -18,7 +18,7 @@ val use_ob = ref false
 val use_para = ref false
 val dim_glob = ref 64
 val ncore = 20 (* 20 *)
-val ntarget = 20 * 6 * 2 (* 20 * 12 * 2 *)
+val ntarget = 20 * 6 * 4 (* 20 * 6 * 2 *)
 
 (* -------------------------------------------------------------------------
    Conversions betwen lists of reals/ints and strings
@@ -1404,12 +1404,11 @@ end (* struct *)
   ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
-expname := "run102";
+expname := "run103";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_train "_init8" 95;
-
+rl_search "_main" 0;
 
 (* testing *)
 load "mcts"; open mcts;
@@ -1428,10 +1427,4 @@ fun has_loop2 p = case p of
 val x2 = filter has_loop2 x;
 
 map humanf x2;
-
-
-
-
-
-
 *)
