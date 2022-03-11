@@ -17,8 +17,8 @@ val use_mkl = ref false
 val use_ob = ref false
 val use_para = ref false
 val dim_glob = ref 64
-val ncore = 20 (* 20 *)
-val ntarget = 20 * 6 * 4 (* 20 * 6 * 2 *)
+val ncore = 13 (* 20 *)
+val ntarget = 13 * 6 * 4 (* 20 * 6 * 2 *)
 
 (* -------------------------------------------------------------------------
    Conversions betwen lists of reals/ints and strings
@@ -1347,7 +1347,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 10000"
+    val _ = buildheap_options := "--maxheap 15000"
     val loop2_tm = Vector.sub (operv,13)
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
@@ -1404,11 +1404,11 @@ end (* struct *)
   ------------------------------------------------------------------------- 
 
 load "mcts"; open mcts;
-expname := "run103";
+expname := "run102";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_search "_main" 0;
+rl_search "_test10"q;
 
 (* testing *)
 load "mcts"; open mcts;
