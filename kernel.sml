@@ -41,10 +41,11 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 
-fun prog_size (Ins(s,pl)) = 
-  if null pl
-  then 1 + sum_int (map prog_size pl) 
-  else sum_int (map prog_size pl) 
+fun prog_size (Ins(s,pl)) = case pl of
+    [] => 1
+  | [a] => 1 + prog_size a
+  | [a,b] => 1 + prog_size a + prog_size b
+  | _ => (length pl - 1) + sum_int (map prog_size pl) 
 
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
@@ -202,6 +203,11 @@ fun shift_prog n p = case p of
   | Ins (12,[p1,p2]) => Ins (12,[p1, shift_prog n p2])
   | Ins (13,[p1,p2,p3]) => Ins (13,[p1, p2, shift_prog n p3])
   | Ins (id,pl) => Ins (id, map (shift_prog n) pl)
+
+fun has_loop2 p = case p of
+    Ins (13,[p1,p2,p3]) => true
+  | Ins (_,pl) => exists has_loop2 pl;
+
 
 (* -------------------------------------------------------------------------
    Compressed programs

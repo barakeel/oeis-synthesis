@@ -15,6 +15,10 @@ sig
   type board = clausex list  
   type player = (board,move) psMCTS.player
 
+  val prog_compare_size : prog * prog -> order
+  val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
+
+
   (* globals *)
   val use_semb : bool ref
   val progd: progi Redblackset.set ref

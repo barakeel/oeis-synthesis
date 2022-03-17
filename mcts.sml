@@ -57,7 +57,6 @@ fun mctsparam () =
    noise_gen = if !uniform_flag then uniform_noise else random_noise,
    nsim = !nsim_opt : int option, time = !time_opt: real option};
 
-
 val coreid_glob = ref 0
 val ngen_glob = ref 0
 
@@ -82,7 +81,7 @@ fun eaddi x d = d := eadd x (!d)
 fun ememi x d = emem x (!d)
 
 fun spacetime space tim = 
-  Math.pow (2.0, Real.fromInt space) * Real.fromInt tim
+  Math.pow (1.414, Real.fromInt space) * Real.fromInt tim
 
 (* -------------------------------------------------------------------------
    Main process loging function
@@ -218,10 +217,10 @@ fun permute_double n (a,b) =
 
 val complexity_compare = cpl_compare Real.compare progi_compare
 
-fun update_minid p (leafn,pi) (sem,tim) =
+fun update_minid p (psize,pi) (sem,tim) =
   let 
     val rep = dfind sem (!minid) 
-    val newrep = (spacetime leafn tim, pi)
+    val newrep = (spacetime psize tim, pi)
   in
     if complexity_compare (newrep,rep) = LESS
     then minid := dadd sem newrep (!minid)
@@ -260,8 +259,8 @@ fun is_incr newc board = case board of
   | C2 (c,_) :: m => clause_compare (newc,c) <> GREATER
   | [] => true
 
-fun exec_fun_insearch p (leafn,pi) plb =
-  if ememi pi progd then SOME (C1 (leafn,pi) :: plb)
+fun exec_fun_insearch p (psize,pi) plb =
+  if ememi pi progd then SOME (C1 (psize,pi) :: plb)
   else if ememi pi notprogd then NONE
   else (* unseen program *)
     case semtimo_of_prog p of 
@@ -269,7 +268,7 @@ fun exec_fun_insearch p (leafn,pi) plb =
     | SOME (sem,tim) =>
       (
       if !simple_search then check_simple_target p else ();
-      update_minid p (leafn,pi) (sem,tim);
+      update_minid p (psize,pi) (sem,tim);
       if not (ememi pi initd) andalso 
          (if !use_semb then bmem sem (!semb) else ememi sem semd) 
       then (eaddi pi notprogd; NONE) 
@@ -278,18 +277,18 @@ fun exec_fun_insearch p (leafn,pi) plb =
         if not (!simple_search) then update_wind p pi sem else ();
         eaddi pi progd;
         (if !use_semb then badd sem (!semb) else eaddi sem semd); 
-        SOME (C1 (leafn,pi) :: plb)
+        SOME (C1 (psize,pi) :: plb)
         )
       )
 
 val check_order = ref true
 
-fun exec_fun p leafn plb =
+fun exec_fun p psize plb =
   let val pi = zip_prog p in
-    if !check_order andalso not (is_incr (leafn,pi) plb) then NONE 
+    if !check_order andalso not (is_incr (psize,pi) plb) then NONE 
     else if !in_search
-      then exec_fun_insearch p (leafn,pi) plb
-      else SOME (C1 (leafn,pi) :: plb)
+      then exec_fun_insearch p (psize,pi) plb
+      else SOME (C1 (psize,pi) :: plb)
   end
 
 fun apply_moveo move board = case move of
@@ -335,17 +334,18 @@ fun apply_move move board = valOf (apply_moveo move board)
    Available moves
    ------------------------------------------------------------------------- *)
 
-fun leafn_of_clausex cx = case cx of
+fun size_of_clausex cx = case cx of
     C1 a => fst a
-  | C2 (a,b) => fst a + fst b
+  | C2 (a,b) => 1 + fst a + fst b
 
-fun leafn_of_board board = sum_int (map leafn_of_clausex board)
+fun size_of_board board = 
+  sum_int (map size_of_clausex board) + (length board - 1)
 
 fun is_extendable_aux board = case board of
     C1 a :: m =>
-    (#1 a >= leafn_of_board m + 1 andalso is_extendable_aux m)
+    (fst a >= size_of_board m + 2 andalso is_extendable_aux m)
   | C2 (a,b) :: m => 
-    (#1 a >= leafn_of_board m + 1 andalso is_extendable_aux m)
+    (fst a >= size_of_board m + 2 andalso is_extendable_aux m)
   | _ => true
 
 fun is_extendable board = is_extendable_aux (rev board)
@@ -1408,23 +1408,85 @@ expname := "run102";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_search "_test10"q;
+rl_search "_test11" 99;
 
 (* testing *)
-load "mcts"; open mcts;
+load "mcts"; open mcts; open aiLib; open kernel;
 time_opt := SOME 60.0;
 val tnn = mlTreeNeuralNetworkAlt.random_tnn (get_tnndim ());
 bloom.init_od ();
 use_semb := true;
 val x = search tnn 0;
 
-open kernel;
-fun has_loop2 p = case p of
-    Ins (id,[]) => false
-  | Ins (13,[p1,p2,p3]) => true
-  | Ins (_,pl) => exists has_loop2 pl;
 
-val x2 = filter has_loop2 x;
+(* compression *)
+PolyML.print_depth 0;
+load "mcts"; open aiLib kernel mcts;
+PolyML.print_depth 40;
 
-map humanf x2;
+fun real_size (Ins (id,pl)) = 1 + sum_int (map real_size pl);
+val sol1 = random_subset 1000 (read_result "main_sold");
+val ntot1 = sum_int (map real_size sol1);
+
+val hole_id = ~1;
+fun insert l posi newa =
+  let fun f i a = if i = posi then newa else a in
+    mapi f l
+  end
+
+fun all_holes (p as Ins (id,pl)) = 
+  Ins (hole_id,[]) :: map (fn x => Ins (id,x)) (all_holes_pl pl)
+
+and all_holes_pl pl = 
+  let 
+    val l = map all_holes pl
+    fun f i x = map (insert pl i) x
+  in
+    List.concat (mapi f l)
+  end
+
+val freql0 = compute_freq all_subprog sol1;
+fun f (a,i) = map (fn x => (x,i)) (all_holes a);
+val freql1 = List.concat (map f freql0);
+fun dsum cmp l = 
+  let 
+    val d = ref (dempty cmp) 
+    fun f (a,i) = 
+      let val oldi = dfind a (!d) handle NotFound => 0 in
+        d := dadd a (oldi + i) (!d)
+      end
+  in
+    app f l; !d  
+  end;
+   
+val freql11 = dict_sort compare_imax (dlist (dsum prog_compare freql1));
+val freql2 = List.concat (map f freql11);
+val freql22 = dict_sort compare_imax (dlist (dsum prog_compare freql2));
+
+
+val freql31 = map fst freql11;
+val freql32 = filter (fn x => prog_size x >= 2) freql31;
+val freql4 = first_n 30 freql32;
+val freql4p = dict_sort prog_compare_size freql4;
+val freql4i = number_snd 101 (rev freql4p);
+
+exception Pmatch;
+fun pmatch_aux (pat as Ins (id1,pl1), p as Ins (id2,pl2)) = 
+  if id1 = hole_id then [p]
+  else if id1 = id2 andalso length pl1 = length pl2 then
+    List.concat (map pmatch_aux (combine (pl1,pl2)))
+  else raise Pmatch;
+
+fun pmatch pat p = (SOME (pmatch_aux (pat,p)) handle Pmatch => NONE);
+
+fun psubst (pat,id2) (ptop as Ins (id,pl)) = case pmatch pat ptop of
+    SOME argl => Ins (id2, map (psubst (pat,id2)) argl)
+  | NONE => Ins (id, map (psubst (pat,id2)) pl);
+ 
+fun psubstl pil p = foldl (uncurry psubst) p pil;
+
+val sol2 = map (psubstl freql4i) sol1; 
+val ntot2 = sum_int (map real_size sol2);
+
+
 *)
