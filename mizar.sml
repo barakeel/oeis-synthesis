@@ -1,10 +1,30 @@
-structure mcts :> mcts =
+structure mizar :> mizar =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel psMCTS 
-  mlNeuralNetwork smlExecScripts mlTreeNeuralNetworkAlt kernel bloom
+  mlNeuralNetwork smlExecScripts mlTreeNeuralNetworkAlt dir
 
-val ERR = mk_HOL_ERR "mcts"
+val ERR = mk_HOL_ERR "mizar"
+fun eaddi x d = d := eadd x (!d)
+fun ememi x d = emem x (!d)
+
+type id = int
+datatype sexp = Sexp of sexp list | Stoken of string;
+datatype prog = Ins of (int * prog list);
+
+fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
+  cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
+
+fun prog_size (Ins(s,pl)) = case pl of
+    [] => 1
+  | [a] => 1 + prog_size a
+  | [a,b] => 1 + prog_size a + prog_size b
+  | _ => (length pl - 1) + sum_int (map prog_size pl) 
+
+fun prog_to_clause p = (prog_size p, p)
+
+fun prog_compare_size (p1,p2) = 
+   cpl_compare Int.compare prog_compare (prog_to_clause p1, prog_to_clause p2)
 
 (* -------------------------------------------------------------------------
    Globals
@@ -31,20 +51,160 @@ fun rlts x = String.concatWith " " (map rts x)
 fun strl x = map string_to_real (String.tokens Char.isSpace x)
 
 (* -------------------------------------------------------------------------
+   Parsing S-expressions
+   ------------------------------------------------------------------------- *)
+
+fun lex_sexp_aux buf sl charl = case charl of
+    [] => if null buf then rev sl else rev (implode (rev buf) :: sl)
+  | #"(" :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] ("(" :: sl) m
+   else lex_sexp_aux [] ("(" :: implode (rev buf) :: sl) m
+   )
+  | #")" :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] (")" :: sl) m
+   else lex_sexp_aux [] (")" :: implode (rev buf) :: sl) m
+   )
+  | #" " :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] sl m
+   else lex_sexp_aux [] (implode (rev buf) :: sl) m
+   )
+  | a :: m => lex_sexp_aux (a :: buf) sl m
+  
+fun lex_sexp s = lex_sexp_aux [] [] (explode s)
+ 
+fun parse_sexpl sexpl sl = case sl of
+    [] => (rev sexpl, [])
+  | "(" :: m =>
+    let val (a,contl) = parse_sexpl [] m in
+      parse_sexpl (Sexp a :: sexpl) contl     
+    end
+  | ")" :: m => (rev sexpl, m)
+  | a :: m => parse_sexpl (Stoken a :: sexpl) m 
+
+fun parse_sexp s =
+  let val (l1,l2) = parse_sexpl [] (lex_sexp s) in
+    case (l1,l2) of
+     ([a],[]) => a 
+    | _ => raise ERR "parse_sexp" s
+  end
+
+fun rm_squote s = 
+  if String.size s = 0 then s else
+  if String.sub (s,0) = #"'" andalso 
+     String.sub (s,String.size s - 1) =  #"'" 
+  then String.substring (s,1,String.size s - 2)
+  else s;
+
+fun rm_squote_sexp sexp = case sexp of
+    Sexp sexpl => Sexp (map rm_squote_sexp sexpl)
+  | Stoken s => Stoken (rm_squote s);
+
+fun collect_tokens sexp =  case sexp of
+    Sexp sexpl => List.concat (map collect_tokens sexpl)
+  | Stoken s => [s];
+
+fun sexp_to_prog operd sexp = case sexp of 
+    Sexp (Stoken s :: m) => Ins (dfind s operd, map (sexp_to_prog operd) m)
+  | Stoken s => Ins (dfind s operd, [])
+  | _ => raise ERR "sexp_to_prog" "not supported"
+
+
+(* -------------------------------------------------------------------------
+   Maximal arity is 3
+   ------------------------------------------------------------------------- *) 
+
+fun compress_arg_loop i s m =
+  if length m <= 3 then m else 
+  let
+    val batchl = mk_batch_full 3 m
+    fun f x = case x of
+      [] => raise ERR "compress_arg_loop" ""
+    | [a] => a
+    | _ => 
+      let val r = Sexp (Stoken (s ^ "@" ^ its (!i)) :: x) in
+        incr i; r
+      end 
+  in
+    compress_arg_loop i s (map f batchl)
+  end
+
+fun compress_arg s m =
+  let val i = ref 0 in
+    compress_arg_loop i s m
+  end
+
+fun compress_arity sexp = 
+  case sexp of
+    Sexp (Stoken s :: m) => 
+    let val newm = map compress_arity m in
+      Sexp (Stoken s :: compress_arg s newm)
+    end
+  | Stoken s => sexp
+  | _ => raise ERR "compress_arity" "not supported"
+
+
+fun collect_arity_one d (Ins (id,pl)) =
+  (
+  if dmem id (!d) 
+  then 
+    if length pl = dfind id (!d) 
+    then () 
+    else raise ERR "collect_arity" (its id)
+  else d := dadd id (length pl) (!d)
+  ;
+  app (collect_arity_one d) pl
+  )
+
+fun collect_arity pl =
+  let val d = ref (dempty Int.compare) in
+    app (collect_arity_one d) pl; !d
+  end
+
+(*
+load "mizar"; open aiLib mizar;
+parse_sexp "(1 (2 3))";
+
+*)
+
+val sexpl = map (compress_arity o rm_squote_sexp o parse_sexp) 
+  (readl "data/test.miz8_2.lisp");
+val tokenl = List.concat (map collect_tokens sexpl);
+val tokend = count_dict (dempty String.compare) tokenl;
+val operd = dnew String.compare (number_snd 0 (dkeys tokend)); 
+val revoperd = dnew Int.compare (map swap (dlist operd)); 
+val progl = map (sexp_to_prog operd) sexpl;
+
+val arityd = collect_arity progl;
+val maxoper = dlength arityd
+fun arity_of_oper opern = dfind opern arityd
+
+(* -------------------------------------------------------------------------
+   Test for a win
+   ------------------------------------------------------------------------- *)
+
+val mizard = enew prog_compare progl
+val wind = ref (eempty prog_compare)
+fun init_wind () = wind := eempty prog_compare
+fun update_wind p = if emem p mizard then eaddi p wind else ()
+
+(* -------------------------------------------------------------------------
    Parameters
    ------------------------------------------------------------------------- *)
 
-val target_glob = ref []
 val maxbigsteps = 1
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref (NONE)
 val time_opt = ref (SOME 60.0)
-
 fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
-
 fun spiky_noise () = if random_real () > 0.9 then 1.0 else 0.0
 fun uniform_noise () = 1.0
 val uniform_flag = ref false
@@ -59,28 +219,6 @@ fun mctsparam () =
 val coreid_glob = ref 0
 val ngen_glob = ref 0
 
-val in_search = ref false
-
-val embd = ref (dempty Term.compare)
-val seqwind = ref (eempty seq_compare)
-val progwind = ref (eempty progi_compare)
-
-val progd = ref (eempty progi_compare)
-val notprogd = ref (eempty progi_compare)
-
-val semb = ref (BoolArray.fromList [])
-val use_semb = ref true
-val semd = ref (eempty seq_compare)
-val progsemd = ref (eempty seq_compare)
-
-val minid = ref (dempty seq_compare)
-val initd = ref (eempty progi_compare)
-
-fun eaddi x d = d := eadd x (!d)
-fun ememi x d = emem x (!d)
-
-fun spacetime space tim = 
-  Math.pow (1.414, Real.fromInt space) * Real.fromInt tim
 
 (* -------------------------------------------------------------------------
    Main process loging function
@@ -98,9 +236,6 @@ fun log s =
    Type abbreviations
    ------------------------------------------------------------------------- *)
 
-type seq = kernel.seq
-type prog = kernel.prog
-type progi = kernel.progi
 type tnn = mlTreeNeuralNetworkAlt.tnn
 type 'a set = 'a Redblackset.set
 
@@ -108,46 +243,9 @@ type 'a set = 'a Redblackset.set
    Move
    ------------------------------------------------------------------------- *)
 
-datatype move = Oper of int * int | Pair
-
-fun postpair b a = (a,b)
-fun factorial n = if n <= 0 then 1 else n * factorial (n-1);
-
-fun oper_to_movel i oper = 
-  let val a = arity_of oper in
-    if is_comm i then [Oper (i,0)]
-    else map (fn x => Oper (i,x)) (List.tabulate (factorial a,I))
-  end
-
-val movelg_org =
-  List.concat (mapi oper_to_movel (vector_to_list operv)) @ [Pair]
-   
-fun id_of_move m = case m of 
-    Oper (id,ord) => [id,ord]
-  | Pair => [1000]
-
-fun move_compare (m1,m2) = seq_compare (id_of_move m1, id_of_move m2)
-
-val movelg = dict_sort move_compare movelg_org
-val movev = Vector.fromList movelg
-val maxmove = length movelg
-val moved = dnew move_compare (number_snd 0 movelg)
-fun index_of_move move = dfind move moved
-fun move_of_index index = Vector.sub (movev,index)
-
-fun string_of_move m =
-  let val l = id_of_move m in
-    if hd l = 1000 then "pair" else
-    name_of_oper (hd l) ^ "-" ^ String.concatWith "-" (map its (tl l))
-  end
-
-fun has_arity a x = 
-  case x of Oper (id,_) => arity_of_oper id = a | _ => false
-
-val movelg_arity0 = filter (has_arity 0) movelg
-val movelg_arity1 = filter (has_arity 1) movelg
-val movelg_arity2 = filter (has_arity 2) movelg
-val movelg_arity3 = filter (has_arity 3) movelg
+type move = int
+val movel = List.tabulate (32,I)
+fun string_of_move m = its m
 
 (* -------------------------------------------------------------------------
    Build a list of programs
@@ -167,219 +265,49 @@ fun longereq n l =
    Board
    ------------------------------------------------------------------------- *)
 
-type clause = int * progi
-datatype clausex = C1 of clause | C2 of clause * clause
-
-fun prog_to_clause p = (prog_size p, zip_prog p)
-val clause_compare = cpl_compare Int.compare progi_compare
-
-fun prog_compare_size (p1,p2) = 
-  clause_compare (prog_to_clause p1, prog_to_clause p2)
-
-fun equal_clause (a,b) = (clause_compare (a,b) = EQUAL)
-
-fun clausex_compare (a,b) = case (a,b) of
-    (C1 a', C1 b') => clause_compare (a',b')
-  | (C1 _ , C2 _ ) => LESS
-  | (C2 _ , C1 _ ) => GREATER
-  | (C2 a', C2 b') => cpl_compare clause_compare clause_compare (a',b')
-
-fun string_of_clause clause = humanf (unzip_prog (snd clause))
-fun string_of_clausex clausex = case clausex of
-    C1 a => string_of_clause a
-  | C2 (a,b) => "(pair " ^ string_of_clause a ^ " " ^ string_of_clause b ^ ")"
-
-type board = clausex list
+type board = int list * prog list
 type player = (board,move) psMCTS.player
-fun string_of_board (board : board) = 
-  "# " ^ String.concatWith "\n# " (map string_of_clausex board)
-fun board_compare (a,b) = list_compare clausex_compare (a,b)
-
-(* -------------------------------------------------------------------------
-   Permutation of arguments
-   ------------------------------------------------------------------------- *)
-
-fun permute_triple n (a,b,c) = 
-  if n = 0 then SOME (a,b,c) else
-  if n = 1 then (if equal_clause (c,b) then NONE else SOME (a,c,b)) else
-  if n = 2 then (if equal_clause (b,a) then NONE else SOME (b,a,c)) else
-  if n = 3 then (if equal_clause (c,a) then NONE else SOME (b,c,a)) else
-  if n = 4 then (if equal_clause (c,a) then NONE else SOME (c,a,b)) else
-  if n = 5 then (if equal_clause (c,b) orelse equal_clause (b,a) 
-                 then NONE else SOME (c,b,a)) 
-  else raise ERR "permute_triple" "" 
-
-fun permute_double n (a,b) =
-  if n = 0 then SOME (a,b) else
-  if n = 1 then (if equal_clause (a,b) then NONE else SOME (b,a))
-  else raise ERR "permute_double" ""
+fun string_of_board (board : board) = "board"
+fun board_compare (a,b) = 
+  cpl_compare (list_compare Int.compare) (list_compare prog_compare) (a,b)
 
 (* -------------------------------------------------------------------------
    Application of a move to a board
    ------------------------------------------------------------------------- *)
+fun eval_revil v il = case il of
+    [] => raise ERR "eval_revil" ""
+  | [a] => v * 16 + a
+  | a :: m => eval_revil (v * 16 + a) m 
+  
+fun eval_il il = eval_revil 0 il
 
-val complexity_compare = cpl_compare Real.compare progi_compare
-
-fun update_minid p (psize,pi) (sem,tim) =
-  let 
-    val rep = dfind sem (!minid) 
-    val newrep = (spacetime psize tim, pi)
+fun apply_moveo move (il,pl) = 
+  if move >= 16 andalso int_pow 16 (length pl + 1) >= maxoper then NONE
+  else if move >= 16 then SOME (move - 16 :: il, pl) 
+  else if move = 0 andalso not (null il) then NONE else
+  let  
+    val opern = eval_il (move :: il) 
   in
-    if complexity_compare (newrep,rep) = LESS
-    then minid := dadd sem newrep (!minid)
-    else ()
+    if opern >= maxoper then NONE else
+    case partopt (arity_of_oper opern) pl of 
+      NONE => NONE 
+    | SOME (pla,plb) => 
+       let val newp = Ins (opern, rev pla) in
+         update_wind newp;
+         SOME ([], newp :: plb)
+       end
   end
-  handle NotFound => ()
-
-fun update_wind p pi sem =
-  let 
-    val winseql = find_wins p sem
-    val b = ref false
-    fun f x = if not (ememi x seqwind) 
-      then (eaddi x seqwind; b := true) else ()
-  in
-    app f winseql;
-    if !b then eaddi pi progwind else ()
-  end
-
-exception ResultP of prog;
-
-fun check_simple_target p =
-  let 
-    val f = mk_exec p
-    fun test (x,e) = fst (f(x,0)) = e handle Div => false
-    fun loop i maxn = 
-      if i >= maxn then () else
-      if all test (number_fst i (!simple_target)) 
-      then raise ResultP (shift_prog i p)
-      else loop (i+1) maxn
-  in
-    loop 0 16
-  end
-
-fun is_incr newc board = case board of
-    C1 c :: m => clause_compare (newc,c) <> GREATER
-  | C2 (c,_) :: m => clause_compare (newc,c) <> GREATER
-  | [] => true
-
-fun exec_fun_insearch p (psize,pi) plb =
-  if ememi pi progd then SOME (C1 (psize,pi) :: plb)
-  else if ememi pi notprogd then NONE
-  else (* unseen program *)
-    case semtimo_of_prog p of 
-      NONE => (eaddi pi notprogd; NONE) 
-    | SOME (sem,tim) =>
-      (
-      if !simple_search then check_simple_target p else ();
-      update_minid p (psize,pi) (sem,tim);
-      if not (ememi pi initd) andalso 
-         (if !use_semb then bmem sem (!semb) else ememi sem semd) 
-      then (eaddi pi notprogd; NONE) 
-      else (* unseen sequence *)
-        (
-        if not (!simple_search) then update_wind p pi sem else ();
-        eaddi pi progd;
-        (if !use_semb then badd sem (!semb) else eaddi sem semd); 
-        SOME (C1 (psize,pi) :: plb)
-        )
-      )
-
-val check_order = ref true
-
-fun exec_fun p psize plb =
-  let val pi = zip_prog p in
-    if !check_order andalso not (is_incr (psize,pi) plb) then NONE 
-    else if !in_search
-      then exec_fun_insearch p (psize,pi) plb
-      else SOME (C1 (psize,pi) :: plb)
-  end
-  handle Subscript => raise ERR "exec_fun" (humanf p)
-
-
-fun apply_moveo move board = case move of
-    Oper (id,ord) =>
-    let val arity = arity_of_oper id in
-      if arity = 0 then exec_fun (Ins (id,[])) 1 board
-      else if arity = 1 then 
-        (case partopt 1 board of SOME ([C1 (na,pia)],plb) =>
-           exec_fun (Ins (id,[unzip_prog pia])) na plb  
-        | _ => NONE)
-      else if arity = 2 orelse arity = 3 then
-        (case partopt 2 board of NONE => NONE | SOME (pla,plb) =>
-        (case pla of
-          [C1 cb, C1 ca] => 
-          if arity <> 2 then NONE else
-          let val doubleo = permute_double ord (ca,cb) in
-            case doubleo of NONE => NONE | SOME ((na,pia),(nb,pib)) =>
-            let 
-              val (pa,pb) = (unzip_prog pia,unzip_prog pib)
-              val p = Ins (id,[pa,pb])
-            in
-              if id = compr_id andalso depend_on_i pa then NONE else 
-              exec_fun p (na + nb) plb
-            end     
-          end
-        | [C1 cc, C2 (cb,ca)] => 
-          if arity <> 3 then NONE else
-          let val tripleo = permute_triple ord (ca,cb,cc) in
-            case tripleo of NONE => NONE | 
-              SOME ((na,pia),(nb,pib),(nc,pic)) =>
-            let val p = Ins (id, map unzip_prog [pia,pib,pic]) in
-              exec_fun p (na + nb + nc) plb
-            end
-          end
-        | _ => NONE))
-      else raise ERR "not supported" ""
-    end
-  | Pair =>
-    (case partopt 2 board of NONE => NONE | SOME (pla,plb) =>
-    (case pla of
-       [C1 ca, C1 cb] => SOME (C2 (ca,cb) :: plb)
-     | _ => NONE))
-
+ 
 fun apply_move move board = 
   valOf (apply_moveo move board)
   handle Option => raise ERR "apply_move" "option"
-       | Subscript => raise ERR "apply_move" "subscript"
 
 (* -------------------------------------------------------------------------
    Available moves
    ------------------------------------------------------------------------- *)
 
-fun size_of_clausex cx = case cx of
-    C1 a => fst a
-  | C2 (a,b) => 1 + fst a + fst b
-
-fun size_of_board board = 
-  sum_int (map size_of_clausex board) + (length board - 1)
-
-fun is_extendable_aux board = case board of
-    C1 a :: m =>
-    (fst a >= size_of_board m + 2 andalso is_extendable_aux m)
-  | C2 (a,b) :: m => 
-    (fst a >= size_of_board m + 2 andalso is_extendable_aux m)
-  | _ => true
-
-fun extend_unary_aux board = case board of
-    [] => false
-  | [a] => true
-  | C1 a :: m =>
-    (fst a >= size_of_board m + 1 andalso extend_unary_aux m)
-  | C2 (a,b) :: m => 
-    (fst a >= size_of_board m + 1 andalso extend_unary_aux m)
-
-fun is_extendable board = is_extendable_aux (rev board)
-fun extend_unary board = extend_unary_aux (rev board)
-
 fun available_move board move = isSome (apply_moveo move board)
-
-fun available_movel board = 
-  filter (available_move board) 
-    (
-    (if is_extendable board then movelg_arity0 else []) @
-    (if extend_unary board then movelg_arity1 else []) @
-     movelg_arity2 @ [Pair] @ movelg_arity3
-    )
+fun available_movel board = filter (available_move board) movel
 
 (* -------------------------------------------------------------------------
    For debugging
@@ -388,14 +316,12 @@ fun available_movel board =
 fun random_step board =
   apply_move (random_elem (available_movel board)) board
 
-fun random_board n = funpow n random_step []
+fun random_board n = funpow n random_step ([],[])
   handle Interrupt => raise Interrupt 
     | _ => random_board n
 
-fun random_prog n = case last (random_board n) of
-    C1 c => unzip_prog (snd c)
-  | _ => random_prog n
-  
+fun random_prog n = last (snd (random_board n))
+
 fun apply_movel movel board = foldl (uncurry apply_move) board movel
 
 (* -------------------------------------------------------------------------
@@ -416,9 +342,39 @@ val game : (board,move) game =
   string_of_board = string_of_board,
   string_of_move = string_of_move,
   board_compare = board_compare,
-  move_compare = move_compare,
-  movel = movelg
+  move_compare = Int.compare,
+  movel = movel
   }
+
+fun player_uniform tnn board = 
+  (0.0, map (fn x => (x,1.0)) (available_movel board))
+
+fun mctsobj tnn = 
+  {game = game, mctsparam = mctsparam (), player = player_uniform tnn};
+
+fun tree_size tree = case tree of
+    Leaf => 0
+  | Node (node,ctreev) => 1 + 
+     sum_int (map (tree_size o #3) (vector_to_list ctreev))
+
+(*
+load "mizar"; open mizar aiLib psMCTS;
+avoid_lose := true;
+time_opt := SOME 60.0;
+nsim_opt := NONE;
+val mizarl = first_n 10 (dict_sort prog_compare_size (elist mizard));
+
+val _ = init_wind ();
+val tnn = dempty Term.compare : mlTreeNeuralNetworkAlt.tnn;
+val tree = starting_tree (mctsobj tnn) ([],[]);
+PolyML.print_depth 1;
+val (newtree,t) = add_time (mcts (mctsobj tnn)) tree;
+PolyML.print_depth 40;
+val n1 = tree_size newtree;
+val n2 = elength (!wind);
+*)
+
+(*
 
 (* -------------------------------------------------------------------------
    Represent board as a term to give to the TNN
@@ -428,19 +384,14 @@ val alpha2 = rpt_fun_type 2 alpha
 val alpha3 = rpt_fun_type 3 alpha
 
 (* encoding sequences *)
-val natbase = 10
-val nat_cat = mk_var ("nat_cat", alpha3);
-val nat_neg = mk_var ("nat_neg", alpha2);
-val nat_big = mk_var ("nat_big", alpha);
+val natbase = 16
 fun embv_nat i = mk_var ("nat" ^ its i,alpha);
 val natoperl = List.tabulate (natbase,embv_nat) @ [nat_cat,nat_neg,nat_big];
 
 fun term_of_nat n =
-  if n < 0 then mk_comb (nat_neg, term_of_nat (~ n))
-  else if n > 1000000 then nat_big
-  else if n < natbase then embv_nat n
-  else list_mk_comb (nat_cat,
-    [embv_nat (n mod natbase), term_of_nat (n div natbase)])
+  if n < 0 orelse n >= 16 
+  then raise ERR "term_of_nat" ""
+  else embv_nat n
 
 val seq_empty = mk_var ("seq_empty", alpha);
 val seq_cat = mk_var ("seq_cat", alpha3);
@@ -483,22 +434,15 @@ val pair_cat = mk_var ("pair_cat",alpha3);
 val stack_empty = mk_var ("stack_empty", alpha);
 val stack_cat = mk_var ("stack_cat", alpha3);
 
-fun term_of_clause clause = term_of_prog (unzip_prog (snd clause))
-
-fun term_of_clausex clausex = case clausex of
-    C1 clause => term_of_clause clause
-  | C2 (a,b) => 
-    cap (list_mk_comb (pair_cat, [term_of_clause a,term_of_clause b]))
-fun term_of_stack_aux board = case board of 
+fun term_of_stack_aux pl = case pl of 
     [] => stack_empty
   | a :: m => 
-    cap (list_mk_comb (stack_cat, [term_of_clausex a,term_of_stack_aux m]));
+    cap (list_mk_comb (stack_cat, [term_of_prog a,term_of_stack_aux m]));
 
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
-fun term_of_stack board = 
-  list_mk_comb (pair_progseq, 
-    [term_of_stack_aux board, cap (term_of_seq (first_n 8 (!target_glob)))])
+fun term_of_stack (il,pl) =
+  list_mk_comb (pair_progseq, [term_of_stack_aux pl, cap (term_of_seq il)])
 
 (* policy head *)
 val prepoli = mk_var ("prepoli",alpha2)
@@ -565,153 +509,30 @@ end (* local *)
    Create the sequence of moves that would produce a program p
    ------------------------------------------------------------------------- *)
 
-fun inv_cmp cmp (a,b) = cmp (b,a)
-
-fun commute (Ins (oper,argl)) = 
-  if is_comm oper
-  then Ins (oper, dict_sort (inv_cmp prog_compare_size) (map commute argl))
-  else Ins (oper, map commute argl)
-
 fun is_appsyn target prev move =
-  case apply_moveo move prev of (* extendable not tested here *)
+  case apply_moveo move prev of
     NONE => false
   | SOME (C1 clause :: m) => equal_prog (target,unzip_prog (snd clause))
   | _ => false
 
 fun invapp_move board = case board of
-    [] => NONE
-  | C1 topclause :: m => 
-    let val target = unzip_prog (snd topclause) in 
-    case target of
-      Ins (_,[]) =>
-      let 
-        val prev = m 
-        val move = valOf (List.find (is_appsyn target prev) movelg) 
-          handle Option => raise ERR "invapp_move" (humanf target)
-      in
-        SOME (prev, move)
-      end
-    | Ins (_,[p1,p2]) =>
-      let
-        val argl = dict_sort clause_compare (map prog_to_clause [p1,p2])
-        val prev = map C1 argl @ m
-        val move = valOf (List.find (is_appsyn target prev) movelg) 
-          handle Option => 
-            (
-            print_endline (string_of_board board);
-            print_endline (string_of_board prev);
-            print_endline (humanf p1 ^ " " ^ humanf p2);
-            raise ERR "invapp_move" (string_of_board board)
-            )
-      in
-        SOME (prev, move)
-      end
-    | Ins (_,[p1,p2,p3]) => 
-      let 
-        val (c1,c2,c3) = triple_of_list
-          (dict_sort clause_compare (map prog_to_clause [p1,p2,p3]))
-        val prev = C1 c1 :: C2 (c2,c3) :: m
-        val move = valOf (List.find (is_appsyn target prev) movelg) 
-          handle Option => raise ERR "invapp_move" (humanf target)
-      in
-        SOME (prev, move)
-      end
-    | _ => raise ERR "invapp_move" "unexpected"
-    end
-  | C2 (ca,cb) :: m => SOME (C1 ca :: C1 cb :: m, Pair)
+    ([],[]) => NONE
+  | ([], (Ins (id,argl) :: pl) => SOME ((mk_base16 id, rev argl @ pl),pl) 
+  | (i :: il, pl) => SOME ((il,pl), i)
 
 fun linearize_aux acc board = case invapp_move board of
     SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
   | NONE => acc
 
-fun linearize p = linearize_aux [] [C1 (prog_to_clause p)]
-
-(* -------------------------------------------------------------------------
-   Merging solutions from searches with different semantic quotient
-   ------------------------------------------------------------------------- *)
-
-exception Rewrite of prog;
-
-fun rewrite_merge repd (p as Ins (id,pl)) = 
-  let 
-    val sem = sem_of_prog p
-      handle Option => raise Rewrite p
-    val newp = dfind sem (!repd) handle NotFound =>
-      let
-        val newpl = map (rewrite_merge repd) pl
-        val newptemp = Ins (id,newpl)
-      in
-        repd := dadd sem newptemp (!repd);
-        newptemp
-      end
-  in
-    newp
-  end
-
-fun rewrite_winl winl =
-   let 
-     val i = ref 0
-     val repd = ref (dempty seq_compare)
-     fun f p = 
-       let val newp = commute (rewrite_merge repd p) in
-         if depend_on_i newp then NONE 
-         else if equal_prog (p,newp) then SOME newp
-         else if same_sem newp p then (incr i; SOME newp) else NONE
-       end
-       handle Rewrite x => (log ("rewrite_winl: " ^ humanf x); NONE)
-     val r = List.mapPartial f winl
-   in
-     (r,!i)
-   end
-
-fun find_minirep_aux pl =
-  let
-    val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
-      handle Option => raise ERR "find_minirep" "" 
-    val repd = ref (dempty seq_compare)
-    fun f (p,(sem,tim)) = 
-      let
-        val winl = find_wins p sem
-        val r = spacetime (prog_size p) tim
-        val pi = zip_prog p
-        val new = (r,pi)
-        fun g seq =
-          let val old = dfind seq (!repd) in
-            if complexity_compare (new,old) = LESS
-            then repd := dadd seq new (!repd)
-            else ()
-          end
-          handle NotFound => repd := dadd seq new (!repd)
-      in
-        app g winl
-      end
-  in
-    app f psemtiml;
-    (dlist (!repd))   
-  end
-
-fun find_minirep_merge pl = 
-  map (unzip_prog o snd o snd) (find_minirep_aux pl)
-
-fun find_minirep_train pl = 
-  let 
-    val l = find_minirep_aux pl
-    fun f (seq,(_,pi)) = (seq, unzip_prog pi)
-  in
-    map f l
-  end
-  handle Subscript => raise ERR "find_minirep_train" ""
+fun linearize p = linearize_aux [] ([],[p])
 
 fun merge_sol pl =
   let
     val _ = log ("all solutions (past + concurrent): " ^ its (length pl))
-    val plmini = find_minirep_merge pl
-    val pl0 = dict_sort prog_compare_size plmini
-    val _ = log ("smallest representants: " ^ its (length pl0))
-    val (pl1,n1) = rewrite_winl pl0
-    val _ = log ("rewritten solutions: " ^ its (length pl1) ^ " " ^ its n1)
+    val pl0 = dict_sort prog_compare pl
+    val _ = log ("uniques:" ^ its (length pl0))
   in
-    pl1
+    pl0
   end
 
 (* -------------------------------------------------------------------------
@@ -738,28 +559,12 @@ fun pol_of_progl pold board =
 fun create_ex pold (board,_) =
   (term_of_board board, pol_of_progl pold board)
 
-fun create_exl seqprogl =
+fun create_exl progl =
   let 
-    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
-    fun f (seq,p) = 
-      let
-        val _ = target_glob := seq
-        val bml = linearize p
-        fun g (board,move) =
-           let 
-             val movei = index_of_move move
-             val newv = Vector.update (zerov, movei, 1.0)
-             val newl = vector_to_list newv
-           in
-             (term_of_board board, newl)
-           end
-      in
-        map g bml    
-      end
-    val r = map f seqprogl
-    val _ = print_endline "examples created"
+    val bmll = map linearize prog
+    val pold = regroup_ex (List.concat bmll)
   in
-    r
+    map (create_ex pold) bmll
   end
 
 (* -------------------------------------------------------------------------
@@ -800,9 +605,10 @@ fun linearize_ex tmobjl =
        if null l then empty_sobj else 
        rlts (l @ List.tabulate (!dim_glob - length l, fn _ => 9.0))
   in
-    (String.concatWith " " (map (pad_sub o enc_sub) subtml),
-     String.concatWith " " (map (pad_obj o enc_obj) subtml),
-     length subtml
+    (
+    String.concatWith " " (map (pad_sub o enc_sub) subtml),
+    String.concatWith " " (map (pad_obj o enc_obj) subtml),
+    length subtml
     )
   end;
 
@@ -1403,6 +1209,8 @@ and rl_train_only tmpname ngen =
 
 and rl_train tmpname ngen = 
   (rl_train_only tmpname ngen; rl_search tmpname (ngen + 1))
+
+*)
 
 end (* struct *)
 
