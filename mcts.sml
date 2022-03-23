@@ -25,7 +25,6 @@ val ntarget = 13 * 6 * 4 (* 20 * 6 * 2 *)
    ------------------------------------------------------------------------- *)
 
 fun string_to_real x = valOf (Real.fromString x)
-
 fun ilts x = String.concatWith " " (map its x)
 fun stil x = map string_to_int (String.tokens Char.isSpace x)
 fun rlts x = String.concatWith " " (map rts x)
@@ -109,32 +108,25 @@ type 'a set = 'a Redblackset.set
    Move
    ------------------------------------------------------------------------- *)
 
-datatype move = Unit of int | Oper of int * int | Pair
+datatype move = Oper of int * int | Pair
 
 fun postpair b a = (a,b)
-val l05 = List.tabulate (6,I)
-val movelg_org = 
-  map Unit nullaryidl @
-  map Oper (map (postpair 0) binaryidl @ 
-            map (postpair 1) binaryidl_nocomm) @
-  map (fn x => Oper (cond_id,x)) l05 @
-  map (fn x => Oper (loop_id,x)) l05 @
-  [Pair] @
-  map (fn x => Oper (compr_id,x)) [0,1] @
-  map (fn x => Oper (loop2_id,x)) l05
+fun factorial n = if n <= 0 then 1 else n * factorial (n-1);
 
+fun oper_to_movel i oper = 
+  let val a = arity_of oper in
+    if is_comm i then [Oper (i,0)]
+    else map (fn x => Oper (i,x)) (List.tabulate (factorial a,I))
+  end
+
+val movelg_org =
+  List.concat (mapi oper_to_movel (vector_to_list operv)) @ [Pair]
+   
 fun id_of_move m = case m of 
-    Unit id => [id] 
-  | Oper (id,ord) => [id,ord]
+    Oper (id,ord) => [id,ord]
   | Pair => [1000]
 
 fun move_compare (m1,m2) = seq_compare (id_of_move m1, id_of_move m2)
-
-fun string_of_move m =
-  let val l = id_of_move m in
-    if hd l = 1000 then "pair" else
-    name_of_oper (hd l) ^ "-" ^ String.concatWith "-" (map its (tl l))
-  end
 
 val movelg = dict_sort move_compare movelg_org
 val movev = Vector.fromList movelg
@@ -143,8 +135,19 @@ val moved = dnew move_compare (number_snd 0 movelg)
 fun index_of_move move = dfind move moved
 fun move_of_index index = Vector.sub (movev,index)
 
-fun is_unit move = case move of Unit _ => true | _ => false
-val movelg_nounit = filter (not o is_unit) movelg
+fun string_of_move m =
+  let val l = id_of_move m in
+    if hd l = 1000 then "pair" else
+    name_of_oper (hd l) ^ "-" ^ String.concatWith "-" (map its (tl l))
+  end
+
+fun has_arity a x = 
+  case x of Oper (id,_) => arity_of_oper id = a | _ => false
+
+val movelg_arity0 = filter (has_arity 0) movelg
+val movelg_arity1 = filter (has_arity 1) movelg
+val movelg_arity2 = filter (has_arity 2) movelg
+val movelg_arity3 = filter (has_arity 3) movelg
 
 (* -------------------------------------------------------------------------
    Build a list of programs
@@ -290,43 +293,57 @@ fun exec_fun p psize plb =
       then exec_fun_insearch p (psize,pi) plb
       else SOME (C1 (psize,pi) :: plb)
   end
+  handle Subscript => raise ERR "exec_fun" (humanf p)
+
 
 fun apply_moveo move board = case move of
-    Unit id => exec_fun (papp_nullop id) 1 board
-  | Oper (id,ord) =>
-    (case partopt 2 board of NONE => NONE | SOME (pla,plb) =>
-    (case pla of
-      [C1 cb, C1 ca] => 
-      if not (is_binary id) andalso not (id = compr_id) then NONE else
-      let val doubleo = permute_double ord (ca,cb) in
-        case doubleo of NONE => NONE | SOME ((na,pia),(nb,pib)) =>
-        let 
-          val (pa,pb) = (unzip_prog pia,unzip_prog pib)
-          val p = papp_binop id (pa,pb)
-        in
-          if id = compr_id andalso depend_on_i pa then NONE else 
-          exec_fun p (na + nb) plb
-        end     
-      end
-    | [C1 cc, C2 (cb,ca)] => 
-      if not (mem id [cond_id,loop_id,loop2_id]) then NONE else
-      let val tripleo = permute_triple ord (ca,cb,cc) in
-        case tripleo of NONE => NONE | SOME ((na,pia),(nb,pib),(nc,pic)) =>
-        let val p = papp_ternop id 
-          (unzip_prog pia, unzip_prog pib, unzip_prog pic)
-        in
-          exec_fun p (na + nb + nc) plb
-        end
-      end
-    | _ => NONE
-    ))
+    Oper (id,ord) =>
+    let val arity = arity_of_oper id in
+      if arity = 0 then exec_fun (Ins (id,[])) 1 board
+      else if arity = 1 then 
+        (case partopt 1 board of SOME ([C1 (na,pia)],plb) =>
+           exec_fun (Ins (id,[unzip_prog pia])) na plb  
+        | _ => NONE)
+      else if arity = 2 orelse arity = 3 then
+        (case partopt 2 board of NONE => NONE | SOME (pla,plb) =>
+        (case pla of
+          [C1 cb, C1 ca] => 
+          if arity <> 2 then NONE else
+          let val doubleo = permute_double ord (ca,cb) in
+            case doubleo of NONE => NONE | SOME ((na,pia),(nb,pib)) =>
+            let 
+              val (pa,pb) = (unzip_prog pia,unzip_prog pib)
+              val p = Ins (id,[pa,pb])
+            in
+              if id = compr_id andalso depend_on_i pa then NONE else 
+              exec_fun p (na + nb) plb
+            end     
+          end
+        | [C1 cc, C2 (cb,ca)] => 
+          if arity <> 3 then NONE else
+          let val tripleo = permute_triple ord (ca,cb,cc) in
+            case tripleo of NONE => NONE | 
+              SOME ((na,pia),(nb,pib),(nc,pic)) =>
+            let val p = Ins (id, map unzip_prog [pia,pib,pic]) in
+              exec_fun p (na + nb + nc) plb
+            end
+          end
+        | _ => NONE))
+      else raise ERR "not supported" ""
+    end
   | Pair =>
     (case partopt 2 board of NONE => NONE | SOME (pla,plb) =>
     (case pla of
        [C1 ca, C1 cb] => SOME (C2 (ca,cb) :: plb)
      | _ => NONE))
-  
-fun apply_move move board = valOf (apply_moveo move board)
+ 
+fun remove_c1 l = case l of
+    [] => []
+  | C1 a :: m => a :: remove_c1 m
+  | C2 _ :: m => raise ERR "unexpected" ""
+
+fun apply_move move board = 
+  valOf (apply_moveo move board)
   handle Option => raise ERR "apply_move" "option"
        | Subscript => raise ERR "apply_move" "subscript"
 
@@ -348,13 +365,26 @@ fun is_extendable_aux board = case board of
     (fst a >= size_of_board m + 2 andalso is_extendable_aux m)
   | _ => true
 
+fun extend_unary_aux board = case board of
+    [] => false
+  | [a] => true
+  | C1 a :: m =>
+    (fst a >= size_of_board m + 1 andalso extend_unary_aux m)
+  | C2 (a,b) :: m => 
+    (fst a >= size_of_board m + 1 andalso extend_unary_aux m)
+
 fun is_extendable board = is_extendable_aux (rev board)
+fun extend_unary board = extend_unary_aux (rev board)
 
 fun available_move board move = isSome (apply_moveo move board)
 
 fun available_movel board = 
   filter (available_move board) 
-  (if is_extendable board then movelg else movelg_nounit)
+    (
+    (if is_extendable board then movelg_arity0 else []) @
+    (if extend_unary board then movelg_arity1 else []) @
+     movelg_arity2 @ [Pair] @ movelg_arity3
+    )
 
 (* -------------------------------------------------------------------------
    For debugging
@@ -862,19 +892,21 @@ fun player_wtnn tnn board =
 
 fun player_wtnn_cache tnn board =
   let
+    (* val _ = if !debug_flag then print "." else () *)
     val _ = if dlength (!embd) > 1000000
             then embd := dempty Term.compare else ()
-    val preboarde = snd (infer_emb_cache tnn (term_of_stack board))
+    val tm = term_of_stack board
+    val (_,preboarde) = infer_emb_cache tnn tm
+      handle NotFound => 
+        raise ERR "player_wtnn_cache1" (string_of_board board)
     val prepolie = fp_emb_either tnn prepoli [preboarde]
     val pol1 = Vector.fromList (descale_out (fp_emb_either tnn head_poli 
       [prepolie]))
     val amovel = available_movel board
     val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move x))) amovel
-      handle Subscript => raise ERR "player_wtnn_cache" "2"
   in
     (rewardf board, pol2)
   end
-  
 
 (* -------------------------------------------------------------------------
    Search
@@ -889,23 +921,6 @@ fun tree_size tree = case tree of
     Leaf => 0
   | Node (node,ctreev) => 1 + 
      sum_int (map (tree_size o #3) (vector_to_list ctreev))
-
-(* -------------------------------------------------------------------------
-   Parallelization of the search
-   ------------------------------------------------------------------------- *)
-
-local open HOLsexp in
-
-fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
-val enc_progl = list_encode enc_prog
-fun dec_prog t = 
-  Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
-val dec_progl = list_decode dec_prog
-
-end
-
-fun write_result file r = write_data enc_progl file r
-fun read_result file = read_data dec_progl file
 
 (* -------------------------------------------------------------------------
    Reinforcement learning loop utils
@@ -936,11 +951,11 @@ fun update_sold ((seq,prog),sold) =
 
 fun write_sold ngen tmpname d = 
   (
-  write_result (sold_file ngen ^ tmpname) (elist d);
-  write_result (sold_file ngen) (elist d)
+  write_progl (sold_file ngen ^ tmpname) (elist d);
+  write_progl (sold_file ngen) (elist d)
   )
 
-fun read_sold ngen = enew prog_compare (read_result (sold_file ngen))
+fun read_sold ngen = enew prog_compare (read_progl (sold_file ngen))
 
 (* -------------------------------------------------------------------------
    training
@@ -961,8 +976,6 @@ val schedule =
    {ncore = ncoretrain, verbose = true, learning_rate = 0.005,
     batch_size = 16, nepoch = 10}
   ];
-
-
 
 fun read_mat acc sl = case sl of
     [] => (rev acc, [])
@@ -1007,8 +1020,6 @@ fun read_ctnn_fixed () =
   let val matl = read_ctnn (readl (selfdir ^ "/tnn_in_c/tnn")) in
     dnew Term.compare (combine (operlext,matl))
   end
-
-
 
 fun trainf tmpname =
   let 
@@ -1171,10 +1182,10 @@ fun search tnn coreid =
       ("target: " ^ String.concatWith "-" seqnamel ^ ": " ^ 
         string_of_seq (!target_glob));
     val _ = init_dicts (elist sold)
-    val _ = print_endline "start search"
     val _ = in_search := true
     val _ = avoid_lose := true
     val tree = starting_tree (mctsobj tnn) []
+    val _ = print_endline "start search"
     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
     val _ = print_endline "end search"
     val n = tree_size newtree
@@ -1216,8 +1227,8 @@ val parspec : (tnn,int,prog list) extspec =
   read_param = read_tnn,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = write_result,
-  read_result = read_result
+  write_result = write_progl,
+  read_result = read_progl
   }
 
 fun search_target_aux (tnn,sold) tim target =
@@ -1242,7 +1253,7 @@ fun search_target_aux (tnn,sold) tim target =
 fun parsearch_target tim target =
   let 
     val tnn = read_tnn (selfdir ^ "/main_tnn")
-    val sold = enew prog_compare (read_result (selfdir ^ "/main_sold"))
+    val sold = enew prog_compare (read_progl (selfdir ^ "/main_sold"))
     val (p,t) = add_time (search_target_aux (tnn,sold) tim) target 
   in
     (true,humanf (valOf p),t) handle Option => (false, "", t)
@@ -1258,7 +1269,8 @@ val partargetspec : (real, seq, bool * string * real) extspec =
     ["bloom.init_od ()",
      "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
      "mcts.use_semb := " ^ bts (!use_semb),
-     "mcts.use_ob := " ^ bts (!use_ob)] 
+     "mcts.use_ob := " ^ bts (!use_ob)
+    ] 
     ^ ")"),
   function = parsearch_target,
   write_param = let fun f file param = writel file [rts param] in f end,
@@ -1417,74 +1429,26 @@ val tnn = mlTreeNeuralNetworkAlt.random_tnn (get_tnndim ());
 bloom.init_od ();
 use_semb := true;
 val x = search tnn 0;
-
-
-(* compression *)
-PolyML.print_depth 0;
-load "mcts"; open aiLib kernel mcts;
-PolyML.print_depth 40;
-
-fun real_size (Ins (id,pl)) = 1 + sum_int (map real_size pl);
-val sol1 = random_subset 1000 (read_result "main_sold");
-val ntot1 = sum_int (map real_size sol1);
-
-val hole_id = ~1;
-fun insert l posi newa =
-  let fun f i a = if i = posi then newa else a in
-    mapi f l
-  end
-
-fun all_holes (p as Ins (id,pl)) = 
-  Ins (hole_id,[]) :: map (fn x => Ins (id,x)) (all_holes_pl pl)
-
-and all_holes_pl pl = 
-  let 
-    val l = map all_holes pl
-    fun f i x = map (insert pl i) x
-  in
-    List.concat (mapi f l)
-  end
-
+val sol1 = x;
+(* val sol1 = random_subset 1000 (read_progl "main_sold"); *)
+val ntot1 = sum_int (map prog_size sol1);
 val freql0 = compute_freq all_subprog sol1;
-fun f (a,i) = map (fn x => (x,i)) (all_holes a);
-val freql1 = List.concat (map f freql0);
-fun dsum cmp l = 
-  let 
-    val d = ref (dempty cmp) 
-    fun f (a,i) = 
-      let val oldi = dfind a (!d) handle NotFound => 0 in
-        d := dadd a (oldi + i) (!d)
-      end
-  in
-    app f l; !d  
-  end;
-   
-val freql11 = dict_sort compare_imax (dlist (dsum prog_compare freql1));
-val freql2 = List.concat (map f freql11);
+fun distr_holes (a,i) = map (fn x => (x,i)) (all_holes a);
+val freql1 = List.concat (map distr_holes freql0);
+val freql11 = dict_sort compare_imax 
+  (dlist (dsum prog_compare (freql0 @ freql1)));
+
+(*
+val freql2 = List.concat (map distr_holes freql11);
 val freql22 = dict_sort compare_imax (dlist (dsum prog_compare freql2));
-
-
 val freql31 = map fst freql11;
 val freql32 = filter (fn x => prog_size x >= 2) freql31;
-val freql4 = first_n 30 freql32;
+*)
+
+fun compression (pat,id)
+val freql4 = first_n 200 freql11;
 val freql4p = dict_sort prog_compare_size freql4;
 val freql4i = number_snd 101 (rev freql4p);
-
-exception Pmatch;
-fun pmatch_aux (pat as Ins (id1,pl1), p as Ins (id2,pl2)) = 
-  if id1 = hole_id then [p]
-  else if id1 = id2 andalso length pl1 = length pl2 then
-    List.concat (map pmatch_aux (combine (pl1,pl2)))
-  else raise Pmatch;
-
-fun pmatch pat p = (SOME (pmatch_aux (pat,p)) handle Pmatch => NONE);
-
-fun psubst (pat,id2) (ptop as Ins (id,pl)) = case pmatch pat ptop of
-    SOME argl => Ins (id2, map (psubst (pat,id2)) argl)
-  | NONE => Ins (id, map (psubst (pat,id2)) pl);
- 
-fun psubstl pil p = foldl (uncurry psubst) p pil;
-
 val sol2 = map (psubstl freql4i) sol1; 
 val ntot2 = sum_int (map real_size sol2);
 

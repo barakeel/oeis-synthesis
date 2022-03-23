@@ -6,6 +6,7 @@ sig
   val selfdir : string 
   
   (* globals *)
+  val bare_mode : bool ref
   val maxinput : int ref
 
   (* types *)
@@ -30,6 +31,12 @@ sig
   val has_loop2 : prog -> bool
   val shift_prog : int -> prog -> prog
   val same_sem : prog -> prog -> bool  
+  val all_holes : prog -> prog list
+  val inst_pat : prog -> prog list -> prog
+  val psubst : (prog * int) -> prog -> prog 
+  val psubstl : (prog * int) list -> prog -> prog 
+  val read_progl : string -> prog list
+  val write_progl : string -> prog list -> unit
 
   (* compressed programs *)
   type progi = Arbint.int
@@ -85,6 +92,7 @@ sig
   val compr_id : id
   val loop2_f : exec -> exec -> int -> int
   val loop2_id : id
+  val def_id : id
 
   (* associate id and function *)
   val nullaryl : (id * exec) list
@@ -98,6 +106,8 @@ sig
   val binaryidl_nocomm : id list
   val is_comm : id -> bool
   
+  (* definitions *)
+
   (* create executable from program *)
   val mk_exec : prog -> (int * int) -> (int * int)
   
@@ -109,14 +119,9 @@ sig
   val is_executable : prog -> bool
 
   val operv : term vector
-  val maxoper : int
+  val arity_of_oper : int -> int
   val name_of_oper : int -> string
   
-  (* compressed applications *)
-  val papp_nullop : int -> prog
-  val papp_binop : int -> prog * prog -> prog
-  val papp_ternop : int -> prog * prog * prog -> prog
-
   (* search time limit *)
   exception SearchTimeout;
   val rti_glob : int ref

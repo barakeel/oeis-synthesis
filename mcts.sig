@@ -10,14 +10,13 @@ sig
   type tnn = mlTreeNeuralNetworkAlt.tnn
   type 'a set = 'a Redblackset.set
   
-  datatype move = Unit of int | Oper of int * int | Pair
+  datatype move = Oper of int * int | Pair
   datatype clausex = C1 of clause | C2 of clause * clause
   type board = clausex list  
   type player = (board,move) psMCTS.player
 
   val prog_compare_size : prog * prog -> order
   val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
-
 
   (* globals *)
   val use_semb : bool ref
@@ -85,6 +84,5 @@ sig
 
   (* reading solutions *)
   val read_sold : int -> prog set
-  val read_result : string -> prog list
 
 end

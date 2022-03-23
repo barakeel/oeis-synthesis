@@ -10,6 +10,7 @@ val selfdir = dir.selfdir
    Globals
    ------------------------------------------------------------------------- *)
 
+val bare_mode = ref false
 val maxinput = ref 16
 
 (* -------------------------------------------------------------------------
@@ -50,9 +51,97 @@ fun prog_size (Ins(s,pl)) = case pl of
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
 (* -------------------------------------------------------------------------
+   Patterns
+   ------------------------------------------------------------------------- *)
+
+val hole_id = ~1;
+
+local fun insert l posi newa =
+  let fun f i a = if i = posi then newa else a in
+    mapi f l
+  end
+in
+  fun all_holes (p as Ins (id,pl)) = 
+    Ins (hole_id,[]) :: map (fn x => Ins (id,x)) (all_holes_pl pl)
+
+  and all_holes_pl pl = 
+    let 
+      val l = map all_holes pl
+      fun f i x = map (insert pl i) x
+    in
+      List.concat (mapi f l)
+    end
+end
+
+fun inst_pat_aux (pat as (Ins (id,patl))) instl =  
+  if id = ~1 then 
+   (case instl of [] => raise ERR "inst_pat_aux" "too few" | a :: m => (a,m))
+  else
+    let val (argl,newinstl) = inst_patl_aux [] patl instl in
+      (Ins (id, argl), newinstl)
+    end
+and inst_patl_aux argl patl instl = case patl of 
+    [] => (rev argl, instl)
+  | pata :: patm =>
+    let val (arga,newinstl) = inst_pat_aux pata instl in
+      inst_patl_aux (arga :: argl) patm newinstl
+    end
+  
+fun inst_pat pat instl = 
+  let val (p,newinstl) = inst_pat_aux pat instl in
+    if not (null newinstl) then raise ERR "inst_pat" "too many" else p
+  end
+
+fun has_hole (Ins (id,pl)) = 
+  if id = hole_id then true else exists has_hole pl
+
+fun count_hole (Ins (id,pl)) = 
+  if id = hole_id then 1 else sum_int (map count_hole pl)
+
+exception Pmatch;
+fun pmatch_aux (pat as Ins (id1,pl1), p as Ins (id2,pl2)) = 
+  if id1 = hole_id then [p]
+  else if id1 = id2 andalso length pl1 = length pl2 then
+    List.concat (map pmatch_aux (combine (pl1,pl2)))
+  else raise Pmatch;
+
+fun pmatch pat p = (SOME (pmatch_aux (pat,p)) handle Pmatch => NONE);
+
+fun psubst (pat,id2) (ptop as Ins (id,pl)) = case pmatch pat ptop of
+    SOME argl => Ins (id2, map (psubst (pat,id2)) argl)
+  | NONE => Ins (id, map (psubst (pat,id2)) pl);
+ 
+fun psubstl pil p = foldl (uncurry psubst) p pil;
+
+
+(*
+load "kernel"; open kernel;
+val p = inst_pat  (Ins (3,[Ins(~1,[]),Ins (4,[Ins(~1,[])])])) [(Ins (2,[])),(Ins (5,[]))];
+*)
+
+
+(* -------------------------------------------------------------------------
+   I/O
+   ------------------------------------------------------------------------- *)
+
+local open HOLsexp in
+
+fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
+val enc_progl = list_encode enc_prog
+fun dec_prog t = 
+  Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
+val dec_progl = list_decode dec_prog
+
+end
+
+fun write_progl file r = write_data enc_progl file r
+fun read_progl file = read_data dec_progl file
+
+(* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
 
+(* id should correspond with index in  operv *)
 val zero_id = 0
 val one_id = 1
 val two_id = 2
@@ -70,7 +159,8 @@ val loop2_id = 13
 
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
-val operv = Vector.fromList 
+val base_operl = 
+  if !bare_mode then [] (* readl "operl" *)else
   [
    mk_var ("zero",alpha),
    mk_var ("one",alpha),
@@ -88,10 +178,32 @@ val operv = Vector.fromList
    mk_var ("loop2",alpha4)
   ]
 
+(* definitions *)
+val def_id = length base_operl
+
+fun mk_def pat =
+  if not (has_hole pat) then
+  let fun f l = case l of [] => pat | _ => raise ERR "defd" "" in
+    f
+  end
+  else inst_pat pat
+
+val defl = 
+  if exists_file "pat" 
+  then number_fst def_id (read_progl "pat") 
+  else []
+
+val defd = dnew Int.compare (map_snd mk_def defl);
+
+val def_operl = 
+  map (fn (i,pat) => mk_var ("def" ^ its i,
+    rpt_fun_type (count_hole pat + 1) alpha)) defl;
+
+val operv = Vector.fromList (base_operl @ def_operl)
+val maxbaseoper = length base_operl
 val maxoper = Vector.length operv
-
 val operav = Vector.map arity_of operv
-
+fun arity_of_oper i = arity_of (Vector.sub (operv,i))
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 (* time limit per instruction *)
@@ -157,7 +269,7 @@ val nullaryl =
 val nullaryidl = map fst nullaryl
 fun is_nullary id = mem id nullaryidl
 fun find_nullaryf id = assoc id nullaryl
-val nullaryv = Vector.tabulate (maxoper, fn i => 
+val nullaryv = Vector.tabulate (maxbaseoper, fn i => 
   if can find_nullaryf i then find_nullaryf i else zero_f);
 
 val binaryl = 
@@ -166,7 +278,7 @@ val binaryl =
 val binaryidl = map fst binaryl
 fun is_binary id = id >= addi_id andalso id <= modu_id
 fun find_binaryf id = assoc id binaryl
-val binaryv = Vector.tabulate (maxoper, fn i => 
+val binaryv = Vector.tabulate (maxbaseoper, fn i => 
   if can find_binaryf i then find_binaryf i else addi_f);
 
 fun is_comm id = mem id [addi_id, mult_id]
@@ -281,8 +393,13 @@ fun compose1 f f1 x = f (f1 x)
 fun compose2 f f1 f2 x = f (f1 x, f2 x)
 fun compose3 f f1 f2 f3 x = f (f1 x, f2 x, f3 x)
 
+fun undef_prog (Ins (id,pl)) = 
+  let val f = dfind id defd handle NotFound => (fn x => Ins (id,x)) in 
+    f (map undef_prog pl) 
+  end
+
 fun mk_exec_aux prog = case prog of
-    Ins (id,[]) => Vector.sub (nullaryv,id) 
+    Ins (id,[]) => Vector.sub (nullaryv,id)
   | Ins (12,[p1,p2]) =>
     compose1 (compr_f (mk_exec_aux p1)) (mk_exec_aux p2)
   | Ins (id,[p1,p2]) => 
@@ -293,12 +410,15 @@ fun mk_exec_aux prog = case prog of
     compose2 (loop_f (mk_exec_aux p1)) (mk_exec_aux p2) (mk_exec_aux p3)
   | Ins (13,[p1,p2,p3]) =>
     compose1 (loop2_f (mk_exec_aux p1) (mk_exec_aux p2)) (mk_exec_aux p3)
-  | _ => raise ERR "mk_exec" ""  
+  | _ => raise ERR "mk_exec_aux" ""  
 
 fun mk_exec p =
-  let val exec = start (mk_exec_aux p) in
+  let 
+    val undefp = undef_prog p
+    val exec = start (mk_exec_aux undefp) in
     (fn x => ((exec x,!counter) handle Overflow => (error,!counter)))
   end 
+  handle Subscript => raise ERR "mk_exec" ""
 
 fun not_semdep_on_i e31 =
   let
@@ -349,14 +469,6 @@ val sem_of_prog = valOf o semo_of_prog
 fun seq_of_prog p = first_n 16 (sem_of_prog p)
 
 fun is_executable x = isSome (semo_of_prog x)
-
-(* -------------------------------------------------------------------------
-   Applications of an instruction syntactically from compressed programs
-   ------------------------------------------------------------------------- *)
-
-fun papp_nullop id = Ins (id,[])
-fun papp_binop id (p1,p2) = Ins (id, [p1,p2])
-fun papp_ternop id (p1,p2,p3) = Ins (id,[p1,p2,p3])
 
 (* -------------------------------------------------------------------------
    Human readable output
