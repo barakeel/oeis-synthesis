@@ -727,7 +727,7 @@ fun find_minirep_train pl =
     val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
   in
-    map f l
+    map_snd commute (map f l)
   end
   handle Subscript => raise ERR "find_minirep_train" ""
 
