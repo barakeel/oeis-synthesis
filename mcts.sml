@@ -704,7 +704,7 @@ fun find_minirep_train pl =
     val _ = if list_compare prog_compare (sol2,sol3) = EQUAL 
             then print_endline "ok"
             else raise ERR "find_minirep" ""
-    val l = find_minirep_aux sol1
+    val l = find_minirep_aux sol2
     val _ = print_endline "ok2"
     val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
