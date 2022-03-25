@@ -445,7 +445,7 @@ fun not_semdep_on_i e31 =
   end
 
 fun semtimo_of_prog p =
-  let val f = mk_exec o in
+  let val f = mk_exec p in
     if not (depend_on_i (undef_prog p)) 
     then 
       let 
