@@ -36,6 +36,7 @@ sig
   val psubstl : (prog * int) list -> prog -> prog 
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
+  val raw_prog : prog -> string
 
   (* compressed programs *)
   type progi = Arbint.int

@@ -666,8 +666,10 @@ fun rewrite_winl winl =
 
 fun find_minirep_aux pl =
   let
-    val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
-      handle Option => raise ERR "find_minirep" "" 
+    fun helpf p = valOf (semtimo_of_prog p) 
+      handle Option => raise 
+        ERR "find_minirep" (raw_prog p ^ "   " ^ humanf p) 
+    val psemtiml = map_assoc helpf pl
     val repd = ref (dempty seq_compare)
     fun f (p,(sem,tim)) = 
       let
