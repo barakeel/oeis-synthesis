@@ -404,11 +404,9 @@ fun compose2 f f1 f2 x = f (f1 x, f2 x)
 fun compose3 f f1 f2 f3 x = f (f1 x, f2 x, f3 x)
 
 fun undef_prog (Ins (id,pl)) = 
-  let
-    val f = dfind id defd handle NotFound => (fn x => Ins (id,x))
-    val Ins (newid,newpl) = f pl
-  in 
-    Ins (newid, map undef_prog newpl)
+  if dmem id defd then Ins (id, map undef_prog newpl) else
+  let newp = (dfind id defd) pl in 
+    undef_prog newp 
   end
 
 fun mk_exec_aux prog = case prog of
