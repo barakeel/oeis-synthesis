@@ -421,7 +421,7 @@ fun mk_exec_aux prog = case prog of
     compose2 (loop_f (mk_exec_aux p1)) (mk_exec_aux p2) (mk_exec_aux p3)
   | Ins (13,[p1,p2,p3]) =>
     compose1 (loop2_f (mk_exec_aux p1) (mk_exec_aux p2)) (mk_exec_aux p3)
-  | _ => raise ERR "mk_exec_aux" ""  
+  | Ins (id,pl) => raise ERR "mk_exec_aux" (its id ^ " " ^ its (length pl))  
 
 fun mk_exec p =
   let 
