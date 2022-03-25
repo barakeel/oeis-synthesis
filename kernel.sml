@@ -47,6 +47,8 @@ fun prog_size (Ins(s,pl)) = case pl of
   | [a,b] => 1 + prog_size a + prog_size b
   | _ => (length pl - 1) + sum_int (map prog_size pl) 
 
+
+
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
 (* -------------------------------------------------------------------------
@@ -54,6 +56,16 @@ fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
    ------------------------------------------------------------------------- *)
 
 val hole_id = ~1;
+
+fun prog_size_nohole (Ins(s,pl)) = 
+  if s = hole_id then 0 else
+  (
+  case pl of
+    [] => 1
+  | [a] => 1 + prog_size_nohole a
+  | [a,b] => 1 + prog_size_nohole a + prog_size_nohole b
+  | _ => (length pl - 1) + sum_int (map prog_size_nohole pl) 
+  )
 
 local fun insert l posi newa =
   let fun f i a = if i = posi then newa else a in
@@ -392,8 +404,11 @@ fun compose2 f f1 f2 x = f (f1 x, f2 x)
 fun compose3 f f1 f2 f3 x = f (f1 x, f2 x, f3 x)
 
 fun undef_prog (Ins (id,pl)) = 
-  let val f = dfind id defd handle NotFound => (fn x => Ins (id,x)) in 
-    f (map undef_prog pl) 
+  let
+    val f = dfind id defd handle NotFound => (fn x => Ins (id,x))
+    val Ins (newid,newpl) = f pl
+  in 
+    Ins (newid, map undef_prog newpl)
   end
 
 fun mk_exec_aux prog = case prog of
@@ -803,8 +818,12 @@ fun best_def sol =
       (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)))
     fun distr_holes (a,i) = map (fn x => (x,i)) (all_holes a);
     val l1 = List.concat (map distr_holes l0);
-    val l2 = dict_sort compare_imax (dlist (dsum prog_compare (l0 @ l1)));
-    val l3 = filter (fn (a,b) => prog_size a >= 2 andalso b >= 100) l2;
+    val l2 = dlist (dsum prog_compare (l0 @ l1));
+    fun f (p,freq) = (p , (prog_size_nohole p - 1) * freq)
+    val l21 = map f l2
+    val l22 = filter (fn (a,b) => prog_size a >= 2 andalso b >= 100) l21
+    val l23 = dict_sort compare_imax l22
+    val l3 = first_n 200 l23
     val _ = print_endline ("preselection: " ^ its (length l3))
     val l4 = map (fn (a,_) => (a, compression sol a)) l3;
     val l5 = dict_sort compare_imin l4;

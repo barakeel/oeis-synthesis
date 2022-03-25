@@ -1436,13 +1436,14 @@ val ntot1 = sum_int (map prog_size sol1);
 (* making definitions *)
 load "mcts"; open mcts; open aiLib; open kernel;
 PolyML.print_depth 0;
-val sol = read_progl "";
+val sol = read_progl "main_sold";
+val sol = read_progl "exp/run102/sold139";
 val (defl, patsol) = nbest_def 30 sol;
 PolyML.print_depth 40;
 
 map snd defl = List.tabulate (30, fn x => x + 14);
 write_progl "pat" (map fst defl);
-write_progl "patsol" patsol; (* mv patsol to sold *)
+write_progl "patsol" patsol; (* mv patsol to sold139 *)
 
 
 *)
