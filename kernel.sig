@@ -109,6 +109,7 @@ sig
   val nbest_def : int -> prog list -> (prog * int) list * prog list
   val defl : (int * prog) list
   val defd : (int, prog list -> prog) Redblackmap.dict
+  val undef_prog : prog -> prog
 
   (* create executable from program *)
   val mk_exec : prog -> (int * int) -> (int * int)

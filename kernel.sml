@@ -409,6 +409,14 @@ fun undef_prog (Ins (id,pl)) =
     undef_prog newp 
   end
 
+(*
+load "kernel"; open kernel;
+val p = Ins (3, [Ins (21, [Ins (1,[])])]);
+defl;
+val newp = undef_prog p;
+*)
+
+
 fun mk_exec_aux prog = case prog of
     Ins (id,[]) => Vector.sub (nullaryv,id)
   | Ins (12,[p1,p2]) =>
