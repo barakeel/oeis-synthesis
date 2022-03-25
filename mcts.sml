@@ -1421,7 +1421,7 @@ expname := "run102";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_train "_test12" 99;
+rl_train "_test12" 139;
 
 (* testing *)
 load "mcts"; open mcts; open aiLib; open kernel;
@@ -1443,7 +1443,7 @@ PolyML.print_depth 40;
 
 map snd defl = List.tabulate (30, fn x => x + 14);
 write_progl "pat" (map fst defl);
-write_progl "patsol" patsol; (* mv patsol to sold139 *)
+write_progl "exp/run102/sold139" patsol;
 
 
 *)

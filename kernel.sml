@@ -404,8 +404,8 @@ fun compose2 f f1 f2 x = f (f1 x, f2 x)
 fun compose3 f f1 f2 f3 x = f (f1 x, f2 x, f3 x)
 
 fun undef_prog (Ins (id,pl)) = 
-  if dmem id defd then Ins (id, map undef_prog newpl) else
-  let newp = (dfind id defd) pl in 
+  if dmem id defd then Ins (id, map undef_prog pl) else
+  let val newp = (dfind id defd) pl in 
     undef_prog newp 
   end
 
