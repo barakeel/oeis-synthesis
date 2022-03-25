@@ -666,10 +666,8 @@ fun rewrite_winl winl =
 
 fun find_minirep_aux pl =
   let
-    fun helpf p = 
-      (print_endline (humanf (undef_prog p));
-      (valOf (semtimo_of_prog p) 
-      handle Option => raise ERR "find_minirep" (humanf (undef_prog p)))) 
+    fun helpf p = valOf (semtimo_of_prog p) 
+      handle Option => raise ERR "find_minirep" (humanf (undef_prog p)) 
     val psemtiml = map_assoc helpf pl
     val repd = ref (dempty seq_compare)
     fun f (p,(sem,tim)) = 
@@ -706,6 +704,8 @@ fun find_minirep_train pl =
             else raise ERR "find_minirep" ""
     val l = find_minirep_aux sol2
     val _ = print_endline "ok2"
+    val l = find_minirep_aux (map undef_prog pl)
+    val _ = print_endline "ok3"
     val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
   in
