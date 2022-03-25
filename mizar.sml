@@ -148,6 +148,27 @@ fun compress_arity sexp =
   | Stoken s => sexp
   | _ => raise ERR "compress_arity" "not supported"
 
+(*
+load "mizar"; open aiLib mizar;
+parse_sexp "(1 (2 3))";
+*)
+
+fun prog_to_sexp revoperd (Ins (id,pl)) = case pl of 
+    [] => Stoken (dfind id revoperd)
+  | _ => Sexp (Stoken (dfind id revoperd) :: (map (prog_to_sexp revoperd) 
+    pl))
+
+val sexpl = map (compress_arity o rm_squote_sexp o parse_sexp) 
+  (first_n 1000 (readl "data/00all_sorted.lisp_ar"));
+val tokenl = List.concat (map collect_tokens sexpl);
+val tokend = count_dict (dempty String.compare) tokenl;
+val operd = dnew String.compare (number_snd 0 (dkeys tokend)); 
+val revoperd = dnew Int.compare (map swap (dlist operd)); 
+val progl = map (sexp_to_prog operd) sexpl;
+
+fun string_of_sexp sexp = case sexp of
+    Sexp l => "(" ^ String.concatWith " " (map string_of_sexp l) ^ ")"
+  | Stoken s => s
 
 fun collect_arity_one d (Ins (id,pl)) =
   (
@@ -155,7 +176,8 @@ fun collect_arity_one d (Ins (id,pl)) =
   then 
     if length pl = dfind id (!d) 
     then () 
-    else raise ERR "collect_arity" (its id)
+    else raise ERR "collect_arity" 
+      (string_of_sexp (prog_to_sexp revoperd (Ins (id,pl))))
   else d := dadd id (length pl) (!d)
   ;
   app (collect_arity_one d) pl
@@ -165,20 +187,6 @@ fun collect_arity pl =
   let val d = ref (dempty Int.compare) in
     app (collect_arity_one d) pl; !d
   end
-
-(*
-load "mizar"; open aiLib mizar;
-parse_sexp "(1 (2 3))";
-
-*)
-
-val sexpl = map (compress_arity o rm_squote_sexp o parse_sexp) 
-  (readl "data/test.miz8_2.lisp");
-val tokenl = List.concat (map collect_tokens sexpl);
-val tokend = count_dict (dempty String.compare) tokenl;
-val operd = dnew String.compare (number_snd 0 (dkeys tokend)); 
-val revoperd = dnew Int.compare (map swap (dlist operd)); 
-val progl = map (sexp_to_prog operd) sexpl;
 
 val arityd = collect_arity progl;
 val maxoper = dlength arityd
@@ -358,12 +366,19 @@ fun tree_size tree = case tree of
      sum_int (map (tree_size o #3) (vector_to_list ctreev))
 
 (*
+nm1_hidden__1
+removes foralls
+
+
 load "mizar"; open mizar aiLib psMCTS;
+dlength operd;
 avoid_lose := true;
 time_opt := SOME 60.0;
 nsim_opt := NONE;
+(* noise_flag := true;
+  noise_coeff_glob := 0.9; *)
 val mizarl = first_n 10 (dict_sort prog_compare_size (elist mizard));
-
+map (string_of_sexp mizarl);
 val _ = init_wind ();
 val tnn = dempty Term.compare : mlTreeNeuralNetworkAlt.tnn;
 val tree = starting_tree (mctsobj tnn) ([],[]);
@@ -372,6 +387,12 @@ val (newtree,t) = add_time (mcts (mctsobj tnn)) tree;
 PolyML.print_depth 40;
 val n1 = tree_size newtree;
 val n2 = elength (!wind);
+
+
+map (string_of_sexp o (prog_to_sexp revoperd)) (elist (!wind));
+
+map (string_of_sexp o (prog_to_sexp revoperd)) mizarl;
+
 *)
 
 (*

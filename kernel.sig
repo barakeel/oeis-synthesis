@@ -6,7 +6,6 @@ sig
   val selfdir : string 
   
   (* globals *)
-  val bare_mode : bool ref
   val maxinput : int ref
 
   (* types *)
@@ -107,6 +106,7 @@ sig
   val is_comm : id -> bool
   
   (* definitions *)
+  val nbest_def : int -> prog list -> (prog * int) list * prog list
 
   (* create executable from program *)
   val mk_exec : prog -> (int * int) -> (int * int)

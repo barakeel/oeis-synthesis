@@ -710,8 +710,10 @@ fun merge_sol pl =
     val _ = log ("smallest representants: " ^ its (length pl0))
     val (pl1,n1) = rewrite_winl pl0
     val _ = log ("rewritten solutions: " ^ its (length pl1) ^ " " ^ its n1)
+    val pl2 = map snd (find_minirep_train pl1)
+    val _ = log ("rewritten representants: " ^ its (length pl2))
   in
-    pl1
+    pl2
   end
 
 (* -------------------------------------------------------------------------
@@ -1022,6 +1024,7 @@ fun trainf tmpname =
   let 
     val sold = read_sold (!ngen_glob) 
     val _ = print_endline ("reading sold " ^ (its (elength sold)))
+    (* todo: move minimization before writing sold *)
     val seqpl = find_minirep_train (elist sold)
     val _ = print_endline (its (length seqpl) ^ " minimal representants")
     val ex = create_exl (shuffle seqpl)
@@ -1412,12 +1415,13 @@ end (* struct *)
   Train oeis-synthesis
   ------------------------------------------------------------------------- 
 
+(* training *)
 load "mcts"; open mcts;
 expname := "run102";
 time_opt := SOME 600.0;
 use_mkl := true;
 bloom.init_od ();
-rl_search "_test11" 99;
+rl_train "_test12" 99;
 
 (* testing *)
 load "mcts"; open mcts; open aiLib; open kernel;
@@ -1427,27 +1431,18 @@ bloom.init_od ();
 use_semb := true;
 val x = search tnn 0;
 val sol1 = x;
-(* val sol1 = random_subset 1000 (read_progl "main_sold"); *)
 val ntot1 = sum_int (map prog_size sol1);
-val freql0 = compute_freq all_subprog sol1;
-fun distr_holes (a,i) = map (fn x => (x,i)) (all_holes a);
-val freql1 = List.concat (map distr_holes freql0);
-val freql11 = dict_sort compare_imax 
-  (dlist (dsum prog_compare (freql0 @ freql1)));
 
-(*
-val freql2 = List.concat (map distr_holes freql11);
-val freql22 = dict_sort compare_imax (dlist (dsum prog_compare freql2));
-val freql31 = map fst freql11;
-val freql32 = filter (fn x => prog_size x >= 2) freql31;
-*)
+(* making definitions *)
+load "mcts"; open mcts; open aiLib; open kernel;
+PolyML.print_depth 0;
+val sol = read_progl "";
+val (defl, patsol) = nbest_def 30 sol;
+PolyML.print_depth 40;
 
-fun compression (pat,id)
-val freql4 = first_n 200 freql11;
-val freql4p = dict_sort prog_compare_size freql4;
-val freql4i = number_snd 101 (rev freql4p);
-val sol2 = map (psubstl freql4i) sol1; 
-val ntot2 = sum_int (map real_size sol2);
+map snd defl = List.tabulate (30, fn x => x + 14);
+write_progl "pat" (map fst defl);
+write_progl "patsol" patsol; (* mv patsol to sold *)
 
 
 *)

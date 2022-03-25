@@ -10,7 +10,6 @@ val selfdir = dir.selfdir
    Globals
    ------------------------------------------------------------------------- *)
 
-val bare_mode = ref false
 val maxinput = ref 16
 
 (* -------------------------------------------------------------------------
@@ -159,8 +158,7 @@ val loop2_id = 13
 
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
-val base_operl = 
-  if !bare_mode then [] (* readl "operl" *)else
+val base_operl =
   [
    mk_var ("zero",alpha),
    mk_var ("one",alpha),
@@ -789,6 +787,50 @@ let val p = random_prog 20 in
 end;
 
 *)
+
+(* -------------------------------------------------------------------------
+   Make definitions
+   ------------------------------------------------------------------------- *)
+
+fun compression sol pat =
+  let val sol2 = map (psubst (pat,~2)) sol in
+    sum_int (map prog_size sol2)
+  end;
+
+fun best_def sol =
+  let 
+    val l0 = dlist 
+      (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)))
+    fun distr_holes (a,i) = map (fn x => (x,i)) (all_holes a);
+    val l1 = List.concat (map distr_holes l0);
+    val l2 = dict_sort compare_imax (dlist (dsum prog_compare (l0 @ l1)));
+    val l3 = filter (fn (a,b) => prog_size a >= 2 andalso b >= 100) l2;
+    val _ = print_endline ("preselection: " ^ its (length l3))
+    val l4 = map (fn (a,_) => (a, compression sol a)) l3;
+    val l5 = dict_sort compare_imin l4;
+  in
+    fst (hd l5)
+  end
+
+fun nbest_def ntop soltop = 
+  let 
+    val ntottop = sum_int (map prog_size soltop)
+    val _ =  print_endline ("total size: " ^ its ntottop)
+    fun loop defl n defn sol =
+      if n <= 0 then (rev defl, sol) else
+      let 
+        val def = best_def sol
+        val _ = print_endline (humanf def)
+        val newsol = map (psubst (def,defn)) sol
+        val ntot = sum_int (map prog_size newsol)
+        val _ =  print_endline ("total size: " ^ its ntot)
+      in
+        loop ((def,defn) :: defl) (n-1) (defn + 1) newsol
+      end
+  in
+    loop [] ntop def_id soltop
+  end
+
 
 (* -------------------------------------------------------------------------
    Timer

@@ -8,6 +8,7 @@ sig
   datatype sexp = Sexp of sexp list | Stoken of string;
   val lex_sexp : string -> string list
   val parse_sexp : string -> sexp
+  val string_of_sexp : sexp -> string  
 
   val rm_squote_sexp : sexp -> sexp
   val compress_arity : sexp -> sexp 
@@ -18,7 +19,10 @@ sig
   val prog_size : prog -> int
   val prog_compare_size : prog * prog -> order
 
+  val operd : (string, int) Redblackmap.dict
+  val revoperd : (int, string) Redblackmap.dict
   val sexp_to_prog: (string, int) Redblackmap.dict -> sexp -> prog
+  val prog_to_sexp: (int, string) Redblackmap.dict -> prog -> sexp
   val collect_arity : prog list -> (int, int) Redblackmap.dict
   val arityd : (int, int) Redblackmap.dict
 
@@ -38,8 +42,8 @@ sig
   val player_uniform :  tnn -> int list * prog list -> real * (int * real) list
   val mctsobj : tnn -> (board,move) psMCTS.mctsobj
   val tree_size : ('a, 'b) psMCTS.tree -> int
-
-  
+  val noise_flag : bool ref
+  val noise_coeff_glob : real ref
 
 (*
   type move = int
