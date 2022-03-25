@@ -698,6 +698,12 @@ fun find_minirep_merge pl =
 
 fun find_minirep_train pl = 
   let 
+    val sol1 = read_sold "exp/run102/sold139"
+    val sol2 = read_sold "exp/run102/sold139_test11"
+    val sol3 = enew prog_compare (map undef_prog (elist sol1))
+    val _ = if list_compare prog_compare (sol2,sol3) = EQUAL 
+            then print_endline "ok"
+            else raise ERR "find_minirep" ""
     val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
   in
@@ -1449,9 +1455,13 @@ write_progl "pat" (map fst defl);
 write_progl "exp/run102/sold139" patsol;
 
 
-open kernel;
+open aiLib kernel;
 val sol1 = read_progl "exp/run102/sold139";
 val sol2 = read_progl "exp/run102/sold139_test11";
+
+val sol2sem = map_assoc semtimo_of_prog sol2;
+val sol2sembad = filter (fn x => isSome (snd x)) sol2sem;
+
 val sol3 = map undef_prog sol1;
 
 *)

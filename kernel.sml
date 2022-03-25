@@ -50,8 +50,6 @@ fun prog_size (Ins(s,pl)) = case pl of
   | [a,b] => 1 + prog_size a + prog_size b
   | _ => (length pl - 1) + sum_int (map prog_size pl) 
 
-
-
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
 (* -------------------------------------------------------------------------
