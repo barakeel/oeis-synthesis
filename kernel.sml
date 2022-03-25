@@ -320,7 +320,7 @@ fun depend_on_i_aux p = case p of
   | Ins (13,[p1,p2,p3]) => depend_on_i_aux p3
   | Ins (_,pl) => exists depend_on_i_aux pl  
 
-fun depend_on_i p = depend_on_i (undef_prog p)
+fun depend_on_i p = depend_on_i_aux (undef_prog p)
 
 fun suc_prog n p = if n <= 0 then p else 
   Ins (addi_id, [suc_prog (n-1) p, Ins (one_id,[])])
