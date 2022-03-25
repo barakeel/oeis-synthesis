@@ -202,9 +202,11 @@ fun mk_def pat =
   else inst_pat pat
 
 val defl = 
-  if exists_file "pat" 
-  then number_fst def_id (read_progl "pat") 
-  else []
+  let val patfile = selfdir ^ "/pat" in
+    if exists_file patfile
+    then number_fst def_id (read_progl patfile) 
+    else []
+  end
 
 val defd = dnew Int.compare (map_snd mk_def defl);
 
@@ -419,7 +421,6 @@ defl;
 val newp = undef_prog p;
 *)
 
-
 fun mk_exec_aux prog = case prog of
     Ins (id,[]) => Vector.sub (nullaryv,id)
   | Ins (12,[p1,p2]) =>
@@ -436,9 +437,7 @@ fun mk_exec_aux prog = case prog of
 
 fun mk_exec p =
   let 
-    val _ = print_endline (raw_prog p)
     val undefp = undef_prog p
-    val _ = print_endline (raw_prog undefp)
     val exec = start (mk_exec_aux undefp) 
   in
     (fn x => ((exec x,!counter) handle Overflow => (error,!counter)))
