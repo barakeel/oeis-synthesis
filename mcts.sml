@@ -592,6 +592,21 @@ fun invapp_move board = case board of
       in
         SOME (prev, move)
       end
+    | Ins (_,[p1]) =>
+      let
+        val argl = dict_sort clause_compare (map prog_to_clause [p1])
+        val prev = map C1 argl @ m
+        val move = valOf (List.find (is_appsyn target prev) movelg) 
+          handle Option => 
+            (
+            print_endline (string_of_board board);
+            print_endline (string_of_board prev);
+            print_endline (humanf p1);
+            raise ERR "invapp_move" (string_of_board board)
+            )
+      in
+        SOME (prev, move)
+      end
     | Ins (_,[p1,p2]) =>
       let
         val argl = dict_sort clause_compare (map prog_to_clause [p1,p2])
