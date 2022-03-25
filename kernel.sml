@@ -39,6 +39,9 @@ datatype prog = Ins of (id * prog list);
 fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
   cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
 
+fun raw_prog (Ins (id,pl)) =
+  "(" ^ id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
+
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 
 fun prog_size (Ins(s,pl)) = case pl of
@@ -429,12 +432,15 @@ fun mk_exec_aux prog = case prog of
     compose2 (loop_f (mk_exec_aux p1)) (mk_exec_aux p2) (mk_exec_aux p3)
   | Ins (13,[p1,p2,p3]) =>
     compose1 (loop2_f (mk_exec_aux p1) (mk_exec_aux p2)) (mk_exec_aux p3)
-  | Ins (id,pl) => raise ERR "mk_exec_aux" (its id ^ " " ^ its (length pl))  
+  | Ins (id,pl) => raise ERR "mk_exec_aux" (raw_prog prog)  
 
 fun mk_exec p =
   let 
+    val _ = print_endline (raw_prog p)
     val undefp = undef_prog p
-    val exec = start (mk_exec_aux undefp) in
+    val _ = print_endline (raw_prog undefp)
+    val exec = start (mk_exec_aux undefp) 
+  in
     (fn x => ((exec x,!counter) handle Overflow => (error,!counter)))
   end 
   handle Subscript => raise ERR "mk_exec" ""
