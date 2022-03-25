@@ -40,7 +40,7 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
   cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
 
 fun raw_prog (Ins (id,pl)) =
-  "(" ^ id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
+  "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 
