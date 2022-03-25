@@ -285,7 +285,10 @@ val nullaryidl = map fst nullaryl
 fun is_nullary id = mem id nullaryidl
 fun find_nullaryf id = assoc id nullaryl
 val nullaryv = Vector.tabulate (maxbaseoper, fn i => 
-  if can find_nullaryf i then find_nullaryf i else zero_f);
+  if can find_nullaryf i 
+  then find_nullaryf i 
+  else (fn _ => raise ERR "nullaryv" (its i))
+  );
 
 val binaryl = 
   [(addi_id,addi_f),(diff_id,diff_f),(mult_id,mult_f),(divi_id,divi_f),
@@ -294,7 +297,10 @@ val binaryidl = map fst binaryl
 fun is_binary id = id >= addi_id andalso id <= modu_id
 fun find_binaryf id = assoc id binaryl
 val binaryv = Vector.tabulate (maxbaseoper, fn i => 
-  if can find_binaryf i then find_binaryf i else addi_f);
+  if can find_binaryf i 
+  then find_binaryf i 
+  else (fn _ => raise ERR "binaryv" (its i))
+  );
 
 fun is_comm id = mem id [addi_id, mult_id]
 val binaryidl_nocomm = filter (fn x => not (is_comm x)) binaryidl 
@@ -438,9 +444,9 @@ fun mk_exec_aux prog = case prog of
 fun mk_exec p =
   let 
     val undefp = undef_prog p
-    val exec = start (mk_exec_aux undefp) 
+    val exec = mk_exec_aux undefp
   in
-    (fn x => ((exec x,!counter) handle Overflow => (error,!counter)))
+    (fn x => ((start exec x, !counter) handle Overflow => (error,!counter)))
   end 
   handle Subscript => raise ERR "mk_exec" ""
 
