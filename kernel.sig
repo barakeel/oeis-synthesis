@@ -25,9 +25,6 @@ sig
   val prog_size : prog -> int
   val all_subprog : prog -> prog list
   val depend_on_i : prog -> bool
-  val under_lambda : prog -> prog list  
-  val has_lambdai : prog -> bool
-  val has_loop2 : prog -> bool
   val shift_prog : int -> prog -> prog
   val same_sem : prog -> prog -> bool  
   val all_holes : prog -> prog list

@@ -315,7 +315,8 @@ fun apply_moveo move board = case move of
               val (pa,pb) = (unzip_prog pia,unzip_prog pib)
               val p = Ins (id,[pa,pb])
             in
-              if id = compr_id andalso depend_on_i pa then NONE else 
+              if id = compr_id andalso depend_on_i (undef_prog pa) 
+                then NONE else 
               exec_fun p (na + nb) plb
             end     
           end
@@ -654,7 +655,7 @@ fun rewrite_winl winl =
      val repd = ref (dempty seq_compare)
      fun f p = 
        let val newp = commute (rewrite_merge repd p) in
-         if depend_on_i newp then NONE 
+         if depend_on_i (undef_prog newp) then NONE 
          else if equal_prog (p,newp) then SOME newp
          else if same_sem newp p then (incr i; SOME newp) else NONE
        end
@@ -696,6 +697,7 @@ fun find_minirep_merge pl =
 
 fun find_minirep_train pl = 
   let 
+    (*
     val sol1 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139")
     val sol2 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139_test11")
     val sol3 = map undef_prog sol1
@@ -706,6 +708,7 @@ fun find_minirep_train pl =
     val _ = print_endline "ok2"
     val l = find_minirep_aux (map undef_prog pl)
     val _ = print_endline "ok3"
+    *)
     val l = find_minirep_aux pl
     fun f (seq,(_,pi)) = (seq, unzip_prog pi)
   in
@@ -1115,7 +1118,7 @@ fun minimize_winl winl =
      fun f p = 
        if not (is_executable p) then raise ERR "minimize_winl" (humanf p) else
        let val newp = commute (minimize p) in
-         if equal_prog (p,newp) orelse depend_on_i newp then p
+         if equal_prog (p,newp) orelse depend_on_i (undef_prog newp) then p
          else if same_sem newp p then (incr i; newp) else p
        end
      val r = map f winl
@@ -1334,16 +1337,13 @@ fun stats_sol prefix sol =
   let
     val solsort = dict_sort prog_compare_size sol
     val freql1 = compute_freq all_subprog sol
-    val freql2 = compute_freq under_lambda sol
   in
     polynorm_flag := false;
     writel (prefix ^ "prog") (map human_progseq solsort);
     writel (prefix ^ "freq") (map human_progfreq freql1);  
-    writel (prefix ^ "freqlam") (map human_progfreq freql2);
     polynorm_flag := true;
     writel (prefix ^ "prog_poly") (map human_progseq solsort);
-    writel (prefix ^ "freq_poly") (map human_progfreq freql1);
-    writel (prefix ^ "freqlam_poly") (map human_progfreq freql2)
+    writel (prefix ^ "freq_poly") (map human_progfreq freql1)
   end
 
 fun stats_ngen dir ngen =
@@ -1371,7 +1371,6 @@ fun rl_search_only tmpname ngen =
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
     val _ = buildheap_options := "--maxheap 15000"
-    val loop2_tm = Vector.sub (operv,13)
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))

@@ -208,6 +208,12 @@ val defl =
 
 val defd = dnew Int.compare (map_snd mk_def defl);
 
+fun undef_prog (Ins (id,pl)) = 
+  if not (dmem id defd) then Ins (id, map undef_prog pl) else
+  let val newp = (dfind id defd) pl in 
+    undef_prog newp 
+  end
+
 val def_operl = 
   map (fn (i,pat) => mk_var ("def" ^ its i,
     rpt_fun_type (count_hole pat + 1) alpha)) defl;
@@ -307,23 +313,14 @@ val binaryidl_nocomm = filter (fn x => not (is_comm x)) binaryidl
    Compressed programs
    ------------------------------------------------------------------------- *)
 
-fun depend_on_i p = case p of 
+fun depend_on_i_aux p = case p of 
     Ins (id,[]) => id = ind_id 
-  | Ins (9,[p1,p2,p3]) => depend_on_i p2 orelse depend_on_i p3
-  | Ins (12,[p1,p2]) => depend_on_i p2
-  | Ins (13,[p1,p2,p3]) => depend_on_i p3
-  | Ins (_,pl) => exists depend_on_i pl  
+  | Ins (9,[p1,p2,p3]) => depend_on_i_aux p2 orelse depend_on_i_aux p3
+  | Ins (12,[p1,p2]) => depend_on_i_aux p2
+  | Ins (13,[p1,p2,p3]) => depend_on_i_aux p3
+  | Ins (_,pl) => exists depend_on_i_aux pl  
 
-fun under_lambda p = case p of
-    Ins (id,[]) => []
-  | Ins (9,[p1,p2,p3]) => p1 :: List.concat (map under_lambda [p1,p2,p3])
-  | Ins (_,pl) => List.concat (map under_lambda pl)
-
-fun has_lambdai p = case p of
-    Ins (id,[]) => false
-  | Ins (9,[p1,p2,p3]) => depend_on_i p1 
-     orelse has_lambdai p2 orelse has_lambdai p3
-  | Ins (_,pl) => exists has_lambdai pl
+fun depend_on_i p = depend_on_i (undef_prog p)
 
 fun suc_prog n p = if n <= 0 then p else 
   Ins (addi_id, [suc_prog (n-1) p, Ins (one_id,[])])
@@ -334,11 +331,6 @@ fun shift_prog n p = case p of
   | Ins (12,[p1,p2]) => Ins (12,[p1, shift_prog n p2])
   | Ins (13,[p1,p2,p3]) => Ins (13,[p1, p2, shift_prog n p3])
   | Ins (id,pl) => Ins (id, map (shift_prog n) pl)
-
-fun has_loop2 p = case p of
-    Ins (13,[p1,p2,p3]) => true
-  | Ins (_,pl) => exists has_loop2 pl;
-
 
 (* -------------------------------------------------------------------------
    Compressed programs
@@ -412,12 +404,6 @@ fun compose1 f f1 x = f (f1 x)
 fun compose2 f f1 f2 x = f (f1 x, f2 x)
 fun compose3 f f1 f2 f3 x = f (f1 x, f2 x, f3 x)
 
-fun undef_prog (Ins (id,pl)) = 
-  if not (dmem id defd) then Ins (id, map undef_prog pl) else
-  let val newp = (dfind id defd) pl in 
-    undef_prog newp 
-  end
-
 (*
 load "kernel"; open kernel;
 val p = Ins (3, [Ins (21, [Ins (1,[])])]);
@@ -440,10 +426,7 @@ fun mk_exec_aux prog = case prog of
   | Ins (id,pl) => raise ERR "mk_exec_aux" (raw_prog prog)  
 
 fun mk_exec p =
-  let 
-    val undefp = undef_prog p
-    val exec = mk_exec_aux undefp
-  in
+  let val exec = mk_exec_aux (undef_prog p) in
     (fn x => ((start exec x, !counter) handle Overflow => (error,!counter)))
   end 
   handle Subscript => raise ERR "mk_exec" ""
@@ -462,8 +445,8 @@ fun not_semdep_on_i e31 =
   end
 
 fun semtimo_of_prog p =
-  let val f = mk_exec p in
-    if not (depend_on_i p) 
+  let val f = mk_exec o in
+    if not (depend_on_i (undef_prog p)) 
     then 
       let 
         val e16 = map f entryl16

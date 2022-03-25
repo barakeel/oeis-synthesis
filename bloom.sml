@@ -146,7 +146,7 @@ fun init_od () =
   end
 
 fun find_wins p sem =
-  if depend_on_i p then [] else
+  if depend_on_i (undef_prog p) then [] else
   let
     val seql = List.tabulate (!maxinput + 1, fn i => 
       let val subseq = first_n i sem in
