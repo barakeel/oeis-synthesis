@@ -873,9 +873,5 @@ fun check_timer () =
   else incr rti_glob
   )
 
+
 end (* struct *)
-
-
-
-
-
