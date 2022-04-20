@@ -14,7 +14,7 @@ fun import_oseq () =
       let 
         val aseq = (String.tokens (fn x => x = #",") s)
         val anum = (hd o String.tokens Char.isSpace o hd) aseq
-        val seq0 = first_n (!maxinput) (tl aseq)
+        val seq0 = first_n maxinput (tl aseq)
       in 
         (map string_to_int_err seq0, anum)
       end
@@ -57,81 +57,13 @@ fun import_arbseq_fst () =
     map f sl
   end
 
-val bmod = 4093082899
-val bmodw = Word.fromInt bmod
-val zerow = Word.fromInt 0
-
-val mal =
-   [(1507141,3349037),
-    (8089339,5119783),
-    (3971411,1086413),
-    (2637251,7101337),
-    (5695777,5695777),
-    (7774433,6630097),
-    (6048967,4814759)]
-
-val malw = first_n 4
-  (map (fn (a,b) => (Word.fromInt a, Word.fromInt b)) mal)
-
-fun hash_seq (multer,adder) l =
-  let
-    open Word
-    fun loop acc l' = case l' of
-       [] => toInt (acc mod bmodw)
-     | a :: m => loop ((acc + fromInt a) * multer + adder) m
-  in
-    loop zerow l
-  end
-
-fun bmem seq b =
-  let fun g ma = BoolArray.sub (b,hash_seq ma seq) in
-    all g malw
-  end
-
-fun badd seq b =
-  let fun f ma = BoolArray.update (b,hash_seq ma seq,true) in
-    app f malw
-  end
-
-
-fun bmem_pi pi b =
-  let fun g ma = BoolArray.sub (b,hash_seq ma (pi_to_hseq pi)) in
-    all g malw
-  end
-
-fun badd_pi pi b =
-  let fun f ma = BoolArray.update (b,hash_seq ma (pi_to_hseq pi),true) in
-    app f malw
-  end
-
-fun pi_to_hl pi = 
-  let val hseq = pi_to_hseq pi in
-     map (fn x => hash_seq x hseq) malw
-   end
-
-fun bmem_hl hl b =
-  let fun g x = BoolArray.sub (b,x) in
-    all g hl
-  end
-
-fun badd_hl hl b =
-  let fun f x = BoolArray.update (b,x,true) in
-    app f hl
-  end
-
-fun badd_check seq b =
-  let fun f ma = BoolArray.update (b,hash_seq ma seq,true) in
-    if bmem seq b then print_endline (string_of_seq seq) else ();
-    app f malw
-  end
-
 val odv_glob = ref (Vector.fromList [])
 val odname_glob = ref (dempty seq_compare)
 
 fun init_od () =
   let
     val l = import_oseq () 
-    val odvref = Vector.tabulate (!maxinput + 1, 
+    val odvref = Vector.tabulate (maxinput + 1, 
       fn _ => ref (eempty seq_compare))
     fun f seq = 
       let val odref = Vector.sub (odvref,length seq) in
@@ -146,9 +78,9 @@ fun init_od () =
   end
 
 fun find_wins p sem =
-  if depend_on_i (undef_prog p) then [] else
+  (* if depend_on_y p then [] else *)
   let
-    val seql = List.tabulate (!maxinput + 1, fn i => 
+    val seql = List.tabulate (maxinput + 1, fn i => 
       let val subseq = first_n i sem in
         if emem subseq (Vector.sub (!odv_glob,i))
         then SOME subseq
@@ -158,13 +90,134 @@ fun find_wins p sem =
     List.mapPartial I seql
   end 
 
+datatype stree = 
+  Sleaf of int list |
+  Sdict of (int, stree) Redblackmap.dict
+;
+
+val sempty = Sdict (dempty Int.compare)
+
+fun sadd seq st = case seq of [] => st | a1 :: m1 => 
+  (
+  case st of
+    Sleaf [] => Sleaf seq  
+  | Sleaf (a2 :: m2) => 
+    sadd seq (Sdict (dnew Int.compare [(a2,Sleaf m2)]))
+  | Sdict d => 
+    let val vo = SOME (dfind a1 d) handle NotFound => NONE in
+      case vo of 
+        NONE => Sdict (dadd a1 (Sleaf m1) d)
+      | SOME v => Sdict (dadd a1 (sadd m1 v) d)
+    end  
+  )
+
+fun smem seq st = case seq of 
+    [] =>
+    (
+    case st of
+      Sleaf [] => (true,true)
+    | Sleaf _ => (true,false)
+    | Sdict d => if dlength d = 0 then (true,true) else (true,false)
+    )
+  | a1 :: m1 => 
+    (
+    case st of
+      Sleaf [] => (false,false)
+    | Sleaf (a2 :: m2) => 
+      if not (a1 = a2) then (false,false) else smem m1 (Sleaf m2)
+    | Sdict d => 
+      let val vo = SOME (dfind a1 d) handle NotFound => NONE in
+        case vo of 
+          NONE => (false,false)
+        | SOME v => smem m1 v
+      end  
+    )
+
+datatype ttree = 
+  Tleaf of string * seq |
+  Tdict of string list * string list * (int, ttree) Redblackmap.dict;
+
+val tempty = Tdict ([],[],dempty Int.compare)
+
+fun tadd (seq,s1) st = case (st,seq) of
+    (Tleaf (s2,[]),_) => 
+    tadd (seq,s1) (Tdict ([s2], [s2], dempty Int.compare))
+  | (Tleaf (s2,a2 :: m2),_) => 
+    tadd (seq,s1) (Tdict ([s2], [], dnew Int.compare [(a2,(Tleaf (s2,m2)))]))
+  | (Tdict (sl,slfin,d), []) => Tdict (s1 :: sl, s1 :: slfin, d)
+  | (Tdict (sl,slfin,d), a1 :: m1) =>
+    let val vo = SOME (dfind a1 d) handle NotFound => NONE in
+      case vo of 
+        NONE => Tdict (s1 :: sl, slfin, dadd a1 (Tleaf (s1,m1)) d) 
+      | SOME v => Tdict (s1 :: sl, slfin, dadd a1 (tadd (m1,s1) v) d)
+    end;
+
+fun tcover seq st = case (st,seq) of
+    (Tleaf (s2,[]),_) => [s2]
+  | (Tleaf (s2,seq2),_) => if seq = seq2 then [s2] else []
+  | (Tdict (sl,slfin,d), []) => sl
+  | (Tdict (sl,slfin,d), a1 :: m1) =>
+    let val vo = SOME (dfind a1 d) handle NotFound => NONE in
+      case vo of 
+        NONE => sl
+      | SOME v => slfin @ tcover m1 v
+    end;
+
 
 (* 
 load "bloom"; open aiLib bloom;
-val (l,d) = import_arbseq (); 
-dlength d;
+
+PolyML.print_depth 2;
+val l0 = time (import_oseq) ();
+val l1 = time (map fst) l0;
+PolyML.print_depth 40;
+
+val st = time (foldl (uncurry tadd) tempty) l0;
+
+val sl = tcover [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53] st;
+val sl = tcover [0,1,1,2,3,5,8,13,21,34,55,89,89+55,2*89+55,3*89+2*55,5*89+3*55] st;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+fun sadd_nomem seq st = if smem seq st then st else sadd seq st;
+
+
+
+
+
+
+
+
+smem [1,2,3] st;
+
+(case st of Sdict d => dkeys d);
 *)
 
+
+
+
+(*
+fun repeatn n f = 
+  if n <= 0 then () else (f (); repeatn (n-1) f);
+val size = 1024;
+val d = dset Int.compare (List.tabulate (size,I));
+fun f1 () = dfind (size - 1) d;
+val l = List.tabulate (size,(fn i => (i,())));
+fun f2 () = assoc (size - 1) l;
+time (repeatn 10000000) f1;
+time (repeatn 10000000) f2
+*)
 
 end (* struct *)
 

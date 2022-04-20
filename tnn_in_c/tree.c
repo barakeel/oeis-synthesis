@@ -6,6 +6,7 @@
 #include <string.h>
 #define DIM 64
 #define BUFFER 10000000
+#define ALIGN 64
 // M is the number of lines (output), N is the number of column (input)
 // DIM has to be bigger than maximum output dimension of heads
 
@@ -24,7 +25,6 @@ void shuffle(long n ,long A[]) {
         swap(&A[i], &A[j]);
     }
 }
-
 
 //reading input data
 void read(const char* File, long A[]) {
@@ -79,6 +79,12 @@ void print_mat (char *s, long n, long m, double A[]) {
   printf("%s\n",s);
   for (long i = 0; i < m*n; ++i)
     {printf("%.16f ",A[i]); if (i % n == n - 1) {printf("\n");}}
+  }
+
+void fprint_mat (FILE *locfp, char *s, long n, long m, double A[]) {
+  fprintf(locfp,"%s\n",s);
+  for (long i = 0; i < m*n; ++i)
+    {fprintf(locfp,"%.16f ",A[i]); if (i % n == n - 1) {fprintf(locfp,"\n");}}
   }
 
 // initialization
@@ -230,11 +236,11 @@ int main()
   printf ("nex: %li\n", nex);
 
   // allocating operators/examples
-  ARITY = (long*)mkl_malloc(nop*sizeof(long),64);
-  HEAD = (long*)mkl_malloc(nop*sizeof(long),64);
-  SIZE = (long*)mkl_malloc(nex*sizeof(long),64);
-  SHF = (long*)mkl_malloc(nex*sizeof(long),64);
-  CUMUL = (long*)mkl_malloc(nex*sizeof(long),64);
+  ARITY = (long*)mkl_malloc(nop*sizeof(long),ALIGN);
+  HEAD = (long*)mkl_malloc(nop*sizeof(long),ALIGN);
+  SIZE = (long*)mkl_malloc(nex*sizeof(long),ALIGN);
+  SHF = (long*)mkl_malloc(nex*sizeof(long),ALIGN);
+  CUMUL = (long*)mkl_malloc(nex*sizeof(long),ALIGN);
 
   // reading operators/examples
   read("data/arity.txt",ARITY);
@@ -245,8 +251,8 @@ int main()
   sum = 0;
   for (ex = 0; ex < nex; ++ex) {sum += SIZE[ex];};
   printf("sum: %li\n", sum);
-  long bD = 4;
-  D = (long*)mkl_malloc(bD*sum*sizeof(long),64);
+  long bD = 6; // max argument plus one
+  D = (long*)mkl_malloc(bD*sum*sizeof(long),ALIGN);
   read("data/dag.txt",D);
   nhead = 0;
   for (di = 0; di < sum; ++di) {
@@ -260,7 +266,7 @@ int main()
   
   // potential objectives for each head in the dag
   printf("allocating doubles\n");
-  OBJ = (double*)mkl_malloc(DIM*sum*sizeof(double),64);
+  OBJ = (double*)mkl_malloc(DIM*sum*sizeof(double),ALIGN);
   printf("reading doubles\n");
   read_double("data/obj.txt",OBJ);  
   printf("success doubles\n");
@@ -271,7 +277,7 @@ int main()
   //weights for each operator
   long bA = (3*DIM+1)*DIM;
   double *A, *Acur;
-  A = (double*)mkl_malloc(bA*nop*sizeof( double ),64);
+  A = (double*)mkl_malloc(bA*nop*sizeof( double ),ALIGN);
   for (op=0; op < nop; ++op) {
     if (HEAD[op] > 0) {
       //fixed_head (HEAD[op],A+bA*op);
@@ -285,7 +291,7 @@ int main()
 
   //update matrix for each operator
   double *U, *Ucur;
-  U = (double*)mkl_malloc(bA*nop*sizeof( double ),64);
+  U = (double*)mkl_malloc(bA*nop*sizeof( double ),ALIGN);
   void zeroU () {
   for (op=0; op < nop; ++op) {
     if (HEAD[op] == 0) {zero_mat (ARITY[op],U+op*bA);}
@@ -296,23 +302,23 @@ int main()
 
   //check if an operator was updated
   long *UPD;
-  UPD = (long*)mkl_malloc(nop*sizeof( long ),64);
+  UPD = (long*)mkl_malloc(nop*sizeof( long ),ALIGN);
 
   //computation trace for each example
   long bX = 3*DIM+1;
   long bY = DIM;
   double *X, *Y, *TY; 
   double *Xcur, *Ycur, *TYcur;
-  X = (double*)mkl_malloc(bX*sum*sizeof( double ),64);
-  Y = (double*)mkl_malloc(bY*sum*sizeof( double ),64);
-  TY = (double*)mkl_malloc(bY*sum*sizeof( double ),64);
+  X = (double*)mkl_malloc(bX*sum*sizeof( double ),ALIGN);
+  Y = (double*)mkl_malloc(bY*sum*sizeof( double ),ALIGN);
+  TY = (double*)mkl_malloc(bY*sum*sizeof( double ),ALIGN);
   one_vect (bX*sum,X);
 
   double *GX, *GY, *GTY;
   double *GXcur, *GYcur, *GTYcur;
-  GX = (double*)mkl_malloc(bX*sum*sizeof( double ),64);
-  GY = (double*)mkl_malloc(bY*sum*sizeof( double ),64);
-  GTY = (double*)mkl_malloc(bY*sum*sizeof( double ),64);
+  GX = (double*)mkl_malloc(bX*sum*sizeof( double ),ALIGN);
+  GY = (double*)mkl_malloc(bY*sum*sizeof( double ),ALIGN);
+  GTY = (double*)mkl_malloc(bY*sum*sizeof( double ),ALIGN);
   
   // setting the number of threads
   max_threads = mkl_get_max_threads();
@@ -482,18 +488,20 @@ int main()
   printf("%li: %f\n", ep, err / nhead);
   fflush(stdout);
   }//end training
+
+  FILE *fp;
   
   // export to standard ml
-  printf("START MATRICES\n");
+  fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/sml_mat", "w");
+  fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + bA * op;
-    if (HEAD [op] > 0) {print_mat ("A",DIM+1,HEAD[op],Acur);}
-    else {print_mat ("A",ARITY[op]*DIM+1,DIM,Acur);}
+    if (HEAD [op] > 0) {fprint_mat (fp,"A",DIM+1,HEAD[op],Acur);}
+    else {fprint_mat (fp,"A",ARITY[op]*DIM+1,DIM,Acur);}
   }
+  fclose(fp);
 
-
-  // export to openblas
-  FILE *fp;
+  // export to openblas  
   fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/ob_mat", "w");
   fprintf(fp, "double A[%ld] = {", bA*nop);
   for (i = 0; i < bA*nop; i++)

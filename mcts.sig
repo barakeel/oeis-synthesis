@@ -5,27 +5,22 @@ sig
 
   type seq = kernel.seq
   type prog = kernel.prog
-  type progi = kernel.progi
-  type clause = int * progi
   type tnn = mlTreeNeuralNetworkAlt.tnn
   type 'a set = 'a Redblackset.set
   
-  datatype move = Oper of int * int | Pair
-  datatype clausex = C1 of clause | C2 of clause * clause
-  type board = clausex list  
+  type move = int
+  type board = prog list  
   type player = (board,move) psMCTS.player
 
-  val prog_compare_size : prog * prog -> order
   val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
 
   (* globals *)
-  val use_semb : bool ref
-  val progd: progi Redblackset.set ref
-  val notprogd: progi Redblackset.set ref
+  val progd: prog set ref
+  val notprogd: prog set ref
   val embd : (term, real vector) Redblackmap.dict ref
-  val semd : seq Redblackset.set ref
-  val seqwind : seq Redblackset.set ref
-  val progwind : progi Redblackset.set ref
+  val semd : seq set ref
+  val seqwind : seq set ref
+  val progwind : prog set ref
 
   (* game *)
   val game : (board,move) psMCTS.game
