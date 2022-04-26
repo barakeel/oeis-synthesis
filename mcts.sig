@@ -7,9 +7,10 @@ sig
   type prog = kernel.prog
   type tnn = mlTreeNeuralNetworkAlt.tnn
   type 'a set = 'a Redblackset.set
-  
-  type move = int
-  type board = prog list  
+  type ('a,'b) dict = ('a,'b) Redblackmap.dict
+
+  datatype move = O of int * bool | P of bool | Q
+  type board = prog list list
   type player = (board,move) psMCTS.player
 
   val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
@@ -17,10 +18,8 @@ sig
   (* globals *)
   val progd: prog set ref
   val notprogd: prog set ref
-  val embd : (term, real vector) Redblackmap.dict ref
-  val semd : seq set ref
-  val seqwind : seq set ref
-  val progwind : prog set ref
+  val embd : (term, real vector) dict ref
+  val wind : (string, int * kernel.prog) dict ref
 
   (* game *)
   val game : (board,move) psMCTS.game
@@ -39,9 +38,7 @@ sig
   val random_prog : int -> prog
   
   (* search parameters *)
-  val use_cache : bool ref
   val use_ob : bool ref
-  val uniform_flag : bool ref
   val wnoise_flag : bool ref
   val noise_coeff_glob : real ref
   val noise_flag : bool ref

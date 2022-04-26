@@ -4,7 +4,12 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel;
 val ERR = mk_HOL_ERR "bloom";
 
-fun string_to_int_err s = string_to_int s handle Overflow => error
+fun map_err acc f l = case l of 
+    [] => rev acc
+  | a :: m => 
+    let val x = f a handle Overflow => valOf Int.maxInt in
+      map_err (x :: acc) f m
+    end
 
 fun import_oseq () =
   let 
@@ -14,9 +19,9 @@ fun import_oseq () =
       let 
         val aseq = (String.tokens (fn x => x = #",") s)
         val anum = (hd o String.tokens Char.isSpace o hd) aseq
-        val seq0 = first_n maxinput (tl aseq)
+        val seq = map_err [] string_to_int (tl aseq)
       in 
-        (map string_to_int_err seq0, anum)
+        (seq, anum)
       end
   in
     map f sl
@@ -30,70 +35,18 @@ fun import_arbseq () =
       let 
         val aseq = (String.tokens (fn x => x = #",") s)
         val anum = (hd o String.tokens Char.isSpace o hd) aseq
-        val seq1 = map Arbint.fromString (tl aseq)
+        val seq = map Arbint.fromString (tl aseq)
       in 
-         (seq1,anum)
-      end
-    val r1 = map f sl
-    val r2 = dregroup (list_compare Arbint.compare) r1
-    val _ = print_endline (its (dlength r2))
-  in
-    (r1,r2)
-  end
-
-fun import_arbseq_fst () =
-  let 
-    val sl = readl (selfdir ^ "/data/oeis");
-    val _ = print_endline ("oeis: " ^ its (length sl))
-    fun f s =
-      let 
-        val aseq = (String.tokens (fn x => x = #",") s)
-        val anum = (hd o String.tokens Char.isSpace o hd) aseq
-        val seq1 = map Arbint.fromString (tl aseq)
-      in 
-         (seq1,anum)
+        (seq,anum)
       end
   in
     map f sl
   end
 
-val odv_glob = ref (Vector.fromList [])
-val odname_glob = ref (dempty seq_compare)
-
-fun init_od () =
-  let
-    val l = import_oseq () 
-    val odvref = Vector.tabulate (maxinput + 1, 
-      fn _ => ref (eempty seq_compare))
-    fun f seq = 
-      let val odref = Vector.sub (odvref,length seq) in
-        odref := eadd seq (!odref)
-      end  
-    val _ = app f (map fst l)
-    val odname_aux = dregroup seq_compare l
-  in
-    print_endline ("selected: " ^ its (dlength odname_aux));
-    odname_glob := odname_aux;
-    odv_glob := Vector.map ! odvref
-  end
-
-fun find_wins p sem =
-  (* if depend_on_y p then [] else *)
-  let
-    val seql = List.tabulate (maxinput + 1, fn i => 
-      let val subseq = first_n i sem in
-        if emem subseq (Vector.sub (!odv_glob,i))
-        then SOME subseq
-        else NONE
-      end)
-  in
-    List.mapPartial I seql
-  end 
 
 datatype stree = 
   Sleaf of int list |
   Sdict of (int, stree) Redblackmap.dict
-;
 
 val sempty = Sdict (dempty Int.compare)
 
@@ -150,7 +103,7 @@ fun tadd (seq,s1) st = case (st,seq) of
       case vo of 
         NONE => Tdict (s1 :: sl, slfin, dadd a1 (Tleaf (s1,m1)) d) 
       | SOME v => Tdict (s1 :: sl, slfin, dadd a1 (tadd (m1,s1) v) d)
-    end;
+    end
 
 fun tcover seq st = case (st,seq) of
     (Tleaf (s2,[]),_) => [s2]
@@ -163,6 +116,18 @@ fun tcover seq st = case (st,seq) of
       | SOME v => slfin @ tcover m1 v
     end;
 
+val oseq = import_oseq ()
+val ost = foldl (uncurry tadd) tempty oseq
+
+fun infoq_int x = 
+  if x = 0 then 1.0 
+  else Math.ln (Real.abs (Real.fromInt x)) / (Math.ln 2.0)     
+
+fun infoq_seq xl = sum_real (map infoq_int xl)
+
+fun find_wins sem = 
+  if infoq_seq sem < 64.0 then [] else tcover sem ost
+
 
 (* 
 load "bloom"; open aiLib bloom;
@@ -172,7 +137,7 @@ val l0 = time (import_oseq) ();
 val l1 = time (map fst) l0;
 PolyML.print_depth 40;
 
-val st = time (foldl (uncurry tadd) tempty) l0;
+
 
 val sl = tcover [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53] st;
 val sl = tcover [0,1,1,2,3,5,8,13,21,34,55,89,89+55,2*89+55,3*89+2*55,5*89+3*55] st;

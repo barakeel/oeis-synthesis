@@ -49,6 +49,17 @@ fun prog_size (Ins(s,pl)) = case pl of
   | [a,b] => 1 + prog_size a + prog_size b
   | _ => (length pl - 1) + sum_int (map prog_size pl) 
 
+fun prog_compare_size (p1,p2) =
+  cpl_compare Int.compare prog_compare ((prog_size p1,p1),(prog_size p2,p2))
+
+fun progl_size pl = case pl of
+    [] => raise ERR "progl_size" ""
+  | _ => (length pl - 1) + sum_int (map prog_size pl)
+
+fun progl_compare_size (pl1,pl2) =
+  cpl_compare Int.compare (list_compare prog_compare)  
+  ((progl_size pl1,pl1),(progl_size pl2,pl2))
+
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
 local open HOLsexp in
@@ -133,11 +144,11 @@ fun test_counter () = (incr counter;
 (* wrappers *)
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test_counter (); opf x))
-  | _ => raise ERR "mk_binf" ""
+  | _ => raise ERR "mk_nullf" ""
 
 fun mk_unf opf fl = case fl of
    [f1,f2] => (fn x => (test_counter (); opf (f1 x)))
-  | _ => raise ERR "mk_binf" ""
+  | _ => raise ERR "mk_unf" ""
 
 fun mk_binf opf fl = case fl of
    [f1,f2] => (fn x => (test_counter (); opf (f1 x, f2 x)))
@@ -149,16 +160,19 @@ fun mk_ternf opf fl = case fl of
 
 fun mk_binf1 opf fl = case fl of
    [f1,f2] => (fn x => (test_counter (); opf (f1, f2 x)))
-  | _ => raise ERR "mk_binf" ""
+  | _ => raise ERR "mk_binf1" ""
 
 fun mk_ternf1 opf fl = case fl of
    [f1,f2,f3] => (fn x => (test_counter (); opf (f1, f2 x, f3 x)))
-  | _ => raise ERR "mk_ternf" ""
+  | _ => raise ERR "mk_ternf1" ""
 
 fun mk_quintf2 opf fl = case fl of
    [f1,f2,f3,f4,f5] => 
    (fn x => (test_counter (); opf (f1, f2, f3 x, f4 x, f5 x)))
-  | _ => raise ERR "mk_ternf" ""
+  | _ => raise ERR "mk_quintf2" ""
+
+(* todo change int to Arbint with a maximum limit on the size 
+   of arbint *)
 
 (* first-order *)
 val zero_f = mk_nullf (fn _ => 0)

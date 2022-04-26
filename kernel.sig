@@ -25,6 +25,11 @@ sig
   val prog_compare : prog * prog -> order
   val equal_prog : prog * prog -> bool
   val prog_size : prog -> int
+  val prog_compare_size : prog * prog -> order
+  val progl_size : prog list -> int
+  val progl_compare_size : prog list * prog list -> order
+
+
   val all_subprog : prog -> prog list
   val depend_on_y : prog -> bool
   val read_progl : string -> prog list

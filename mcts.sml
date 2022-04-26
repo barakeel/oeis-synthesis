@@ -31,12 +31,6 @@ fun partopt n l = partopt_aux n [] l;
 fun longereq n l =
   if n <= 0 then true else if null l then false else longereq (n-1) (tl l)
 
-fun eaddi_aux x d = d := eadd x (!d)
-fun ememi_aux x d = emem x (!d)
-
-fun eaddi x d = Profile.profile "eaddi" (eaddi_aux x) d
-fun ememi x d = Profile.profile "ememi" (ememi_aux x) d
-
 fun string_to_real x = valOf (Real.fromString x)
 fun ilts x = String.concatWith " " (map its x)
 fun stil x = map string_to_int (String.tokens Char.isSpace x)
@@ -45,6 +39,19 @@ fun strl x = map string_to_real (String.tokens Char.isSpace x)
 
 fun spacetime space tim = 
   Math.pow (1.414, Real.fromInt space) * Real.fromInt tim
+
+fun inv_cmp cmp (a,b) = cmp (b,a)
+
+(* -------------------------------------------------------------------------
+   Dictionaries shortcuts
+   ------------------------------------------------------------------------- *)
+
+fun eaddi x d = d := eadd x (!d)
+fun ememi x d = emem x (!d)
+fun daddi k v d = d := dadd k v (!d) 
+fun dmemi x d = dmem x (!d)
+fun saddi x t = t := sadd x (!t)
+fun smemi x t = smem x (!t)
 
 (* -------------------------------------------------------------------------
    Parameters
@@ -77,12 +84,12 @@ val ngen_glob = ref 0
 val in_search = ref false
 
 val embd = ref (dempty Term.compare)
-val seqwind = ref (eempty seq_compare)
-val progwind = ref (eempty prog_compare)
-
+val wind = ref (dempty String.compare)
 val progd = ref (eempty prog_compare)
 val notprogd = ref (eempty prog_compare)
-val semd = ref (eempty seq_compare)
+
+val semxd = ref sempty
+val semxyd = ref sempty
 
 val minid = ref (dempty seq_compare)
 val initd = ref (eempty prog_compare)
@@ -107,59 +114,58 @@ type seq = kernel.seq
 type prog = kernel.prog
 type tnn = mlTreeNeuralNetworkAlt.tnn
 type 'a set = 'a Redblackset.set
+type ('a,'b) dict = ('a,'b) Redblackmap.dict
 
 (* -------------------------------------------------------------------------
    Move
    ------------------------------------------------------------------------- *)
 
-(* type move = O of int * bool | P of bool *)
+datatype move = O of int * bool | P of bool | Q
 
-val noperm_flag = ref false
-
-(*
 val premovelg =  
   List.concat (
   List.tabulate (Vector.length operv, fn i => 
     let val arity = arity_of_oper i in
-      if arity < 2 
-      then [O (i,true)]]
-      else [O (i,true),O (i,false)]
+      if arity = 2 
+      then [O (i,false), O (i,true)]
+      else [O (i,false)]
     end))
-  @ 
-  map P [true,false]
-
-val premovelg_noperm = List.tabulate (maxoper,fn i => O (i,true))
+  @ map P [true,false]
+  @ [Q]
 
 fun move_compare (m1,m2) = case (m1,m2) of 
     (O x, O y) => cpl_compare Int.compare bool_compare (x,y)
-  | (O _, P _) => LESS
-  | (P _, O _) => GREATER
+  | (O _, _) => LESS
+  | (_, O _) => GREATER
   | (P x, P y) => bool_compare (x,y)
-*)
-val movelg = List.tabulate (maxoper,I)
+  | (P _, _) => LESS
+  | (_, P _) => GREATER
+  | (Q,Q) => EQUAL
 
-(*
-dict_sort move_compare 
-  (if !noperm_flag then premovelg_noperm else premovelg)
-*)
+val movelg = dict_sort move_compare premovelg
+val moveld = dnew move_compare (number_snd 0 movelg) 
+
+fun index_of_move move = dfind move moveld
 
 val maxmove = length movelg
 
-fun string_of_move x = name_of_oper x
-(* case x of 
+fun string_of_move x = case x of 
     O (x,b) => name_of_oper x ^ "-" ^ bts b
   | P b => "pair-" ^ bts b
-*)
+  | Q => "pair"
+
 (* -------------------------------------------------------------------------
    Board
    ------------------------------------------------------------------------- *)
 
-type board = prog list
+type board = prog list list
 type player = (board,move) psMCTS.player
 fun string_of_board (board : board) = "todo"
   (* "# " ^ String.concatWith "\n# " (map raw_prog board) *)
 fun board_compare (a,b) = list_compare (list_compare prog_compare) (a,b)
-
+fun board_size b = 
+  if null b then 0 else (length b - 1) + sum_int (map progl_size b)
+ 
 (* -------------------------------------------------------------------------
    Application of a move to a board
    ------------------------------------------------------------------------- *)
@@ -181,113 +187,126 @@ fun update_minid p (sem,tim) =
 
 fun update_wind p sem =
   let
-    val winseql = find_wins p sem
-    val b = ref false
-    fun f x = if not (ememi x seqwind) 
-      then (eaddi x seqwind; b := true) else ()
+    val anuml = find_wins sem
+    fun f anum = 
+      let 
+        val newx = (length sem,p)
+        val oldo = SOME (dfind anum (!wind)) handle NotFound => NONE 
+      in
+        case oldo of 
+          NONE => daddi anum newx wind
+        | SOME oldx => 
+          if cpl_compare (inv_cmp Int.compare) prog_compare_size 
+            (newx,oldx) = LESS
+          then daddi anum newx wind
+          else () 
+      end         
   in
-    app f winseql;
-    if !b then eaddi p progwind else ()
+    app f anuml
   end
 
 fun exec_fun_insearch p plb =
-  if ememi p progd then SOME (p :: plb)
+  if ememi p progd then SOME ([p] :: plb)
   else if ememi p notprogd then NONE
-  else (* unseen program *)
-  if not (depend_on_y p) then 
-    case semxo_of_prog entrylx p of 
+  else if not (depend_on_y p) then 
+    (
+    case semo_of_prog entrylx p of 
       NONE => (eaddi p notprogd; NONE) 
     | SOME sem =>
-      (
-      if not (ememi p initd) andalso fst (smem sem semxd)
-      then (eaddi p notprogd; NONE) 
-      else (* unseen or better sequence *)
-        (
-        Profile.profile "update_wind" (update_wind p) sem;
-        eaddi p progd;
-        sadd sem semxd; 
-        SOME (p :: plb)
-        )
-      )
-  else
-      case semo_of_prog entrylxy p of 
-        NONE => (eaddi p notprogd; NONE) 
-      | SOME sem =>
-      (
-      if not (ememi p initd) andalso fst (smem sem semxd)
-      then (eaddi p notprogd; NONE) 
-      else (* unseen or better sequence *)
-        (
-        eaddi p progd;
-        sadd sem semxd; 
-        SOME (p :: plb)
-        )
-      )
-
-fun exec_fun p plb =
-  if !in_search 
-  then exec_fun_insearch p plb
-  else SOME (p :: plb)
-    
-fun apply_moveo move board = case move of
-     Oper x =>
-     let val arity = arity_of_oper x in
-       if not (longereq arity board) then NONE else 
-       let val (l1,l2) = part_n arity board in
-         exec_fun (Ins (x, rev l1)) l2
-     end
-   | _ => raise ERR "applymoveo_noperm" ""
-
-(*
-fun apply_moveo move board = case move of
-    Oper (x,b) => 
-    let val arity = arity_of_oper x in
-      if arity = 0 then exec_fun (Ins (x, [])) board 
-      else if arity = 1 then
-        if null board then NONE else exec_fun (Ins (x, hd board)) (tl board)
-      else (* arity >= 2 *)
-        if not (longereq 2 board) then NONE else  
-        let 
-          val (l1,l2) = part_n 2 board
-          val argl = get_argl l1
-        in
-          if length argl <> arity then NONE else exec_fun (Ins (x, argl)) l2
+      let fun accept () = 
+        (update_wind p sem; eaddi p progd; saddi sem semxd; SOME ([p] :: plb))
+      in
+        if ememi p initd then accept () else 
+        let val (b1,b2) = smemi sem semxd in
+          if b1 then 
+            (if b2 then update_wind p sem else (); 
+             eaddi p notprogd; 
+             NONE) 
+          else accept ()
         end
-    end
-  | Pairb b => 
+      end      
+    )
+  else
     (
-    if not (longereq 2 board) then NONE else 
-    let 
-      val (l1,l2) = part_n 2 board 
-      val (a,b) = pair_of_list l1
-      val newp = 
-        if length a >= maxarity orelse length b >= maxarity then NONE else
-        case (a,b) of
-          ([a1], [b1]) => [a1,b1]
-    
-        | _ => raise ERR "apply_moveo" "pairb"
-    in    
-      exec_fun p l2
-    end
+    case semo_of_prog entrylxy p of 
+      NONE => (eaddi p notprogd; NONE) 
+    | SOME sem =>
+      let fun accept () = 
+        (eaddi p progd; saddi sem semxyd; SOME ([p] :: plb))
+      in
+        if ememi p initd then accept () else 
+        let val (b1,b2) = smemi sem semxyd in
+          if b1 then (eaddi p notprogd; NONE) else accept ()
+        end
+      end
     )
 
-  | Pair b =>
+(* ordering constraints *)
+fun strong_ord_aux il = case il of
+     [] => true
+   | a :: m => a >= (length m - 1) + sum_int m andalso strong_ord_aux m
+
+fun strong_ord board = strong_ord_aux (rev (map progl_size board))
+
+fun weak_ord board = case board of
+     [a] :: [b] :: _ => prog_compare_size (a,b) <> GREATER 
+   | _ => true
+  
+(* different type of operators *)
+fun exec_fun p plb =
+  if !in_search then 
     (
-    if not (longereq 2 board) then NONE else 
-    let 
-      val (l1,l2) = part_n 2 board 
-      val (a,b) = pair_of_list l1
-      val newp = 
-        if length a >= maxarity orelse length b >= maxarity then NONE else
-        case (a,b) of
-          ([a1], b1) => a1 :: b1
-        | (a1, [b1]) => b1 :: a1
-        | _ => raise ERR "apply_moveo" ""
-    in    
-      exec_fun p l2
-    end
+    case exec_fun_insearch p plb of NONE => NONE | SOME board =>
+    if weak_ord board andalso strong_ord board then SOME board else NONE
     )
-*)
+  else SOME ([p] :: plb)
+
+fun exec_nullop board x = exec_fun (Ins (x,[])) board 
+
+fun exec_unop board x = case board of
+    [a] :: m => exec_fun (Ins (x,[a])) m  
+  | _ => NONE
+
+fun exec_binop board x permb = case board of
+   [a] :: [b] :: m => 
+     if not permb then exec_fun (Ins (x,[b,a])) m 
+     else if equal_prog (a,b) then NONE 
+     else exec_fun (Ins (x,[a,b])) m
+  | _ => NONE
+
+fun exec_largeop_aux arity x argl m = 
+  if length argl <> arity then NONE else exec_fun (Ins (x, rev argl)) m
+ 
+fun exec_largeop board x arity = case board of
+     bl :: [a] :: m => exec_largeop_aux arity x (a :: bl) m
+   | [a] :: bl :: m => exec_largeop_aux arity x (a :: bl) m
+   | _ => NONE
+
+fun exec_permop board permb = case board of
+    [a] :: [b] :: m =>
+    if not permb then SOME ([a,b] :: m) 
+    else if equal_prog (a,b) then NONE
+    else SOME ([b,a] :: m)
+  | _ => NONE
+
+fun exec_qop board = case board of
+     bl :: [a] :: m => SOME ((a :: bl) :: m)
+   | [a] :: bl :: m => SOME ((a :: bl) :: m)
+   | _ => NONE 
+
+(* all together *)
+fun apply_moveo move board = case move of
+    O (x,permb) => 
+    let val arity = arity_of_oper x in 
+      case arity of
+        0 => exec_nullop board x
+      | 1 => exec_unop board x
+      | 2 => exec_binop board x permb
+      | _ => exec_largeop board x arity
+    end
+  | P permb => exec_permop board permb
+  | Q => exec_qop board
+
 
 fun apply_move move board = valOf (apply_moveo move board)
   handle Option => raise ERR "apply_move" "option"
@@ -297,8 +316,8 @@ fun apply_move move board = valOf (apply_moveo move board)
    Available moves
    ------------------------------------------------------------------------- *)
 
-fun available_move board move = isSome (apply_moveo move board)
-fun available_movel board = filter (available_move board) movelg
+fun available_movel board = 
+   filter (fn x => isSome (apply_moveo x board)) movelg
 
 (* -------------------------------------------------------------------------
    For debugging
@@ -311,7 +330,7 @@ fun random_board n = funpow n random_step []
   handle Interrupt => raise Interrupt 
     | _ => random_board n
 
-fun random_prog n = last (random_board n)
+fun random_prog n = last (last (random_board n))
   
 fun apply_movel movel board = foldl (uncurry apply_move) board movel
 
@@ -396,30 +415,37 @@ fun term_of_prog (Ins (id,pl)) =
   cap (list_mk_comb (Vector.sub (operv,id), map term_of_prog pl))
 
 (* stack *)
-val pair_cat = mk_var ("pair_cat",alpha3);
 val stack_empty = mk_var ("stack_empty", alpha);
 val stack_cat = mk_var ("stack_cat", alpha3);
+val stackl_empty = mk_var ("stackl_empty", alpha);
+val stackl_cat = mk_var ("stackl_cat", alpha3);
 
-fun term_of_stack_aux board = case board of 
+fun term_of_stack stack = case stack of 
     [] => stack_empty
   | a :: m => 
-    cap (list_mk_comb (stack_cat, [term_of_prog a,term_of_stack_aux m]));
+    cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
+
+fun term_of_stackl stack = case stack of 
+    [] => stackl_empty
+  | a :: m => 
+    cap (list_mk_comb (stackl_cat, [term_of_stack a,term_of_stackl m]));
 
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
-fun term_of_stack board = 
+fun term_of_join board = 
   list_mk_comb (pair_progseq, 
-    [term_of_stack_aux board, cap (term_of_seq (first_n 8 (!target_glob)))])
+    [term_of_stackl board, cap (term_of_seq (first_n 8 (!target_glob)))])
 
 (* policy head *)
 val prepoli = mk_var ("prepoli",alpha2)
 val head_poli = mk_var ("head_poli", alpha2)
 
 fun term_of_board board = mk_comb (head_poli, 
-  mk_comb (prepoli, term_of_stack board))
+  mk_comb (prepoli, term_of_join board))
 
 (* embedding dimensions *)
-val operl = vector_to_list operv @ [stack_empty,stack_cat,pair_cat]
+val operl = vector_to_list operv @ 
+  [stack_empty,stack_cat,stackl_empty,stackl_cat]
 val operlcap = operl @ List.mapPartial cap_opt operl
 val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
@@ -476,21 +502,35 @@ end (* local *)
    Create the sequence of moves that would produce a program p
    ------------------------------------------------------------------------- *)
 
-fun is_appsyn target prev move =
-  case apply_moveo move prev of (* extendable not tested here *)
-    NONE => false
-  | SOME (p :: m) => equal_prog (target,p)
-  | _ => false
-
 fun invapp_move board = case board of
     [] => NONE
-  | (Ins (id,pl)) :: m => SOME (rev pl @ m, id)
-     
+  | [] :: m => raise ERR "invapp_move" ""
+  | [Ins (id,[])] :: m => SOME (m, O (id,false))
+  | [Ins (id,[a])] :: m => SOME ([a] :: m, O(id,false))
+  | [Ins (id,[a,b])] :: m => 
+    if prog_compare_size (a,b) <> LESS 
+    then SOME ([b] :: [a] :: m, O (id,false))
+    else SOME ([a] :: [b] :: m, O (id,true))
+  | [Ins (id,p :: pl)] :: m => 
+    if progl_compare_size ([p],pl) = LESS
+    then SOME ([p] :: pl :: m, O (id,false)) 
+    else SOME (pl :: [p] :: m, O (id,false))
+  | [a,b] :: m => 
+    if prog_compare_size (a,b) = LESS 
+    then SOME ([a] :: [b] :: m, P false)
+    else SOME ([b] :: [a] :: m, P true)
+  | (p :: pl) :: m => 
+    if progl_compare_size ([p],pl) = LESS
+    then SOME ([p] :: pl :: m, Q) 
+    else SOME (pl :: [p] :: m, Q)
+
 fun linearize_aux acc board = case invapp_move board of
     SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
   | NONE => acc
 
-fun linearize p = linearize_aux [] [p]
+fun linearize p = linearize_aux [] [[p]]
+
+(* todo: check if it's correct by reapplying the move in order *)
 
 (* -------------------------------------------------------------------------
    Merging solutions from searches with different semantic quotient
@@ -631,7 +671,7 @@ fun create_exl seqprogl =
         val bml = linearize p
         fun g (board,move) =
            let 
-             val newv = Vector.update (zerov, move, 1.0)
+             val newv = Vector.update (zerov, index_of_move move, 1.0)
              val newl = vector_to_list newv
            in
              (term_of_board board, newl)
@@ -767,7 +807,7 @@ fun player_wtnn tnn board =
     val rl = infer_tnn tnn [term_of_board board]
     val pol1 = Vector.fromList (snd (singleton_of_list rl))
     val amovel = available_movel board 
-    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
+    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move x))) amovel
   in
     (rewardf board, pol2)
   end
@@ -777,7 +817,7 @@ fun player_wtnn_cache_aux tnn board =
     (* val _ = if !debug_flag then print "." else () *)
     val _ = if dlength (!embd) > 1000000
             then embd := dempty Term.compare else ()
-    val tm = term_of_stack board
+    val tm = term_of_join board
     val (_,preboarde) = Profile.profile "infer_emb_cache" 
       (infer_emb_cache tnn) tm
       handle NotFound => 
@@ -788,7 +828,7 @@ fun player_wtnn_cache_aux tnn board =
       (fp_emb_either tnn head_poli) [prepolie]
     val pol1 = Vector.fromList (descale_out ende)
     val amovel = Profile.profile "available_movel" available_movel board
-    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
+    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move  x))) amovel
   in
     (rewardf board, pol2)
   end
@@ -1010,37 +1050,17 @@ fun minimize_winl winl =
    Initialized dictionaries with previous solutions and their subterms
    ------------------------------------------------------------------------- *)
 
-(*
-fun zerob b =
-  let 
-    val n = BoolArray.length b
-    fun loop i = 
-      if i >= n then () else 
-      (BoolArray.update (b,i,false); loop (i+1))
-  in
-    loop 0
-  end
-*)
-
-val use_cache = ref false
-
 fun init_dicts pl =
-  let
-    val psemtiml = map_assoc (valOf o semtimo_of_prog) pl
-      handle Option => raise ERR "init_dicts" ""  
-    val seml = map (fst o snd) psemtiml
-    (* fun g (p,(sem,tim)) = 
-      (sem, (spacetime (prog_size p) tim, zip_prog p)) *)
-  in
+  (
     progd := eempty prog_compare;
     notprogd := eempty prog_compare;
-    semd := eempty seq_compare;
+    semxd := sempty;
+    semxyd := sempty;
     embd := dempty Term.compare;
-    seqwind := eempty seq_compare;
-    progwind := eempty prog_compare;
+    wind := dempty String.compare;
     initd := enew prog_compare pl;
-    minid := dempty seq_compare (* (map g psemtiml) *)
-  end
+    minid := dempty seq_compare
+  )
 
 (* -------------------------------------------------------------------------
    Main search function
@@ -1059,11 +1079,10 @@ fun search tnn coreid =
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
-    val (targetseq,seqnamel) = random_elem (dlist (!odname_glob))
+    val (targetseq,seqname) = random_elem (oseq)
     val _ = target_glob := targetseq
     val _ = print_endline 
-      ("target: " ^ String.concatWith "-" seqnamel ^ ": " ^ 
-        string_of_seq (!target_glob));
+      ("target " ^ seqname ^ ": " ^ string_of_seq (!target_glob));
     val _ = init_dicts (elist sold)
     val _ = in_search := true
     val _ = avoid_lose := true
@@ -1074,21 +1093,18 @@ fun search tnn coreid =
     val n = tree_size newtree
     val _ = avoid_lose := false
     val _ = in_search := false
-    val winl = elist (!progwind)
     (* val (minwinl,minn) = minimize_winl winl *)
-    val _ = if emem (!target_glob) (!seqwind)
+    (* val _ = if emem (!target_glob) (!seqwind)
       then print_endline "target acquired"
-      else print_endline "target missed"
+      else print_endline "target missed" *)
   in
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
     print_endline ("tree_size: " ^ its n);
     print_endline ("progd: " ^ its (elength (!progd)));
     print_endline ("notprogd: " ^ its (elength (!notprogd)));
-    print_endline ("semd: " ^ its (elength (!semd)));
-    print_endline ("progwind: " ^ its (elength (!progwind)));
+    print_endline ("wind: " ^ its (dlength (!wind)));
     (* print_endline ("prog mini: " ^ its minn); *)
-    print_endline ("seqwind: " ^ its (elength (!seqwind)));
-    winl
+    map (snd o snd) (dlist (!wind))
   end
 
 val parspec : (tnn,int,prog list) extspec =
@@ -1178,18 +1194,18 @@ fun parsearch_targetl ncore tim targetl =
    Statistics
    ------------------------------------------------------------------------- *)
 
-fun seq_of_prog p = first_n maxinput (fst (valOf (semtimo_of_prog p)))
+fun seq_of_prog p = valOf (semo_of_prog entrylx p)
 
 fun human_progseq p = 
   let 
     val seq = seq_of_prog p 
-    val seql = find_wins p seq
-    val _ = if null seql 
-      then log ("Error: human_progseq 1: " ^ (raw_prog p)) else ()
-    fun f x = String.concatWith "-" (dfind x (!odname_glob)) ^ ": " ^ 
-      String.concatWith " " (map its x)
+    val anuml = find_wins seq
+    val _ = 
+      if null anuml 
+      then log ("Error: human_progseq 1: " ^ (raw_prog p)) 
+      else ()
   in
-    raw_prog p ^ "\n" ^ String.concatWith "\n" (map f seql)
+    raw_prog p ^ "\n" ^ (String.concatWith "-" anuml)
   end
   handle Interrupt => raise Interrupt | _ => 
     (log ("Error: human_progseq 2: " ^ (raw_prog p)); "")
@@ -1303,10 +1319,9 @@ rl_train "_test12" 139;
 load "mcts"; open mcts; open aiLib; open kernel;
 time_opt := SOME 60.0;
 val tnn = mlTreeNeuralNetworkAlt.random_tnn (get_tnndim ());
-bloom.init_od ();
 Profile.reset_all ();
 PolyML.print_depth 0;
-val sol1 = search tnn 0;
+val sol1 = search tnn 1;
 PolyML.print_depth 40;
 random_elem sol1;
 Profile.results ();
