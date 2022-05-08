@@ -412,11 +412,13 @@ val stackl_cat = mk_var ("stackl_cat", alpha3);
 
 fun term_of_stack stack = case stack of 
     [] => stack_empty
+  | [a] => term_of_prog a
   | a :: m => 
     cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
 
 fun term_of_stackl stack = case stack of 
     [] => stackl_empty
+  | [a] => term_of_stack a
   | a :: m => 
     cap (list_mk_comb (stackl_cat, [term_of_stack a,term_of_stackl m]));
 
@@ -1054,7 +1056,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run300";
+expname := "run301";
 time_opt := SOME 600.0;
 use_mkl := true;
 rl_search "_main" 0;
