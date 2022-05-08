@@ -73,6 +73,17 @@ end
 fun write_progl file r = write_data enc_progl file r
 fun read_progl file = read_data dec_progl file
 
+
+local open HOLsexp in
+val enc_iprog = pair_encode (Integer, enc_prog)
+val enc_iprogl = list_encode enc_iprog
+val dec_iprog = pair_decode (int_decode, dec_prog)
+val dec_iprogl = list_decode dec_iprog
+end
+
+fun write_iprogl file r = write_data enc_iprogl file r
+fun read_iprogl file = read_data dec_iprogl file
+
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
@@ -91,7 +102,7 @@ val loop_id = 9
 val x_id = 10
 val y_id = 11
 val compr_id = 12
-(* val loop2_id = 13 *)
+val loop2_id = 13
 
 val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2])
 

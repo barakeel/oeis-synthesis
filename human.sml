@@ -6,7 +6,7 @@ val ERR = mk_HOL_ERR "human"
 
 type prog = kernel.prog
 
-val polynorm_flag = ref true
+val polynorm_flag = ref false
 val imperative_flag = ref false
 
 fun mk_xn vn = if vn = ~1 then "x" else "X"

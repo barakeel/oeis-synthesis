@@ -7,6 +7,7 @@
 #define DIM 64
 #define BUFFER 10000000
 #define ALIGN 64
+#define MAXARITY 5
 // M is the number of lines (output), N is the number of column (input)
 // DIM has to be bigger than maximum output dimension of heads
 
@@ -211,12 +212,11 @@ void dtanh (long size, double C[], double X[], double Y[]) {
 int main()
   {
   // some indices
-  long i;
   long tmpex,ex,nex,ep,op,nop;
   long offset,sub,di,nhead;
   long sum;
   double err;
-  long a1,a2,a3;
+  long a1,a2,a3,a4,a5;
   long max_threads;
   // main arguments
   long ARG[3];
@@ -251,7 +251,7 @@ int main()
   sum = 0;
   for (ex = 0; ex < nex; ++ex) {sum += SIZE[ex];};
   printf("sum: %li\n", sum);
-  long bD = 6; // max argument plus one
+  long bD = MAXARITY + 1; // max argument plus one
   D = (long*)mkl_malloc(bD*sum*sizeof(long),ALIGN);
   read("data/dag.txt",D);
   nhead = 0;
@@ -275,7 +275,7 @@ int main()
   double biais [1] = {1.0};
 
   //weights for each operator
-  long bA = (3*DIM+1)*DIM;
+  long bA = (MAXARITY*DIM+1)*DIM;
   double *A, *Acur;
   A = (double*)mkl_malloc(bA*nop*sizeof( double ),ALIGN);
   for (op=0; op < nop; ++op) {
@@ -305,7 +305,7 @@ int main()
   UPD = (long*)mkl_malloc(nop*sizeof( long ),ALIGN);
 
   //computation trace for each example
-  long bX = 3*DIM+1;
+  long bX = MAXARITY*DIM+1;
   long bY = DIM;
   double *X, *Y, *TY; 
   double *Xcur, *Ycur, *TYcur;
@@ -381,7 +381,21 @@ int main()
       copy (DIM, TY + a3, Xcur + bY*2);
       mv (ARITY[op], Acur, Xcur, Ycur);
       vdTanh (bY,Ycur,TYcur);
-      break; 
+      break;
+    case 5:
+      a1 = bY * (offset + D[bD*di+1]);
+      a2 = bY * (offset + D[bD*di+2]);
+      a3 = bY * (offset + D[bD*di+3]);
+      a4 = bY * (offset + D[bD*di+4]);
+      a5 = bY * (offset + D[bD*di+5]);
+      copy (DIM, TY + a1, Xcur);
+      copy (DIM, TY + a2, Xcur + bY);
+      copy (DIM, TY + a3, Xcur + bY*2);
+      copy (DIM, TY + a4, Xcur + bY*3);
+      copy (DIM, TY + a5, Xcur + bY*4);
+      mv (ARITY[op], Acur, Xcur, Ycur);
+      vdTanh (bY,Ycur,TYcur);
+      break;
     default: break;  
     }}
     //print_vect ("outn",bY,TYcur);
@@ -437,7 +451,21 @@ int main()
       vdAdd (bY, GTY + a1, GXcur, GTY + a1);
       vdAdd (bY, GTY + a2, GXcur + bY, GTY + a2);
       vdAdd (bY, GTY + a3, GXcur + bY*2, GTY + a3);
-      break; 
+      break;
+    case 5:
+      dtanh (bY, TYcur, GTYcur, GYcur);
+      tmv (ARITY[op], Acur, GYcur, GXcur);
+      a1 = bY * (offset + D[bD*di+1]);
+      a2 = bY * (offset + D[bD*di+2]);
+      a3 = bY * (offset + D[bD*di+3]);
+      a4 = bY * (offset + D[bD*di+4]);
+      a5 = bY * (offset + D[bD*di+5]);
+      vdAdd (bY, GTY + a1, GXcur, GTY + a1);
+      vdAdd (bY, GTY + a2, GXcur + bY, GTY + a2);
+      vdAdd (bY, GTY + a3, GXcur + bY*2, GTY + a3);
+      vdAdd (bY, GTY + a4, GXcur + bY*3, GTY + a4);
+      vdAdd (bY, GTY + a5, GXcur + bY*4, GTY + a5);
+    break;
     default: break;  
     }}
   }//end backward pass
@@ -492,7 +520,7 @@ int main()
   FILE *fp;
   
   // export to standard ml
-  fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/sml_mat", "w");
+  fp = fopen("/home/thibault/big/oeis-dev/tnn_in_c/out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + bA * op;
@@ -501,34 +529,6 @@ int main()
   }
   fclose(fp);
 
-  // export to openblas  
-  fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/ob_mat", "w");
-  fprintf(fp, "double A[%ld] = {", bA*nop);
-  for (i = 0; i < bA*nop; i++)
-    {
-    fprintf(fp, "%.16f", A[i]);
-    if (i < bA*nop - 1) {fprintf(fp, ", ");}
-    else {fprintf(fp,"};\n");}
-    }
-  fclose(fp);
-  fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/ob_head", "w");
-  fprintf(fp, "long HEAD[%ld] = {", nop);
-  for (i = 0; i < nop; i++)
-    {
-    fprintf(fp, "%ld", HEAD[i]);
-    if (i < nop - 1) {fprintf(fp, ", ");}
-    else {fprintf(fp,"};\n");}
-    }
-  fclose(fp);
-  fp = fopen("/home/thibault/big/repos/oeis/tnn_in_c/ob_arity", "w");
-  fprintf(fp, "long ARITY[%ld] = {", nop);
-  for (i = 0; i < nop; i++)
-    {
-    fprintf(fp, "%ld", ARITY[i]);
-    if (i < nop - 1) {fprintf(fp, ", ");}
-    else {fprintf(fp,"};\n");}
-    }
-  fclose(fp);
 
 return 0;
 }

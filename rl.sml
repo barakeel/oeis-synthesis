@@ -3,6 +3,7 @@ struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel mcts
   mlNeuralNetwork smlExecScripts mlTreeNeuralNetwork kernel bloom execarb
+  human
 
 val ERR = mk_HOL_ERR "rl"
 
@@ -14,22 +15,12 @@ val use_mkl = ref false
 val use_ob = ref false
 val use_para = ref false
 val dim_glob = ref 64
-val ncore = 13 (* 20 *)
-val ntarget = 13 * 6 * 4 (* 20 * 6 * 2 *)
+val ncore = ref 15 (* 20 *)
+val ntarget = ref (15 * 6 * 2) (* 20 * 6 * 2 *)
 
 (* -------------------------------------------------------------------------
    Utils
    ------------------------------------------------------------------------- *)
-
-fun partopt_aux n acc l =
-  if n <= 0 then SOME (rev acc,l)
-  else if null l then NONE
-  else partopt_aux (n - 1) (hd l :: acc) (tl l);
-
-fun partopt n l = partopt_aux n [] l;
-
-fun longereq n l =
-  if n <= 0 then true else if null l then false else longereq (n-1) (tl l)
 
 fun string_to_real x = valOf (Real.fromString x)
 fun ilts x = String.concatWith " " (map its x)
@@ -37,10 +28,15 @@ fun stil x = map string_to_int (String.tokens Char.isSpace x)
 fun rlts x = String.concatWith " " (map rts x)
 fun strl x = map string_to_real (String.tokens Char.isSpace x)
 
-fun spacetime space tim = 
-  Math.pow (1.414, Real.fromInt space) * Real.fromInt tim
-
 fun inv_cmp cmp (a,b) = cmp (b,a)
+
+fun butlast_string s = 
+  if String.size s = 0 
+  then raise ERR "butlast_string" "" 
+  else String.substring (s,0,String.size s-1);
+
+fun string_of_seq seq = 
+  String.concatWith " " (map (butlast_string o Arbint.toString) seq)
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -84,14 +80,11 @@ val ngen_glob = ref 0
 val in_search = ref false
 
 val embd = ref (dempty Term.compare)
-val wina = Array.tabulate (400000, fn _ => NONE)
-
+val wind = ref (dempty Int.compare)
 val progd = ref (eempty prog_compare)
 val notprogd = ref (eempty prog_compare)
-
 val semxd = ref sempty
 val semxyd = ref sempty
-
 val minid = ref (dempty seq_compare)
 val initd = ref (eempty prog_compare)
 
@@ -145,8 +138,6 @@ fun move_compare (m1,m2) = case (m1,m2) of
   | (_, P _) => GREATER
   | (Q,Q) => EQUAL
 
-
-
 val movelg = dict_sort move_compare premovelg
 val moveld = dnew move_compare (number_snd 0 movelg) 
 
@@ -165,63 +156,55 @@ fun string_of_move x = case x of
 
 type board = prog list list
 type player = (board,move) mcts.player
-fun string_of_board (board : board) = "todo"
-  (* "# " ^ String.concatWith "\n# " (map raw_prog board) *)
+
+fun string_of_argl argl = String.concatWith ", " (map humanf argl)
+fun string_of_board (board : board) = 
+  String.concatWith " | " (map string_of_argl board)
+
 fun board_compare (a,b) = list_compare (list_compare prog_compare) (a,b)
-fun board_size b = 
-  if null b then 0 else (length b - 1) + sum_int (map progl_size b)
- 
+
 (* -------------------------------------------------------------------------
-   Application of a move to a board
+   Check if a program is a solution (i.e) covers an OEIS sequence
    ------------------------------------------------------------------------- *)
 
-val complexity_compare = cpl_compare Real.compare prog_compare
-
-(*
-fun update_minid p (sem,tim) =
-  let 
-    val rep = dfind sem (!minid) 
-    val newrep = (spacetime psize tim, pi)
-  in
-    if complexity_compare (newrep,rep) = LESS
-    then minid := dadd sem newrep (!minid)
-    else ()
-  end
-  handle NotFound => ()
-*)
-
-(* wina can be used everywhere *)
-fun update_wina_one (anum,p) =
-  case Array.sub (wina, anum) of 
-    NONE => Array.update (wina, anum, SOME p)
+fun update_wind_one d (anum,p) =
+  case (SOME (dfind anum (!d)) handle NotFound => NONE) of 
+    NONE => d := dadd anum p (!d)
   | SOME oldp =>
     if prog_compare_size (p,oldp) = LESS
-    then Array.update (wina, anum, SOME p)
+    then d := dadd anum p (!d)
     else ()     
 
-fun update_wina p =
+fun update_wind_glob p =
   let
     val anuml = if depend_on_y p then [] else find_wins p
-    fun f anum = update_wina_one (anum,p)  
+    fun f anum = update_wind_one wind (anum,p)  
   in
     app f anuml
   end
 
+fun merge_isol isol = 
+  let val d = ref (dempty Int.compare) in
+    app (update_wind_one d) isol;
+    dlist (!d)
+  end
+
+(* -------------------------------------------------------------------------
+   Application of a move to a board
+   ------------------------------------------------------------------------- *)
+
 fun exec_fun_aux b p plb semd entryl = case semo_of_prog b entryl p of 
     NONE => (eaddi p notprogd; NONE) 
   | SOME (sem,_) =>
-    if ememi p initd then 
+    (
+    case snewi (p,sem) semd of
+      (false,_) => (eaddi p notprogd; NONE)
+    | (true, NONE) => 
       (eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
-    else
-      (
-      case snewi (p,sem) semd of
-        (false,_) => (eaddi p notprogd; NONE)
-      | (true, NONE) => 
-        (eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
-      | (true, SOME coverp) => 
-        (erem coverp (!progd); eaddi coverp progd;
-         eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
-      )
+    | (true, SOME coverp) => 
+      (erem coverp (!progd); eaddi coverp progd;
+       eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
+    )
  
 fun exec_fun_insearch p plb =
   if ememi p progd then SOME ([p] :: plb)
@@ -286,7 +269,7 @@ fun exec_qop board = case board of
 
 fun weak_ord_test boardo = case boardo of
      NONE => NONE
-     SOME a :: b :: _ => 
+   | SOME (a :: b :: _) => 
      if progl_compare_size (a,b) = GREATER then NONE else boardo 
    | _ => boardo
 
@@ -331,7 +314,7 @@ fun random_prog n = last (last (random_board n))
 fun apply_movel movel board = foldl (uncurry apply_move) board movel
 
 (* -------------------------------------------------------------------------
-   Board status (all the checking/caching is done during apply move now)
+   Board status (all the checking/caching is done during apply_move now)
    ------------------------------------------------------------------------- *)
 
 fun status_of (board : board) = Undecided
@@ -371,12 +354,19 @@ val nat_big = mk_var ("nat_big", alpha);
 fun embv_nat i = mk_var ("nat" ^ its i,alpha);
 val natoperl = List.tabulate (natbase,embv_nat) @ [nat_cat,nat_neg,nat_big];
 
-fun term_of_nat n =
-  if n < 0 then mk_comb (nat_neg, term_of_nat (~ n))
-  else if n > 1000000 then nat_big
-  else if n < natbase then embv_nat n
+fun term_of_nat_aux n =
+  if n < natbase then embv_nat n
   else list_mk_comb (nat_cat,
-    [embv_nat (n mod natbase), term_of_nat (n div natbase)])
+    [embv_nat (n mod natbase), term_of_nat_aux (n div natbase)])
+
+local open Arbint in
+
+fun term_of_nat n =
+  if n < zero then mk_comb (nat_neg, term_of_nat (~ n))
+  else if n > fromInt 1000000 then nat_big
+  else term_of_nat_aux (toInt n)
+
+end
 
 val seq_empty = mk_var ("seq_empty", alpha);
 val seq_cat = mk_var ("seq_cat", alpha3);
@@ -508,19 +498,25 @@ fun invapp_move board = case board of
   | [Ins (id,[])] :: m => SOME (m, O (id,false))
   | [Ins (id,[a])] :: m => SOME ([a] :: m, O(id,false))
   | [Ins (id,[a,b])] :: m => 
-    if progl_compare_size ([a],[b]) <> LESS 
+    if progl_compare_size ([b],[a]) <> GREATER 
     then SOME ([b] :: [a] :: m, O (id,false))
     else SOME ([a] :: [b] :: m, O (id,true))
-  | [Ins (id,p :: pl)] :: m => 
-    if progl_compare_size ([p],pl) = LESS
-    then SOME ([p] :: pl :: m, O (id,false)) 
-    else SOME (pl :: [p] :: m, O (id,false))
+  | [Ins (id,argl)] :: m => 
+    let 
+      val newargl = rev argl
+      val pu = [hd newargl]
+      val pl = tl newargl
+    in  
+      if progl_compare_size (pu,pl) <> GREATER 
+      then SOME (pu :: pl :: m, O (id,false)) 
+      else SOME (pl :: pu :: m, O (id,false))
+    end
   | [a,b] :: m => 
-    if progl_compare_size ([a],[b]) = LESS 
+    if progl_compare_size ([a],[b]) <> GREATER 
     then SOME ([a] :: [b] :: m, P false)
     else SOME ([b] :: [a] :: m, P true)
   | (p :: pl) :: m => 
-    if progl_compare_size ([p],pl) = LESS
+    if progl_compare_size ([p],pl) <> GREATER
     then SOME ([p] :: pl :: m, Q) 
     else SOME (pl :: [p] :: m, Q)
 
@@ -530,148 +526,27 @@ fun linearize_aux acc board = case invapp_move board of
 
 fun linearize p = linearize_aux [] [[p]]
 
-(* todo: check if it's correct by reapplying the move in order *)
-
-(*   
-   Merging solutions from searches with different semantic quotient
-   ------------------------------------------------------------------------- *)
-
-(*
-exception Rewrite of prog;
-
-fun rewrite_merge repd (p as Ins (id,pl)) = 
+fun linearize_safe p = 
   let 
-    val sem = sem_of_prog p
-      handle Option => raise Rewrite p
-    val newp = dfind sem (!repd) handle NotFound =>
-      let
-        val newpl = map (rewrite_merge repd) pl
-        val newptemp = Ins (id,newpl)
-      in
-        repd := dadd sem newptemp (!repd);
-        newptemp
-      end
+    val l = linearize_aux [] [[p]]
+    val movel = map snd l
+    val q = singleton_of_list (singleton_of_list (apply_movel movel []))
   in
-    newp
+    if prog_compare (p,q) = EQUAL then l else
+    raise ERR "linearize" (humanf p ^ " different from " ^ humanf q)
   end
-
-fun rewrite_winl winl =
-   let 
-     val i = ref 0
-     val repd = ref (dempty seq_compare)
-     fun f p = 
-       let val newp = rewrite_merge repd p in
-         (* if depend_on_i (undef_prog newp) then NONE 
-         else *)
-         if equal_prog (p,newp) then SOME newp
-         else if same_sem newp p then (incr i; SOME newp) else NONE
-       end
-       handle Rewrite x => (log ("rewrite_winl: " ^ raw_prog x); NONE)
-     val r = List.mapPartial f winl
-   in
-     (r,!i)
-   end
-
-fun find_minirep_aux pl =
-  let
-    fun helpf p = valOf (semtimo_of_prog p) 
-      handle Option => raise ERR "find_minirep" (raw_prog p) 
-    val psemtiml = map_assoc helpf pl
-    val repd = ref (dempty seq_compare)
-    fun f (p,(sem,tim)) = 
-      let
-        val winl = find_wins p sem
-        val r = spacetime (prog_size p) tim
-        val pi = zip_prog p
-        val new = (r,pi)
-        fun g seq =
-          let val old = dfind seq (!repd) in
-            if complexity_compare (new,old) = LESS
-            then repd := dadd seq new (!repd)
-            else ()
-          end
-          handle NotFound => repd := dadd seq new (!repd)
-      in
-        app g winl
-      end
-  in
-    app f psemtiml;
-    (dlist (!repd))   
-  end
-
-fun find_minirep_merge pl = 
-  map (unzip_prog o snd o snd) (find_minirep_aux pl)
-
-fun find_minirep_train pl = 
-  let 
-    (*
-    val sol1 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139")
-    val sol2 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139_test11")
-    val sol3 = map undef_prog sol1
-    val _ = if list_compare prog_compare (sol2,sol3) = EQUAL 
-            then print_endline "ok"
-            else raise ERR "find_minirep" ""
-    val l = find_minirep_aux sol2
-    val _ = print_endline "ok2"
-    val l = find_minirep_aux (map undef_prog pl)
-    val _ = print_endline "ok3"
-    *)
-    val l = find_minirep_aux pl
-    fun f (seq,(_,pi)) = (seq, unzip_prog pi)
-  in
-    map_snd commute (map f l)
-  end
-  handle Subscript => raise ERR "find_minirep_train" ""
-
-fun merge_sol pl =
-  let
-    val _ = log ("all solutions (past + concurrent): " ^ its (length pl))
-    val plmini = find_minirep_merge pl
-    val pl0 = dict_sort prog_compare_size plmini
-    val _ = log ("smallest representants: " ^ its (length pl0))
-    val (pl1,n1) = rewrite_winl pl0
-    val _ = log ("rewritten solutions: " ^ its (length pl1) ^ " " ^ its n1)
-    val pl2 = map snd (find_minirep_train pl1)
-    val _ = log ("rewritten representants: " ^ its (length pl2))
-  in
-    pl2
-  end
-*)
-
 
 (* -------------------------------------------------------------------------
    Merge examples from different solutions
    ------------------------------------------------------------------------- *)
 
-(*
-fun regroup_ex bml = 
-  let fun f ((board,move),d) = 
-    let 
-      val oldv = dfind board d handle NotFound => 
-        (Vector.tabulate (maxmove, fn _ => 0))
-      val movei = index_of_move move
-      val newv = Vector.update (oldv, movei, Vector.sub (oldv,movei) + 1)
-    in
-      dadd board newv d
-    end
-  in
-    foldl f (dempty board_compare) bml
-  end
-
-fun pol_of_progl pold board = 
-  normalize_proba (map Real.fromInt (vector_to_list (dfind board pold)))
-
-fun create_ex pold (board,_) =
-  (term_of_board board, pol_of_progl pold board)
-*)
-
-fun create_exl seqprogl =
+fun create_exl iprogl =
   let 
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
-    fun f (seq,p) = 
+    fun create_ex (i,p) = 
       let
-        val _ = target_glob := seq
-        val bml = linearize p
+        val _ = target_glob := valOf (Array.sub (oseq,i))
+        val bml = linearize_safe p
         fun g (board,move) =
            let 
              val newv = Vector.update (zerov, index_of_move move, 1.0)
@@ -682,10 +557,8 @@ fun create_exl seqprogl =
       in
         map g bml    
       end
-    val r = map f seqprogl
-    val _ = print_endline "examples created"
   in
-    r
+    map create_ex iprogl
   end
 
 (* -------------------------------------------------------------------------
@@ -857,7 +730,7 @@ fun tree_size tree = case tree of
    ------------------------------------------------------------------------- *)
 
 fun tnn_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/tnn" ^ its ngen
-fun sold_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/sold" ^ its ngen
+fun isol_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/isol" ^ its ngen
 
 fun get_expdir () = selfdir ^ "/exp/" ^ !expname
 
@@ -869,25 +742,13 @@ fun mk_dirs () =
     expdir
   end
 
-(*
-fun update_sold ((seq,prog),sold) =
-  let 
-    val oldprog = dfind seq sold
-  in
-    if prog_compare_size (prog,oldprog) = LESS 
-    then dadd seq prog sold
-    else sold
-  end
-  handle NotFound => dadd seq prog sold
-*)
-
-fun write_sold ngen tmpname d = 
+fun write_isol ngen tmpname iprogl = 
   (
-  write_progl (sold_file ngen ^ tmpname) (elist d);
-  write_progl (sold_file ngen) (elist d)
+  write_iprogl (isol_file ngen ^ tmpname) iprogl;
+  write_iprogl (isol_file ngen) iprogl
   )
+fun read_isol ngen = read_iprogl (isol_file ngen)
 
-fun read_sold ngen = enew prog_compare (read_progl (sold_file ngen))
 
 (* -------------------------------------------------------------------------
    training
@@ -948,24 +809,17 @@ fun read_ctnn sl = case sl of
   | "START MATRICES" :: m => read_cmatl m
   | a :: m => read_ctnn m
 
-fun read_ctnn_fixed () = 
-  let val matl = read_ctnn (readl (selfdir ^ "/tnn_in_c/tnn")) in
-    dnew Term.compare (combine (operlext,matl))
-  end
-
 fun trainf tmpname =
   let 
-    val sold = read_sold (!ngen_glob) 
-    val _ = print_endline ("reading sold " ^ (its (elength sold)))
-    (* todo: move minimization before writing sold *)
-    val seqpl = [] (* find_minirep_train (elist sold) *)
-    val _ = print_endline (its (length seqpl) ^ " minimal representants")
-    val ex = create_exl (shuffle seqpl)
+    val isol = read_isol (!ngen_glob) 
+    val _ = print_endline ("reading isol " ^ (its (length isol)))
+    val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
   in
     if !use_mkl then
       let
-        val cfile = tnn_file (!ngen_glob) ^ tmpname ^ "_C"
+        val tnnlog_file = tnn_file (!ngen_glob) ^ tmpname ^ "_C"
+        val tnnsml_file = selfdir ^ "/tnn_in_c/out_sml"
         val sbin = if !use_para then "./tree_para" else "./tree"
         val _= 
           (
@@ -974,13 +828,13 @@ fun trainf tmpname =
           print_endline "exporting end";
           OS.Process.sleep (Time.fromReal 1.0);
           cmd_in_dir (selfdir ^ "/tnn_in_c") 
-          (sbin ^ " > " ^ cfile)
+          (sbin ^ " > " ^ tnnlog_file)
           )
         val _ = OS.Process.sleep (Time.fromReal 1.0)
         (* val _ = if !use_ob then 
           cmd_in_dir (selfdir ^ "/tnn_in_c") ("sh compile_ob.sh")
           else () *)
-        val matl = read_ctnn (readl cfile)
+        val matl = read_ctnn (readl tnnsml_file)
         val tnn = dnew Term.compare (combine (operlext,matl))
       in
         write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
@@ -1012,55 +866,22 @@ fun wrap_trainf ngen tmpname =
      "rl.use_mkl := " ^ bts (!use_mkl) ^ ";",
      "rl.use_para := " ^ bts (!use_para) ^ ";",
      "rl.use_ob := " ^ bts (!use_ob) ^ ";",
-     "bloom.init_od ();",
      "trainf " ^ mlquote tmpname];
      exec_script scriptfile
   end
 
 (* -------------------------------------------------------------------------
-   Minimizing solutions using an initialized minid
-   ------------------------------------------------------------------------- *)
-
-(*
-fun minimize p =
-  let 
-    val (sem,_) = valOf (semtimo_of_prog p) 
-      handle Option => raise ERR "minimize" ""
-    val (Ins (id,pl)) = (unzip_prog o snd o (dfind sem)) (!minid) 
-      handle NotFound => p
-  in
-    Ins (id, map minimize pl)
-  end
-
-fun minimize_winl winl =
-   let 
-     val i = ref 0
-     fun f p = 
-       if not (is_executable p) then raise ERR "minimize_winl" (raw_prog p) else
-       let val newp = commute (minimize p) in
-         if equal_prog (p,newp) orelse depend_on_i (undef_prog newp) then p
-         else if same_sem newp p then (incr i; newp) else p
-       end
-     val r = map f winl
-   in
-     (r,!i)
-   end
-*)
-
-(* -------------------------------------------------------------------------
    Initialized dictionaries with previous solutions and their subterms
    ------------------------------------------------------------------------- *)
 
-fun init_dicts pl =
+fun init_dicts () =
   (
-    progd := eempty prog_compare;
-    notprogd := eempty prog_compare;
-    semxd := sempty;
-    semxyd := sempty;
-    embd := dempty Term.compare;
-    Array.modify (fn _ => NONE) wina;
-    initd := enew prog_compare pl;
-    minid := dempty seq_compare
+  progd := eempty prog_compare;
+  notprogd := eempty prog_compare;
+  semxd := sempty;
+  semxyd := sempty;
+  embd := dempty Term.compare;
+  wind := dempty Int.compare
   )
 
 (* -------------------------------------------------------------------------
@@ -1074,23 +895,19 @@ fun search tnn coreid =
     val _ = print_endline "initialization"
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache
-    val sold = if !ngen_glob <= 0
-               then eempty prog_compare
-               else read_sold (!ngen_glob - 1)
+    val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
     fun loop () = 
-      let val i = random_int (0,400000) in
+      let val i = random_int (0,Array.length oseq - 1) in
         case Array.sub (oseq, i) of NONE => loop () | SOME seq => (seq,i)
       end
     val (targetseq,seqname) = loop ()
-    val _ = target_glob := 
-      (* todo *)
-       map (fn x => Arbint.toInt x handle Overflow => 0) targetseq
+    val _ = target_glob := targetseq
     val _ = print_endline 
       ("target " ^ its seqname ^ ": " ^ string_of_seq (!target_glob));
-    val _ = init_dicts (elist sold)
+    val _ = init_dicts ()
     val _ = in_search := true
     val _ = avoid_lose := true
     val tree = starting_tree (mctsobj tnn) []
@@ -1100,158 +917,78 @@ fun search tnn coreid =
     val n = tree_size newtree
     val _ = avoid_lose := false
     val _ = in_search := false
-    (* val (minwinl,minn) = minimize_winl winl *)
-    (* val _ = if emem (!target_glob) (!seqwind)
-      then print_endline "target acquired"
-      else print_endline "target missed" *)
-    (* update wina *)
-    val (_,t2) = add_time (app update_wina) (elist (!progd))
-    val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds");
-    val nwin = ref 0
-    val _ = Array.app (fn x => if isSome x then incr nwin else ()) wina
+    val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
+    val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
   in
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
     print_endline ("tree_size: " ^ its n);
     print_endline ("progd: " ^ its (elength (!progd)));
     print_endline ("notprogd: " ^ its (elength (!notprogd)));
-    print_endline ("win: " ^ its (!nwin));
-    map valOf (filter isSome (array_to_list wina))
+    print_endline ("solutions: " ^ its (dlength (!wind)));
+    dlist (!wind)
   end
 
-val parspec : (tnn,int,prog list) extspec =
+val parspec : (tnn, int, (int * prog) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
-    ["bloom.init_od ()",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.coreid_glob := " ^ its (!coreid_glob),
      "rl.dim_glob := " ^ its (!dim_glob),
      "rl.time_opt := " ^ string_of_timeo (),
-     "rl.use_ob := " ^ bts (!use_ob)
-   ] 
+     "rl.use_ob := " ^ bts (!use_ob)] 
     ^ ")"),
   function = search,
   write_param = write_tnn,
   read_param = read_tnn,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = write_progl,
-  read_result = read_progl
+  write_result = write_iprogl,
+  read_result = read_iprogl
   }
-
-fun search_target_aux (tnn,sold) tim target =
-  let
-    val _ = time_opt := SOME tim;
-    val _ = player_glob := player_wtnn_cache
-    val _ = target_glob := target
-    val _ = init_dicts (elist sold)
-    val _ = in_search := true
-    val _ = avoid_lose := true
-    val tree = starting_tree (mctsobj tnn) []
-    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
-    val _ = avoid_lose := false
-    val _ = in_search := false
-  in
-    NONE
-  end
-
-fun parsearch_target tim target =
-  let 
-    val tnn = read_tnn (selfdir ^ "/main_tnn")
-    val sold = enew prog_compare (read_progl (selfdir ^ "/main_sold"))
-    val (p,t) = add_time (search_target_aux (tnn,sold) tim) target 
-  in
-    (true,raw_prog (valOf p),t) handle Option => (false, "", t)
-  end
-
-val partargetspec : (real, seq, bool * string * real) extspec =
-  {
-  self_dir = selfdir,
-  self = "rl.partargetspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["bloom.init_od ()",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
-     "rl.use_ob := " ^ bts (!use_ob)
-    ] 
-    ^ ")"),
-  function = parsearch_target,
-  write_param = let fun f file param = writel file [rts param] in f end,
-  read_param =  let fun f file = string_to_real (hd (readl file)) in f end,
-  write_arg = let fun f file arg = writel file [ilts arg] in f end,
-  read_arg = let fun f file = stil (hd (readl file)) in f end,
-  write_result = let fun f file (b,s,t) = writel file [bts b, s, rts t] 
-     in f end,
-  read_result = let fun f file = 
-       let val (s1,s2,s3) = triple_of_list (readl file) in 
-         (string_to_bool s1, s2, string_to_real s3)
-       end
-     in f end
-  }
-
-fun parsearch_targetl ncore tim targetl =
-  (
-  buildheap_options := "--maxheap 10000";
-  parmap_queue_extern ncore partargetspec tim targetl
-  )
 
 (* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
-
-(*
-fun seq_of_prog p = valOf (semo_of_prog entrylx p)
-
-fun human_progseq p = 
-  let 
-    val (seq,tim) = seq_of_prog p 
-    val anuml = find_wins seq
-    val _ = 
-      if null anuml 
-      then log ("Error: human_progseq 1: " ^ (raw_prog p)) 
-      else ()
-  in
-    raw_prog p ^ "\n" ^ (String.concatWith "-" (map its anuml))
-  end
-  handle Interrupt => raise Interrupt | _ => 
-    (log ("Error: human_progseq 2: " ^ (raw_prog p)); "")
-
-fun human_progfreq (prog,freq) = its freq ^ ": " ^ raw_prog prog;
-
-fun stats_sol prefix sol =
-  let
-    val solsort = dict_sort prog_compare sol
-    val freql1 = compute_freq all_subprog sol
-  in
-    writel (prefix ^ "prog") (map human_progseq solsort);
-    writel (prefix ^ "freq") (map human_progfreq freql1)
-  end
-
-fun stats_ngen dir ngen =
-  let 
-    val solprev = 
-      if ngen = 0 then [] else #read_result parspec (sold_file (ngen - 1))
-    val solnew = #read_result parspec (sold_file ngen)
-    val prevd = enew prog_compare solprev
-    val soldiff = filter (fn x => not (emem x prevd)) solnew
-  in
-    stats_sol (dir ^ "/full_") solnew;
-    stats_sol (dir ^ "/diff_") soldiff
-  end
-  handle Interrupt => raise Interrupt | _ => log ("Error: stats_ngen")
-*)
 
 fun compute_freq f sol1 =
   let val freql = dlist 
     (count_dict (dempty prog_compare) (List.concat (map f sol1)))
   in
     dict_sort compare_imax freql
+  end
+
+fun string_of_iprog (i,p) = 
+  "A" ^ its i ^ ": " ^ 
+  string_of_seq (valOf (Array.sub (oseq,i))) ^ 
+  "\n" ^ humanf p;
+
+fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p;
+
+fun stats_sol prefix isol =
+  let
+    val isolsort = dict_sort (snd_compare prog_compare) isol
+    val freql1 = compute_freq all_subprog (map snd isol)
+  in
+    writel (prefix ^ "prog") (map string_of_iprog isolsort);
+    writel (prefix ^ "freq") (map human_progfreq freql1)
+  end
+
+fun stats_ngen dir ngen =
+  let 
+    val solprev = 
+      if ngen = 0 then [] else #read_result parspec (isol_file (ngen - 1))
+    val solnew = #read_result parspec (isol_file ngen)
+    val prevd = dnew Int.compare solprev
+    val soldiff = filter (fn (i,_) => not (dmem i prevd)) solnew
+  in
+    stats_sol (dir ^ "/full_") solnew;
+    stats_sol (dir ^ "/diff_") soldiff
   end
 
 (* -------------------------------------------------------------------------
@@ -1268,31 +1005,23 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 15000"
+    val _ = buildheap_options := "--maxheap 12000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
-    val sold = if ngen <= 0
-               then eempty prog_compare
-               else read_sold (ngen - 1)
-    val (progll,t) = add_time
-      (parmap_queue_extern ncore parspec tnn) 
-         (List.tabulate (ntarget,I))
+    val isol = if ngen <= 0
+               then []
+               else read_isol (ngen - 1)
+    val (iprogll,t) = add_time
+      (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("solutions for each core:")
-    val _ = log (String.concatWith " " (map (its o length) progll))
-    val seqd = enew seq_compare (mapfilter seq_of_prog (elist sold))
-    fun is_new p = not (emem (seq_of_prog p) seqd) 
-      handle Interrupt => raise Interrupt | _ => false
-    val newprogll = map (filter is_new) progll
-    val _ = log ("new solutions for each core:")
-    val _ = log (String.concatWith " " (map (its o length) newprogll))
-    val progl = mk_fast_set prog_compare (
-      List.concat progll @ elist sold)
-    val newsold = enew prog_compare ((* merge_sol *) progl)
+    val _ = log (String.concatWith " " (map (its o length) iprogll))
+    val newisol = merge_isol (List.concat (isol :: iprogll))
   in
-    write_sold ngen tmpname newsold
-    (* stats_ngen (!buildheap_dir) ngen *)
+    write_isol ngen tmpname newisol;
+    log ("solutions: " ^ (its (length newisol)));
+    stats_ngen (!buildheap_dir) ngen
   end
 
 and rl_search tmpname ngen = 
@@ -1325,132 +1054,41 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run102";
+expname := "run300";
 time_opt := SOME 600.0;
 use_mkl := true;
-bloom.init_od ();
-rl_train "_test12" 139;
+rl_search "_main" 0;
 
 (* testing *)
-PolyML.print_depth 0;
+PolyML.print_depth 1;
 load "rl"; load "human"; 
 open rl aiLib bloom kernel human;
 PolyML.print_depth 40;
-time_opt := SOME 600.0;
+time_opt := SOME 60.0;
 val tnn = mlTreeNeuralNetwork.random_tnn (get_tnndim ());
 PolyML.print_depth 1;
 val sol1 = search tnn 1;
 
+(* printing results *)
 PolyML.print_depth 10;
-val lref = ref []
-fun f (i,po) = 
-  case po of NONE => () | SOME (p:prog) => lref := (i:int,p) :: !lref;
-
-
-Array.appi f wina;
-
 val ERR = mk_HOL_ERR "test";
 fun butlast_string s = 
   if String.size s = 0 
   then raise ERR "butlast_string" "" 
   else String.substring (s,0,String.size s-1);
 
-fun g (i,p) = 
-  "A" ^ its i ^ ": " ^ 
-  String.concatWith " " (map (butlast_string o Arbint.toString) (valOf (Array.sub (oseq,i)))) ^ 
-  "\n" ^ humanf p;
 
-val l2 = dict_sort (snd_compare prog_compare_size) (!lref);  
-writel "aaa" (map g l2);
-
-
-PolyML.print_depth 40;
-humanf (random_elem sol1);
-Profile.results ();
-
-val (a,(b,c)) = random_elem (dlist (!wind));
-humanf c;
-valOf (semo_of_prog entrylx c);
-map humanf (first_n 40 (elist (!progd)));
-
-(* x mod 2; *)
-in_search := true;
-val board = [];
-val ap = #apply_move game ;
-
-val board1 = ap (O (10,false)) [];
-strong_ord board1;
-weak_ord board1;
-val board2 = ap (O (2,false)) board1;
-strong_ord board2;
-weak_ord board2;
-
-val board3 = ap (O (7,false)) board2;
-strong_ord board3;
-weak_ord board3;
-
-val prog = hd (hd board3);
-valOf (semo_of_prog entrylx prog);
-#apply_move game (O (8,false));
-
-map humanf (first_n 100 (dict_sort prog_compare_size (elist (!progd))));
-
-val sem = valOf (semo_of_prog entrylx prog);
-val anuml = tcover sem ost;
-
-
-valOf (semo_of_prog entrylx);
-
-(* making definitions *)
-load "rl"; open rl; open aiLib; open kernel;
-PolyML.print_depth 0;
-val sol = read_progl "main_sold";
-val sol = read_progl "exp/run102/sold139";
+(* debugging *)
+load "rl"; load "human"; 
+open rl aiLib bloom kernel human;
+val p = random_prog 10;
+humanf p;
+val bml = linearize p;
+val board = apply_movel (map snd bml) [];
 
 
 
 
-val (defl, patsol) = nbest_def 30 sol;
-PolyML.print_depth 40;
-
-map snd defl = List.tabulate (30, fn x => x + 14);
-write_progl "pat" (map fst defl);
-write_progl "exp/run102/sold139" patsol;
-
-open aiLib kernel;
-val sol1 = read_progl "exp/run102/sold139";
-val sol3 = map undef_prog sol1;
-val sol2 = read_progl "exp/run102/sold139_test11";
-list_compare prog_compare (sol2,sol3);
-
-val sol2sem = map_assoc semtimo_of_prog sol2;
-val sol2sembad = filter (fn x => isSome (snd x)) sol2sem;
-
-(* new way of making definitions *)
-
-val l0 = dlist 
-  (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)));
-
-val d = ref (dempty Int.compare)
-
-fun add_top ((Ins (n,pl), freq),d) = 
-  let val (nfreq,l) = dfind n d handle NotFound => (0,[]) in
-    dadd n (nfreq + freq, (pl,freq) :: l) d
-  end;
-
-val count_top = foldl add_top (dempty Int.compare);
-val newd = foldl add_top (dempty Int.compare) l0;
-
-val l1 = dlist newd;
-fun test1 (_,(x,_)) = x >= 1000;
-val l1' = filter test l1;
-fun test2 (_,(_,l)) = not (null (fst (hd l)));
-val (l1'',l1''') = partition test2 l1';
-
-fun f1 (pl,freq) = (hd pl,freq);
-val l2 = map (fn (a,(b,l)) =>  (a,(b,count_top (map f1 l)))) l1'';
-
-map (fst o snd) (dlist (snd (assoc 7 l2)));
  
    
 

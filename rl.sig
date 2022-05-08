@@ -16,11 +16,13 @@ sig
   val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
 
   (* globals *)
+  val ncore : int ref
+  val ntarget : int ref
   val in_search : bool ref
   val progd: prog set ref
   val notprogd: prog set ref
   val embd : (term, real vector) dict ref
-  val wina : prog option array
+  val wind : (int, prog) dict ref
 
   (* game *)
   val game : (board,move) mcts.game
@@ -54,12 +56,11 @@ sig
   (* train parameters *)
   val use_mkl : bool ref
   val use_para : bool ref
-  val read_ctnn_fixed : unit -> tnn
   val dim_glob : int ref
   val get_tnndim : unit -> (term * int list) list
 
   (* functions *)
-  val search : tnn -> int -> prog list
+  val search : tnn -> int -> (int * prog) list
   val trainf : string -> unit
 
   (* reinforcement learning *)
@@ -69,17 +70,9 @@ sig
   val rl_train_only : string -> int -> unit
   val rl_search : string -> int -> unit
   val rl_train : string -> int -> unit
-  val parspec : (tnn,int,prog list) smlParallel.extspec
-
-  (* standalone search function *)
-  val search_target_aux : tnn * kernel.prog set -> real -> seq -> prog option
- 
-  (* parallel search function *)
-  val partargetspec : (real, seq, bool * string * real) smlParallel.extspec
-  val parsearch_targetl : 
-    int -> real -> seq list -> (bool * string * real) list  
+  val parspec : (tnn, int, (int * prog) list) smlParallel.extspec
 
   (* reading solutions *)
-  val read_sold : int -> prog set
+  val read_isol : int -> (int * prog) list
 
 end

@@ -29,12 +29,13 @@ sig
   val progl_size : prog list -> int
   val progl_compare_size : prog list * prog list -> order
 
-
   val all_subprog : prog -> prog list
   val depend_on_y : prog -> bool
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
-  
+  val read_iprogl : string -> (int * prog) list
+  val write_iprogl : string -> (int * prog) list -> unit
+
   (* operators *)
   val operv : term vector
   val arity_of_oper : int -> int
