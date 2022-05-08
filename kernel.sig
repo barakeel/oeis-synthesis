@@ -43,7 +43,7 @@ sig
   (* evaluate a program on a defined list of inputs *)
   val entrylx : (int * int) list
   val entrylxy : (int * int) list
-  val semo_of_prog : (int * int) list -> prog -> int list option
+  val semo_of_prog : bool -> (int * int) list -> prog -> (int list * int) option
   
   
   

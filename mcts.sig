@@ -3,78 +3,62 @@ sig
 
   include Abbrev
 
-  type seq = kernel.seq
-  type prog = kernel.prog
-  type tnn = mlTreeNeuralNetworkAlt.tnn
-  type 'a set = 'a Redblackset.set
-  type ('a,'b) dict = ('a,'b) Redblackmap.dict
+  (* outcome *)
+  datatype status = Undecided | Win | Lose
+  val is_undecided : status -> bool
+  val is_win : status -> bool
+  val is_lose : status -> bool
+  val string_of_status : status -> string
+  datatype search_status = Success | Saturated | Timeout
 
-  datatype move = O of int * bool | P of bool | Q
-  type board = prog list list
-  type player = (board,move) psMCTS.player
+  (* search tree: 'a is a board position, 'b is a move *)
+  type 'a node =
+    {board : 'a, stati : status, status : status, sum : real, vis : real}
+  datatype ('a,'b) tree =
+    Leaf | Node of 'a node * ('b * real * ('a,'b) tree) vector
+  val dest_node : ('a,'b) tree -> 'a node * ('b * real * ('a,'b) tree) vector
+  val is_node : ('a,'b) tree -> bool
+  val is_leaf : ('a,'b) tree -> bool
 
-  val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
+  (* MCTS specification *)
+  type ('a,'b) game =
+    {
+    is_blocked : 'a -> bool,
+    status_of : 'a -> status,
+    apply_move : 'b -> 'a -> 'a,
+    available_movel : 'a -> 'b list,
+    string_of_board : 'a -> string,
+    string_of_move : 'b -> string,
+    board_compare : 'a * 'a -> order,
+    move_compare : 'b * 'b -> order,
+    movel : 'b list
+    }
 
-  (* globals *)
-  val progd: prog set ref
-  val notprogd: prog set ref
-  val embd : (term, real vector) dict ref
-  val wind : (string, int * kernel.prog) dict ref
+  type ('a,'b) player = 'a -> real * ('b * real) list
+  val uniform_player : ('a,'b) game -> ('a,'b) player
+  val random_player : ('a,'b) game -> ('a,'b) player
 
-  (* game *)
-  val game : (board,move) psMCTS.game
-  
-  (* players *)
-  val player_uniform : tnn -> player
-  val player_wtnn : tnn -> player
-  val player_wtnn_cache : tnn -> player
-  val player_glob : (tnn -> player) ref
+  type mctsparam =
+    {time : real option, nsim : int option,
+     explo_coeff : real,
+     noise : bool, noise_coeff : real, noise_gen : unit -> real}
+  val avoid_lose : bool ref
 
-  (* tracing solutions *)
-  val stats_sol : string -> prog list -> unit
-  val linearize : prog -> (board * move) list
-  val apply_movel : move list -> board -> board 
-  val random_board : int -> board
-  val random_prog : int -> prog
-  
-  (* search parameters *)
-  val use_ob : bool ref
-  val wnoise_flag : bool ref
-  val noise_coeff_glob : real ref
-  val noise_flag : bool ref
-  val nsim_opt : int option ref
-  val time_opt : real option ref  
-  val coreid_glob : int ref
+  type ('a,'b) mctsobj =
+    {mctsparam : mctsparam, game : ('a,'b) game, player : ('a,'b) player}
 
-  (* train parameters *)
-  val use_mkl : bool ref
-  val use_para : bool ref
-  val read_ctnn_fixed : unit -> tnn
-  val dim_glob : int ref
-  val get_tnndim : unit -> (term * int list) list
+  (* MCTS search function *)
+  val starting_tree : ('a,'b) mctsobj -> 'a -> ('a,'b) tree
+  val mcts : ('a,'b) mctsobj -> ('a,'b) tree -> ('a,'b) tree
 
-  (* functions *)
-  val search : tnn -> int -> prog list
-  val trainf : string -> unit
+  (* Statistics *)
+  val most_visited_path : ('a,'b) tree -> ('a node * 'b option) list
+  val number_of_node : ('a,'b) tree -> int
 
-  (* reinforcement learning *)
-  val expname : string ref
-  val ngen_glob : int ref
-  val rl_search_only : string -> int -> unit
-  val rl_train_only : string -> int -> unit
-  val rl_search : string -> int -> unit
-  val rl_train : string -> int -> unit
-  val parspec : (tnn,int,prog list) smlParallel.extspec
+  (* toy example *)
+  type toy_board = (int * int * int)
+  datatype toy_move = Incr | Decr
+  val toy_game : (toy_board,toy_move) game
 
-  (* standalone search function *)
-  val search_target_aux : tnn * kernel.prog set -> real -> seq -> prog option
- 
-  (* parallel search function *)
-  val partargetspec : (real, seq, bool * string * real) smlParallel.extspec
-  val parsearch_targetl : 
-    int -> real -> seq list -> (bool * string * real) list  
-
-  (* reading solutions *)
-  val read_sold : int -> prog set
 
 end

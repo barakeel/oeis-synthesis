@@ -1,1395 +1,322 @@
+(* ========================================================================= *)
+(* FILE          : mcts.sml                                                  *)
+(* DESCRIPTION   : MCTS algorithm                                            *)
+(* AUTHOR        : (c) Thibault Gauthier, Czech Technical University         *)
+(* DATE          : 2018                                                      *)
+(* ========================================================================= *)
+
 structure mcts :> mcts =
 struct
 
-open HolKernel Abbrev boolLib aiLib smlParallel psMCTS 
-  mlNeuralNetwork smlExecScripts mlTreeNeuralNetworkAlt kernel bloom
+open HolKernel Abbrev boolLib aiLib
 
 val ERR = mk_HOL_ERR "mcts"
 
 (* -------------------------------------------------------------------------
-   Globals
+   Status of the nodes and of the full search
    ------------------------------------------------------------------------- *)
 
-val use_mkl = ref false
-val use_ob = ref false
-val use_para = ref false
-val dim_glob = ref 64
-val ncore = 13 (* 20 *)
-val ntarget = 13 * 6 * 4 (* 20 * 6 * 2 *)
+datatype status = Undecided | Win | Lose
+fun is_win x = case x of Win => true | _ => false
+fun is_lose x = case x of Lose => true | _ => false
+fun is_undecided x = case x of Undecided => true | _ => false
+fun score_status status = case status of
+    Undecided => raise ERR "score_status" ""
+  | Win => 1.0
+  | Lose => 0.0
+fun string_of_status status = case status of
+    Win => "win"
+  | Lose => "lose"
+  | Undecided => "undecided"
+datatype search_status = Success | Saturated | Timeout
 
 (* -------------------------------------------------------------------------
-   Utils
+   Search tree
    ------------------------------------------------------------------------- *)
 
-fun partopt_aux n acc l =
-  if n <= 0 then SOME (rev acc,l)
-  else if null l then NONE
-  else partopt_aux (n - 1) (hd l :: acc) (tl l);
+type 'a node =
+  {board : 'a, stati : status, status : status, sum : real, vis : real}
+datatype ('a,'b) tree =
+   Leaf | Node of 'a node * ('b * real * ('a,'b) tree) vector
+fun dest_node x = case x of Node y => y | _ => raise ERR "dest_node" ""
+fun is_node x = case x of Node y => true | _ => false
+fun is_leaf x = case x of Leaf => true | _ => false
 
-fun partopt n l = partopt_aux n [] l;
-
-fun longereq n l =
-  if n <= 0 then true else if null l then false else longereq (n-1) (tl l)
-
-fun string_to_real x = valOf (Real.fromString x)
-fun ilts x = String.concatWith " " (map its x)
-fun stil x = map string_to_int (String.tokens Char.isSpace x)
-fun rlts x = String.concatWith " " (map rts x)
-fun strl x = map string_to_real (String.tokens Char.isSpace x)
-
-fun spacetime space tim = 
-  Math.pow (1.414, Real.fromInt space) * Real.fromInt tim
-
-fun inv_cmp cmp (a,b) = cmp (b,a)
+fun is_treewin x = case x of Node ({status,...},_) => is_win status 
+                         | _ => false
+fun is_treelose x = case x of Node ({status,...},_) => is_lose status 
+                         | _ => false
+fun is_treeundecided x = case x of 
+    Node ({status,...},_) => is_undecided status 
+  | _ => false
 
 (* -------------------------------------------------------------------------
-   Dictionaries shortcuts
+   MCTS specification
    ------------------------------------------------------------------------- *)
 
-fun eaddi x d = d := eadd x (!d)
-fun ememi x d = emem x (!d)
-fun daddi k v d = d := dadd k v (!d) 
-fun dmemi x d = dmem x (!d)
-fun saddi x t = t := sadd x (!t)
-fun smemi x t = smem x (!t)
-
-(* -------------------------------------------------------------------------
-   Parameters
-   ------------------------------------------------------------------------- *)
-
-val target_glob = ref []
-val maxbigsteps = 1
-val noise_flag = ref false
-val noise_coeff_glob = ref 0.1
-val nsim_opt = ref (NONE)
-val time_opt = ref (SOME 60.0)
-
-fun string_of_timeo () = (case !time_opt of
-    NONE => "Option.NONE"
-  | SOME s => "Option.SOME " ^ rts s)
-
-fun spiky_noise () = if random_real () > 0.9 then 1.0 else 0.0
-fun uniform_noise () = 1.0
-fun random_noise () = random_real ()
-
-fun mctsparam () =
-  {explo_coeff = 1.0,
-   noise = !noise_flag, noise_coeff = !noise_coeff_glob, 
-   noise_gen = random_noise,
-   nsim = !nsim_opt : int option, time = !time_opt: real option};
-
-val coreid_glob = ref 0
-val ngen_glob = ref 0
-
-val in_search = ref false
-
-val embd = ref (dempty Term.compare)
-val wind = ref (dempty String.compare)
-val progd = ref (eempty prog_compare)
-val notprogd = ref (eempty prog_compare)
-
-val semxd = ref sempty
-val semxyd = ref sempty
-
-val minid = ref (dempty seq_compare)
-val initd = ref (eempty prog_compare)
-
-(* -------------------------------------------------------------------------
-   Main process logging function
-   ------------------------------------------------------------------------- *)
-
-val expname = ref "test"
-
-fun log s =
-  let val expdir = selfdir ^ "/exp/" ^ !expname in
-    print_endline s;
-    append_endline (expdir ^ "/log") s
-  end
-
-(* -------------------------------------------------------------------------
-   Type abbreviations
-   ------------------------------------------------------------------------- *)
-
-type seq = kernel.seq
-type prog = kernel.prog
-type tnn = mlTreeNeuralNetworkAlt.tnn
-type 'a set = 'a Redblackset.set
-type ('a,'b) dict = ('a,'b) Redblackmap.dict
-
-(* -------------------------------------------------------------------------
-   Move
-   ------------------------------------------------------------------------- *)
-
-datatype move = O of int * bool | P of bool | Q
-
-val premovelg =  
-  List.concat (
-  List.tabulate (Vector.length operv, fn i => 
-    let val arity = arity_of_oper i in
-      if arity = 2 
-      then [O (i,false), O (i,true)]
-      else [O (i,false)]
-    end))
-  @ map P [true,false]
-  @ [Q]
-
-fun move_compare (m1,m2) = case (m1,m2) of 
-    (O x, O y) => cpl_compare Int.compare bool_compare (x,y)
-  | (O _, _) => LESS
-  | (_, O _) => GREATER
-  | (P x, P y) => bool_compare (x,y)
-  | (P _, _) => LESS
-  | (_, P _) => GREATER
-  | (Q,Q) => EQUAL
-
-val movelg = dict_sort move_compare premovelg
-val moveld = dnew move_compare (number_snd 0 movelg) 
-
-fun index_of_move move = dfind move moveld
-
-val maxmove = length movelg
-
-fun string_of_move x = case x of 
-    O (x,b) => name_of_oper x ^ "-" ^ bts b
-  | P b => "pair-" ^ bts b
-  | Q => "pair"
-
-(* -------------------------------------------------------------------------
-   Board
-   ------------------------------------------------------------------------- *)
-
-type board = prog list list
-type player = (board,move) psMCTS.player
-fun string_of_board (board : board) = "todo"
-  (* "# " ^ String.concatWith "\n# " (map raw_prog board) *)
-fun board_compare (a,b) = list_compare (list_compare prog_compare) (a,b)
-fun board_size b = 
-  if null b then 0 else (length b - 1) + sum_int (map progl_size b)
- 
-(* -------------------------------------------------------------------------
-   Application of a move to a board
-   ------------------------------------------------------------------------- *)
-
-val complexity_compare = cpl_compare Real.compare prog_compare
-
-(*
-fun update_minid p (sem,tim) =
-  let 
-    val rep = dfind sem (!minid) 
-    val newrep = (spacetime psize tim, pi)
-  in
-    if complexity_compare (newrep,rep) = LESS
-    then minid := dadd sem newrep (!minid)
-    else ()
-  end
-  handle NotFound => ()
-*)
-
-fun update_wind p sem =
-  let
-    val anuml = find_wins sem
-    fun f anum = 
-      let 
-        val newx = (length sem,p)
-        val oldo = SOME (dfind anum (!wind)) handle NotFound => NONE 
-      in
-        case oldo of 
-          NONE => daddi anum newx wind
-        | SOME oldx => 
-          if cpl_compare (inv_cmp Int.compare) prog_compare_size 
-            (newx,oldx) = LESS
-          then daddi anum newx wind
-          else () 
-      end         
-  in
-    app f anuml
-  end
-
-fun exec_fun_insearch p plb =
-  if ememi p progd then SOME ([p] :: plb)
-  else if ememi p notprogd then NONE
-  else if not (depend_on_y p) then 
-    (
-    case semo_of_prog entrylx p of 
-      NONE => (eaddi p notprogd; NONE) 
-    | SOME sem =>
-      let fun accept () = 
-        (update_wind p sem; eaddi p progd; saddi sem semxd; SOME ([p] :: plb))
-      in
-        if ememi p initd then accept () else 
-        let val (b1,b2) = smemi sem semxd in
-          if b1 then 
-            (if b2 then update_wind p sem else (); 
-             eaddi p notprogd; 
-             NONE) 
-          else accept ()
-        end
-      end      
-    )
-  else
-    (
-    case semo_of_prog entrylxy p of 
-      NONE => (eaddi p notprogd; NONE) 
-    | SOME sem =>
-      let fun accept () = 
-        (eaddi p progd; saddi sem semxyd; SOME ([p] :: plb))
-      in
-        if ememi p initd then accept () else 
-        let val (b1,b2) = smemi sem semxyd in
-          if b1 then (eaddi p notprogd; NONE) else accept ()
-        end
-      end
-    )
-
-(* ordering constraints *)
-fun strong_ord_aux il = case il of
-     [] => true
-   | a :: m => a >= (length m - 1) + sum_int m andalso strong_ord_aux m
-
-fun strong_ord board = strong_ord_aux (rev (map progl_size board))
-
-fun weak_ord board = case board of
-     [a] :: [b] :: _ => prog_compare_size (a,b) <> GREATER 
-   | _ => true
-  
-(* different type of operators *)
-fun exec_fun p plb =
-  if !in_search then 
-    (
-    case exec_fun_insearch p plb of NONE => NONE | SOME board =>
-    if weak_ord board andalso strong_ord board then SOME board else NONE
-    )
-  else SOME ([p] :: plb)
-
-fun exec_nullop board x = exec_fun (Ins (x,[])) board 
-
-fun exec_unop board x = case board of
-    [a] :: m => exec_fun (Ins (x,[a])) m  
-  | _ => NONE
-
-fun exec_binop board x permb = case board of
-   [a] :: [b] :: m => 
-     if not permb then exec_fun (Ins (x,[b,a])) m 
-     else if equal_prog (a,b) then NONE 
-     else exec_fun (Ins (x,[a,b])) m
-  | _ => NONE
-
-fun exec_largeop_aux arity x argl m = 
-  if length argl <> arity then NONE else exec_fun (Ins (x, rev argl)) m
- 
-fun exec_largeop board x arity = case board of
-     bl :: [a] :: m => exec_largeop_aux arity x (a :: bl) m
-   | [a] :: bl :: m => exec_largeop_aux arity x (a :: bl) m
-   | _ => NONE
-
-fun exec_permop board permb = case board of
-    [a] :: [b] :: m =>
-    if not permb then SOME ([a,b] :: m) 
-    else if equal_prog (a,b) then NONE
-    else SOME ([b,a] :: m)
-  | _ => NONE
-
-fun exec_qop board = case board of
-     bl :: [a] :: m => SOME ((a :: bl) :: m)
-   | [a] :: bl :: m => SOME ((a :: bl) :: m)
-   | _ => NONE 
-
-(* all together *)
-fun apply_moveo move board = case move of
-    O (x,permb) => 
-    let val arity = arity_of_oper x in 
-      case arity of
-        0 => exec_nullop board x
-      | 1 => exec_unop board x
-      | 2 => exec_binop board x permb
-      | _ => exec_largeop board x arity
-    end
-  | P permb => exec_permop board permb
-  | Q => exec_qop board
-
-
-fun apply_move move board = valOf (apply_moveo move board)
-  handle Option => raise ERR "apply_move" "option"
-       | Subscript => raise ERR "apply_move" "subscript"
-
-(* -------------------------------------------------------------------------
-   Available moves
-   ------------------------------------------------------------------------- *)
-
-fun available_movel board = 
-   filter (fn x => isSome (apply_moveo x board)) movelg
-
-(* -------------------------------------------------------------------------
-   For debugging
-   ------------------------------------------------------------------------- *)
-
-fun random_step board =
-  apply_move (random_elem (available_movel board)) board
-
-fun random_board n = funpow n random_step []
-  handle Interrupt => raise Interrupt 
-    | _ => random_board n
-
-fun random_prog n = last (last (random_board n))
-  
-fun apply_movel movel board = foldl (uncurry apply_move) board movel
-
-(* -------------------------------------------------------------------------
-   Board status (all the checking/caching is done during apply move now)
-   ------------------------------------------------------------------------- *)
-
-fun status_of (board : board) = Undecided
-
-(* -------------------------------------------------------------------------
-   Game
-   ------------------------------------------------------------------------- *)
-
-val game : (board,move) game =
+type ('a,'b) game =
   {
-  status_of = status_of,
-  available_movel = available_movel,
-  apply_move = apply_move,
-  string_of_board = string_of_board,
-  string_of_move = string_of_move,
-  board_compare = board_compare,
-  move_compare = move_compare,
-  movel = movelg
+  is_blocked : 'a -> bool,
+  status_of : 'a -> status,
+  apply_move : 'b -> 'a -> 'a,
+  available_movel : 'a -> 'b list,
+  string_of_board : 'a -> string,
+  string_of_move : 'b -> string,
+  board_compare : 'a * 'a -> order,
+  move_compare : 'b * 'b -> order,
+  movel : 'b list
   }
 
-(* -------------------------------------------------------------------------
-   Represent board as a term to give to the TNN
+fun uniform_player game board =
+  (0.0, map (fn x => (x,1.0)) (#available_movel game board))
+
+fun random_player game board =
+  (random_real (), map (fn x => (x,1.0)) (#available_movel game board))
+
+type ('a,'b) player = 'a -> real * ('b * real) list
+
+type mctsparam =
+  {
+  time : real option, nsim : int option,
+  explo_coeff : real,
+  noise : bool, noise_coeff : real, noise_gen : unit -> real
+  }
+
+type ('a,'b) mctsobj =
+  {mctsparam : mctsparam, game : ('a,'b) game, player : ('a,'b) player}
+
+(* --------------------------------------------------------------------------
+   Policy noise
    ------------------------------------------------------------------------- *)
 
-val alpha2 = rpt_fun_type 2 alpha
-val alpha3 = rpt_fun_type 3 alpha
+fun normalize_prepol prepol =
+  let val (l1,l2) = split prepol in combine (l1, normalize_proba l2) end
 
-(* encoding sequences *)
-val natbase = 10
-val nat_cat = mk_var ("nat_cat", alpha3);
-val nat_neg = mk_var ("nat_neg", alpha2);
-val nat_big = mk_var ("nat_big", alpha);
-fun embv_nat i = mk_var ("nat" ^ its i,alpha);
-val natoperl = List.tabulate (natbase,embv_nat) @ [nat_cat,nat_neg,nat_big];
-
-fun term_of_nat n =
-  if n < 0 then mk_comb (nat_neg, term_of_nat (~ n))
-  else if n > 1000000 then nat_big
-  else if n < natbase then embv_nat n
-  else list_mk_comb (nat_cat,
-    [embv_nat (n mod natbase), term_of_nat (n div natbase)])
-
-val seq_empty = mk_var ("seq_empty", alpha);
-val seq_cat = mk_var ("seq_cat", alpha3);
-
-fun term_of_seq seq = case seq of
-    [] => seq_empty
-  | a :: m => list_mk_comb 
-    (seq_cat, [term_of_nat a, term_of_seq m]);
-
-val seqoperl = natoperl @ [seq_empty,seq_cat]
-
-(* faking two layers *)
-fun cap_tm tm = 
-  let val name = fst (dest_var tm) in
-    mk_var ("cap_" ^ name,alpha2)
-  end
-
-fun is_capped tm = 
-  let val name = fst (dest_var (fst (strip_comb tm))) in
-    String.isPrefix "cap_" name
-  end
-
-fun cap_opt tm = 
-  if arity_of tm <= 0 
-  then NONE
-  else SOME (cap_tm tm)
-
-fun cap tm = 
-  let val oper = fst (strip_comb tm) in
-    mk_comb (cap_tm oper, tm)
-  end
-
-(* syntactic *)
-fun term_of_prog (Ins (id,pl)) = 
-  if null pl then Vector.sub (operv,id) else
-  cap (list_mk_comb (Vector.sub (operv,id), map term_of_prog pl))
-
-(* stack *)
-val stack_empty = mk_var ("stack_empty", alpha);
-val stack_cat = mk_var ("stack_cat", alpha3);
-val stackl_empty = mk_var ("stackl_empty", alpha);
-val stackl_cat = mk_var ("stackl_cat", alpha3);
-
-fun term_of_stack stack = case stack of 
-    [] => stack_empty
-  | a :: m => 
-    cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
-
-fun term_of_stackl stack = case stack of 
-    [] => stackl_empty
-  | a :: m => 
-    cap (list_mk_comb (stackl_cat, [term_of_stack a,term_of_stackl m]));
-
-val pair_progseq = mk_var ("pair_progseq", alpha3);
-
-fun term_of_join board = 
-  list_mk_comb (pair_progseq, 
-    [term_of_stackl board, cap (term_of_seq (first_n 8 (!target_glob)))])
-
-(* policy head *)
-val prepoli = mk_var ("prepoli",alpha2)
-val head_poli = mk_var ("head_poli", alpha2)
-
-fun term_of_board board = mk_comb (head_poli, 
-  mk_comb (prepoli, term_of_join board))
-
-(* embedding dimensions *)
-val operl = vector_to_list operv @ 
-  [stack_empty,stack_cat,stackl_empty,stackl_cat]
-val operlcap = operl @ List.mapPartial cap_opt operl
-val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
-val allcap = [pair_progseq] @ operlcap @ seqoperlcap
-
-val operlext = allcap @ [prepoli,head_poli]
-val opernd = dnew Term.compare (number_snd 0 operlext)
-
-fun dim_std_alt oper =
-  if arity_of oper = 0 
-  then [0,!dim_glob] 
-  else [!dim_glob * arity_of oper, !dim_glob]
-
-fun get_tnndim () = 
-  map_assoc dim_std_alt allcap @ 
-    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] 
-
-(* -------------------------------------------------------------------------
-   OpenBlas Foreign Function Interface
-   Be aware that using it (use_ob := true + installing openblas) 
-   creates a difficult to reproduce bug.
-   It seems that updating the binary during the search creates
-   a bad file descriptor
-   ------------------------------------------------------------------------- *)
-
-fun fp_op_default oper embl = Vector.fromList [100.0]
-val fp_op_glob = ref fp_op_default
-val biais = Vector.fromList ([1.0])
-
-local open Foreign in
-
-fun update_fp_op () =
+fun add_noise param prepol =
   let
-    val lib = loadLibrary (selfdir ^ "/tnn_in_c/ob.so");
-    val fp_op_sym = getSymbol lib "fp_op";
-    val cra = cArrayPointer cDouble;
-    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid);
-    fun fp_op oper embl =
-      let 
-        val n = dfind oper opernd 
-        val Xv = Vector.concat (embl @ [biais])
-        val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
-        val Y = Array.tabulate (!dim_glob,fn i => 0.0)
-      in 
-        fp_op0 (n,X,Y);
-        Array.vector Y
-      end
-  in
-    fp_op_glob := fp_op
-  end
-
-end (* local *)
-
-(* -------------------------------------------------------------------------
-   Create the sequence of moves that would produce a program p
-   ------------------------------------------------------------------------- *)
-
-fun invapp_move board = case board of
-    [] => NONE
-  | [] :: m => raise ERR "invapp_move" ""
-  | [Ins (id,[])] :: m => SOME (m, O (id,false))
-  | [Ins (id,[a])] :: m => SOME ([a] :: m, O(id,false))
-  | [Ins (id,[a,b])] :: m => 
-    if prog_compare_size (a,b) <> LESS 
-    then SOME ([b] :: [a] :: m, O (id,false))
-    else SOME ([a] :: [b] :: m, O (id,true))
-  | [Ins (id,p :: pl)] :: m => 
-    if progl_compare_size ([p],pl) = LESS
-    then SOME ([p] :: pl :: m, O (id,false)) 
-    else SOME (pl :: [p] :: m, O (id,false))
-  | [a,b] :: m => 
-    if prog_compare_size (a,b) = LESS 
-    then SOME ([a] :: [b] :: m, P false)
-    else SOME ([b] :: [a] :: m, P true)
-  | (p :: pl) :: m => 
-    if progl_compare_size ([p],pl) = LESS
-    then SOME ([p] :: pl :: m, Q) 
-    else SOME (pl :: [p] :: m, Q)
-
-fun linearize_aux acc board = case invapp_move board of
-    SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
-  | NONE => acc
-
-fun linearize p = linearize_aux [] [[p]]
-
-(* todo: check if it's correct by reapplying the move in order *)
-
-(* -------------------------------------------------------------------------
-   Merging solutions from searches with different semantic quotient
-   ------------------------------------------------------------------------- *)
-(*
-exception Rewrite of prog;
-
-fun rewrite_merge repd (p as Ins (id,pl)) = 
-  let 
-    val sem = sem_of_prog p
-      handle Option => raise Rewrite p
-    val newp = dfind sem (!repd) handle NotFound =>
+    val noisel1 = List.tabulate (length prepol, fn _ => (#noise_gen param) ())
+    val noisel2 = normalize_proba noisel1
+    fun f ((move,polv),noise) =
       let
-        val newpl = map (rewrite_merge repd) pl
-        val newptemp = Ins (id,newpl)
+        val coeff = #noise_coeff param
+        val newpolv = (1.0 - coeff) * polv + coeff * noise
       in
-        repd := dadd sem newptemp (!repd);
-        newptemp
+        (move,newpolv)
       end
   in
-    newp
+    map f (combine (prepol,noisel2))
   end
 
-fun rewrite_winl winl =
-   let 
-     val i = ref 0
-     val repd = ref (dempty seq_compare)
-     fun f p = 
-       let val newp = rewrite_merge repd p in
-         (* if depend_on_i (undef_prog newp) then NONE 
-         else *)
-         if equal_prog (p,newp) then SOME newp
-         else if same_sem newp p then (incr i; SOME newp) else NONE
-       end
-       handle Rewrite x => (log ("rewrite_winl: " ^ raw_prog x); NONE)
-     val r = List.mapPartial f winl
-   in
-     (r,!i)
-   end
+(* -------------------------------------------------------------------------
+   Creation of a node
+   ------------------------------------------------------------------------- *)
 
-fun find_minirep_aux pl =
+fun create_node obj board =
   let
-    fun helpf p = valOf (semtimo_of_prog p) 
-      handle Option => raise ERR "find_minirep" (raw_prog p) 
-    val psemtiml = map_assoc helpf pl
-    val repd = ref (dempty seq_compare)
-    fun f (p,(sem,tim)) = 
-      let
-        val winl = find_wins p sem
-        val r = spacetime (prog_size p) tim
-        val pi = zip_prog p
-        val new = (r,pi)
-        fun g seq =
-          let val old = dfind seq (!repd) in
-            if complexity_compare (new,old) = LESS
-            then repd := dadd seq new (!repd)
-            else ()
-          end
-          handle NotFound => repd := dadd seq new (!repd)
+    val game = #game obj
+    val param = #mctsparam obj
+    val stati = (#status_of game) board
+     val (value,pol1) = case stati of
+        Win => (1.0,[])
+      | Lose => (0.0,[])
+      | Undecided => (#player obj) board
+    val status = if is_undecided stati andalso null pol1 then Lose else stati
+    val pol2 = normalize_prepol pol1
+    val pol3 = if #noise param then add_noise param pol2 else pol2
+  in
+    (Node ({stati=stati,status=status,board=board,sum=value,vis=1.0},
+            Vector.fromList (map (fn (a,b) => (a,b,Leaf)) pol3)),
+     value)
+  end
+
+fun starting_tree obj board = fst (create_node obj board)
+
+(* -------------------------------------------------------------------------
+   Score of a choice in a policy according to pUCT formula.
+   ------------------------------------------------------------------------- *)
+
+val avoid_lose = ref false
+
+fun score_puct param sqvtot (move,polv,ctree) =
+  let
+    val (sum,vis) = case ctree of
+      Leaf => (0.0,0.0)
+    | Node (cnode,_) =>  
+      if !avoid_lose andalso is_lose (#status cnode)
+      then (Real.negInf, 0.0)
+      else (#sum cnode, #vis cnode)
+  in
+    (sum + #explo_coeff param * polv * sqvtot) / (vis + 1.0)
+  end
+
+(* -------------------------------------------------------------------------
+   Selection of a node to extend by traversing the tree.
+   ------------------------------------------------------------------------- *)
+
+fun rebuild_tree reward buildl tree = case buildl of
+    [] => tree
+  | build :: m => rebuild_tree reward m (build reward tree)
+
+
+fun select_child obj buildl (node,cv) =
+  let
+    val param = #mctsparam obj
+    val stati2 = 
+      if #is_blocked (#game obj) (#board node) then Lose else #stati node
+    fun update_node_bare reward {stati,status,board,sum,vis} =
+      {stati=stati2, status=stati2, 
+       board=board, sum=sum+reward, vis=vis+1.0}
+    fun update_node cfuture ctreev reward {stati,status,board,sum,vis} =
+      let val newstatus = case status of Undecided =>
+        (if is_treeundecided cfuture then status
+         else if is_treewin cfuture then Win 
+         else if Vector.all (is_treelose o #3) ctreev then Lose 
+         else status)
+        | _ => status
       in
-        app g winl
+       {stati=stati, status=newstatus, 
+        board=board, sum=sum+reward, vis=vis+1.0}
       end
   in
-    app f psemtiml;
-    (dlist (!repd))   
-  end
-
-fun find_minirep_merge pl = 
-  map (unzip_prog o snd o snd) (find_minirep_aux pl)
-
-fun find_minirep_train pl = 
-  let 
-    (*
-    val sol1 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139")
-    val sol2 = read_progl (selfdir ^ "/" ^ "exp/run102/sold139_test11")
-    val sol3 = map undef_prog sol1
-    val _ = if list_compare prog_compare (sol2,sol3) = EQUAL 
-            then print_endline "ok"
-            else raise ERR "find_minirep" ""
-    val l = find_minirep_aux sol2
-    val _ = print_endline "ok2"
-    val l = find_minirep_aux (map undef_prog pl)
-    val _ = print_endline "ok3"
-    *)
-    val l = find_minirep_aux pl
-    fun f (seq,(_,pi)) = (seq, unzip_prog pi)
-  in
-    map_snd commute (map f l)
-  end
-  handle Subscript => raise ERR "find_minirep_train" ""
-
-fun merge_sol pl =
-  let
-    val _ = log ("all solutions (past + concurrent): " ^ its (length pl))
-    val plmini = find_minirep_merge pl
-    val pl0 = dict_sort prog_compare_size plmini
-    val _ = log ("smallest representants: " ^ its (length pl0))
-    val (pl1,n1) = rewrite_winl pl0
-    val _ = log ("rewritten solutions: " ^ its (length pl1) ^ " " ^ its n1)
-    val pl2 = map snd (find_minirep_train pl1)
-    val _ = log ("rewritten representants: " ^ its (length pl2))
-  in
-    pl2
-  end
-*)
-(* -------------------------------------------------------------------------
-   Merge examples from different solutions
-   ------------------------------------------------------------------------- *)
-
-(*
-fun regroup_ex bml = 
-  let fun f ((board,move),d) = 
-    let 
-      val oldv = dfind board d handle NotFound => 
-        (Vector.tabulate (maxmove, fn _ => 0))
-      val movei = index_of_move move
-      val newv = Vector.update (oldv, movei, Vector.sub (oldv,movei) + 1)
-    in
-      dadd board newv d
-    end
-  in
-    foldl f (dempty board_compare) bml
-  end
-
-fun pol_of_progl pold board = 
-  normalize_proba (map Real.fromInt (vector_to_list (dfind board pold)))
-
-fun create_ex pold (board,_) =
-  (term_of_board board, pol_of_progl pold board)
-*)
-
-fun create_exl seqprogl =
-  let 
-    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
-    fun f (seq,p) = 
-      let
-        val _ = target_glob := seq
-        val bml = linearize p
-        fun g (board,move) =
-           let 
-             val newv = Vector.update (zerov, index_of_move move, 1.0)
-             val newl = vector_to_list newv
-           in
-             (term_of_board board, newl)
-           end
-      in
-        map g bml    
-      end
-    val r = map f seqprogl
-    val _ = print_endline "examples created"
-  in
-    r
-  end
-
-(* -------------------------------------------------------------------------
-   Export examples to C
-   ------------------------------------------------------------------------- *)
-
-fun order_subtm tml =
-  let
-    val d = ref (dempty (cpl_compare Int.compare Term.compare))
-    fun traverse tm =
-      let
-        val (oper,argl) = strip_comb tm
-        val nl = map traverse argl
-        val n = 1 + sum_int nl
-      in
-        d := dadd (n, tm) () (!d); n
-      end
-    val subtml = (app (ignore o traverse) tml; dkeys (!d))
-  in
-    map snd subtml
-  end;
-
-val empty_sobj = rlts (List.tabulate (!dim_glob, fn _ => 9.0))
-
-val maxarg = 5
-
-fun linearize_ex tmobjl =
-  let
-    val objd = dnew Term.compare tmobjl
-    val subtml = order_subtm (map fst tmobjl);
-    val indexd = dnew Term.compare (number_snd 0 subtml);
-    fun enc_sub x = 
-      let val (oper,argl) = strip_comb x in
-        dfind oper opernd :: map (fn x => dfind x indexd) argl
-      end
-    fun enc_obj x = dfind x objd handle NotFound => []
-    fun pad_sub l = 
-       ilts (l @ List.tabulate ((maxarg + 1) - length l, fn _ => 99))
-    fun pad_obj l = 
-       if null l then empty_sobj else 
-       rlts (l @ List.tabulate (!dim_glob - length l, fn _ => 9.0))
-  in
-    (String.concatWith " " (map (pad_sub o enc_sub) subtml),
-     String.concatWith " " (map (pad_obj o enc_obj) subtml),
-     length subtml
-    )
-  end;
-
-fun export_traindata ex =
-  let
-    val datadir = selfdir ^ "/tnn_in_c/data"
-    val _ =
-      (
-      erase_file (datadir ^ "/arg.txt");
-      erase_file (datadir ^ "/dag.txt");
-      erase_file (datadir ^ "/obj.txt");
-      erase_file (datadir ^ "/size.txt");
-      erase_file (datadir ^ "/arity.txt");
-      erase_file (datadir ^ "/head.txt")
-      )
-    val noper = length operlext
-    val tmobjll = ex
-    val nex = length tmobjll
-    val (dagl,objl,sizel) = split_triple (map linearize_ex tmobjll);
-    fun find_head tm = if term_eq tm head_poli then maxmove else 0
-  in
-    writel (datadir ^ "/arg.txt") (map its [noper,nex,!dim_glob]);
-    writel (datadir ^ "/dag.txt") dagl;
-    writel (datadir ^ "/obj.txt") objl;
-    writel (datadir ^ "/size.txt") (map its sizel);
-    writel (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
-    writel (datadir ^ "/head.txt") (map (its o find_head) operlext)
-  end
-
-(* -------------------------------------------------------------------------
-   TNN cache
-   ------------------------------------------------------------------------- *)
-
-fun fp_emb_either tnn oper newembl = 
-  (* if !use_ob andalso !ngen_glob > 0 
-  then (!fp_op_glob) oper newembl
-  else *) fp_emb tnn oper newembl 
-     
-   
-fun infer_emb_cache tnn tm =
-  if is_capped tm 
-  then 
-    (
-    Redblackmap.findKey (!embd,tm) handle NotFound =>
-    let
-      val (oper,argl) = strip_comb tm
-      val embl = map (infer_emb_cache tnn) argl
-      val (newargl,newembl) = split embl
-      val emb = fp_emb_either tnn oper newembl
-      val newtm = list_mk_comb (oper,newargl)
-    in
-      embd := dadd newtm emb (!embd); 
-      (newtm,emb)
-    end
-    )
-  else
-    let
-      val (oper,argl) = strip_comb tm
-      val embl = map (infer_emb_cache tnn) argl
-      val (newargl,newembl) = split embl
-      val emb = fp_emb_either tnn oper newembl
-    in
-      (tm,emb)
-    end
-
-(* -------------------------------------------------------------------------
-   Players
-   ------------------------------------------------------------------------- *)
-
-fun rewardf board = 0.0
-
-fun player_uniform tnn board = 
-  (0.0, map (fn x => (x,1.0)) (available_movel board))
-
-fun player_wtnn tnn board =
-  let 
-    val rl = infer_tnn tnn [term_of_board board]
-    val pol1 = Vector.fromList (snd (singleton_of_list rl))
-    val amovel = available_movel board 
-    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move x))) amovel
-  in
-    (rewardf board, pol2)
-  end
-
-fun player_wtnn_cache_aux tnn board =
-  let
-    (* val _ = if !debug_flag then print "." else () *)
-    val _ = if dlength (!embd) > 1000000
-            then embd := dempty Term.compare else ()
-    val tm = term_of_join board
-    val (_,preboarde) = Profile.profile "infer_emb_cache" 
-      (infer_emb_cache tnn) tm
-      handle NotFound => 
-        raise ERR "player_wtnn_cache1" (string_of_board board)
-    val prepolie = Profile.profile "fp_emb_either" 
-      (fp_emb_either tnn prepoli) [preboarde]
-    val ende =  Profile.profile "fp_emb_either" 
-      (fp_emb_either tnn head_poli) [prepolie]
-    val pol1 = Vector.fromList (descale_out ende)
-    val amovel = Profile.profile "available_movel" available_movel board
-    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move  x))) amovel
-  in
-    (rewardf board, pol2)
-  end
-
-fun player_wtnn_cache tnn board = 
-  Profile.profile "player_wtnn_cache"
-  (player_wtnn_cache_aux tnn) board
-
-(* -------------------------------------------------------------------------
-   Search
-   ------------------------------------------------------------------------- *)
-
-val player_glob = ref player_wtnn_cache
-
-fun mctsobj tnn = 
-  {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
-
-fun tree_size tree = case tree of
-    Leaf => 0
-  | Node (node,ctreev) => 1 + 
-     sum_int (map (tree_size o #3) (vector_to_list ctreev))
-
-(* -------------------------------------------------------------------------
-   Reinforcement learning loop utils
-   ------------------------------------------------------------------------- *)
-
-fun tnn_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/tnn" ^ its ngen
-fun sold_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/sold" ^ its ngen
-
-fun get_expdir () = selfdir ^ "/exp/" ^ !expname
-
-fun mk_dirs () = 
-  let val expdir = selfdir ^ "/exp/" ^ !expname in
-    mkDir_err (selfdir ^ "/exp");
-    mkDir_err expdir;
-    mkDir_err (selfdir ^ "/parallel_search");
-    expdir
-  end
-
-(*
-fun update_sold ((seq,prog),sold) =
-  let 
-    val oldprog = dfind seq sold
-  in
-    if prog_compare_size (prog,oldprog) = LESS 
-    then dadd seq prog sold
-    else sold
-  end
-  handle NotFound => dadd seq prog sold
-*)
-
-fun write_sold ngen tmpname d = 
-  (
-  write_progl (sold_file ngen ^ tmpname) (elist d);
-  write_progl (sold_file ngen) (elist d)
-  )
-
-fun read_sold ngen = enew prog_compare (read_progl (sold_file ngen))
-
-(* -------------------------------------------------------------------------
-   training
-   ------------------------------------------------------------------------- *)
-
-val ncoretrain = 4
-
-val schedule =
-  [
-   {ncore = ncoretrain, verbose = true, learning_rate = 0.03,
-    batch_size = 16, nepoch = 40},
-   {ncore = ncoretrain, verbose = true, learning_rate = 0.02,
-    batch_size = 16, nepoch = 10},
-   {ncore = ncoretrain, verbose = true, learning_rate = 0.01,
-    batch_size = 16, nepoch = 10},
-   {ncore = ncoretrain, verbose = true, learning_rate = 0.007,
-    batch_size = 16, nepoch = 10},
-   {ncore = ncoretrain, verbose = true, learning_rate = 0.005,
-    batch_size = 16, nepoch = 10}
-  ];
-
-fun read_mat acc sl = case sl of
-    [] => (rev acc, [])
-  | "A" :: m => (rev acc, sl)
-  | x :: m => 
-    let 
-      val line1 = strl x
-      val line2 = last line1 :: butlast line1 
-      val line = Vector.fromList line2
-    in
-      read_mat (line :: acc) m
-    end
-
-fun read_cmatl sl = case sl of 
-    [] => []
-  | "A" :: m => 
-    let 
-      val (mat1,cont) = read_mat [] m
-      val w1 = Vector.fromList mat1 
-    in 
-      (
-      if Vector.length (Vector.sub (w1,0)) = 1
-      then 
-        [{a = mlNeuralNetwork.idactiv, 
-          da = mlNeuralNetwork.didactiv,
-          w = w1}]
-      else 
-        [{a = mlNeuralNetwork.tanh, 
-          da = mlNeuralNetwork.dtanh,
-          w = w1}]
-      )
-      :: read_cmatl cont
-    end
-  | x :: m => raise ERR "read_cmatl" x
-
-fun read_ctnn sl = case sl of
-    [] => raise ERR "read_ctnn" ""
-  | "START MATRICES" :: m => read_cmatl m
-  | a :: m => read_ctnn m
-
-fun read_ctnn_fixed () = 
-  let val matl = read_ctnn (readl (selfdir ^ "/tnn_in_c/tnn")) in
-    dnew Term.compare (combine (operlext,matl))
-  end
-
-fun trainf tmpname =
-  let 
-    val sold = read_sold (!ngen_glob) 
-    val _ = print_endline ("reading sold " ^ (its (elength sold)))
-    (* todo: move minimization before writing sold *)
-    val seqpl = [] (* find_minirep_train (elist sold) *)
-    val _ = print_endline (its (length seqpl) ^ " minimal representants")
-    val ex = create_exl (shuffle seqpl)
-    val _ = print_endline (its (length ex) ^ " examples created")
-  in
-    if !use_mkl then
-      let
-        val cfile = tnn_file (!ngen_glob) ^ tmpname ^ "_C"
-        val sbin = if !use_para then "./tree_para" else "./tree"
-        val _= 
-          (
-          print_endline "exporting training data";
-          export_traindata ex;
-          print_endline "exporting end";
-          OS.Process.sleep (Time.fromReal 1.0);
-          cmd_in_dir (selfdir ^ "/tnn_in_c") 
-          (sbin ^ " > " ^ cfile)
-          )
-        val _ = OS.Process.sleep (Time.fromReal 1.0)
-        (* val _ = if !use_ob then 
-          cmd_in_dir (selfdir ^ "/tnn_in_c") ("sh compile_ob.sh")
-          else () *)
-        val matl = read_ctnn (readl cfile)
-        val tnn = dnew Term.compare (combine (operlext,matl))
-      in
-        write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
-        write_tnn (tnn_file (!ngen_glob)) tnn
+    if not (is_undecided stati2)
+    then
+      let val reward = score_status stati2 in
+        rebuild_tree reward buildl (Node (update_node_bare reward node,cv))
       end
     else
     let
-      val tnndim = get_tnndim ()
-      val (tnn,t) = add_time (train_tnn schedule (random_tnn tnndim)) 
-        (part_pct 1.0 (shuffle ex))
+      val _ = if Vector.length cv = 0
+        then raise ERR "no move available" "" else ()
+      val sqrttot = Math.sqrt (#vis node)
+      val scoref = score_puct param sqrttot
+      val ci = vector_maxi scoref cv
+      val (cmove,cpol,ctree) = Vector.sub (cv,ci)
+      fun build reward cfuture =
+        let val ctreev = Vector.update (cv,ci,(cmove,cpol,cfuture)) in
+          Node (update_node cfuture ctreev reward node,ctreev)
+        end
+      val newbuildl = build :: buildl
     in
-      write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
-      write_tnn (tnn_file (!ngen_glob)) tnn
+      case ctree of
+        Leaf =>
+        let
+          val newboard = (#apply_move (#game obj)) cmove (#board node)
+          val (newctree,reward) = create_node obj newboard
+        in
+          rebuild_tree reward newbuildl newctree
+        end
+      | Node x => select_child obj newbuildl x
     end
   end
 
-fun wrap_trainf ngen tmpname =
-  let
-    val scriptfile = !buildheap_dir ^ "/train.sml" 
-    val makefile = !buildheap_dir ^ "/Holmakefile"
-  in
-    writel makefile ["INCLUDES = " ^ selfdir]; 
-    writel scriptfile
-    ["open mcts;",
-     "expname := " ^ mlquote (!expname) ^ ";",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
-     "mcts.ngen_glob := " ^ its (!ngen_glob) ^ ";",
-     "mcts.dim_glob := " ^ its (!dim_glob) ^ ";",
-     "mcts.use_mkl := " ^ bts (!use_mkl) ^ ";",
-     "mcts.use_para := " ^ bts (!use_para) ^ ";",
-     "mcts.use_ob := " ^ bts (!use_ob) ^ ";",
-     "bloom.init_od ();",
-     "trainf " ^ mlquote tmpname];
-     exec_script scriptfile
-  end
-
 (* -------------------------------------------------------------------------
-   Minimizing solutions using an initialized minid
+   MCTS
    ------------------------------------------------------------------------- *)
 
-(*
-fun minimize p =
-  let 
-    val (sem,_) = valOf (semtimo_of_prog p) 
-      handle Option => raise ERR "minimize" ""
-    val (Ins (id,pl)) = (unzip_prog o snd o (dfind sem)) (!minid) 
-      handle NotFound => p
-  in
-    Ins (id, map minimize pl)
-  end
+fun mk_timer param =
+  if isSome (#nsim param) then
+    let val threshold = valOf (#nsim param) in
+      fn n => (Real.round n) >= threshold
+    end
+  else if isSome (#time param) then
+    let
+      val timer = Timer.startRealTimer ()
+      val limit = Time.fromReal (valOf (#time param))
+    in
+      fn _ => Timer.checkRealTimer timer > limit
+    end
+  else (fn _ => false)
 
-fun minimize_winl winl =
-   let 
-     val i = ref 0
-     fun f p = 
-       if not (is_executable p) then raise ERR "minimize_winl" (raw_prog p) else
-       let val newp = commute (minimize p) in
-         if equal_prog (p,newp) orelse depend_on_i (undef_prog newp) then p
-         else if same_sem newp p then (incr i; newp) else p
-       end
-     val r = map f winl
-   in
-     (r,!i)
-   end
-*)
-
-(* -------------------------------------------------------------------------
-   Initialized dictionaries with previous solutions and their subterms
-   ------------------------------------------------------------------------- *)
-
-fun init_dicts pl =
-  (
-    progd := eempty prog_compare;
-    notprogd := eempty prog_compare;
-    semxd := sempty;
-    semxyd := sempty;
-    embd := dempty Term.compare;
-    wind := dempty String.compare;
-    initd := enew prog_compare pl;
-    minid := dempty seq_compare
-  )
-
-(* -------------------------------------------------------------------------
-   Main search function
-   ------------------------------------------------------------------------- *)
-
-val wnoise_flag = ref false
-
-fun search tnn coreid =
+fun mcts obj starttree =
   let
-    val _ = print_endline "initialization"
-    val _ = coreid_glob := coreid
-    val _ = player_glob := player_wtnn_cache
-    val sold = if !ngen_glob <= 0
-               then eempty prog_compare
-               else read_sold (!ngen_glob - 1)
-    val _ = noise_flag := false
-    val _ = if !coreid_glob mod 2 = 0 
-            then (noise_flag := true; noise_coeff_glob := 0.1) else ()
-    val (targetseq,seqname) = random_elem (oseq)
-    val _ = target_glob := targetseq
-    val _ = print_endline 
-      ("target " ^ seqname ^ ": " ^ string_of_seq (!target_glob));
-    val _ = init_dicts (elist sold)
-    val _ = in_search := true
-    val _ = avoid_lose := true
-    val tree = starting_tree (mctsobj tnn) []
-    val _ = print_endline "start search"
-    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
-    val _ = print_endline "end search"
-    val n = tree_size newtree
-    val _ = avoid_lose := false
-    val _ = in_search := false
-    (* val (minwinl,minn) = minimize_winl winl *)
-    (* val _ = if emem (!target_glob) (!seqwind)
-      then print_endline "target acquired"
-      else print_endline "target missed" *)
+    val timerf = mk_timer (#mctsparam obj)
+    fun loop n tree =
+      if timerf (#vis (fst (dest_node tree))) then tree else
+      loop (n+1) (select_child obj [] (dest_node tree))
   in
-    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
-    print_endline ("tree_size: " ^ its n);
-    print_endline ("progd: " ^ its (elength (!progd)));
-    print_endline ("notprogd: " ^ its (elength (!notprogd)));
-    print_endline ("wind: " ^ its (dlength (!wind)));
-    (* print_endline ("prog mini: " ^ its minn); *)
-    map (snd o snd) (dlist (!wind))
+    loop 0 starttree
   end
-
-val parspec : (tnn,int,prog list) extspec =
-  {
-  self_dir = selfdir,
-  self = "mcts.parspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["bloom.init_od ()",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "mcts.expname := " ^ mlquote (!expname),
-     "mcts.ngen_glob := " ^ its (!ngen_glob),
-     "mcts.coreid_glob := " ^ its (!coreid_glob),
-     "mcts.dim_glob := " ^ its (!dim_glob),
-     "mcts.time_opt := " ^ string_of_timeo (),
-     "mcts.use_ob := " ^ bts (!use_ob)
-   ] 
-    ^ ")"),
-  function = search,
-  write_param = write_tnn,
-  read_param = read_tnn,
-  write_arg = let fun f file arg = writel file [its arg] in f end,
-  read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = write_progl,
-  read_result = read_progl
-  }
-
-fun search_target_aux (tnn,sold) tim target =
-  let
-    val _ = time_opt := SOME tim;
-    val _ = player_glob := player_wtnn_cache
-    val _ = target_glob := target
-    val _ = init_dicts (elist sold)
-    val _ = in_search := true
-    val _ = avoid_lose := true
-    val tree = starting_tree (mctsobj tnn) []
-    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
-    val _ = avoid_lose := false
-    val _ = in_search := false
-  in
-    NONE
-  end
-
-fun parsearch_target tim target =
-  let 
-    val tnn = read_tnn (selfdir ^ "/main_tnn")
-    val sold = enew prog_compare (read_progl (selfdir ^ "/main_sold"))
-    val (p,t) = add_time (search_target_aux (tnn,sold) tim) target 
-  in
-    (true,raw_prog (valOf p),t) handle Option => (false, "", t)
-  end
-
-val partargetspec : (real, seq, bool * string * real) extspec =
-  {
-  self_dir = selfdir,
-  self = "mcts.partargetspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["bloom.init_od ()",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir),
-     "mcts.use_ob := " ^ bts (!use_ob)
-    ] 
-    ^ ")"),
-  function = parsearch_target,
-  write_param = let fun f file param = writel file [rts param] in f end,
-  read_param =  let fun f file = string_to_real (hd (readl file)) in f end,
-  write_arg = let fun f file arg = writel file [ilts arg] in f end,
-  read_arg = let fun f file = stil (hd (readl file)) in f end,
-  write_result = let fun f file (b,s,t) = writel file [bts b, s, rts t] 
-     in f end,
-  read_result = let fun f file = 
-       let val (s1,s2,s3) = triple_of_list (readl file) in 
-         (string_to_bool s1, s2, string_to_real s3)
-       end
-     in f end
-  }
-
-fun parsearch_targetl ncore tim targetl =
-  (
-  buildheap_options := "--maxheap 10000";
-  parmap_queue_extern ncore partargetspec tim targetl
-  )
 
 (* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
 
-fun seq_of_prog p = valOf (semo_of_prog entrylx p)
+fun score_visit (move,polv,ctree) = case ctree of
+      Leaf => 0.0
+    | Node (cnode,_) => (#vis cnode)
 
-fun human_progseq p = 
-  let 
-    val seq = seq_of_prog p 
-    val anuml = find_wins seq
-    val _ = 
-      if null anuml 
-      then log ("Error: human_progseq 1: " ^ (raw_prog p)) 
-      else ()
-  in
-    raw_prog p ^ "\n" ^ (String.concatWith "-" anuml)
-  end
-  handle Interrupt => raise Interrupt | _ => 
-    (log ("Error: human_progseq 2: " ^ (raw_prog p)); "")
+fun number_of_node tree = case tree of
+    Leaf => 0
+  | Node (node,cv) =>
+    let fun f (cmove,_,ctree) = number_of_node ctree in
+      1 + sum_int (vector_to_list (Vector.map f cv))
+    end
 
-fun human_progfreq (prog,freq) = its freq ^ ": " ^ raw_prog prog;
-
-fun compute_freq f sol1 =
-  let val freql = dlist 
-    (count_dict (dempty prog_compare) (List.concat (map f sol1)))
-  in
-    dict_sort compare_imax freql
-  end
-
-fun stats_sol prefix sol =
-  let
-    val solsort = dict_sort prog_compare sol
-    val freql1 = compute_freq all_subprog sol
-  in
-    writel (prefix ^ "prog") (map human_progseq solsort);
-    writel (prefix ^ "freq") (map human_progfreq freql1)
-  end
-
-fun stats_ngen dir ngen =
-  let 
-    val solprev = 
-      if ngen = 0 then [] else #read_result parspec (sold_file (ngen - 1))
-    val solnew = #read_result parspec (sold_file ngen)
-    val prevd = enew prog_compare solprev
-    val soldiff = filter (fn x => not (emem x prevd)) solnew
-  in
-    stats_sol (dir ^ "/full_") solnew;
-    stats_sol (dir ^ "/diff_") soldiff
-  end
-  handle Interrupt => raise Interrupt | _ => log ("Error: stats_ngen")
+fun most_visited_path tree = case tree of
+    Leaf => []
+  | Node (node,cv) =>
+    if Vector.length cv = 0 then [(node,NONE)] else
+    let
+      val ci = vector_maxi score_visit cv
+      val (cmove,_,ctree) = Vector.sub (cv,ci)
+    in
+      (node, SOME cmove) :: most_visited_path ctree
+    end
 
 (* -------------------------------------------------------------------------
-   Reinforcement learning loop
+   Toy example: the goal of this task is to reach a positive number starting
+   from zero by incrementing or decrementing.
    ------------------------------------------------------------------------- *)
 
-fun rl_search_only tmpname ngen =
-  let 
-    val expdir = mk_dirs ()
-    val _ = log ("Search " ^ its ngen)
-    val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
-    val _ = mkDir_err (!buildheap_dir)
-    val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 15000"
-    val tnn = if ngen <= 0 
-              then random_tnn (get_tnndim ())
-              else read_tnn (tnn_file (ngen - 1))
-    val sold = if ngen <= 0
-               then eempty prog_compare
-               else read_sold (ngen - 1)
-    val (progll,t) = add_time
-      (parmap_queue_extern ncore parspec tnn) 
-         (List.tabulate (ntarget,I))
-    val _ = log ("search time: " ^ rts_round 6 t)
-    val _ = log ("solutions for each core:")
-    val _ = log (String.concatWith " " (map (its o length) progll))
-    val seqd = enew seq_compare (mapfilter seq_of_prog (elist sold))
-    fun is_new p = not (emem (seq_of_prog p) seqd) 
-      handle Interrupt => raise Interrupt | _ => false
-    val newprogll = map (filter is_new) progll
-    val _ = log ("new solutions for each core:")
-    val _ = log (String.concatWith " " (map (its o length) newprogll))
-    val progl = mk_fast_set prog_compare (
-      List.concat progll @ elist sold)
-    val newsold = enew prog_compare ((* merge_sol *) progl)
-  in
-    write_sold ngen tmpname newsold;
-    stats_ngen (!buildheap_dir) ngen
-  end
+type toy_board = (int * int * int)
+datatype toy_move = Incr | Decr
 
-and rl_search tmpname ngen = 
-  (rl_search_only tmpname ngen; rl_train tmpname ngen)
+fun toy_status_of (start,finish,timer) =
+  if start >= finish then Win
+  else if start < 0 orelse timer <= 0 then Lose
+  else Undecided
 
-and rl_train_only tmpname ngen =
-  let
-    val expdir = mk_dirs ()
-    val _ = log ("Train " ^ its ngen)
-    val _ = buildheap_dir := expdir ^ "/train" ^ its ngen ^ tmpname
-    val _ = mkDir_err (!buildheap_dir)
-    val _ = buildheap_options := "--maxheap 100000"
-    val _ = ngen_glob := ngen
-    val (_,t) = add_time (wrap_trainf ngen) tmpname 
-    val _ = log ("train time: " ^ rts_round 6 t)
-  in
-    ()
-  end
+val toy_movel = [Incr,Decr]
+fun toy_available_movel board = [Incr,Decr]
+fun toy_string_of_move x = case x of Incr => "Incr" | Decr => "Decr"
 
-and rl_train tmpname ngen = 
-  (rl_train_only tmpname ngen; rl_search tmpname (ngen + 1))
+fun toy_apply_move move (start,finish,timer) = case move of
+   Incr => (start+1,finish,timer-1)
+ | Decr => (start-1,finish,timer-1)
 
-end (* struct *)
-
+val toy_game =
+  {
+  is_blocked = (fn x => false),
+  status_of = toy_status_of,
+  apply_move = toy_apply_move,
+  available_movel = toy_available_movel,
+  string_of_board = (fn (a,b,c) => (its a ^ " " ^ its b ^ " " ^ its c)),
+  string_of_move = toy_string_of_move,
+  board_compare = (fn ((a,b,c),(d,e,f)) =>
+    cpl_compare Int.compare Int.compare ((a,b),(d,e))),
+  move_compare = (fn (a,b) =>
+    String.compare (toy_string_of_move a, toy_string_of_move b)),
+  movel = toy_movel
+  }
 
 (*
-  -------------------------------------------------------------------------
-  Train oeis-synthesis
-  ------------------------------------------------------------------------- 
-
-(* training *)
+load "aiLib"; open aiLib;
 load "mcts"; open mcts;
-expname := "run102";
-time_opt := SOME 600.0;
-use_mkl := true;
-bloom.init_od ();
-rl_train "_test12" 139;
 
-(* testing *)
-load "mcts"; open mcts; open aiLib; open kernel;
-time_opt := SOME 60.0;
-val tnn = mlTreeNeuralNetworkAlt.random_tnn (get_tnndim ());
-Profile.reset_all ();
-PolyML.print_depth 0;
-val sol1 = search tnn 1;
+val mctsparam =
+  {time = (NONE : real option), nsim = (SOME 1000000 : int option),
+   explo_coeff = 2.0,
+   noise = false, noise_coeff = 0.25, noise_gen = gamma_noise_gen 0.2};
+
+val mctsobj : (toy_board,toy_move) mctsobj =
+  {mctsparam = mctsparam, game = toy_game, player = random_player toy_game};
+
+val tree = starting_tree mctsobj (500,1000,1000);
+PolyML.print_depth 2;
+val (newtree,t) = add_time (mcts mctsobj) tree;
 PolyML.print_depth 40;
-random_elem sol1;
-Profile.results ();
-
-(* making definitions *)
-load "mcts"; open mcts; open aiLib; open kernel;
-PolyML.print_depth 0;
-val sol = read_progl "main_sold";
-val sol = read_progl "exp/run102/sold139";
-
-
-
-
-val (defl, patsol) = nbest_def 30 sol;
-PolyML.print_depth 40;
-
-map snd defl = List.tabulate (30, fn x => x + 14);
-write_progl "pat" (map fst defl);
-write_progl "exp/run102/sold139" patsol;
-
-open aiLib kernel;
-val sol1 = read_progl "exp/run102/sold139";
-val sol3 = map undef_prog sol1;
-val sol2 = read_progl "exp/run102/sold139_test11";
-list_compare prog_compare (sol2,sol3);
-
-val sol2sem = map_assoc semtimo_of_prog sol2;
-val sol2sembad = filter (fn x => isSome (snd x)) sol2sem;
-
-(* new way of making definitions *)
-
-val l0 = dlist 
-  (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)));
-
-val d = ref (dempty Int.compare)
-
-fun add_top ((Ins (n,pl), freq),d) = 
-  let val (nfreq,l) = dfind n d handle NotFound => (0,[]) in
-    dadd n (nfreq + freq, (pl,freq) :: l) d
-  end;
-
-val count_top = foldl add_top (dempty Int.compare);
-val newd = foldl add_top (dempty Int.compare) l0;
-
-val l1 = dlist newd;
-fun test1 (_,(x,_)) = x >= 1000;
-val l1' = filter test l1;
-fun test2 (_,(_,l)) = not (null (fst (hd l)));
-val (l1'',l1''') = partition test2 l1';
-
-fun f1 (pl,freq) = (hd pl,freq);
-val l2 = map (fn (a,(b,l)) =>  (a,(b,count_top (map f1 l)))) l1'';
-
-map (fst o snd) (dlist (snd (assoc 7 l2)));
- 
-   
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
+val l = most_visited_path newtree;
 *)
+
+
+end (* struct *)

@@ -57,8 +57,8 @@ fun progl_size pl = case pl of
   | _ => (length pl - 1) + sum_int (map prog_size pl)
 
 fun progl_compare_size (pl1,pl2) =
-  cpl_compare Int.compare (list_compare prog_compare)  
-  ((progl_size pl1,pl1),(progl_size pl2,pl2))
+  triple_compare Int.compare Int.compare (list_compare prog_compare)  
+  ((progl_size pl1, length pl1, pl1),(progl_size pl2, length pl2, pl2))
 
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
@@ -122,8 +122,8 @@ val base_operl =
    mk_var ("loop",alpha4),
    mk_var ("x",alpha),
    mk_var ("y",alpha),
-   mk_var ("compr",alpha3)
- (*  ,mk_var ("loop2",rpt_fun_type 6 alpha) *)
+   mk_var ("compr",alpha3),
+   mk_var ("loop2",rpt_fun_type 6 alpha)
   ]
   
 val operv = Vector.fromList base_operl
@@ -193,19 +193,19 @@ fun loop_f_aux i f n x =
   if n <= 0 then x else loop_f_aux (i+1) f (n-1) (f (x,i))
 fun loop_f_aux2 (f,n,x) = loop_f_aux 1 f n x
 val loop_f = mk_ternf1 loop_f_aux2
+
 fun compr_f_aux x f n0 n =
   if x > (n0+1)*(n0+1)*256 then raise Div
   else if f (x,0) <= 0 then 
    (if n0 >= n then x else compr_f_aux (x+1) f (n0+1) n)
   else compr_f_aux (x+1) f n0 n
-
 fun compr_f_aux2 (f,n) = compr_f_aux 0 f 0 n
 val compr_f = mk_binf1 compr_f_aux2
+
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= 0
   then x1 
   else loop2_f_aux f1 f2 (n-1) (f1 (x1,x2)) (f2 (x1,x2))
-
 fun loop2_f_aux2 (f1,f2,n,x1,x2) = loop2_f_aux f1 f2 n x1 x2
 val loop2_f = mk_quintf2 loop2_f_aux2
 
@@ -223,8 +223,8 @@ val base_execl =
   loop_f,
   x_f,
   y_f,
-  compr_f
-  (*, loop2_f *)
+  compr_f,
+  loop2_f
   ]
 
 val base_execv = Vector.fromList base_execl
@@ -251,25 +251,20 @@ val logmaxinput =
 val entrylxy = List.concat (double_all logmaxinput []);
 
 (* -------------------------------------------------------------------------
-   Check the shape of the output.
+   Check that a functions dependent on y syntactically actually depends
+   on y semantically.
    ------------------------------------------------------------------------- *)
 
-fun is_constant_aux a m = case m of
-    [] => true
-  | b :: m => (a:int) = b andalso is_constant_aux b m 
-
-fun is_constant l = if null l then true else is_constant_aux (hd l) (tl l)
-
-fun is_vconstant l0 = 
-  let val l1 = filter (not o null) l0 in
-    if null l1 then true else
-    let
-      val l2 = map hd l1
-      val l3 = map tl l1
-    in    
-      is_constant l2 andalso is_vconstant l3
+fun semdep_on_y_aux d l = case l of
+    [] => false
+  | ((x,_),fxy) :: m => 
+    let val oldfxyo = SOME (dfind x d) handle NotFound => NONE in
+      case oldfxyo of
+        NONE => semdep_on_y_aux (dadd x fxy d) m
+      | SOME oldfxy => oldfxy <> fxy orelse semdep_on_y_aux d m
     end
-  end;
+
+fun semdep_on_y l = semdep_on_y_aux (dempty Int.compare) l
 
 (* -------------------------------------------------------------------------
    Execute a program on some input
@@ -278,22 +273,25 @@ fun is_vconstant l0 =
 fun mk_exec (Ins (id,pl)) =
   Vector.sub (base_execv,id) (map mk_exec pl)
 
-fun semo_of_prog entryl p =
-  let 
+fun semo_of_prog b entryl p =
+  let
     val _ = counter := 0
     val f = mk_exec p
     fun loop l = case l of 
         [] => []
       | a :: m =>
-         let val (z,cont) = (f a, fn x => x :: loop m) 
-           handle Overflow => (overflow, fn x => [x]) 
-                | ProgTimeout => (0, fn x => [])
+         let val (z,cont) = ((a,f a), fn x => x :: loop m) 
+           handle Overflow => ((a,overflow), fn x => [x])
+                | ProgTimeout => ((a,0), fn x => [])
          in
            cont z
          end  
+    val r = loop entryl
   in
-    SOME (loop entryl) handle Div => NONE
+    if not b then SOME (map snd r,!counter)
+    else if semdep_on_y r then SOME (map snd r,!counter) 
+    else NONE 
   end   
-
+  handle Div => NONE | ProgTimeout => NONE
 
 end (* struct *)
