@@ -14,7 +14,7 @@ val skip_counter = ref 0;
 
 local open Arbint in
   fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
-  val maxarb = arb_pow (fromInt 10) (fromInt 1000)
+  val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 285 *)
   val minarb = ~maxarb
   val maxint = arb_pow (fromInt 2) (fromInt 64)
   val minint = ~maxint
@@ -22,14 +22,14 @@ local open Arbint in
   fun large_int x = x > maxint orelse x < minint
 end 
 
-val timelimit = 1.0;
+val timelimit = 0.1;
 
 fun test_aux y = 
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
     if t > timelimit then raise ProgTimeout else ()
   end
 
-fun test f x = 
+fun test f x =
   let val y = f x in
     if large_arb y then raise ProgTimeout
     else if large_int y then test_aux y 

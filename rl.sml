@@ -1056,7 +1056,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run301";
+expname := "run302";
 time_opt := SOME 600.0;
 use_mkl := true;
 rl_search "_main" 0;
