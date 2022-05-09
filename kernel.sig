@@ -6,6 +6,7 @@ sig
   val selfdir : string 
 
   (* globals *)
+  exception ProgTimeout
   val overflow : int
   val maxinput : int
 

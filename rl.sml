@@ -1062,7 +1062,7 @@ use_mkl := true;
 rl_search "_main" 0;
 
 (* testing *)
-PolyML.print_depth 1;
+PolyML.print_depth 0;
 load "rl"; load "human"; 
 open rl aiLib bloom kernel human;
 PolyML.print_depth 40;

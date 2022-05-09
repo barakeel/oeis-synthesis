@@ -123,10 +123,8 @@ end
 
 fun tcover f = 
   let val _ = anlref := [] in
-    (ignore (timeout 1.0 (tcover_aux f Arbint.zero) ost)
-    handle FunctionTimeout => print_endline "timeout")
-    ;
-   !anlref 
+    tcover_aux f Arbint.zero ost handle ProgTimeout => ();
+    !anlref 
   end
   handle Div => []
 

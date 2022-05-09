@@ -6,43 +6,76 @@ val ERR = mk_HOL_ERR "execarb";
 type prog = kernel.prog
 
 (* -------------------------------------------------------------------------
-   Instructions
+   Time limit
    ------------------------------------------------------------------------- *)
 
+val rt_glob = ref (Timer.startRealTimer ())
+val skip_counter = ref 0;
+
 local open Arbint in
+  fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
+  val maxarb = arb_pow (fromInt 10) (fromInt 1000)
+  val minarb = ~maxarb
+  val maxint = arb_pow (fromInt 2) (fromInt 64)
+  val minint = ~maxint
+  fun large_arb x = x > maxarb orelse x < minarb
+  fun large_int x = x > maxint orelse x < minint
+end 
 
-val aits = toString
+val timelimit = 1.0;
 
-(* wrappers *)
+fun test_aux y = 
+  let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
+    if t > timelimit then raise ProgTimeout else ()
+  end
+
+fun test f x = 
+  let val y = f x in
+    if large_arb y then raise ProgTimeout
+    else if large_int y then test_aux y 
+    else if !skip_counter > 1000 then (skip_counter := 0; test_aux y) 
+    else incr skip_counter;
+    y
+  end
+
+
+(* -------------------------------------------------------------------------
+   Instructions
+   ------------------------------------------------------------------------- *)
+ 
 fun mk_nullf opf fl = case fl of
-   [] => (fn x => opf x)
+   [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
 
 fun mk_unf opf fl = case fl of
-   [f1,f2] => (fn x => opf (f1 x))
+   [f1] => (fn x => (test opf (f1 x)))
   | _ => raise ERR "mk_unf" ""
 
 fun mk_binf opf fl = case fl of
-   [f1,f2] => (fn x => opf (f1 x, f2 x))
+   [f1,f2] => (fn x => (test opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf" ""
 
 fun mk_ternf opf fl = case fl of
-   [f1,f2,f3] => (fn x => opf (f1 x, f2 x, f3 x))
+   [f1,f2,f3] => (fn x => (test opf (f1 x, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf" ""
 
 fun mk_binf1 opf fl = case fl of
-   [f1,f2] => (fn x => opf (f1, f2 x))
+   [f1,f2] => (fn x => (test opf (f1, f2 x)))
   | _ => raise ERR "mk_binf1" ""
 
 fun mk_ternf1 opf fl = case fl of
-   [f1,f2,f3] => (fn x => opf (f1, f2 x, f3 x))
+   [f1,f2,f3] => (fn x => (test opf (f1, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf1" ""
 
 fun mk_quintf2 opf fl = case fl of
    [f1,f2,f3,f4,f5] => 
-   (fn x => opf (f1, f2, f3 x, f4 x, f5 x))
+   (fn x => (test opf (f1, f2, f3 x, f4 x, f5 x)))
   | _ => raise ERR "mk_quintf2" ""
 
+
+local open Arbint in
+
+val aits = toString
 (* first-order *)
 val zero_f = mk_nullf (fn _ => zero)
 val one_f = mk_nullf (fn _ => one)
@@ -65,8 +98,8 @@ val loop_f = mk_ternf1 loop_f_aux2
 
 val a256 = fromInt 256
 fun compr_f_aux x f n0 n =
-  if x > (n0+one)*(n0+one)*a256 then raise Div
-  else if f (x,zero) <= zero then 
+   if x > (n0+one)*(n0+one)*a256 then raise Div
+   else if f (x,zero) <= zero then 
    (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
   else compr_f_aux (x+one) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
@@ -111,7 +144,12 @@ val base_execv = Vector.fromList base_execl
 fun mk_execarb (Ins (id,pl)) =
   Vector.sub (base_execv,id) (map mk_execarb pl)
 
-fun find_wins p = tcover (mk_execarb p)
+fun find_wins p = 
+  (
+  skip_counter := 0;
+  rt_glob := Timer.startRealTimer (); 
+  tcover (mk_execarb p)
+  )
 
 end (* struct *)
 

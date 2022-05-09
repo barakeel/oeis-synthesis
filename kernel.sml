@@ -146,44 +146,42 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 (* time limit per instruction *)
 exception ProgTimeout;
-val timelimit = 1000001;
+val timelimit = 1000000;
 val counter = ref 0;
-fun start_counter f x = (counter := 0; f x)
-fun test_counter () = (incr counter; 
-  if !counter > timelimit then raise ProgTimeout else ())
+fun test f x = 
+  if !counter > timelimit 
+  then raise ProgTimeout 
+  else (incr counter; f x)
 
 (* wrappers *)
 fun mk_nullf opf fl = case fl of
-   [] => (fn x => (test_counter (); opf x))
+   [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
 
 fun mk_unf opf fl = case fl of
-   [f1,f2] => (fn x => (test_counter (); opf (f1 x)))
+   [f1] => (fn x => (test opf (f1 x)))
   | _ => raise ERR "mk_unf" ""
 
 fun mk_binf opf fl = case fl of
-   [f1,f2] => (fn x => (test_counter (); opf (f1 x, f2 x)))
+   [f1,f2] => (fn x => (test opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf" ""
 
 fun mk_ternf opf fl = case fl of
-   [f1,f2,f3] => (fn x => (test_counter (); opf (f1 x, f2 x, f3 x)))
+   [f1,f2,f3] => (fn x => (test opf (f1 x, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf" ""
 
 fun mk_binf1 opf fl = case fl of
-   [f1,f2] => (fn x => (test_counter (); opf (f1, f2 x)))
+   [f1,f2] => (fn x => (test opf (f1, f2 x)))
   | _ => raise ERR "mk_binf1" ""
 
 fun mk_ternf1 opf fl = case fl of
-   [f1,f2,f3] => (fn x => (test_counter (); opf (f1, f2 x, f3 x)))
+   [f1,f2,f3] => (fn x => (test opf (f1, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf1" ""
 
 fun mk_quintf2 opf fl = case fl of
    [f1,f2,f3,f4,f5] => 
-   (fn x => (test_counter (); opf (f1, f2, f3 x, f4 x, f5 x)))
+   (fn x => (test opf (f1, f2, f3 x, f4 x, f5 x)))
   | _ => raise ERR "mk_quintf2" ""
-
-(* todo change int to Arbint with a maximum limit on the size 
-   of arbint *)
 
 (* first-order *)
 val zero_f = mk_nullf (fn _ => 0)
@@ -206,8 +204,8 @@ fun loop_f_aux2 (f,n,x) = loop_f_aux 1 f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
 fun compr_f_aux x f n0 n =
-  if x > (n0+1)*(n0+1)*256 then raise Div
-  else if f (x,0) <= 0 then 
+   if x > (n0+1)*(n0+1)*256 then raise Div
+   else if f (x,0) <= 0 then 
    (if n0 >= n then x else compr_f_aux (x+1) f (n0+1) n)
   else compr_f_aux (x+1) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux 0 f 0 n
