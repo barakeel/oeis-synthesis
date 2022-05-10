@@ -18,7 +18,10 @@ sig
   (* globals *)
   val ncore : int ref
   val ntarget : int ref
+  val maxgen : int option ref
   val in_search : bool ref
+
+  (* data *)
   val progd: prog set ref
   val notprogd: prog set ref
   val embd : (term, real vector) dict ref

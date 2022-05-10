@@ -11,13 +11,18 @@ val ERR = mk_HOL_ERR "rl"
    Globals
    ------------------------------------------------------------------------- *)
 
-val no_quot = ref false
-val use_mkl = ref false
-val use_ob = ref false
+val use_mkl = ref false (* intel mkl: faster training *)
+val use_ob = ref false (* openblas: code has been removed for now *)
 val use_para = ref false
 val dim_glob = ref 64
-val ncore = ref 15 (* 20 *)
-val ntarget = ref (15 * 6 * 2) (* 20 * 6 * 2 *)
+val ncore = ref 15
+val ntarget = ref (15 * 6 * 2) (* targets per generation *)
+val maxgen = ref NONE
+
+(* for experiments *)
+val no_perm = false (* argument ordering *)
+val no_quot = false (* quotient *)
+val no_train = false
 
 (* -------------------------------------------------------------------------
    Utils
@@ -84,8 +89,6 @@ val progd = ref (eempty prog_compare)
 val notprogd = ref (eempty prog_compare)
 val semxd = ref sempty
 val semxyd = ref sempty
-val minid = ref (dempty seq_compare)
-val initd = ref (eempty prog_compare)
 
 (* -------------------------------------------------------------------------
    Main process logging function
@@ -115,7 +118,10 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
 
 datatype move = O of int * bool | P of bool | Q
 
-val premovelg =  
+val premovelg = 
+  if no_perm 
+  then List.tabulate (Vector.length operv, fn i => O (i,false))
+  else
   List.concat (
   List.tabulate (Vector.length operv, fn i => 
     let val arity = arity_of_oper i in
@@ -195,6 +201,7 @@ fun merge_isol isol =
 fun exec_fun_aux b p plb semd entryl = case semo_of_prog b entryl p of 
     NONE => (eaddi p notprogd; NONE) 
   | SOME (sem,_) =>
+    if no_quot then (eaddi p progd; SOME ([p] :: plb)) else
     (
     case snewi (p,sem) semd of
       (false,_) => (eaddi p notprogd; NONE)
@@ -228,8 +235,9 @@ fun weak_ord board = case board of
 fun exec_fun p plb =
   if !in_search then 
     let val eboard = [p] :: plb in
-       if not (weak_ord eboard andalso strong_ord eboard) then NONE else
-       exec_fun_insearch p plb
+      if no_perm then exec_fun_insearch p plb else
+      if not (weak_ord eboard andalso strong_ord eboard) then NONE else
+      exec_fun_insearch p plb
     end
   else SOME ([p] :: plb)
 
@@ -273,7 +281,7 @@ fun weak_ord_test boardo = case boardo of
    | _ => boardo
 
 (* all together *)
-fun apply_moveo move board = case move of
+fun apply_moveo_perm move board = case move of
     O (x,permb) => 
     let val arity = arity_of_oper x in 
       case arity of
@@ -285,6 +293,22 @@ fun apply_moveo move board = case move of
   | P permb => weak_ord_test (exec_permop board permb)
   | Q => weak_ord_test (exec_qop board)
 
+fun apply_moveo_noperm move board = case move of
+    O (x,permb) => 
+    if permb then raise ERR "apply_move_noperm" "" else
+    let
+      val arity = arity_of_oper x
+      val (l1,l2) = part_n arity board 
+    in
+      if length l1 <> arity then NONE else
+      exec_fun (Ins (x,rev (map singleton_of_list l1))) l2 
+    end
+  | P _ => raise ERR "apply_moveo_noperm" ""
+  | Q => raise ERR "apply_moveo_noperm" ""
+
+fun apply_moveo move board = 
+  if no_perm then apply_moveo_noperm move board else
+  apply_moveo_perm move board
 
 fun apply_move move board = valOf (apply_moveo move board)
   handle Option => raise ERR "apply_move" "option"
@@ -457,9 +481,9 @@ fun get_tnndim () =
    Create the sequence of moves that would produce a program p
    ------------------------------------------------------------------------- *)
 
-fun invapp_move board = case board of
+fun invapp_move_perm board = case board of
     [] => NONE
-  | [] :: m => raise ERR "invapp_move" ""
+  | [] :: m => raise ERR "invapp_move_perm" ""
   | [Ins (id,[])] :: m => SOME (m, O (id,false))
   | [Ins (id,[a])] :: m => SOME ([a] :: m, O(id,false))
   | [Ins (id,[a,b])] :: m => 
@@ -484,6 +508,15 @@ fun invapp_move board = case board of
     if progl_compare_size ([p],pl) <> GREATER
     then SOME ([p] :: pl :: m, Q) 
     else SOME (pl :: [p] :: m, Q)
+
+fun invapp_move_noperm board = case board of
+    [] => NONE
+  | [Ins (id,argl)] :: m => 
+     SOME (map (fn x => [x]) (rev argl) @ m, O(id,false))
+  | _ => raise ERR "invapp_move_noperm" ""
+
+fun invapp_move board =
+  if no_perm then invapp_move_noperm board else invapp_move_perm board
 
 fun linearize_aux acc board = case invapp_move board of
     SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
@@ -771,6 +804,12 @@ fun read_ctnn sl = case sl of
   | a :: m => read_ctnn m
 
 fun trainf tmpname =
+  if no_train then 
+    let val tnn = random_tnn (get_tnndim ()) in
+      write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
+      write_tnn (tnn_file (!ngen_glob)) tnn
+    end
+  else
   let 
     val isol = read_isol (!ngen_glob) 
     val _ = print_endline ("reading isol " ^ (its (length isol)))
@@ -983,7 +1022,9 @@ fun rl_search_only tmpname ngen =
   end
 
 and rl_search tmpname ngen = 
-  (rl_search_only tmpname ngen; rl_train tmpname ngen)
+  (rl_search_only tmpname ngen; 
+   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
+   rl_train tmpname ngen)
 
 and rl_train_only tmpname ngen =
   let
@@ -1015,6 +1056,18 @@ load "rl"; open rl;
 expname := "run303";
 time_opt := SOME 600.0;
 use_mkl := true;
+rl_search "_main" 0;
+
+(* experiments *)
+load "rl"; open rl;
+time_opt := SOME 60.0;
+use_mkl := true;
+maxgen := SOME 4;
+expname := "e-all-1";
+rl_search "_main" 0;
+expname := "e-all-2";
+rl_search "_main" 0;
+expname := "e-all-3";
 rl_search "_main" 0;
 
 (* testing *)
