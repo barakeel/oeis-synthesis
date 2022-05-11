@@ -21,6 +21,7 @@ val maxgen = ref NONE
 
 (* for experiments *)
 val no_perm = false (* argument ordering *)
+val no_error = true (* do not check for errors and do not execute programs *)
 val no_quot = true (* quotient *)
 val no_train = false
 
@@ -198,7 +199,8 @@ fun merge_isol isol =
    Application of a move to a board
    ------------------------------------------------------------------------- *)
 
-fun exec_fun_aux b p plb semd entryl = case semo_of_prog b entryl p of 
+fun exec_fun_aux b p plb semd entryl = 
+  case semo_of_prog b entryl p of 
     NONE => (eaddi p notprogd; NONE) 
   | SOME (sem,_) =>
     if no_quot then (eaddi p progd; SOME ([p] :: plb)) else
@@ -211,8 +213,9 @@ fun exec_fun_aux b p plb semd entryl = case semo_of_prog b entryl p of
       (erem coverp (!progd); eaddi coverp progd;
        eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
     )
- 
+
 fun exec_fun_insearch p plb =
+  if no_error then SOME ([p] :: plb) else (* radical change *)
   if ememi p progd then SOME ([p] :: plb)
   else if ememi p notprogd then NONE
   else if not (depend_on_y p) 
@@ -1063,11 +1066,11 @@ load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
 maxgen := SOME 4;
-expname := "e-noquot-1";
+expname := "e-noquot2-1";
 rl_search "_main" 0;
-expname := "e-noquot-2";
+expname := "e-noquot2-2";
 rl_search "_main" 0;
-expname := "e-noquot-3";
+expname := "e-noquot2-3";
 rl_search "_main" 0;
 
 (* testing *)
