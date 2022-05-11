@@ -22,7 +22,7 @@ local open Arbint in
   fun large_int x = x > maxint orelse x < minint
 end 
 
-val timelimit = 0.1;
+val timelimit = 0.01;
 
 fun test_aux y = 
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
