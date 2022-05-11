@@ -215,7 +215,8 @@ fun exec_fun_aux b p plb semd entryl =
     )
 
 fun exec_fun_insearch p plb =
-  if no_error then SOME ([p] :: plb) else (* radical change *)
+  if no_error then (eaddi p progd; SOME ([p] :: plb)) else 
+  (* radical change *)
   if ememi p progd then SOME ([p] :: plb)
   else if ememi p notprogd then NONE
   else if not (depend_on_y p) 
@@ -1066,11 +1067,7 @@ load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
 maxgen := SOME 4;
-expname := "e-noquot2-1";
-rl_search "_main" 0;
-expname := "e-noquot2-2";
-rl_search "_main" 0;
-expname := "e-noquot2-3";
+expname := "e-noerror";
 rl_search "_main" 0;
 
 (* testing *)
