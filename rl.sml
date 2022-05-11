@@ -15,8 +15,8 @@ val use_mkl = ref false (* intel mkl: faster training *)
 val use_ob = ref false (* openblas: code has been removed for now *)
 val use_para = ref false
 val dim_glob = ref 64
-val ncore = ref 30
-val ntarget = ref (30 * 6) (* targets per generation *)
+val ncore = ref 20
+val ntarget = ref (20 * 6 * 2) (* targets per generation *)
 val maxgen = ref NONE
 
 (* for experiments *)
@@ -1003,7 +1003,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 12000"
+    val _ = buildheap_options := "--maxheap 10000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -1054,7 +1054,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run303";
+expname := "run304";
 time_opt := SOME 600.0;
 use_mkl := true;
 rl_search "_main" 0;
