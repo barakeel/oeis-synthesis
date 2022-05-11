@@ -20,7 +20,7 @@ val ntarget = ref (20 * 6 * 2) (* targets per generation *)
 val maxgen = ref NONE
 
 (* for experiments *)
-val no_perm = false (* argument ordering *)
+val no_perm = true (* argument ordering *)
 val no_error = true (* do not check for errors and do not execute programs *)
 val no_quot = true (* quotient *)
 val no_train = false
