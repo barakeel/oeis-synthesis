@@ -21,7 +21,7 @@ val maxgen = ref NONE
 
 (* for experiments *)
 val no_perm = false (* argument ordering *)
-val no_quot = false (* quotient *)
+val no_quot = true (* quotient *)
 val no_train = false
 
 (* -------------------------------------------------------------------------
@@ -1063,11 +1063,11 @@ load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
 maxgen := SOME 4;
-expname := "e-all-1";
+expname := "e-noquot-1";
 rl_search "_main" 0;
-expname := "e-all-2";
+expname := "e-noquot-2";
 rl_search "_main" 0;
-expname := "e-all-3";
+expname := "e-noquot-3";
 rl_search "_main" 0;
 
 (* testing *)
