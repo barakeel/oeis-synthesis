@@ -1066,8 +1066,8 @@ rl_search "_main" 0;
 load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
-maxgen := SOME 4;
-expname := "e-noerror";
+maxgen := SOME 2;
+expname := "e-noerror2";
 rl_search "_main" 0;
 
 (* testing *)

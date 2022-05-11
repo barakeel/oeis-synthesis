@@ -101,13 +101,18 @@ val ost = Array.foldli taddo tempty oseq
 
 (* Cover *)
 val anlref = ref []
+val timeincr = 0.001
 
 local open Arbint in 
 
 fun tcover_aux f i st = case st of
     Tleaf (an2,[]) => anlref := an2 :: !anlref
   | Tleaf (an2,a2 :: m2) => 
-    if f (i,zero) = a2 then tcover_aux f (i + one) (Tleaf (an2,m2)) else ()
+    if f (i,zero) = a2 
+    then 
+      (timelimitarb := timelimitarb + timeincr;
+       tcover_aux f (i + one) (Tleaf (an2,m2))) 
+    else ()
   | Tdict (anl,d) =>
     let 
       val _ = anlref := anl @ !anlref
@@ -116,18 +121,19 @@ fun tcover_aux f i st = case st of
     in
       case sto of 
         NONE => ()
-      | SOME newst => tcover_aux f (i + one) newst
+      | SOME newst => (timelimitarb := timelimitarb + timeincr; 
+                       tcover_aux f (i + one) newst)
     end
 
 end
 
 fun tcover f = 
   let val _ = anlref := [] in
+    timelimitarb := timeincr;
     tcover_aux f Arbint.zero ost handle ProgTimeout => ();
     !anlref 
   end
   handle Div => []
-
 
 fun infoq_int x = 
   if x = 0 then 1.0 
@@ -140,10 +146,8 @@ fun infoq_seq xl = sum_real (map infoq_int xl)
 load "bloom"; open aiLib bloom;
 
 val sl = tcover (List.concat (List.tabulate (64, fn _ => [0,1]))) ost;
-
-
 val sl = tcover [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53] ost;
-val sl = tcover [0,1,1,2,3,5,8,13,21,34,55,89,89+55,2*89+55,3*89+2*55,5*89+3*55] st;
+val sl = tcoverq [0,1,1,2,3,5,8,13,21,34,55,89,89+55,2*89+55,3*89+2*55,5*89+3*55] st;
 
 fun sadd_nomem seq st = if snew seq st then st else sadd seq st;
 snew [1,2,3] st;
@@ -168,8 +172,14 @@ time (repeatn 10000000) f2
 
 end (* struct *)
 
+(*
 
 
+https://arxiv.org/pdf/1805.07431
+Can machine learning identify interesting mathematics? An ... - arXiv
+
+
+*)
 
 
 

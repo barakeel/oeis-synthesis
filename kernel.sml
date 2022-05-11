@@ -11,6 +11,7 @@ val selfdir = dir.selfdir
    ------------------------------------------------------------------------- *)
 
 val maxinput = 128
+val rt_glob = ref (Timer.startRealTimer ())
 val overflow = valOf (Int.maxInt)
 
 (* -------------------------------------------------------------------------
@@ -144,8 +145,9 @@ val operav = Vector.map arity_of operv
 fun arity_of_oper i = arity_of (Vector.sub (operv,i))
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
-(* time limit per instruction *)
+(* time limit *)
 exception ProgTimeout;
+val timelimitarb = ref 0.001;
 val timelimit = 1000000;
 val counter = ref 0;
 fun test f x = 
@@ -204,8 +206,8 @@ fun loop_f_aux2 (f,n,x) = loop_f_aux 1 f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
 fun compr_f_aux x f n0 n =
-   if x > (n0+1)*(n0+1)*256 then raise Div
-   else if f (x,0) <= 0 then 
+   (* if x > (n0+1)*(n0+1)*256 then raise Div else *) 
+   if f (x,0) <= 0 then 
    (if n0 >= n then x else compr_f_aux (x+1) f (n0+1) n)
   else compr_f_aux (x+1) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux 0 f 0 n

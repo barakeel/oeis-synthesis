@@ -9,9 +9,6 @@ type prog = kernel.prog
    Time limit
    ------------------------------------------------------------------------- *)
 
-val rt_glob = ref (Timer.startRealTimer ())
-val skip_counter = ref 0;
-
 local open Arbint in
   fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
   val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 285 *)
@@ -22,12 +19,12 @@ local open Arbint in
   fun large_int x = x > maxint orelse x < minint
 end 
 
-val timelimit = 0.01;
-
 fun test_aux y = 
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
     if t > timelimit then raise ProgTimeout else ()
   end
+
+val skip_counter = ref 0
 
 fun test f x =
   let val y = f x in
@@ -98,16 +95,15 @@ val loop_f = mk_ternf1 loop_f_aux2
 
 val a256 = fromInt 256
 fun compr_f_aux x f n0 n =
-   if x > (n0+one)*(n0+one)*a256 then raise Div
-   else if f (x,zero) <= zero then 
+   (* if x > (n0+one)*(n0+one)*a256 then raise Div else *)
+   if f (x,zero) <= zero then 
    (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
   else compr_f_aux (x+one) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
 val compr_f = mk_binf1 compr_f_aux2
 fun loop2_f_aux f1 f2 n x1 x2 = 
-  if n <= zero
-  then x1 
-  else loop2_f_aux f1 f2 (n-one) (f1 (x1,x2)) (f2 (x1,x2))
+  if n <= zero then x1 else 
+  loop2_f_aux f1 f2 (n-one) (f1 (x1,x2)) (f2 (x1,x2))
 
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= zero then x1 else 

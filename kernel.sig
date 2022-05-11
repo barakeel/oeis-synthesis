@@ -7,6 +7,8 @@ sig
 
   (* globals *)
   exception ProgTimeout
+  val timelimitarb : real ref
+  val rt_glob : int
   val overflow : int
   val maxinput : int
 
