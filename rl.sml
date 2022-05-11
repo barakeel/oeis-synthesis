@@ -15,8 +15,8 @@ val use_mkl = ref false (* intel mkl: faster training *)
 val use_ob = ref false (* openblas: code has been removed for now *)
 val use_para = ref false
 val dim_glob = ref 64
-val ncore = ref 20
-val ntarget = ref (20 * 6 * 2) (* targets per generation *)
+val ncore = ref 30
+val ntarget = ref (30 * 6) (* targets per generation *)
 val maxgen = ref NONE
 
 (* for experiments *)
@@ -1063,8 +1063,8 @@ rl_search "_main" 0;
 load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
-maxgen := SOME 2;
-expname := "e-veryfast";
+maxgen := SOME 4;
+expname := "e-noperm";
 rl_search "_main" 0;
 
 (* testing *)
