@@ -21,7 +21,7 @@ end
 
 fun test_aux y = 
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
-    if t > timelimit then raise ProgTimeout else ()
+    if t > !timelimitarb then raise ProgTimeout else ()
   end
 
 val skip_counter = ref 0
@@ -141,6 +141,7 @@ fun mk_execarb (Ins (id,pl)) =
   Vector.sub (base_execv,id) (map mk_execarb pl)
 
 fun find_wins p = 
+  if depend_on_y p then [] else
   (
   skip_counter := 0;
   rt_glob := Timer.startRealTimer (); 

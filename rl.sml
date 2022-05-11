@@ -183,7 +183,7 @@ fun update_wind_one d (anum,p) =
 
 fun update_wind_glob p =
   let
-    val anuml = if depend_on_y p then [] else find_wins p
+    val anuml = find_wins p
     fun f anum = update_wind_one wind (anum,p)  
   in
     app f anuml
@@ -995,9 +995,6 @@ fun stats_ngen dir ngen =
 (* -------------------------------------------------------------------------
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
-
-fun seq_of_prog p = if depend_on_y p then raise ERR "seq_of_prog" ""
-  else fst (valOf (semo_of_prog false entrylx p))
 
 fun rl_search_only tmpname ngen =
   let 

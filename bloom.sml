@@ -102,6 +102,7 @@ val ost = Array.foldli taddo tempty oseq
 (* Cover *)
 val anlref = ref []
 val timeincr = 0.001
+fun incr_timer () = timelimitarb := !timelimitarb + timeincr
 
 local open Arbint in 
 
@@ -110,7 +111,7 @@ fun tcover_aux f i st = case st of
   | Tleaf (an2,a2 :: m2) => 
     if f (i,zero) = a2 
     then 
-      (timelimitarb := timelimitarb + timeincr;
+      (incr_timer ();
        tcover_aux f (i + one) (Tleaf (an2,m2))) 
     else ()
   | Tdict (anl,d) =>
@@ -121,11 +122,11 @@ fun tcover_aux f i st = case st of
     in
       case sto of 
         NONE => ()
-      | SOME newst => (timelimitarb := timelimitarb + timeincr; 
+      | SOME newst => (incr_timer ();
                        tcover_aux f (i + one) newst)
     end
 
-end
+end (* local *)
 
 fun tcover f = 
   let val _ = anlref := [] in
