@@ -1064,7 +1064,7 @@ load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
 maxgen := SOME 2;
-expname := "e-veryfast2";
+expname := "e-veryfast";
 rl_search "_main" 0;
 
 (* testing *)
@@ -1095,22 +1095,4 @@ val bml = linearize p;
 val board = apply_movel (map snd bml) [];
 
 
-
-
- 
-   
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
-*)e-
+*)
