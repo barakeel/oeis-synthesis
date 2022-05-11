@@ -101,7 +101,7 @@ val ost = Array.foldli taddo tempty oseq
 
 (* Cover *)
 val anlref = ref []
-val timeincr = 0.001
+val timeincr = 0.0001
 fun incr_timer () = timelimitarb := !timelimitarb + timeincr
 
 local open Arbint in 
@@ -131,10 +131,10 @@ end (* local *)
 fun tcover f = 
   let val _ = anlref := [] in
     timelimitarb := timeincr;
-    tcover_aux f Arbint.zero ost handle ProgTimeout => ();
-    !anlref 
+    tcover_aux f Arbint.zero ost;
+    !anlref
   end
-  handle Div => []
+  handle Div => !anlref | ProgTimeout => !anlref
 
 fun infoq_int x = 
   if x = 0 then 1.0 
