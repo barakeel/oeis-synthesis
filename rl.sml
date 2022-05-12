@@ -13,14 +13,14 @@ val ERR = mk_HOL_ERR "rl"
 
 val use_mkl = ref true
 val dim_glob = ref 64
-val ncore = ref 16
-val ntarget = ref (32 * 12)
+val ncore = ref 20
+val ntarget = ref (20 * 60)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref NONE
-val time_opt = ref (SOME 10.0)
+val time_opt = ref (SOME 120.0)
 
 (* -------------------------------------------------------------------------
    Utils
@@ -778,7 +778,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 12000"
+    val _ = buildheap_options := "--maxheap 10000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -829,7 +829,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run308";
+expname := "run309";
 rl_search "_main" 0;
 
 (* experiments *)
