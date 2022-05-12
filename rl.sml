@@ -11,15 +11,15 @@ val ERR = mk_HOL_ERR "rl"
    Globals
    ------------------------------------------------------------------------- *)
 
-val use_mkl = ref true (* intel mkl: faster training *)
+val use_mkl = ref true
 val dim_glob = ref 64
 val ncore = ref 16
-val ntarget = ref 64 * 2 (* targets per generation *)
+val ntarget = ref 128
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
-val nsim_opt = ref (NONE)
+val nsim_opt = ref NONE
 val time_opt = ref (SOME 30.0)
 
 (* -------------------------------------------------------------------------
