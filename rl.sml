@@ -14,13 +14,13 @@ val ERR = mk_HOL_ERR "rl"
 val use_mkl = ref true
 val dim_glob = ref 64
 val ncore = ref 16
-val ntarget = ref 128
+val ntarget = ref 32
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref NONE
-val time_opt = ref (SOME 30.0)
+val time_opt = ref (SOME 120.0)
 
 (* -------------------------------------------------------------------------
    Utils
@@ -694,12 +694,15 @@ fun search tnn coreid =
     val _ = in_search := false
     val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
+    val r = dlist (!wind)
   in
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
     print_endline ("tree_size: " ^ its n);
     print_endline ("progd: " ^ its (elength (!progd)));
     print_endline ("solutions: " ^ its (dlength (!wind)));
-    dlist (!wind)
+    init_dicts ();
+    PolyML.fullGC ();
+    r
   end
 
 val parspec : (tnn, int, (int * prog) list) extspec =
@@ -832,7 +835,7 @@ rl_search "_main" 0;
 (* experiments *)
 load "rl"; open rl;
 maxgen := SOME 2;
-expname := "e-clean3";
+expname := "e-clean3gc";
 rl_search "_main" 0;
 
 (* testing *)
@@ -863,4 +866,4 @@ val bml = linearize p;
 val board = apply_movel (map snd bml) [];
 
 
-*)
+*
