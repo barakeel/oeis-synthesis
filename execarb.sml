@@ -21,7 +21,7 @@ end
 
 fun test_aux y = 
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
-    if t > !timelimitarb then raise ProgTimeout else ()
+    if t > !timelimit then raise ProgTimeout else ()
   end
 
 val skip_counter = ref 0
@@ -34,7 +34,6 @@ fun test f x =
     else incr skip_counter;
     y
   end
-
 
 (* -------------------------------------------------------------------------
    Instructions

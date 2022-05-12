@@ -12,19 +12,15 @@ val ERR = mk_HOL_ERR "rl"
    ------------------------------------------------------------------------- *)
 
 val use_mkl = ref false (* intel mkl: faster training *)
-val use_ob = ref false (* openblas: code has been removed for now *)
-val use_para = ref false
 val dim_glob = ref 64
-val ncore = ref 20
-val ntarget = ref 600 (* targets per generation *)
+val ncore = ref 16
+val ntarget = ref 64 (* targets per generation *)
 val maxgen = ref NONE
-
-(* for experiments *)
-val no_perm = true (* argument ordering *)
-val no_error = true (* do not check for errors and do not execute programs *)
-val no_quot = true (* quotient *)
-val no_train = false
-
+val target_glob = ref []
+val noise_flag = ref false
+val noise_coeff_glob = ref 0.1
+val nsim_opt = ref (NONE)
+val time_opt = ref (SOME 60.0)
 
 (* -------------------------------------------------------------------------
    Utils
@@ -52,19 +48,10 @@ fun eaddi x d = d := eadd x (!d)
 fun ememi x d = emem x (!d)
 fun daddi k v d = d := dadd k v (!d) 
 fun dmemi x d = dmem x (!d)
-fun snewi x t = snew x (!t)
-fun saddi x t = t := sadd x (!t)
 
 (* -------------------------------------------------------------------------
    Parameters
    ------------------------------------------------------------------------- *)
-
-val target_glob = ref []
-val maxbigsteps = 1
-val noise_flag = ref false
-val noise_coeff_glob = ref 0.1
-val nsim_opt = ref (NONE)
-val time_opt = ref (SOME 60.0)
 
 fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
@@ -88,9 +75,6 @@ val in_search = ref false
 val embd = ref (dempty Term.compare)
 val wind = ref (dempty Int.compare)
 val progd = ref (eempty prog_compare)
-val notprogd = ref (eempty prog_compare)
-val semxd = ref sempty
-val semxyd = ref sempty
 
 (* -------------------------------------------------------------------------
    Main process logging function
@@ -118,57 +102,24 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
    Move
    ------------------------------------------------------------------------- *)
 
-datatype move = O of int * bool | P of bool | Q
-
-val premovelg = 
-  if no_perm 
-  then List.tabulate (Vector.length operv, fn i => O (i,false))
-  else
-  List.concat (
-  List.tabulate (Vector.length operv, fn i => 
-    let val arity = arity_of_oper i in
-      if arity = 2 andalso not (mem i [3,5]) (* commutative operators *)
-      then [O (i,false), O (i,true)]
-      else [O (i,false)]
-    end))
-  @ map P [true,false]
-  @ [Q]
-
-val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
-
-fun move_compare (m1,m2) = case (m1,m2) of 
-    (O x, O y) => cpl_compare Int.compare bool_compare (x,y)
-  | (O _, _) => LESS
-  | (_, O _) => GREATER
-  | (P x, P y) => bool_compare (x,y)
-  | (P _, _) => LESS
-  | (_, P _) => GREATER
-  | (Q,Q) => EQUAL
-
-val movelg = dict_sort move_compare premovelg
-val moveld = dnew move_compare (number_snd 0 movelg) 
-
-fun index_of_move move = dfind move moveld
-
+type move = int
+val movelg = List.tabulate (Vector.length operv, I)
 val maxmove = length movelg
-
-fun string_of_move x = case x of 
-    O (x,b) => name_of_oper x ^ "-" ^ bts b
-  | P b => "pair-" ^ bts b
-  | Q => "pair"
+val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
+val move_compare = Int.compare
+fun string_of_move x = its x
 
 (* -------------------------------------------------------------------------
    Board
    ------------------------------------------------------------------------- *)
 
-type board = prog list list
+type board = prog list
 type player = (board,move) mcts.player
-
-fun string_of_argl argl = String.concatWith ", " (map humanf argl)
+ 
 fun string_of_board (board : board) = 
-  String.concatWith " | " (map string_of_argl board)
+  String.concatWith " | " (map humanf board)
 
-fun board_compare (a,b) = list_compare (list_compare prog_compare) (a,b)
+fun board_compare (a,b) = list_compare prog_compare (a,b)
 
 (* -------------------------------------------------------------------------
    Check if a program is a solution (i.e) covers an OEIS sequence
@@ -200,131 +151,28 @@ fun merge_isol isol =
    Application of a move to a board
    ------------------------------------------------------------------------- *)
 
-fun exec_fun_aux b p plb semd entryl = 
-  case semo_of_prog b entryl p of 
-    NONE => (eaddi p notprogd; NONE) 
-  | SOME (sem,_) =>
-    if no_quot then (eaddi p progd; SOME ([p] :: plb)) else
-    (
-    case snewi (p,sem) semd of
-      (false,_) => (eaddi p notprogd; NONE)
-    | (true, NONE) => 
-      (eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
-    | (true, SOME coverp) => 
-      (erem coverp (!progd); eaddi coverp progd;
-       eaddi p progd; saddi (p,sem) semd; SOME ([p] :: plb))
-    )
-
-fun exec_fun_insearch p plb =
-  if no_error then (eaddi p progd; SOME ([p] :: plb)) else 
-  (* radical change *)
-  if ememi p progd then SOME ([p] :: plb)
-  else if ememi p notprogd then NONE
-  else if not (depend_on_y p) 
-    then exec_fun_aux false p plb semxd entrylx
-    else exec_fun_aux true p plb semxyd entrylxy
-
-(* ordering constraints *)
-fun strong_ord_aux il = case il of
-     [] => true
-   | [a] => true
-   | a :: m => a >= (length m - 1) + sum_int m andalso strong_ord_aux m
-
-fun strong_ord board = strong_ord_aux (rev (map progl_size board))
-
-fun weak_ord board = case board of
-     a :: b :: _ => progl_compare_size (a,b) <> GREATER 
-   | _ => true
-  
-(* different type of operators *)
 fun exec_fun p plb =
-  if !in_search then 
-    let val eboard = [p] :: plb in
-      if no_perm then exec_fun_insearch p plb else
-      if not (weak_ord eboard andalso strong_ord eboard) then NONE else
-      exec_fun_insearch p plb
-    end
-  else SOME ([p] :: plb)
+  (if !in_search then eaddi p progd else (); p :: plb)
 
-fun exec_nullop board x = exec_fun (Ins (x,[])) board 
-
-fun exec_unop board x = case board of
-    [a] :: m => exec_fun (Ins (x,[a])) m  
-  | _ => NONE
-
-fun exec_binop board x permb = case board of
-   [a] :: [b] :: m => 
-     if not permb then exec_fun (Ins (x,[b,a])) m 
-     else if equal_prog (a,b) then NONE 
-     else exec_fun (Ins (x,[a,b])) m
-  | _ => NONE
-
-fun exec_largeop_aux arity x argl m = 
-  if length argl <> arity then NONE else exec_fun (Ins (x, rev argl)) m
- 
-fun exec_largeop board x arity = case board of
-     bl :: [a] :: m => exec_largeop_aux arity x (a :: bl) m
-   | [a] :: bl :: m => exec_largeop_aux arity x (a :: bl) m
-   | _ => NONE
-
-fun exec_permop board permb = case board of
-    [a] :: [b] :: m =>
-    if not permb then SOME ([a,b] :: m) 
-    else if equal_prog (a,b) then NONE
-    else SOME ([b,a] :: m)
-  | _ => NONE
-
-fun exec_qop board = case board of
-     bl :: [a] :: m => if length bl >= maxarity-1 then NONE else SOME ((a :: bl) :: m)
-   | [a] :: bl :: m => if length bl >= maxarity-1 then NONE else SOME ((a :: bl) :: m)
-   | _ => NONE
-
-fun weak_ord_test boardo = case boardo of
-     NONE => NONE
-   | SOME (a :: b :: _) => 
-     if progl_compare_size (a,b) = GREATER then NONE else boardo 
-   | _ => boardo
-
-(* all together *)
-fun apply_moveo_perm move board = case move of
-    O (x,permb) => 
-    let val arity = arity_of_oper x in 
-      case arity of
-        0 => exec_nullop board x
-      | 1 => exec_unop board x
-      | 2 => exec_binop board x permb
-      | _ => exec_largeop board x arity
-    end
-  | P permb => weak_ord_test (exec_permop board permb)
-  | Q => weak_ord_test (exec_qop board)
-
-fun apply_moveo_noperm move board = case move of
-    O (x,permb) => 
-    if permb then raise ERR "apply_move_noperm" "" else
-    let
-      val arity = arity_of_oper x
-      val (l1,l2) = part_n arity board 
-    in
-      if length l1 <> arity then NONE else
-      exec_fun (Ins (x,rev (map singleton_of_list l1))) l2 
-    end
-  | P _ => raise ERR "apply_moveo_noperm" ""
-  | Q => raise ERR "apply_moveo_noperm" ""
-
-fun apply_moveo move board = 
-  if no_perm then apply_moveo_noperm move board else
-  apply_moveo_perm move board
-
-fun apply_move move board = valOf (apply_moveo move board)
-  handle Option => raise ERR "apply_move" "option"
-       | Subscript => raise ERR "apply_move" "subscript"
+fun apply_move move board =
+  let val (l1,l2) = part_n (arity_of_oper move) board in
+    exec_fun (Ins (move, rev l1)) l2 
+  end
 
 (* -------------------------------------------------------------------------
    Available moves
    ------------------------------------------------------------------------- *)
 
 fun available_movel board = 
-   filter (fn x => isSome (apply_moveo x board)) movelg
+  filter 
+    (fn move =>
+     let 
+       val arity = arity_of_oper move
+       val l1 = first_n arity board 
+      in
+       length l1 = arity
+     end) 
+  movelg
 
 (* -------------------------------------------------------------------------
    For debugging
@@ -337,27 +185,15 @@ fun random_board n = funpow n random_step []
   handle Interrupt => raise Interrupt 
     | _ => random_board n
 
-fun random_prog n = last (last (random_board n))
-  
+fun random_prog n = last (random_board n)
 fun apply_movel movel board = foldl (uncurry apply_move) board movel
-
-(* -------------------------------------------------------------------------
-   Board status (all the checking/caching is done during apply_move now)
-   ------------------------------------------------------------------------- *)
-
-fun status_of (board : board) = Undecided
 
 (* -------------------------------------------------------------------------
    Game
    ------------------------------------------------------------------------- *)
 
-fun is_blocked board = 
-  if null board then false else ememi (hd (hd board)) notprogd
-
 val game : (board,move) game =
   {
-  is_blocked = is_blocked,
-  status_of = status_of,
   available_movel = available_movel,
   apply_move = apply_move,
   string_of_board = string_of_board,
@@ -435,8 +271,6 @@ fun term_of_prog (Ins (id,pl)) =
 (* stack *)
 val stack_empty = mk_var ("stack_empty", alpha);
 val stack_cat = mk_var ("stack_cat", alpha3);
-val stackl_empty = mk_var ("stackl_empty", alpha);
-val stackl_cat = mk_var ("stackl_cat", alpha3);
 
 fun term_of_stack stack = case stack of 
     [] => stack_empty
@@ -444,17 +278,11 @@ fun term_of_stack stack = case stack of
   | a :: m => 
     cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
 
-fun term_of_stackl stack = case stack of 
-    [] => stackl_empty
-  | [a] => term_of_stack a
-  | a :: m => 
-    cap (list_mk_comb (stackl_cat, [term_of_stack a,term_of_stackl m]));
-
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
 fun term_of_join board = 
   list_mk_comb (pair_progseq, 
-    [term_of_stackl board, cap (term_of_seq (first_n 8 (!target_glob)))])
+    [term_of_stack board, cap (term_of_seq (first_n 16 (!target_glob)))])
 
 (* policy head *)
 val prepoli = mk_var ("prepoli",alpha2)
@@ -464,8 +292,7 @@ fun term_of_board board = mk_comb (head_poli,
   mk_comb (prepoli, term_of_join board))
 
 (* embedding dimensions *)
-val operl = vector_to_list operv @ 
-  [stack_empty,stack_cat,stackl_empty,stackl_cat]
+val operl = vector_to_list operv @ [stack_empty,stack_cat]
 val operlcap = operl @ List.mapPartial cap_opt operl
 val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
@@ -486,54 +313,21 @@ fun get_tnndim () =
    Create the sequence of moves that would produce a program p
    ------------------------------------------------------------------------- *)
 
-fun invapp_move_perm board = case board of
+fun invapp_move board = case board of
     [] => NONE
-  | [] :: m => raise ERR "invapp_move_perm" ""
-  | [Ins (id,[])] :: m => SOME (m, O (id,false))
-  | [Ins (id,[a])] :: m => SOME ([a] :: m, O(id,false))
-  | [Ins (id,[a,b])] :: m => 
-    if progl_compare_size ([b],[a]) <> GREATER 
-    then SOME ([b] :: [a] :: m, O (id,false))
-    else SOME ([a] :: [b] :: m, O (id,true))
-  | [Ins (id,argl)] :: m => 
-    let 
-      val newargl = rev argl
-      val pu = [hd newargl]
-      val pl = tl newargl
-    in  
-      if progl_compare_size (pu,pl) <> GREATER 
-      then SOME (pu :: pl :: m, O (id,false)) 
-      else SOME (pl :: pu :: m, O (id,false))
-    end
-  | [a,b] :: m => 
-    if progl_compare_size ([a],[b]) <> GREATER 
-    then SOME ([a] :: [b] :: m, P false)
-    else SOME ([b] :: [a] :: m, P true)
-  | (p :: pl) :: m => 
-    if progl_compare_size ([p],pl) <> GREATER
-    then SOME ([p] :: pl :: m, Q) 
-    else SOME (pl :: [p] :: m, Q)
-
-fun invapp_move_noperm board = case board of
-    [] => NONE
-  | [Ins (id,argl)] :: m => 
-     SOME (map (fn x => [x]) (rev argl) @ m, O(id,false))
-  | _ => raise ERR "invapp_move_noperm" ""
-
-fun invapp_move board =
-  if no_perm then invapp_move_noperm board else invapp_move_perm board
+  | Ins (id,argl) :: m => SOME (rev argl @ m, id)
 
 fun linearize_aux acc board = case invapp_move board of
     SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
   | NONE => acc
 
-fun linearize p = linearize_aux [] [[p]]
+fun linearize p = linearize_aux [] [p]
 
 fun linearize_safe p = 
   let 
-    val l = linearize_aux [] [[p]]
+    val l = linearize p
     val movel = map snd l
-    val q = singleton_of_list (singleton_of_list (apply_movel movel []))
+    val q = singleton_of_list (apply_movel movel [])
   in
     if prog_compare (p,q) = EQUAL then l else
     raise ERR "linearize" (humanf p ^ " different from " ^ humanf q)
@@ -552,7 +346,7 @@ fun create_exl iprogl =
         val bml = linearize_safe p
         fun g (board,move) =
            let 
-             val newv = Vector.update (zerov, index_of_move move, 1.0)
+             val newv = Vector.update (zerov, move, 1.0)
              val newl = vector_to_list newv
            in
              (term_of_board board, newl)
@@ -680,7 +474,7 @@ fun player_wtnn tnn board =
     val rl = infer_tnn tnn [term_of_board board]
     val pol1 = Vector.fromList (snd (singleton_of_list rl))
     val amovel = available_movel board 
-    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move x))) amovel
+    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
   in
     (rewardf board, pol2)
   end
@@ -691,17 +485,14 @@ fun player_wtnn_cache_aux tnn board =
     val _ = if dlength (!embd) > 1000000
             then embd := dempty Term.compare else ()
     val tm = term_of_join board
-    val (_,preboarde) = Profile.profile "infer_emb_cache" 
-      (infer_emb_cache tnn) tm
+    val (_,preboarde) = (infer_emb_cache tnn) tm
       handle NotFound => 
         raise ERR "player_wtnn_cache1" (string_of_board board)
-    val prepolie = Profile.profile "fp_emb_either" 
-      (fp_emb_either tnn prepoli) [preboarde]
-    val ende =  Profile.profile "fp_emb_either" 
-      (fp_emb_either tnn head_poli) [prepolie]
+    val prepolie = fp_emb_either tnn prepoli [preboarde]
+    val ende = fp_emb_either tnn head_poli [prepolie]
     val pol1 = Vector.fromList (descale_out ende)
     val amovel = Profile.profile "available_movel" available_movel board
-    val pol2 = map (fn x => (x, Vector.sub (pol1, index_of_move  x))) amovel
+    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
   in
     (rewardf board, pol2)
   end
@@ -718,11 +509,6 @@ val player_glob = ref player_wtnn_cache
 
 fun mctsobj tnn = 
   {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
-
-fun tree_size tree = case tree of
-    Leaf => 0
-  | Node (node,ctreev) => 1 + 
-     sum_int (map (tree_size o #3) (vector_to_list ctreev))
 
 (* -------------------------------------------------------------------------
    Reinforcement learning loop utils
@@ -809,12 +595,6 @@ fun read_ctnn sl = case sl of
   | a :: m => read_ctnn m
 
 fun trainf tmpname =
-  if no_train then 
-    let val tnn = random_tnn (get_tnndim ()) in
-      write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
-      write_tnn (tnn_file (!ngen_glob)) tnn
-    end
-  else
   let 
     val isol = read_isol (!ngen_glob) 
     val _ = print_endline ("reading isol " ^ (its (length isol)))
@@ -825,7 +605,7 @@ fun trainf tmpname =
       let
         val tnnlog_file = tnn_file (!ngen_glob) ^ tmpname ^ "_C"
         val tnnsml_file = selfdir ^ "/tnn_in_c/out_sml"
-        val sbin = if !use_para then "./tree_para" else "./tree"
+        val sbin = "./tree"
         val _= 
           (
           print_endline "exporting training data";
@@ -866,8 +646,6 @@ fun wrap_trainf ngen tmpname =
      "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
      "rl.dim_glob := " ^ its (!dim_glob) ^ ";",
      "rl.use_mkl := " ^ bts (!use_mkl) ^ ";",
-     "rl.use_para := " ^ bts (!use_para) ^ ";",
-     "rl.use_ob := " ^ bts (!use_ob) ^ ";",
      "trainf " ^ mlquote tmpname];
      exec_script scriptfile
   end
@@ -879,9 +657,6 @@ fun wrap_trainf ngen tmpname =
 fun init_dicts () =
   (
   progd := eempty prog_compare;
-  notprogd := eempty prog_compare;
-  semxd := sempty;
-  semxyd := sempty;
   embd := dempty Term.compare;
   wind := dempty Int.compare
   )
@@ -911,13 +686,11 @@ fun search tnn coreid =
       ("target " ^ its seqname ^ ": " ^ string_of_seq (!target_glob));
     val _ = init_dicts ()
     val _ = in_search := true
-    val _ = avoid_lose := true
     val tree = starting_tree (mctsobj tnn) []
     val _ = print_endline "start search"
     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
     val _ = print_endline "end search"
     val n = tree_size newtree
-    val _ = avoid_lose := false
     val _ = in_search := false
     val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
@@ -925,7 +698,6 @@ fun search tnn coreid =
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
     print_endline ("tree_size: " ^ its n);
     print_endline ("progd: " ^ its (elength (!progd)));
-    print_endline ("notprogd: " ^ its (elength (!notprogd)));
     print_endline ("solutions: " ^ its (dlength (!wind)));
     dlist (!wind)
   end
@@ -942,8 +714,7 @@ val parspec : (tnn, int, (int * prog) list) extspec =
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.coreid_glob := " ^ its (!coreid_glob),
      "rl.dim_glob := " ^ its (!dim_glob),
-     "rl.time_opt := " ^ string_of_timeo (),
-     "rl.use_ob := " ^ bts (!use_ob)] 
+     "rl.time_opt := " ^ string_of_timeo ()] 
     ^ ")"),
   function = search,
   write_param = write_tnn,
@@ -1065,7 +836,7 @@ load "rl"; open rl;
 time_opt := SOME 60.0;
 use_mkl := true;
 maxgen := SOME 4;
-expname := "e-noperm";
+expname := "e-clean";
 rl_search "_main" 0;
 
 (* testing *)

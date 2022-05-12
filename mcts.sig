@@ -3,17 +3,8 @@ sig
 
   include Abbrev
 
-  (* outcome *)
-  datatype status = Undecided | Win | Lose
-  val is_undecided : status -> bool
-  val is_win : status -> bool
-  val is_lose : status -> bool
-  val string_of_status : status -> string
-  datatype search_status = Success | Saturated | Timeout
-
   (* search tree: 'a is a board position, 'b is a move *)
-  type 'a node =
-    {board : 'a, stati : status, status : status, sum : real, vis : real}
+  type 'a node = {board : 'a, sum : real, vis : real}
   datatype ('a,'b) tree =
     Leaf | Node of 'a node * ('b * real * ('a,'b) tree) vector
   val dest_node : ('a,'b) tree -> 'a node * ('b * real * ('a,'b) tree) vector
@@ -23,8 +14,6 @@ sig
   (* MCTS specification *)
   type ('a,'b) game =
     {
-    is_blocked : 'a -> bool,
-    status_of : 'a -> status,
     apply_move : 'b -> 'a -> 'a,
     available_movel : 'a -> 'b list,
     string_of_board : 'a -> string,
@@ -42,7 +31,6 @@ sig
     {time : real option, nsim : int option,
      explo_coeff : real,
      noise : bool, noise_coeff : real, noise_gen : unit -> real}
-  val avoid_lose : bool ref
 
   type ('a,'b) mctsobj =
     {mctsparam : mctsparam, game : ('a,'b) game, player : ('a,'b) player}
@@ -53,7 +41,7 @@ sig
 
   (* Statistics *)
   val most_visited_path : ('a,'b) tree -> ('a node * 'b option) list
-  val number_of_node : ('a,'b) tree -> int
+  val tree_size : ('a,'b) tree -> int
 
   (* toy example *)
   type toy_board = (int * int * int)

@@ -9,11 +9,9 @@ sig
   type 'a set = 'a Redblackset.set
   type ('a,'b) dict = ('a,'b) Redblackmap.dict
 
-  datatype move = O of int * bool | P of bool | Q
-  type board = prog list list
+  type move = int
+  type board = prog list
   type player = (board,move) mcts.player
-
-  val compute_freq : (prog -> prog list) -> prog list -> (prog * int) list
 
   (* globals *)
   val ncore : int ref
@@ -23,32 +21,25 @@ sig
 
   (* data *)
   val progd: prog set ref
-  val notprogd: prog set ref
   val embd : (term, real vector) dict ref
   val wind : (int, prog) dict ref
 
   (* game *)
   val game : (board,move) mcts.game
   
-  (* ordering constraints reordering arguments *)
-  val weak_ord : board -> bool
-  val strong_ord : board -> bool
-
   (* players *)
   val player_uniform : tnn -> player
   val player_wtnn : tnn -> player
   val player_wtnn_cache : tnn -> player
   val player_glob : (tnn -> player) ref
 
-  (* tracing solutions *)
- (* val stats_sol : string -> prog list -> unit *)
+  (* replaying solutions *)
   val linearize : prog -> (board * move) list
   val apply_movel : move list -> board -> board 
   val random_board : int -> board
   val random_prog : int -> prog
   
   (* search parameters *)
-  val use_ob : bool ref
   val wnoise_flag : bool ref
   val noise_coeff_glob : real ref
   val noise_flag : bool ref
@@ -58,7 +49,6 @@ sig
 
   (* train parameters *)
   val use_mkl : bool ref
-  val use_para : bool ref
   val dim_glob : int ref
   val get_tnndim : unit -> (term * int list) list
 

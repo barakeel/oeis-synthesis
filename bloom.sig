@@ -7,17 +7,7 @@ sig
   (* OEIS array *)
   val oseq : Arbint.int list option array
   
-  (* program quotient *)
-  datatype stree = 
-    Sleaf of prog * int list |
-    Sdict of (int, stree) Redblackmap.dict
-
-  exception Sexists
-  val sempty : stree
-  val sadd : prog * seq -> stree -> stree 
-  val snew : prog * seq -> stree -> bool * prog option
-
-  (* tree of OEIS sequences (todo change it to arbitrary precision) *)
+  (* tree of OEIS sequences *)
   datatype ttree = 
     Tleaf of int * Arbint.int list |
     Tdict of int list * (Arbint.int, ttree) Redblackmap.dict

@@ -13,42 +13,15 @@ open HolKernel Abbrev boolLib aiLib
 val ERR = mk_HOL_ERR "mcts"
 
 (* -------------------------------------------------------------------------
-   Status of the nodes and of the full search
-   ------------------------------------------------------------------------- *)
-
-datatype status = Undecided | Win | Lose
-fun is_win x = case x of Win => true | _ => false
-fun is_lose x = case x of Lose => true | _ => false
-fun is_undecided x = case x of Undecided => true | _ => false
-fun score_status status = case status of
-    Undecided => raise ERR "score_status" ""
-  | Win => 1.0
-  | Lose => 0.0
-fun string_of_status status = case status of
-    Win => "win"
-  | Lose => "lose"
-  | Undecided => "undecided"
-datatype search_status = Success | Saturated | Timeout
-
-(* -------------------------------------------------------------------------
    Search tree
    ------------------------------------------------------------------------- *)
 
-type 'a node =
-  {board : 'a, stati : status, status : status, sum : real, vis : real}
+type 'a node = {board : 'a, sum : real, vis : real}
 datatype ('a,'b) tree =
-   Leaf | Node of 'a node * ('b * real * ('a,'b) tree) vector
+  Leaf | Node of 'a node * ('b * real * ('a,'b) tree) vector
 fun dest_node x = case x of Node y => y | _ => raise ERR "dest_node" ""
 fun is_node x = case x of Node y => true | _ => false
 fun is_leaf x = case x of Leaf => true | _ => false
-
-fun is_treewin x = case x of Node ({status,...},_) => is_win status 
-                         | _ => false
-fun is_treelose x = case x of Node ({status,...},_) => is_lose status 
-                         | _ => false
-fun is_treeundecided x = case x of 
-    Node ({status,...},_) => is_undecided status 
-  | _ => false
 
 (* -------------------------------------------------------------------------
    MCTS specification
@@ -56,8 +29,6 @@ fun is_treeundecided x = case x of
 
 type ('a,'b) game =
   {
-  is_blocked : 'a -> bool,
-  status_of : 'a -> status,
   apply_move : 'b -> 'a -> 'a,
   available_movel : 'a -> 'b list,
   string_of_board : 'a -> string,
@@ -115,16 +86,11 @@ fun create_node obj board =
   let
     val game = #game obj
     val param = #mctsparam obj
-    val stati = (#status_of game) board
-     val (value,pol1) = case stati of
-        Win => (1.0,[])
-      | Lose => (0.0,[])
-      | Undecided => (#player obj) board
-    val status = if is_undecided stati andalso null pol1 then Lose else stati
+    val (value,pol1) = (#player obj) board
     val pol2 = normalize_prepol pol1
     val pol3 = if #noise param then add_noise param pol2 else pol2
   in
-    (Node ({stati=stati,status=status,board=board,sum=value,vis=1.0},
+    (Node ({board=board,sum=value,vis=1.0},
             Vector.fromList (map (fn (a,b) => (a,b,Leaf)) pol3)),
      value)
   end
@@ -135,16 +101,11 @@ fun starting_tree obj board = fst (create_node obj board)
    Score of a choice in a policy according to pUCT formula.
    ------------------------------------------------------------------------- *)
 
-val avoid_lose = ref false
-
 fun score_puct param sqvtot (move,polv,ctree) =
   let
     val (sum,vis) = case ctree of
       Leaf => (0.0,0.0)
-    | Node (cnode,_) =>  
-      if !avoid_lose andalso is_lose (#status cnode)
-      then (Real.negInf, 0.0)
-      else (#sum cnode, #vis cnode)
+    | Node (cnode,_) => (#sum cnode, #vis cnode)
   in
     (sum + #explo_coeff param * polv * sqvtot) / (vis + 1.0)
   end
@@ -157,43 +118,21 @@ fun rebuild_tree reward buildl tree = case buildl of
     [] => tree
   | build :: m => rebuild_tree reward m (build reward tree)
 
-
 fun select_child obj buildl (node,cv) =
   let
     val param = #mctsparam obj
-    val stati2 = 
-      if #is_blocked (#game obj) (#board node) then Lose else #stati node
-    fun update_node_bare reward {stati,status,board,sum,vis} =
-      {stati=stati2, status=stati2, 
-       board=board, sum=sum+reward, vis=vis+1.0}
-    fun update_node cfuture ctreev reward {stati,status,board,sum,vis} =
-      let val newstatus = case status of Undecided =>
-        (if is_treeundecided cfuture then status
-         else if is_treewin cfuture then Win 
-         else if Vector.all (is_treelose o #3) ctreev then Lose 
-         else status)
-        | _ => status
-      in
-       {stati=stati, status=newstatus, 
-        board=board, sum=sum+reward, vis=vis+1.0}
-      end
+    fun update_node reward {board,sum,vis} =
+      {board=board, sum=sum+reward, vis=vis+1.0}     
   in
-    if not (is_undecided stati2)
-    then
-      let val reward = score_status stati2 in
-        rebuild_tree reward buildl (Node (update_node_bare reward node,cv))
-      end
-    else
     let
       val _ = if Vector.length cv = 0
         then raise ERR "no move available" "" else ()
-      val sqrttot = Math.sqrt (#vis node)
-      val scoref = score_puct param sqrttot
+      val scoref = score_puct param (Math.sqrt (#vis node))
       val ci = vector_maxi scoref cv
       val (cmove,cpol,ctree) = Vector.sub (cv,ci)
       fun build reward cfuture =
         let val ctreev = Vector.update (cv,ci,(cmove,cpol,cfuture)) in
-          Node (update_node cfuture ctreev reward node,ctreev)
+          Node (update_node reward node,ctreev)
         end
       val newbuildl = build :: buildl
     in
@@ -241,16 +180,14 @@ fun mcts obj starttree =
    Statistics
    ------------------------------------------------------------------------- *)
 
+fun tree_size tree = case tree of
+    Leaf => 0
+  | Node (node,ctreev) => 1 + 
+     sum_int (map (tree_size o #3) (vector_to_list ctreev))
+
 fun score_visit (move,polv,ctree) = case ctree of
       Leaf => 0.0
     | Node (cnode,_) => (#vis cnode)
-
-fun number_of_node tree = case tree of
-    Leaf => 0
-  | Node (node,cv) =>
-    let fun f (cmove,_,ctree) = number_of_node ctree in
-      1 + sum_int (vector_to_list (Vector.map f cv))
-    end
 
 fun most_visited_path tree = case tree of
     Leaf => []
@@ -271,11 +208,6 @@ fun most_visited_path tree = case tree of
 type toy_board = (int * int * int)
 datatype toy_move = Incr | Decr
 
-fun toy_status_of (start,finish,timer) =
-  if start >= finish then Win
-  else if start < 0 orelse timer <= 0 then Lose
-  else Undecided
-
 val toy_movel = [Incr,Decr]
 fun toy_available_movel board = [Incr,Decr]
 fun toy_string_of_move x = case x of Incr => "Incr" | Decr => "Decr"
@@ -286,8 +218,6 @@ fun toy_apply_move move (start,finish,timer) = case move of
 
 val toy_game =
   {
-  is_blocked = (fn x => false),
-  status_of = toy_status_of,
   apply_move = toy_apply_move,
   available_movel = toy_available_movel,
   string_of_board = (fn (a,b,c) => (its a ^ " " ^ its b ^ " " ^ its c)),
@@ -304,14 +234,14 @@ load "aiLib"; open aiLib;
 load "mcts"; open mcts;
 
 val mctsparam =
-  {time = (NONE : real option), nsim = (SOME 1000000 : int option),
+  {time = (NONE : real option), nsim = (SOME 100 : int option),
    explo_coeff = 2.0,
-   noise = false, noise_coeff = 0.25, noise_gen = gamma_noise_gen 0.2};
+   noise = false, noise_coeff = 0.25, noise_gen = aiLib.random_real};
 
 val mctsobj : (toy_board,toy_move) mctsobj =
   {mctsparam = mctsparam, game = toy_game, player = random_player toy_game};
 
-val tree = starting_tree mctsobj (500,1000,1000);
+val tree = starting_tree mctsobj (5,10,10);
 PolyML.print_depth 2;
 val (newtree,t) = add_time (mcts mctsobj) tree;
 PolyML.print_depth 40;

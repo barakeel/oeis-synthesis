@@ -7,21 +7,6 @@ val ERR = mk_HOL_ERR "kernel";
 val selfdir = dir.selfdir 
 
 (* -------------------------------------------------------------------------
-   Globals
-   ------------------------------------------------------------------------- *)
-
-val maxinput = 128
-val rt_glob = ref (Timer.startRealTimer ())
-val overflow = valOf (Int.maxInt)
-
-(* -------------------------------------------------------------------------
-   Types
-   ------------------------------------------------------------------------- *)
-
-type exec = int * int -> int
-type oper = exec list -> exec
-
-(* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
 
@@ -43,25 +28,15 @@ fun raw_prog (Ins (id,pl)) =
   "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
-
-fun prog_size (Ins(s,pl)) = case pl of
-    [] => 1
-  | [a] => 1 + prog_size a
-  | [a,b] => 1 + prog_size a + prog_size b
-  | _ => (length pl - 1) + sum_int (map prog_size pl) 
-
+fun prog_size (Ins(s,pl)) = 1 + sum_int (map prog_size pl)
 fun prog_compare_size (p1,p2) =
   cpl_compare Int.compare prog_compare ((prog_size p1,p1),(prog_size p2,p2))
 
-fun progl_size pl = case pl of
-    [] => raise ERR "progl_size" ""
-  | _ => (length pl - 1) + sum_int (map prog_size pl)
-
-fun progl_compare_size (pl1,pl2) =
-  triple_compare Int.compare Int.compare (list_compare prog_compare)  
-  ((progl_size pl1, length pl1, pl1),(progl_size pl2, length pl2, pl2))
-
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
+
+(* -------------------------------------------------------------------------
+   Storing programs
+   ------------------------------------------------------------------------- *)
 
 local open HOLsexp in
 fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
@@ -73,7 +48,6 @@ end
 
 fun write_progl file r = write_data enc_progl file r
 fun read_progl file = read_data dec_progl file
-
 
 local open HOLsexp in
 val enc_iprog = pair_encode (Integer, enc_prog)
@@ -89,7 +63,6 @@ fun read_iprogl file = read_data dec_iprogl file
    Instructions
    ------------------------------------------------------------------------- *)
 
-(* id should correspond with index in  operv *)
 val zero_id = 0
 val one_id = 1
 val two_id = 2
@@ -145,164 +118,13 @@ val operav = Vector.map arity_of operv
 fun arity_of_oper i = arity_of (Vector.sub (operv,i))
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
-(* time limit *)
+(* -------------------------------------------------------------------------
+   Timer
+   ------------------------------------------------------------------------- *)
+
 exception ProgTimeout;
-val timelimitarb = ref 0.001;
-val timelimit = 1000000;
-val counter = ref 0;
-fun test f x = 
-  if !counter > timelimit 
-  then raise ProgTimeout 
-  else (incr counter; f x)
+val rt_glob = ref (Timer.startRealTimer ())
+val timelimit = ref 0.001
 
-(* wrappers *)
-fun mk_nullf opf fl = case fl of
-   [] => (fn x => (test opf x))
-  | _ => raise ERR "mk_nullf" ""
-
-fun mk_unf opf fl = case fl of
-   [f1] => (fn x => (test opf (f1 x)))
-  | _ => raise ERR "mk_unf" ""
-
-fun mk_binf opf fl = case fl of
-   [f1,f2] => (fn x => (test opf (f1 x, f2 x)))
-  | _ => raise ERR "mk_binf" ""
-
-fun mk_ternf opf fl = case fl of
-   [f1,f2,f3] => (fn x => (test opf (f1 x, f2 x, f3 x)))
-  | _ => raise ERR "mk_ternf" ""
-
-fun mk_binf1 opf fl = case fl of
-   [f1,f2] => (fn x => (test opf (f1, f2 x)))
-  | _ => raise ERR "mk_binf1" ""
-
-fun mk_ternf1 opf fl = case fl of
-   [f1,f2,f3] => (fn x => (test opf (f1, f2 x, f3 x)))
-  | _ => raise ERR "mk_ternf1" ""
-
-fun mk_quintf2 opf fl = case fl of
-   [f1,f2,f3,f4,f5] => 
-   (fn x => (test opf (f1, f2, f3 x, f4 x, f5 x)))
-  | _ => raise ERR "mk_quintf2" ""
-
-(* first-order *)
-val zero_f = mk_nullf (fn _ => 0)
-val one_f = mk_nullf (fn _ => 1)
-val two_f = mk_nullf (fn _ => 2)
-val x_f = mk_nullf (fn (x,y) => x)
-val y_f = mk_nullf (fn (x,y) => y)
-val addi_f = mk_binf (op +)
-val diff_f = mk_binf (op -)
-val mult_f = mk_binf (op *)
-val divi_f = mk_binf (op div)
-val modu_f = mk_binf (op mod)
-fun cond_f_aux (a,b,c) = if a <= 0 then b else c
-val cond_f = mk_ternf cond_f_aux
-
-(* higher-order *)
-fun loop_f_aux i f n x = 
-  if n <= 0 then x else loop_f_aux (i+1) f (n-1) (f (x,i))
-fun loop_f_aux2 (f,n,x) = loop_f_aux 1 f n x
-val loop_f = mk_ternf1 loop_f_aux2
-
-fun compr_f_aux x f n0 n =
-   (* if x > (n0+1)*(n0+1)*256 then raise Div else *) 
-   if f (x,0) <= 0 then 
-   (if n0 >= n then x else compr_f_aux (x+1) f (n0+1) n)
-  else compr_f_aux (x+1) f n0 n
-fun compr_f_aux2 (f,n) = compr_f_aux 0 f 0 n
-val compr_f = mk_binf1 compr_f_aux2
-
-fun loop2_f_aux f1 f2 n x1 x2 = 
-  if n <= 0
-  then x1 
-  else loop2_f_aux f1 f2 (n-1) (f1 (x1,x2)) (f2 (x1,x2))
-fun loop2_f_aux2 (f1,f2,n,x1,x2) = loop2_f_aux f1 f2 n x1 x2
-val loop2_f = mk_quintf2 loop2_f_aux2
-
-val base_execl =
-  [
-  zero_f,
-  one_f,
-  two_f,
-  addi_f,
-  diff_f,
-  mult_f,
-  divi_f,
-  modu_f,
-  cond_f,
-  loop_f,
-  x_f,
-  y_f,
-  compr_f,
-  loop2_f
-  ]
-
-val base_execv = Vector.fromList base_execl
-
-(* -------------------------------------------------------------------------
-   Possible inputs
-   ------------------------------------------------------------------------- *)
-
-val entrylx = List.tabulate (maxinput,fn x => (x,0))
-
-fun double_one l = 
-  if null l then [] else
-  let val (x,y) = last l in
-     List.tabulate (x + 1, fn i => (x + i + 1, y))
-  end;
-
-fun double_all n x = 
-  if n <= 0 then x else
-  x @ double_all (n-1) ((map double_one x) @ [[(0,length x)]])
-
-val logmaxinput = 
-  Real.round (Math.ln (Real.fromInt maxinput) / Math.ln 2.0);
-
-val entrylxy = List.concat (double_all logmaxinput []);
-
-(* -------------------------------------------------------------------------
-   Check that a functions dependent on y syntactically actually depends
-   on y semantically.
-   ------------------------------------------------------------------------- *)
-
-fun semdep_on_y_aux d l = case l of
-    [] => false
-  | ((x,_),fxy) :: m => 
-    let val oldfxyo = SOME (dfind x d) handle NotFound => NONE in
-      case oldfxyo of
-        NONE => semdep_on_y_aux (dadd x fxy d) m
-      | SOME oldfxy => oldfxy <> fxy orelse semdep_on_y_aux d m
-    end
-
-fun semdep_on_y l = semdep_on_y_aux (dempty Int.compare) l
-
-(* -------------------------------------------------------------------------
-   Execute a program on some input
-   ------------------------------------------------------------------------- *)
-
-fun mk_exec (Ins (id,pl)) =
-  Vector.sub (base_execv,id) (map mk_exec pl)
-
-fun semo_of_prog b entryl p =
-  let
-    val _ = counter := 0
-    val f = mk_exec p
-    fun loop l = case l of 
-        [] => []
-      | a :: m =>
-         let val (z,cont) = ((a,f a), fn x => x :: loop m) 
-           handle Overflow => ((a,overflow), fn x => [x])
-                | ProgTimeout => ((a,0), fn x => [])
-         in
-           cont z
-         end  
-    val r = loop entryl
-  in
-    if not b then SOME (map snd r,!counter)
-    else if semdep_on_y r then SOME (map snd r,!counter) 
-    else NONE 
-  end   
-  handle Div => NONE | ProgTimeout => NONE
 
 end (* struct *)
