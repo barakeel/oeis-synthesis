@@ -11,16 +11,16 @@ val ERR = mk_HOL_ERR "rl"
    Globals
    ------------------------------------------------------------------------- *)
 
-val use_mkl = ref false (* intel mkl: faster training *)
+val use_mkl = ref true (* intel mkl: faster training *)
 val dim_glob = ref 64
 val ncore = ref 16
-val ntarget = ref 64 (* targets per generation *)
+val ntarget = ref 64 * 2 (* targets per generation *)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref (NONE)
-val time_opt = ref (SOME 60.0)
+val time_opt = ref (SOME 30.0)
 
 (* -------------------------------------------------------------------------
    Utils
@@ -775,7 +775,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 10000"
+    val _ = buildheap_options := "--maxheap 12000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -827,16 +827,12 @@ end (* struct *)
 (* training *)
 load "rl"; open rl;
 expname := "run308";
-time_opt := SOME 120.0;
-use_mkl := true;
 rl_search "_main" 0;
 
 (* experiments *)
 load "rl"; open rl;
-time_opt := SOME 60.0;
-use_mkl := true;
-maxgen := SOME 4;
-expname := "e-clean";
+maxgen := SOME 2;
+expname := "e-clean3";
 rl_search "_main" 0;
 
 (* testing *)

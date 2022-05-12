@@ -308,7 +308,7 @@ fun humani ntop p =
   end
 
 (*
-load "mcts"; open aiLib kernel mcts;
+load "rl"; open aiLib kernel rl;
 let val p = random_prog 20 in 
   print_endline (humanf p ^ "\n"); 
   print_endline (humani p) 
