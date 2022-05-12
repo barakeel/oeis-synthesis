@@ -866,4 +866,4 @@ val bml = linearize p;
 val board = apply_movel (map snd bml) [];
 
 
-*
+*)
