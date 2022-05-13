@@ -14,7 +14,7 @@ val ERR = mk_HOL_ERR "rl"
 val use_mkl = ref true
 val dim_glob = ref 64
 val ncore = ref 20
-val ntarget = ref (20 * 60)
+val ntarget = ref (20 * 5)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
@@ -829,13 +829,17 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run309";
+expname := "run310";
 rl_search "_main" 0;
 
 (* experiments *)
 load "rl"; open rl;
-maxgen := SOME 2;
-expname := "e-clean4";
+maxgen := SOME 4;
+expname := "e-noise1";
+rl_search "_main" 0;
+expname := "e-noise2";
+rl_search "_main" 0;
+expname := "e-noise3";
 rl_search "_main" 0;
 
 (* testing *)
