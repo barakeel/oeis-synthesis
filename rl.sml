@@ -13,17 +13,17 @@ val ERR = mk_HOL_ERR "rl"
 
 val use_mkl = ref true
 val dim_glob = ref 64
-val ncore = ref 20
-val ntarget = ref (20 * 5)
+val ncore = ref 16
+val ntarget = ref 160
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref NONE
-val time_opt = ref (SOME 120.0)
+val time_opt = ref (SOME 600.0)
 
 (* experiments *)
-val randsol_flag = true
+val randsol_flag = false
 val randmin_flag = false
 
 (* -------------------------------------------------------------------------
@@ -164,27 +164,24 @@ fun merge_isol isol =
    ------------------------------------------------------------------------- *)
 
 fun exec_fun p plb =
-  (if !in_search then eaddi p progd else (); p :: plb)
+  (if !in_search then eaddi p progd else (); SOME (p :: plb))
 
-fun apply_move move board =
-  let val (l1,l2) = part_n (arity_of_oper move) board in
-    exec_fun (Ins (move, rev l1)) l2 
+fun apply_moveo move board =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then NONE 
+    else exec_fun (Ins (move, rev l1)) l2 
   end
 
 (* -------------------------------------------------------------------------
    Available moves
    ------------------------------------------------------------------------- *)
 
-fun available_movel board = 
-  filter 
-    (fn move =>
-     let 
-       val arity = arity_of_oper move
-       val l1 = first_n arity board 
-      in
-       length l1 = arity
-     end) 
-  movelg
+fun available_movel board =
+  filter (fn move => isSome (apply_moveo move board)) movelg
 
 (* -------------------------------------------------------------------------
    For debugging
@@ -800,7 +797,7 @@ fun rl_search_only tmpname ngen =
     val (iprogll,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
-    val _ = log ("solutions for each core:")
+    val _ = log ("solutions for each search:")
     val _ = log (String.concatWith " " (map (its o length) iprogll))
     val newisol = merge_isol (List.concat (isol :: iprogll))
   in
@@ -847,11 +844,7 @@ rl_search "_main" 0;
 (* experiments *)
 load "rl"; open rl;
 maxgen := SOME 4;
-expname := "e-noise1";
-rl_search "_main" 0;
-expname := "e-noise2";
-rl_search "_main" 0;
-expname := "e-noise3";
+expname := "e-randsol";
 rl_search "_main" 0;
 
 (* testing *)
