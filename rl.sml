@@ -176,6 +176,8 @@ fun apply_moveo move board =
     else exec_fun (Ins (move, rev l1)) l2 
   end
 
+fun apply_move move board = valOf (apply_moveo move board)
+
 (* -------------------------------------------------------------------------
    Available moves
    ------------------------------------------------------------------------- *)
@@ -787,7 +789,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 10000"
+    val _ = buildheap_options := "--maxheap 12000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -838,7 +840,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run310";
+expname := "run311";
 rl_search "_main" 0;
 
 (* experiments *)
