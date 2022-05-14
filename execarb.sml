@@ -92,9 +92,7 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
-val a256 = fromInt 256
 fun compr_f_aux x f n0 n =
-   (* if x > (n0+one)*(n0+one)*a256 then raise Div else *)
    if f (x,zero) <= zero then 
    (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
   else compr_f_aux (x+one) f n0 n
