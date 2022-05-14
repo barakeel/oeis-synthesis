@@ -22,6 +22,10 @@ val noise_coeff_glob = ref 0.1
 val nsim_opt = ref NONE
 val time_opt = ref (SOME 120.0)
 
+(* experiments *)
+val randsol_flag = true
+val randmin_flag = false
+
 (* -------------------------------------------------------------------------
    Utils
    ------------------------------------------------------------------------- *)
@@ -129,9 +133,17 @@ fun update_wind_one d (anum,p) =
   case (SOME (dfind anum (!d)) handle NotFound => NONE) of 
     NONE => d := dadd anum p (!d)
   | SOME oldp =>
-    if prog_compare_size (p,oldp) = LESS
-    then d := dadd anum p (!d)
-    else ()     
+    if randsol_flag then
+      (if random_real () > 0.5 then d := dadd anum p (!d) else ())
+    else if randmin_flag then 
+      (case Int.compare (prog_size p, prog_size oldp) of
+          LESS => d := dadd anum p (!d)
+        | EQUAL => if random_real () > 0.5 then d := dadd anum p (!d) else ()
+        | GREATER => ())  
+    else 
+      (if prog_compare_size (p,oldp) = LESS
+       then d := dadd anum p (!d)
+       else ())     
 
 fun update_wind_glob p =
   let
