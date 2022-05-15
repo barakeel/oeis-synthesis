@@ -92,12 +92,46 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
+
+val compr_cache = ref []
+
+fun find_cache (f,a) l = case l of
+    [] => NONE
+  | (g,d) :: m => if PolyML.pointerEq (f,g) 
+                  then (SOME (dfind a (!d)) handle NotFound => NONE)
+                  else find_cache (f,a) m
+  
+fun add_cache (f,a) r l = case l of
+    [] => compr_cache := (f,ref (dnew Arbint.compare [(a,r)])) :: !compr_cache
+  | (g,d) :: m => if PolyML.pointerEq (f,g) 
+                  then d := dadd a r (!d)
+                  else add_cache (f,a) r m
+
+
+fun next_f f x = if f (x,zero) <= zero then x else next_f f (x+one)
+fun compr_f_aux (f,a) = 
+  if a < zero then raise Div else
+    (case find_cache (f,a) (!compr_cache) of
+      SOME r => r
+    | NONE => 
+      let val r = if a = zero 
+                  then next_f f zero 
+                  else next_f f (compr_f_aux (f, a - one) + one)
+      in
+        add_cache (f,a) r (!compr_cache); r
+      end
+    )
+val compr_f = mk_binf1 compr_f_aux
+
+(* 
 fun compr_f_aux x f n0 n =
    if f (x,zero) <= zero then 
    (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
   else compr_f_aux (x+one) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
 val compr_f = mk_binf1 compr_f_aux2
+*)
+
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= zero then x1 else 
   loop2_f_aux f1 f2 (n-one) (f1 (x1,x2)) (f2 (x1,x2))
@@ -137,9 +171,9 @@ val base_execv = Vector.fromList base_execl
 fun mk_execarb (Ins (id,pl)) =
   Vector.sub (base_execv,id) (map mk_execarb pl)
 
-fun find_wins p = 
-  if depend_on_y p then [] else
+fun find_wins p =
   (
+  compr_cache := [];
   skip_counter := 0;
   rt_glob := Timer.startRealTimer (); 
   tcover (mk_execarb p)
@@ -150,9 +184,16 @@ end (* struct *)
 (* 
 load "bloom"; load "execarb";  
 open bloom execarb kernel;
-val p = Ins (10,[]);
-val f = ;
-val winl =  f;
+
+open Arbint;
+fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
+fun is_prime (x,y) = (arb_pow two (x + one) - one) mod (x + two);
+
+no_cache := false;
+fun g a = compr_f_aux (is_prime,a);
+
+time List.tabulate (69, fn x => g (fromInt x) + two);
+
 *)
 
 

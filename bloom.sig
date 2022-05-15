@@ -13,6 +13,7 @@ sig
     Tdict of int list * (Arbint.int, ttree) Redblackmap.dict
   val tempty : ttree
   val tadd : Arbint.int list * int -> ttree -> ttree
+  val trem : Arbint.int list * int -> ttree -> ttree
   val tcover : (Arbint.int * Arbint.int -> Arbint.int) -> int list
   val ost : ttree
 

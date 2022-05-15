@@ -133,17 +133,9 @@ fun update_wind_one d (anum,p) =
   case (SOME (dfind anum (!d)) handle NotFound => NONE) of 
     NONE => d := dadd anum p (!d)
   | SOME oldp =>
-    if randsol_flag then
-      (if random_real () > 0.5 then d := dadd anum p (!d) else ())
-    else if randmin_flag then 
-      (case Int.compare (prog_size p, prog_size oldp) of
-          LESS => d := dadd anum p (!d)
-        | EQUAL => if random_real () > 0.5 then d := dadd anum p (!d) else ()
-        | GREATER => ())  
-    else 
-      (if prog_compare_size (p,oldp) = LESS
-       then d := dadd anum p (!d)
-       else ())     
+    if prog_compare_size (p,oldp) = LESS
+    then d := dadd anum p (!d)
+    else ()
 
 fun update_wind_glob p =
   let
@@ -164,7 +156,9 @@ fun merge_isol isol =
    ------------------------------------------------------------------------- *)
 
 fun exec_fun p plb =
-  (if !in_search then eaddi p progd else (); SOME (p :: plb))
+  (if !in_search andalso not (depend_on_y p)
+   then eaddi p progd else (); 
+   SOME (p :: plb))
 
 fun apply_moveo move board =
   let 
@@ -840,7 +834,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run311";
+expname := "run312";
 rl_search "_main" 0;
 
 (* experiments *)
