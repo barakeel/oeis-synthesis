@@ -77,12 +77,11 @@ fun tremove (seq,an) st = case (st,seq) of
          | SOME newst => SOME (Tdict (anl, dadd a1 (tadd (m1,an) newst) d))
         )
     end
-*)
 
 fun trem (seq,an) st = case tremove (seq,an) st of
     NONE => tempty
   | SOME st => st
-
+*)
 
 fun taddo (i,seqo,st) = 
   case seqo of NONE => st | SOME seq => tadd (seq,i) st
@@ -105,7 +104,7 @@ fun tcover_aux f i st = case st of
   | Tleaf (an2,a2 :: m2) => 
     if f (i,zero) = a2 
     then 
-      (incr_timer ();
+      (incr_timer (toInt i);
        tcover_aux f (i + one) (Tleaf (an2,m2))) 
     else ()
   | Tdict (anl,d) =>
