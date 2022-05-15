@@ -93,7 +93,7 @@ val ost = Array.foldli taddo tempty oseq
    ------------------------------------------------------------------------- *)
 
 val anlref = ref []
-val timeincr = 0.0005
+val timeincr = 0.00001
 fun incr_timer i = 
   timelimit := (Real.fromInt (i+1) * !timelimit) + timeincr
 

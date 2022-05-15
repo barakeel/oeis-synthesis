@@ -30,10 +30,7 @@ val skip_large_counter = ref 0
 fun test f x =
   let val y = f x in
     if large_arb y then raise ProgTimeout
-    else if large_int y then 
-      if !skip_large_counter > 10
-      then (skip_large_counter := 0; test_aux y) 
-      else incr skip_large_counter
+    else if large_int y then test_aux y
     else 
       if !skip_counter > 1000 
       then (skip_counter := 0; test_aux y) 
