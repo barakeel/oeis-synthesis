@@ -178,9 +178,10 @@ fun find_wins p =
   (
   compr_cache := [];
   skip_counter := 0;
-  skip_large_counter := 0;
   rt_glob := Timer.startRealTimer (); 
-  tcover (mk_execarb p)
+  let val r = tcover (mk_execarb p) in
+    compr_cache := []; r
+  end
   )
 
 end (* struct *)
