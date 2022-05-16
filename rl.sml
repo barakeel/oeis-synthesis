@@ -672,6 +672,25 @@ fun init_dicts () =
 
 val wnoise_flag = ref false
 
+fun commute p = case p of
+    Ins (3,[p1,p2]) => 
+    let 
+      val (p1',p2') = (commute p1, commute p2)
+      val a1 = Ins (3,[p1',p2'])
+      val a2 = Ins (3,[p2',p1'])
+    in
+      if prog_compare_size (a1,a2) = LESS then a1 else a2
+    end  
+  | Ins (5,[p1,p2]) => 
+    let 
+      val (p1',p2') = (commute p1, commute p2)
+      val a1 = Ins (5,[p1',p2'])
+      val a2 = Ins (5,[p2',p1'])
+    in
+      if prog_compare_size (a1,a2) = LESS then a1 else a2
+    end  
+  | Ins (id,pl) => Ins (id, map commute p)
+
 fun search tnn coreid =
   let
     val _ = print_endline "initialization"
@@ -697,7 +716,11 @@ fun search tnn coreid =
     val _ = print_endline "end search"
     val n = tree_size newtree
     val _ = in_search := false
-    val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
+    val progcoml = map commute (elist (!progd))
+    val (progset,t3) = add_time (mk_fast_set prog_compare) progcoml
+    val _ = print_endline ("prog_com: "  ^ rts_round 2 t3 ^ " seconds" ^ " " ^
+      its (length progset))
+    val (_,t2) = add_time (app update_wind_glob) progset
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
     val r = dlist (!wind)
   in
@@ -834,7 +857,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run318";
+expname := "run319";
 rl_search "_main" 0;
 
 (* experiments *)

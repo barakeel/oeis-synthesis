@@ -144,29 +144,30 @@ val base_execv = Vector.fromList base_execl
 val cmp_cache = cpl_compare Arbint.compare prog_compare
 val compr_cache = ref (dempty cmp_cache)
 
+(* todo: first argument is enough in the cache *)
 local open Arbint in
-  fun mk_execarb (p as Ins (id,pl)) a =
-    if id = 12 then 
+  fun mk_execarb p a = case p of
+    Ins (12,[p1,p2]) => 
       (
       ignore (test I zero);
       let 
-        val (f1,f2) = pair_of_list (map mk_execarb pl) 
+        val (f1,f2) = (mk_execarb p1, mk_execarb p2) 
         val xtop = f2 a
         fun loop x = 
           if x < zero then raise Div else
           if x = zero then next_f f1 zero else 
-            (dfind (x,p) (!compr_cache) handle NotFound => 
+            (dfind (x,p1) (!compr_cache) handle NotFound => 
              next_f f1 (loop (x - one) + one))
         val b = loop xtop  
       in
         if Int.>= (dlength (!compr_cache), 128) 
         then compr_cache := dempty cmp_cache
         else ();
-        compr_cache := dadd (xtop,p) b (!compr_cache);
+        compr_cache := dadd (xtop,p1) b (!compr_cache);
         b
       end
       )
-    else Vector.sub (base_execv,id) (map mk_execarb pl) a
+    | Ins (id,pl) => Vector.sub (base_execv,id) (map mk_execarb pl) a
 end
 
 fun find_wins p =
