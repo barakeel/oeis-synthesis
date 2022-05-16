@@ -95,46 +95,15 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
-val compr_cache = ref []
-
-fun find_cache (f,a) l = case l of
-    [] => NONE
-  | (f',a',b') :: m => 
-    if PolyML.pointerEq (f,f') then 
-      if a = a' then SOME b' else NONE
-    else find_cache (f,a) m
-
-fun upd_cache acc (f,a,b) l = case l of
-    [] => compr_cache := (f,a,b) :: acc
-  | (f',a',b') :: m => 
-    if PolyML.pointerEq (f,f') then 
-      if a > a' then compr_cache := (f,a,b) :: (acc @ m) else () 
-    else upd_cache ((f',a',b') :: acc) (f,a,b) m
-
+(* *)
 fun next_f f x = if f (x,zero) <= zero then x else next_f f (x+one)
 
-fun compr_f_aux (f,a) = 
+fun compr_f_aux (f,a) =
   if a < zero then raise Div else
-    (case find_cache (f,a) (!compr_cache) of
-      SOME b => b
-    | NONE => 
-      let val newb = if a = zero 
-                  then next_f f zero 
-                  else next_f f (compr_f_aux (f, a - one) + one)
-      in
-        upd_cache [] (f,a,newb) (!compr_cache); newb
-      end)
+  if a = zero then next_f f zero else
+  next_f f (compr_f_aux (f, a - one) + one)
 
 val compr_f = mk_binf1 compr_f_aux
-
-(* 
-fun compr_f_aux x f n0 n =
-   if f (x,zero) <= zero then 
-   (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
-  else compr_f_aux (x+one) f n0 n
-fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
-val compr_f = mk_binf1 compr_f_aux2
-*)
 
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= zero then x1 else 
@@ -172,29 +141,67 @@ val base_execv = Vector.fromList base_execl
    Execute a program on some input
    ------------------------------------------------------------------------- *)
 
-fun mk_execarb (Ins (id,pl)) =
-  Vector.sub (base_execv,id) (map mk_execarb pl)
+val cmp_cache = cpl_compare Arbint.compare prog_compare
+val compr_cache = ref (dempty cmp_cache)
+
+local open Arbint in
+  fun mk_execarb (p as Ins (id,pl)) a =
+    if id = 12 then 
+      (
+      ignore (test I zero);
+      let 
+        val (f1,f2) = pair_of_list (map mk_execarb pl) 
+        val xtop = f2 a
+        fun loop x = 
+          if x < zero then raise Div else
+          if x = zero then next_f f1 zero else 
+            (dfind (x,p) (!compr_cache) handle NotFound => 
+             next_f f1 (loop (x - one) + one))
+        val b = loop xtop  
+      in
+        compr_cache := dadd (xtop,p) b (!compr_cache); 
+        b
+      end
+      )
+    else Vector.sub (base_execv,id) (map mk_execarb pl) a
+end
 
 fun find_wins p =
   (
-  compr_cache := [];
+  compr_cache := dempty cmp_cache;
   skip_counter := 0;
   rt_glob := Timer.startRealTimer (); 
   let val r = tcover (mk_execarb p) in
-    compr_cache := []; r
+    compr_cache := dempty cmp_cache; r
   end
   )
 
 end (* struct *)
 
 (* 
-load "bloom"; load "execarb";  
-open bloom execarb kernel;
+load "bloom"; load "execarb"; load "human";
+open bloom execarb kernel human aiLib;
+
+val p = Ins (12,[Ins (7, [Ins (10,[]),Ins(2,[])]), Ins (10,[])]);
+humanf p;
+val cmp_cache = cpl_compare Arbint.compare prog_compare; 
+compr_cache := dempty cmp_cache;
+rt_glob := Timer.startRealTimer ();
+time (mk_execarb p) (Arbint.fromInt 10, Arbint.one);
+time (mk_execarb p) (Arbint.fromInt 1001, Arbint.one);
+time (mk_execarb p) (Arbint.fromInt 1500, Arbint.one);
+aiLib.dlist (!compr_cache);
+
+
 
 open Arbint;
 fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
 fun is_prime (x,y) = (arb_pow two (x + one) - one) mod (x + two);
 fun g a = compr_f_aux (is_prime,a);
+
+
+
+
 time List.tabulate (69, fn x => g (fromInt x) + two);
 
 *)

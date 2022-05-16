@@ -10,9 +10,9 @@ val selfdir = dir.selfdir
    Sequences
    ------------------------------------------------------------------------- *)
 
-type seq = int list
-val seq_compare = list_compare Int.compare
-fun string_of_seq il = String.concatWith " " (map its il)
+type seq = Arbint.int list
+val seq_compare = list_compare Arbint.compare
+fun string_of_seq il = String.concatWith " " (map Arbint.toString il)
 
 (* -------------------------------------------------------------------------
    Program

@@ -6,7 +6,7 @@ sig
   val selfdir : string 
   
   (* sequences *)
-  type seq = int list
+  type seq = Arbint.int list
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
  
