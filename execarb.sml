@@ -159,7 +159,10 @@ local open Arbint in
              next_f f1 (loop (x - one) + one))
         val b = loop xtop  
       in
-        compr_cache := dadd (xtop,p) b (!compr_cache); 
+        if Int.>= (dlength (!compr_cache), 128) 
+        then compr_cache := dempty cmp_cache
+        else ();
+        compr_cache := dadd (xtop,p) b (!compr_cache);
         b
       end
       )
