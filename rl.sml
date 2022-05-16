@@ -834,7 +834,7 @@ end (* struct *)
 
 (* training *)
 load "rl"; open rl;
-expname := "run315";
+expname := "run316";
 rl_search "_main" 0;
 
 (* experiments *)

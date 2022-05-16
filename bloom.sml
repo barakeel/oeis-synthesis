@@ -94,17 +94,16 @@ val ost = Array.foldli taddo tempty oseq
 
 val anlref = ref []
 val timeincr = 0.00005
-fun incr_timer i = 
-  timelimit := !timelimit + (Real.fromInt (i+1) * timeincr)
+fun incr_timer () = timelimit := !timelimit + timeincr
 
-local open Arbint in 
+local open Arbint in
 
 fun tcover_aux f i st = case st of
     Tleaf (an2,[]) => anlref := an2 :: !anlref
   | Tleaf (an2,a2 :: m2) => 
     if f (i,zero) = a2 
     then 
-      (incr_timer (toInt i);
+      (incr_timer ();
        tcover_aux f (i + one) (Tleaf (an2,m2))) 
     else ()
   | Tdict (anl,d) =>
@@ -115,8 +114,7 @@ fun tcover_aux f i st = case st of
     in
       case sto of 
         NONE => ()
-      | SOME newst => (incr_timer (toInt i);
-                       tcover_aux f (i + one) newst)
+      | SOME newst => (incr_timer (); tcover_aux f (i + one) newst)
     end
 
 end (* local *)
