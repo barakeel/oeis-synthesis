@@ -859,7 +859,7 @@ end (* struct *)
 (* training *)
 load "rl"; open rl;
 expname := "run319";
-rl_search "_main" 0;
+rl_search "_comm" 1;
 
 (* experiments *)
 load "rl"; open rl;

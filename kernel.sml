@@ -124,7 +124,7 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
-val timelimit = ref 0.001
+val timelimit = ref 0.00005
 
 
 end (* struct *)
