@@ -689,7 +689,7 @@ fun commute p = case p of
     in
       if prog_compare_size (a1,a2) = LESS then a1 else a2
     end  
-  | Ins (id,pl) => Ins (id, map commute p)
+  | Ins (id,pl) => Ins (id, map commute pl)
 
 fun search tnn coreid =
   let
@@ -718,8 +718,9 @@ fun search tnn coreid =
     val _ = in_search := false
     val progcoml = map commute (elist (!progd))
     val (progset,t3) = add_time (mk_fast_set prog_compare) progcoml
-    val _ = print_endline ("prog_com: "  ^ rts_round 2 t3 ^ " seconds" ^ " " ^
-      its (length progset))
+    val _ = print_endline 
+      ("prog_com: "  ^ rts_round 2 t3 ^ " seconds" ^ " " ^ 
+       its (length progset))
     val (_,t2) = add_time (app update_wind_glob) progset
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
     val r = dlist (!wind)
