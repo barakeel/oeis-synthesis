@@ -95,12 +95,16 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
-(* *)
+(* 
 val nb256 = fromInt 256 
 fun next_f_aux c f x = 
   if c <= zero then raise Div else
   if f (x,zero) <= zero then x else next_f_aux (c-one) f (x+one)
 fun next_f f x = next_f_aux nb256 f x
+*)
+(*
+fun next_f_aux f x = 
+  if f (x,zero) <= zero then x else next_f_aux f (x+one)
 
 fun compr_f_aux (f,a) =
   if a < zero then raise Div else
@@ -108,6 +112,14 @@ fun compr_f_aux (f,a) =
   next_f f (compr_f_aux (f, a - one) + one)
 
 val compr_f = mk_binf1 compr_f_aux
+*)
+ 
+fun compr_f_aux x f n0 n =
+   if f (x,zero) <= zero then 
+   (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
+  else compr_f_aux (x+one) f n0 n
+fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
+val compr_f = mk_binf1 compr_f_aux2
 
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= zero then x1 else 
@@ -145,45 +157,13 @@ val base_execv = Vector.fromList base_execl
    Execute a program on some input
    ------------------------------------------------------------------------- *)
 
-val cmp_cache = cpl_compare Arbint.compare prog_compare
-val compr_cache = ref NONE
-
-(* todo: first argument is enough in the cache *)
-local open Arbint in
-  fun mk_execarb p a = case p of
-    Ins (12,[p1,p2]) => 
-      (
-      ignore (test I zero);
-      let 
-        val (f1,f2) = (mk_execarb p1, mk_execarb p2) 
-        val xtop = f2 a
-        fun loop x = 
-          if x < zero then raise Div else
-          if x = zero then next_f f1 zero else 
-            (case !compr_cache of 
-               NONE => next_f f1 (loop (x - one) + one)
-             | SOME ((xtop',p1'),b') =>
-               if cmp_cache ((x,p1),(xtop',p1')) = EQUAL 
-               then b' 
-               else next_f f1 (loop (x - one) + one)
-            )
-        val b = loop xtop  
-      in
-        compr_cache := SOME ((xtop,p1),b);
-        b
-      end
-      )
-    | Ins (id,pl) => Vector.sub (base_execv,id) (map mk_execarb pl) a
-end
+fun mk_execarb p = Vector.sub (base_execv,id) (map mk_execarb pl)
 
 fun find_wins p =
   (
-  compr_cache := NONE;
   skip_counter := 0;
   rt_glob := Timer.startRealTimer (); 
-  let val r = tcover (mk_execarb p) in
-    compr_cache := NONE; r
-  end
+  tcover (mk_execarb p)
   )
 
 end (* struct *)
