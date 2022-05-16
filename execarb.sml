@@ -157,7 +157,7 @@ val base_execv = Vector.fromList base_execl
    Execute a program on some input
    ------------------------------------------------------------------------- *)
 
-fun mk_execarb p = Vector.sub (base_execv,id) (map mk_execarb pl)
+fun mk_execarb (Ins (id,pl)) = Vector.sub (base_execv,id) (map mk_execarb pl)
 
 fun find_wins p =
   (
