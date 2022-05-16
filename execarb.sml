@@ -194,10 +194,7 @@ open bloom execarb kernel;
 open Arbint;
 fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
 fun is_prime (x,y) = (arb_pow two (x + one) - one) mod (x + two);
-
-no_cache := false;
 fun g a = compr_f_aux (is_prime,a);
-
 time List.tabulate (69, fn x => g (fromInt x) + two);
 
 *)
