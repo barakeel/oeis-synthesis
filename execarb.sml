@@ -96,7 +96,11 @@ fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
 (* *)
-fun next_f f x = if f (x,zero) <= zero then x else next_f f (x+one)
+val nb256 = fromInt 256 
+fun next_f_aux c f x = 
+  if c <= zero then raise Div else
+  if f (x,zero) <= zero then x else next_f_aux (c-one) f (x+one)
+fun next_f f x = next_f_aux nb256 f x
 
 fun compr_f_aux (f,a) =
   if a < zero then raise Div else
@@ -142,7 +146,7 @@ val base_execv = Vector.fromList base_execl
    ------------------------------------------------------------------------- *)
 
 val cmp_cache = cpl_compare Arbint.compare prog_compare
-val compr_cache = ref (dempty cmp_cache)
+val compr_cache = ref NONE
 
 (* todo: first argument is enough in the cache *)
 local open Arbint in
@@ -156,14 +160,16 @@ local open Arbint in
         fun loop x = 
           if x < zero then raise Div else
           if x = zero then next_f f1 zero else 
-            (dfind (x,p1) (!compr_cache) handle NotFound => 
-             next_f f1 (loop (x - one) + one))
+            (case !compr_cache of 
+               NONE => next_f f1 (loop (x - one) + one)
+             | SOME ((xtop',p1'),b') =>
+               if cmp_cache ((x,p1),(xtop',p1')) = EQUAL 
+               then b' 
+               else next_f f1 (loop (x - one) + one)
+            )
         val b = loop xtop  
       in
-        if Int.>= (dlength (!compr_cache), 128) 
-        then compr_cache := dempty cmp_cache
-        else ();
-        compr_cache := dadd (xtop,p1) b (!compr_cache);
+        compr_cache := SOME ((xtop,p1),b);
         b
       end
       )
@@ -172,11 +178,11 @@ end
 
 fun find_wins p =
   (
-  compr_cache := dempty cmp_cache;
+  compr_cache := NONE;
   skip_counter := 0;
   rt_glob := Timer.startRealTimer (); 
   let val r = tcover (mk_execarb p) in
-    compr_cache := dempty cmp_cache; r
+    compr_cache := NONE; r
   end
   )
 

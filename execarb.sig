@@ -4,7 +4,7 @@ sig
   type prog = kernel.prog
   
   val compr_cache : 
-    (Arbint.int * kernel.prog, Arbint.int) Redblackmap.dict ref
+    ((Arbint.int * kernel.prog) * Arbint.int) option ref
   val compr_f_aux : (Arbint.int * Arbint.int -> Arbint.int) * Arbint.int -> 
     Arbint.int
   val mk_execarb : prog -> Arbint.int * Arbint.int -> Arbint.int

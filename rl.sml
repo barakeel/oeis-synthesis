@@ -716,12 +716,12 @@ fun search tnn coreid =
     val _ = print_endline "end search"
     val n = tree_size newtree
     val _ = in_search := false
-    val progcoml = map commute (elist (!progd))
+    (* val progcoml = map commute (elist (!progd))
     val (progset,t3) = add_time (mk_fast_set prog_compare) progcoml
     val _ = print_endline 
       ("prog_com: "  ^ rts_round 2 t3 ^ " seconds" ^ " " ^ 
-       its (length progset))
-    val (_,t2) = add_time (app update_wind_glob) progset
+       its (length progset)) *)
+    val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
     val r = dlist (!wind)
   in
