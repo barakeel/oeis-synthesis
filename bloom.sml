@@ -93,9 +93,9 @@ val ost = Array.foldli taddo tempty oseq
    ------------------------------------------------------------------------- *)
 
 val anlref = ref []
-val timeincr = 0.00001
+val timeincr = 0.00005
 fun incr_timer i = 
-  timelimit := (Real.fromInt (i+1) * !timelimit) + timeincr
+  timelimit := !timelimit + (Real.fromInt (i+1) * timeincr)
 
 local open Arbint in 
 
