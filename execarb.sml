@@ -95,35 +95,36 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
 
-
 val compr_cache = ref []
 
 fun find_cache (f,a) l = case l of
     [] => NONE
-  | (g,d) :: m => if PolyML.pointerEq (f,g) 
-                  then (SOME (dfind a (!d)) handle NotFound => NONE)
-                  else find_cache (f,a) m
-  
-fun add_cache (f,a) r l = case l of
-    [] => compr_cache := (f,ref (dnew Arbint.compare [(a,r)])) :: !compr_cache
-  | (g,d) :: m => if PolyML.pointerEq (f,g) 
-                  then d := dadd a r (!d)
-                  else add_cache (f,a) r m
+  | (f',a',b') :: m => 
+    if PolyML.pointerEq (f,f') then 
+      if a = a' then SOME b' else NONE
+    else find_cache (f,a) m
 
+fun upd_cache acc (f,a,b) l = case l of
+    [] => compr_cache := (f,a,b) :: acc
+  | (f',a',b') :: m => 
+    if PolyML.pointerEq (f,f') then 
+      if a > a' then compr_cache := (f,a,b) :: (acc @ m) else () 
+    else upd_cache ((f',a',b') :: acc) (f,a,b) m
 
 fun next_f f x = if f (x,zero) <= zero then x else next_f f (x+one)
+
 fun compr_f_aux (f,a) = 
   if a < zero then raise Div else
     (case find_cache (f,a) (!compr_cache) of
-      SOME r => r
+      SOME b => b
     | NONE => 
-      let val r = if a = zero 
+      let val newb = if a = zero 
                   then next_f f zero 
                   else next_f f (compr_f_aux (f, a - one) + one)
       in
-        add_cache (f,a) r (!compr_cache); r
-      end
-    )
+        upd_cache [] (f,a,newb) (!compr_cache); newb
+      end)
+
 val compr_f = mk_binf1 compr_f_aux
 
 (* 
