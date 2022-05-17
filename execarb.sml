@@ -11,7 +11,7 @@ type prog = kernel.prog
 
 local open Arbint in
   fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
-  val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 285 *)
+  val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
   val minarb = ~maxarb
   val maxint = arb_pow (fromInt 2) (fromInt 64)
   val minint = ~maxint
