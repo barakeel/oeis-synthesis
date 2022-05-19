@@ -4,9 +4,7 @@ Solutions found during a training run can be inspected in the file
 `result/full_prog`.
 
 ### Try the Web interface
-http://grid01.ciirc.cvut.cz/~thibault/synt.html
-The web interface allows to run programs for a limited time and gives 
-a limited number of predictions for the next elements in the sequence.
+http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
 ### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
@@ -14,6 +12,7 @@ In your /home/your_username directory:
 ```
 sudo apt install rlwrap
 sudo apt install polyml
+sudo apt install libpolyml-dev
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
 git checkout 0782c4413311d5debebda3f2e6cac9560911cb64
@@ -49,9 +48,9 @@ Choose the sequence you desire to look for instead of
 [1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
 The second argument (16) precises the number of generated numbers (predictions).
 
-You can set the following flag to prevent polynomial normalization of the program:
+You can set the following flag to apply polynomial normalization to the program:
 ```
-kernel.polynorm_flag := false;
+kernel.polynorm_flag := true;
 ```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
@@ -62,15 +61,30 @@ load "mcts"; open mcts;
 expname := "your_experiment_name";
 time_opt := SOME 600.0;
 (* use_mkl := true; if you have installed mkl *)
+bloom.init_od ();
 rl_search "" 0;
 ```
 
 ### Install MKL libary (optional for faster training)
-Downloading/Installing MKL:
+#### Ubuntu 20.04
 ```
-Ubuntu 20.04: sudo apt install intel-mkl
-Ubuntu 18.04: https://github.com/eddelbuettel/mkl4deb 
+sudo apt install intel-mkl
 ```
+
+Edit the `tnn_in_c/tree.c` file: 
+
+Change `/home/thibault/big/repos/oeis/tnn_in_c/`
+to the absolute path to your  `tnn_in_c` directory.
+
+In the `tnn_in_c` directory and compile `tree.c`: 
+```
+  gcc -o tree tree.c -DMKL_ILP64 -m64 -I/usr/include/mkl -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
+```
+
+#### Ubuntu 18.04
+
+See https://github.com/eddelbuettel/mkl4deb 
+
 Initializing bash variables:
 ```
   export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH
@@ -78,7 +92,13 @@ Initializing bash variables:
   sh /opt/intel/mkl/bin/mklvars.sh intel64
 ```
 
-In the tnn_in_c directory and run: 
+Edit the `tnn_in_c/tree.c` file: 
+
+Change `/home/thibault/big/repos/oeis/tnn_in_c/`
+to the absolute path to your  `tnn_in_c` directory.
+
+
+In the `tnn_in_c` directory and compile `tree.c`: 
 ```
   gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
