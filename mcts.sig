@@ -43,10 +43,5 @@ sig
   val most_visited_path : ('a,'b) tree -> ('a node * 'b option) list
   val tree_size : ('a,'b) tree -> int
 
-  (* toy example *)
-  type toy_board = (int * int * int)
-  datatype toy_move = Incr | Decr
-  val toy_game : (toy_board,toy_move) game
-
 
 end

@@ -1,10 +1,3 @@
-(* ========================================================================= *)
-(* FILE          : mcts.sml                                                  *)
-(* DESCRIPTION   : MCTS algorithm                                            *)
-(* AUTHOR        : (c) Thibault Gauthier, Czech Technical University         *)
-(* DATE          : 2018                                                      *)
-(* ========================================================================= *)
-
 structure mcts :> mcts =
 struct
 
@@ -199,54 +192,6 @@ fun most_visited_path tree = case tree of
     in
       (node, SOME cmove) :: most_visited_path ctree
     end
-
-(* -------------------------------------------------------------------------
-   Toy example: the goal of this task is to reach a positive number starting
-   from zero by incrementing or decrementing.
-   ------------------------------------------------------------------------- *)
-
-type toy_board = (int * int * int)
-datatype toy_move = Incr | Decr
-
-val toy_movel = [Incr,Decr]
-fun toy_available_movel board = [Incr,Decr]
-fun toy_string_of_move x = case x of Incr => "Incr" | Decr => "Decr"
-
-fun toy_apply_move move (start,finish,timer) = case move of
-   Incr => (start+1,finish,timer-1)
- | Decr => (start-1,finish,timer-1)
-
-val toy_game =
-  {
-  apply_move = toy_apply_move,
-  available_movel = toy_available_movel,
-  string_of_board = (fn (a,b,c) => (its a ^ " " ^ its b ^ " " ^ its c)),
-  string_of_move = toy_string_of_move,
-  board_compare = (fn ((a,b,c),(d,e,f)) =>
-    cpl_compare Int.compare Int.compare ((a,b),(d,e))),
-  move_compare = (fn (a,b) =>
-    String.compare (toy_string_of_move a, toy_string_of_move b)),
-  movel = toy_movel
-  }
-
-(*
-load "aiLib"; open aiLib;
-load "mcts"; open mcts;
-
-val mctsparam =
-  {time = (NONE : real option), nsim = (SOME 100 : int option),
-   explo_coeff = 2.0,
-   noise = false, noise_coeff = 0.25, noise_gen = aiLib.random_real};
-
-val mctsobj : (toy_board,toy_move) mctsobj =
-  {mctsparam = mctsparam, game = toy_game, player = random_player toy_game};
-
-val tree = starting_tree mctsobj (5,10,10);
-PolyML.print_depth 2;
-val (newtree,t) = add_time (mcts mctsobj) tree;
-PolyML.print_depth 40;
-val l = most_visited_path newtree;
-*)
 
 
 end (* struct *)
