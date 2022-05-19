@@ -32,16 +32,19 @@ end (* struct *)
    Test oeis-synthesis
    ------------------------------------------------------------------------- 
 
-load "qsynt"; open aiLib human rl qsynt;
+load "qsynt"; open aiLib human execarb rl qsynt;
 time_opt := SOME 60.0;
 polynorm_flag := true;
-val po = qsynt (map Arbint.fromInt [0,2,4,6,8]);
-print_endline (humanf (valOf po));
-val seq = penum 15 (valOf po);
+
+val po = qsynt (map Arbint.fromInt [2,4,16,256]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
 
 val po = qsynt (map Arbint.fromInt [3,5,7]);
-print_endline (humanf (valOf po));
-val seq = penum 10 (valOf po);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
 
 
 *)

@@ -154,11 +154,11 @@ fun pcover p target =
   fcover (mk_execarb p) target
   )
 
-fun penum n p = 
-  let val f = mk_exec_arb p in
+fun penum p n = 
+  let val f = mk_execarb p in
     skip_counter := 0;
     rt_glob := Timer.startRealTimer (); 
-    timelimt := 1.0;
+    timelimit := 1.0;
     List.tabulate (n,fn i => f (Arbint.fromInt i,Arbint.zero))
   end
 

@@ -3,10 +3,14 @@ This repository contains the software QSynt accompanying the paper
 
 
 Solutions found during a training run can be inspected in the file
-`result/full_prog`.
+`results/solutions`.
+
 
 ### Try the Web interface
 http://3.71.110.215/~anon/qsynt.html
+
+
+
 
 ### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
@@ -42,12 +46,17 @@ In this directory run `rlwrap hol` then run in the interative shell:
 ```
 load "qsynt"; open aiLib human rl qsynt;
 time_opt := SOME 60.0;
-kernel.polynorm_flag := true; (* optional *)
+polynorm_flag := true; (* optional *)
 
-val po = qsynt (map Arbint.fromInt [2,4,6,8]);
-print_endline (humanf (valOf po));
 val po = qsynt (map Arbint.fromInt [3,5,7]);
-print_endline (humanf (valOf po));
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 8;
+
+val po = qsynt (map Arbint.fromInt [2,4,16,256]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
 ```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
