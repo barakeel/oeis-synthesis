@@ -48,41 +48,6 @@ fun tadd (seq,an) st = case (st,seq) of
       | SOME newst => Tdict (anl, dadd a1 (tadd (m1,an) newst) d)
     end
 
-(*
-fun tremove (seq,an) st = case (st,seq) of
-    (Tleaf (an2,seq2), _) =>   
-    if an = an2 then NONE else raise ERR "tremove" "not found"
-  | (Tdict (anl,d), []) =>
-    if mem an anl 
-    then 
-      let val newanl = filter (fn x => x <> an) anl in
-        if null newanl andalso dlength d = 0 
-        then NONE
-        else SOME (Tdict (newanl,d))        
-      end
-    else raise ERR "tremove" "not found"
-  | (Tdict (anl,d), a1 :: m1) =>
-    let val sto = SOME (dfind a1 d) handle NotFound => NONE in
-      case sto of 
-        NONE => raise ERR "tremove" "not found" 
-      | SOME tempst => 
-        (
-        case tremove (m1,an) tempst of
-           NONE => 
-           let val newd = drem a1 d in
-             if dlength newd = 0 andalso null anl 
-             then NONE 
-             else SOME (Tdict (anl, drem a1 d))
-           end
-         | SOME newst => SOME (Tdict (anl, dadd a1 (tadd (m1,an) newst) d))
-        )
-    end
-
-fun trem (seq,an) st = case tremove (seq,an) st of
-    NONE => tempty
-  | SOME st => st
-*)
-
 fun taddo (i,seqo,st) = 
   case seqo of NONE => st | SOME seq => tadd (seq,i) st
 
@@ -127,20 +92,23 @@ fun tcover f =
   end
   handle Div => !anlref | ProgTimeout => !anlref
 
+(* -------------------------------------------------------------------------
+   Checking if a program covers a user-given sequence
+   ------------------------------------------------------------------------- *)
+
+local open Arbint in
+fun fcover_aux f i target = case target of 
+    [] => true
+  | a :: m => if f (i,zero) = a 
+              then (incr_timer (); fcover_aux f (i+one) m)
+              else false
+end
+
+fun fcover f target = 
+  (
+  timelimit := timeincr;
+  fcover_aux f Arbint.zero target
+  )
+  handle Div => false | ProgTimeout => false
 
 end (* struct *)
-
-(* 
-load "bloom"; open bloom;
-
-fun tremo (i,seqo,st) = 
-  case seqo of NONE => st | SOME seq => trem (seq,i) st;
-
-val emptyst = Array.foldli tremo ost oseq;
-
-case emptyst of 
-
-*)
-
-
-

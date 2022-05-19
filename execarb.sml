@@ -147,27 +147,19 @@ fun find_wins p =
   tcover (mk_execarb p)
   )
 
+fun pcover p target =
+  (
+  skip_counter := 0;
+  rt_glob := Timer.startRealTimer (); 
+  fcover (mk_execarb p) target
+  )
+
+fun penum n p = 
+  let val f = mk_exec_arb p in
+    skip_counter := 0;
+    rt_glob := Timer.startRealTimer (); 
+    timelimt := 1.0;
+    List.tabulate (n,fn i => f (Arbint.fromInt i,Arbint.zero))
+  end
+
 end (* struct *)
-
-(* 
-load "bloom"; load "execarb"; load "human";
-open bloom execarb kernel human aiLib;
-
-val p = Ins (12,[Ins (7, [Ins (10,[]),Ins(2,[])]), Ins (10,[])]);
-humanf p;
-val cmp_cache = cpl_compare Arbint.compare prog_compare; 
-compr_cache := dempty cmp_cache;
-rt_glob := Timer.startRealTimer ();
-time (mk_execarb p) (Arbint.fromInt 10, Arbint.one);
-time (mk_execarb p) (Arbint.fromInt 1001, Arbint.one);
-time (mk_execarb p) (Arbint.fromInt 1500, Arbint.one);
-aiLib.dlist (!compr_cache);
-open Arbint;
-fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
-fun is_prime (x,y) = (arb_pow two (x + one) - one) mod (x + two);
-fun g a = compr_f_aux (is_prime,a);
-time List.tabulate (69, fn x => g (fromInt x) + two);
-
-*)
-
-

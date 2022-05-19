@@ -19,8 +19,39 @@ val compr_id = 12
 val loop2_id = 13
 
 (* reading solutions from the corresponding generation *)
-val iprogl = read_iprogl "isol18";
+val iprogl = read_iprogl "model/isol25";
 val progl = map snd iprogl;
+
+(* reprint solutions *)
+load "bloom"; open bloom;
+fun string_of_iprog (i,p) = 
+  "A" ^ its i ^ ": " ^ 
+  string_of_seq (valOf (Array.sub (oseq,i))) ^ 
+  "\n" ^ humanf p;
+writel "results/solutions" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) iprogl));
+
+(* frequency *)
+val progll = map (mk_fast_set prog_compare o all_subprog) progl;
+val prognl = dlist (count_dict (dempty prog_compare) (List.concat progll));
+val prognl2 = dict_sort compare_imax prognl;
+fun humanif (p,i) = its i ^ ": " ^ humanf p;
+writel "results/occurences" (map humanif prognl2);
+
+(* distribution of sizes *)
+val sizel = map prog_size (mk_fast_set prog_compare progl);
+val sizel2  = dlist (count_dict (dempty Int.compare) sizel);
+writel "results/dissize" (map (fn (a,b) => its a ^ " " ^ its b) sizel2);
+(* size of programs *)
+val n = sum_int (map prog_size progl);
+val r = int_div n (length progl);
+
+(* diff *)
+val predd = enew prog_compare (map snd (read_iprogl "isol17"));
+val diffl = filter (fn x => not (emem (snd x) predd)) iprogl;
+(* writel "diff" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) diffl)); *)
+val diffl2 = dict_sort (snd_compare prog_compare_size) diffl;
+val (an,p) = hd diffl;
+humanf p; prog_size p;
 
 (* nested levels *)
 fun nested_level (Ins (id,pl)) =
@@ -35,33 +66,6 @@ val l3 = map fst (filter (fn x => snd x = 6) l2);
 val (i,p) = hd l3;
 humanf p; i;
 
-(* reprint solutions *)
-load "bloom"; open bloom;
-fun string_of_iprog (i,p) = 
-  "A" ^ its i ^ ": " ^ 
-  string_of_seq (valOf (Array.sub (oseq,i))) ^ 
-  "\n" ^ humanf p;
-writel "solutions" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) iprogl));
-writel "frequency" (map humanif prognl2);
-
-(* sizes *)
-val sizel = map prog_size (mk_fast_set prog_compare progl);
-val sizel2  = dlist (count_dict (dempty Int.compare) sizel);
-writel "dis_size" (map (fn (a,b) => its a ^ " " ^ its b) sizel2);
-
-
-(* diff *)
-val predd = enew prog_compare (map snd (read_iprogl "isol17"));
-val diffl = filter (fn x => not (emem (snd x) predd)) iprogl;
-(* writel "diff" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) diffl)); *)
-val diffl2 = dict_sort (snd_compare prog_compare_size) diffl;
-val (an,p) = hd diffl;
-humanf p; prog_size p;
-
-(* size of programs *)
-val n = sum_int (map prog_size progl);
-val r = int_div n (length progl);
-
 (* longest program *)
 val l1 = map_assoc (prog_size o snd) iprogl;
 val l2 = dict_sort compare_imax l1;
@@ -73,10 +77,7 @@ val test =
 0 + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1);
 324
 
-val progll = map (mk_fast_set prog_compare o all_subprog) progl;
-val prognl = dlist (count_dict (dempty prog_compare) (List.concat progll));
-val prognl2 = dict_sort compare_imax prognl;
-fun humanif (p,i) = its i ^ ": " ^ humanf p;
+
 
 fun is_constant p = not (depend_on_x p) andalso not (depend_on_y p);
 val constl = filter (is_constant o fst) prognl2;

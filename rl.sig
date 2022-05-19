@@ -26,7 +26,7 @@ sig
 
   (* game *)
   val game : (board,move) mcts.game
-  
+    
   (* players *)
   val player_uniform : tnn -> player
   val player_wtnn : tnn -> player
@@ -68,4 +68,8 @@ sig
   (* reading solutions *)
   val read_isol : int -> (int * prog) list
 
+  (* interactive search *)
+  val search_target : mlTreeNeuralNetwork.tnn -> Arbint.int list -> 
+    kernel.prog option
+ 
 end

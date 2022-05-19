@@ -26,6 +26,10 @@ val time_opt = ref (SOME 600.0)
 val randsol_flag = false
 val randmin_flag = false
 
+(* online search *)
+val online_flag = ref false
+exception ResultP of prog
+
 (* -------------------------------------------------------------------------
    Utils
    ------------------------------------------------------------------------- *)
@@ -73,7 +77,6 @@ fun mctsparam () =
 
 val coreid_glob = ref 0
 val ngen_glob = ref 0
-
 val in_search = ref false
 
 val embd = ref (dempty Term.compare)
@@ -156,9 +159,16 @@ fun merge_isol isol =
    ------------------------------------------------------------------------- *)
 
 fun exec_fun p plb =
-  (if !in_search andalso not (depend_on_y p)
-   then eaddi p progd else (); 
-   SOME (p :: plb))
+  (
+  if !online_flag andalso not (depend_on_y p) andalso 
+     not (ememi p progd)
+    then (eaddi p progd; 
+          if pcover p (!target_glob) then raise ResultP p else ())   
+  else if !in_search andalso not (depend_on_y p)
+     then eaddi p progd 
+  else (); 
+  SOME (p :: plb)
+  )
 
 fun apply_moveo move board =
   let 
@@ -710,6 +720,8 @@ fun search tnn coreid =
     r
   end
 
+
+
 val parspec : (tnn, int, (int * prog) list) extspec =
   {
   self_dir = selfdir,
@@ -732,6 +744,24 @@ val parspec : (tnn, int, (int * prog) list) extspec =
   write_result = write_iprogl,
   read_result = read_iprogl
   }
+
+(* -------------------------------------------------------------------------
+   For interactive calls
+   ------------------------------------------------------------------------- *)
+
+fun search_target tnn target =
+  let
+    val _ = player_glob := player_wtnn_cache
+    val _ = noise_flag := true
+    val _ = target_glob := target
+    val _ = init_dicts ()
+    val _ = online_flag := true
+    val tree = starting_tree (mctsobj tnn) []
+    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
+  in
+    online_flag := false; init_dicts (); NONE
+  end
+  handle ResultP p => SOME p
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -832,43 +862,9 @@ end (* struct *)
   Train oeis-synthesis
   ------------------------------------------------------------------------- 
 
-(* training *)
 load "rl"; open rl;
-expname := "run319";
-rl_search "_compr" 1;
-
-(* experiments *)
-load "rl"; open rl;
-maxgen := SOME 4;
-expname := "e-randsol";
-rl_search "_main" 0;
-
-(* testing *)
-PolyML.print_depth 0;
-load "rl"; load "human"; 
-open rl aiLib bloom kernel human;
-PolyML.print_depth 40;
-time_opt := SOME 60.0;
-val tnn = mlTreeNeuralNetwork.random_tnn (get_tnndim ());
-PolyML.print_depth 1;
-val sol1 = search tnn 1;
-
-(* printing results *)
-PolyML.print_depth 10;
-val ERR = mk_HOL_ERR "test";
-fun butlast_string s = 
-  if String.size s = 0 
-  then raise ERR "butlast_string" "" 
-  else String.substring (s,0,String.size s-1);
-
-
-(* debugging *)
-load "rl"; load "human"; 
-open rl aiLib bloom kernel human;
-val p = random_prog 10;
-humanf p;
-val bml = linearize p;
-val board = apply_movel (map snd bml) [];
+expname := "your_experiment";
+rl_search "_main" 1;
 
 
 *)

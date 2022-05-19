@@ -1,10 +1,12 @@
-This repository contains the software QSynt accompanying the paper "Program Synthesis for the OEIS". The preprint is available [here](https://arxiv.org/abs/2202.11908).
+This repository contains the software QSynt accompanying the paper 
+"Learning Program Synthesis for Integer Sequences from Scratch". 
+
 
 Solutions found during a training run can be inspected in the file
 `result/full_prog`.
 
 ### Try the Web interface
-http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
+http://3.71.110.215/~anon/qsynt.html
 
 ### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
@@ -15,7 +17,7 @@ sudo apt install polyml
 sudo apt install libpolyml-dev
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
-git checkout 0782c4413311d5debebda3f2e6cac9560911cb64
+git checkout cf03ce2dc756feb6c0bc4b042f879595d21f2e68
 poly < "tools/smart-configure.sml"
 cat tools/sequences/kernel tools/sequences/core-theories > shortseq
 bin/build --seq=shortseq
@@ -26,7 +28,7 @@ PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
 In this directory, edit the file `dir.sml` by replacing the value of
-`val selfdir = "/home/thibault/oeis-synthesis"` by 
+`val selfdir = "/home/user/oeis-synthesis"` by 
 `val selfdir = "the_directory_where_this_file_is_located"`.
 
 Save the file and run in this directory:
@@ -35,34 +37,25 @@ Holmake
 ```
 
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds):
-In this directory:
-```
-rlwrap hol
-load "synt"; open synt;
-val _ = synt 60.0 16 [1,2,4,8,16]; 
-val _ = synt 30.0 16 [2,4,8,16,32]; 
-val _ = synt 20.0 16 [1,2,3,4];
-```
+In this directory run `rlwrap hol` then run in the interative shell:
 
-Choose the sequence you desire to look for instead of
-[1,2,4,8,16] and you may set the timeout to another value than 60.0 seconds.
-The second argument (16) precises the number of generated numbers (predictions).
-
-You can set the following flag to apply polynomial normalization to the program:
 ```
-kernel.polynorm_flag := true;
+load "qsynt"; open aiLib human rl qsynt;
+time_opt := SOME 60.0;
+kernel.polynorm_flag := true; (* optional *)
+
+val po = qsynt (map Arbint.fromInt [2,4,6,8]);
+print_endline (humanf (valOf po));
+val po = qsynt (map Arbint.fromInt [3,5,7]);
+print_endline (humanf (valOf po));
 ```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
-In this directory:
+In this directory run `rlwrap hol` then run in the interative shell:
 ```
-rlwrap hol
-load "mcts"; open mcts;
-expname := "your_experiment_name";
-time_opt := SOME 600.0;
-(* use_mkl := true; if you have installed mkl *)
-bloom.init_od ();
-rl_search "" 0;
+load "rl"; open rl;
+expname := "your_experiment";
+rl_search "_main" 1;
 ```
 
 ### Install MKL libary (optional for faster training)
@@ -73,7 +66,7 @@ sudo apt install intel-mkl
 
 Edit the `tnn_in_c/tree.c` file: 
 
-Change `/home/thibault/big/repos/oeis/tnn_in_c/`
+Change `/home/user/oeis-synthesis/tnn_in_c/`
 to the absolute path to your  `tnn_in_c` directory.
 
 In the `tnn_in_c` directory and compile `tree.c`: 
@@ -94,7 +87,7 @@ Initializing bash variables:
 
 Edit the `tnn_in_c/tree.c` file: 
 
-Change `/home/thibault/big/repos/oeis/tnn_in_c/`
+Change `/home/user/oeis-synthesis/tnn_in_c/`
 to the absolute path to your  `tnn_in_c` directory.
 
 

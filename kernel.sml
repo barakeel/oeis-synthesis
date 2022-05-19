@@ -12,7 +12,12 @@ val selfdir = dir.selfdir
 
 type seq = Arbint.int list
 val seq_compare = list_compare Arbint.compare
-fun string_of_seq il = String.concatWith " " (map Arbint.toString il)
+fun rm_i s = 
+  if String.size s = 0 then s else
+  if String.sub (s,String.size s - 1) =  #"i" 
+  then String.substring (s,0,String.size s - 1)
+  else s;
+fun string_of_seq il = String.concatWith " " (map (rm_i o Arbint.toString) il)
 
 (* -------------------------------------------------------------------------
    Program

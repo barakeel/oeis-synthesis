@@ -272,7 +272,7 @@ fun humanf p =
     val _ = imperative_flag := false
     val s = human (~1) p
     val _ = imperative_flag := false
-  in s end
+  in rm_par s end
 
 fun humani ntop p =
   let 
