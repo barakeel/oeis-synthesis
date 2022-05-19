@@ -2,15 +2,10 @@ This repository contains the software QSynt accompanying the paper
 "Learning Program Synthesis for Integer Sequences from Scratch". 
 
 
-Solutions found during a training run can be inspected in the file
-`results/solutions`.
-
+Solutions found during the full-scale self-learning run can be inspected in the file `results/solutions`.
 
 ### Try the Web interface
 http://3.71.110.215/~anon/qsynt.html
-
-
-
 
 ### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
