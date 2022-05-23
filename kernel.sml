@@ -96,6 +96,13 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 
+fun number_of_loops (p as Ins (id,pl)) = 
+  (case p of
+     Ins (9, [a,b,c]) => if depend_on_x b then 1 else 0
+   | Ins (13, [a,b,c,d,e]) => if depend_on_x b then 1 else 0
+   | _ => 0)
+  + sum_int (map number_of_loops pl)
+
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
 val base_operl =

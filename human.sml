@@ -8,7 +8,7 @@ type prog = kernel.prog
 
 val polynorm_flag = ref false
 val imperative_flag = ref false
-
+val nolam_flag = ref false
 
 fun mk_xn vn = if vn = ~1 then "x" else "X"
 fun mk_yn vn = if vn = ~1 then "y" else "Y"
@@ -143,7 +143,7 @@ fun human vn prog =
     fun rh p = rm_par (human vn p)
     fun hx p = human (~1) p
     fun rhx b = rm_par (human (~1) b)
-    fun lrhx b = "\\(x,y)." ^ rhx b
+    fun lrhx b = if !nolam_flag then rhx b else "\\(x,y)." ^ rhx b
     fun wrap_def f =
       let
         val wn = (!funn)
@@ -314,6 +314,10 @@ fun humani ntop p =
   in
     ps
   end
+
+fun sexpr (Ins (id,pl)) =
+  if null pl then its id else 
+  "(" ^ String.concatWith " " (its id :: map sexpr pl) ^ ")";
 
 (*
 load "rl"; open aiLib kernel human rl;

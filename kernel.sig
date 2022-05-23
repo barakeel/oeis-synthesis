@@ -21,6 +21,7 @@ sig
   val all_subprog : prog -> prog list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
+  val number_of_loops : prog -> int
   
   (* I/O *)
   val read_progl : string -> prog list

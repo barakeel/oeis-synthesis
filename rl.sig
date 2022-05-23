@@ -54,7 +54,7 @@ sig
   val get_tnndim : unit -> (term * int list) list
 
   (* functions *)
-  val search : tnn -> int -> (int * prog) list
+  val search : tnn -> int -> (int * kernel.prog) list * (int * kernel.prog) list
   val trainf : string -> unit
 
   (* reinforcement learning *)

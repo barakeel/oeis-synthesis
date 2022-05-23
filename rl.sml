@@ -131,13 +131,6 @@ fun board_compare (a,b) = list_compare prog_compare (a,b)
 (* -------------------------------------------------------------------------
    Keep multiple programs as solutions of an OEIS sequence
    ------------------------------------------------------------------------- *)
-
-fun number_of_loops (p as Ins (id,pl)) = 
-  (case p of
-     Ins (9, [a,b,c]) => if depend_on_x b then 1 else 0
-   | Ins (13, [a,b,c,d,e]) => if depend_on_x b then 1 else 0
-   | _ => 0)
-  + sum_int (map number_of_loops pl)
  
 val altsol_flag = ref false
 
@@ -151,10 +144,11 @@ fun update_altwind_one d (anum,p) =
       if prog_compare_size (p,oldp) = LESS
       then d := dadd (anum,n) p (!d)
       else ()
+  end
 
 fun merge_altisol isol = 
   let 
-    val d = ref (dempty Int.compare) 
+    val d = ref (dempty (cpl_compare Int.compare Int.compare))
     fun forget ((a,b),c) = (a,c)  
   in
     app (update_altwind_one d) isol;
@@ -177,7 +171,7 @@ fun update_wind_glob p =
   let
     val anuml = find_wins p
     fun f anum = 
-      (if !altsol_flag then update_altwind_one wind (anum,p) else (); 
+      (if !altsol_flag then update_altwind_one altwind (anum,p) else (); 
        update_wind_one wind (anum,p))
   in
     app f anuml
@@ -782,11 +776,11 @@ val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
   read_param = read_tnn,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = let fun f file (r1,r2) = (write_iprogl (file ^ "_r1");
-                                           write_iprogl (file ^ "_r2")) 
-                 in f end
+  write_result = let fun f file (r1,r2) = (write_iprogl (file ^ "_r1") r1;
+                                           write_iprogl (file ^ "_r2") r2) 
+                 in f end,
   read_result = let fun f file = 
-    (read_iprogl (file ^ "_r1"), read_iprogl (file ^ "_r2"))
+    (read_iprogl (file ^ "_r1"), read_iprogl (file ^ "_r2")) in f end
   }
 
 (* -------------------------------------------------------------------------
@@ -837,8 +831,8 @@ fun stats_sol prefix isol =
 fun stats_ngen dir ngen =
   let 
     val solprev = 
-      if ngen = 0 then [] else #read_result parspec (isol_file (ngen - 1))
-    val solnew = #read_result parspec (isol_file ngen)
+      if ngen = 0 then [] else read_iprogl (isol_file (ngen - 1))
+    val solnew = read_iprogl (isol_file ngen)
     val prevd = dnew Int.compare solprev
     val soldiff = filter (fn (i,_) => not (dmem i prevd)) solnew
   in
@@ -904,17 +898,32 @@ and rl_train tmpname ngen =
 
 end (* struct *)
 
-
 (*
-  -------------------------------------------------------------------------
-  Train oeis-synthesis
-  ------------------------------------------------------------------------- 
+(* Train on the oeis *)
 
 load "rl"; open rl;
 expname := "your_experiment";
 altsol_flag := true;
 rl_search "_main" 1;
 
+(* standalone search *)
+load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
+time_opt := SOME 60.0;
+altsol_flag := true;
+val tnn = random_tnn (get_tnndim ());
+val (r1,r2) = search tnn 1;
 
+(* post processing alternative solutions *)
+load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
+val d = dregroup Int.compare r2;
+val l = filter (fn (i,a) => length a >= 2) (dlist d);  
+fun f a = pair_of_list (
+  first_n 2 (map fst (dict_sort compare_imin (map_assoc number_of_loops a))));
+val l2 = map_snd f l;
+human.polynorm_flag := false;
+fun g1 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, human.humanf a, human.humanf b];
+fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, sexpr a, sexpr b];
+writel "equalities/human" (map g1 l2);
+writel "equalities/sexpr" (map g2 l2);
 
 *)

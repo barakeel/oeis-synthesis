@@ -7,5 +7,6 @@ sig
   val humanf : prog -> string
   val humani : int -> prog -> string
   val rm_par : string -> string
-
+  val sexpr : prog -> string
+  
 end
