@@ -902,9 +902,9 @@ end (* struct *)
 (* Train on the oeis *)
 
 load "rl"; open rl;
-expname := "your_experiment";
+expname := "run312";
 altsol_flag := true;
-rl_search "_main" 1;
+rl_search "_alt" 44;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
@@ -925,5 +925,11 @@ fun g1 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, human.humanf a, human.hu
 fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, sexpr a, sexpr b];
 writel "equalities/human" (map g1 l2);
 writel "equalities/sexpr" (map g2 l2);
+
+(* todo simplify and regroup equalities 
+   by computing the first (n/depending on the oeis sequence) 
+   values of each loop and finding the matching sub
+   expression if it exists *)
+
 
 *)
