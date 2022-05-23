@@ -520,7 +520,7 @@ int main()
   FILE *fp;
   
   // export to standard ml
-  fp = fopen("/home/user/oeis-synthesis/tnn_in_c/out_sml", "w");
+  fp = fopen("/home/thibault/big/oeis-dev/tnn_in_c/out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + bA * op;
