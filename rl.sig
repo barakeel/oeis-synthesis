@@ -18,12 +18,13 @@ sig
   val ntarget : int ref
   val maxgen : int option ref
   val in_search : bool ref
-
+  val altsol_flag : bool ref
+  
   (* data *)
   val progd: prog set ref
   val embd : (term, real vector) dict ref
   val wind : (int, prog) dict ref
-
+  val altwind : (int * int, prog) dict ref
   (* game *)
   val game : (board,move) mcts.game
     
@@ -63,7 +64,8 @@ sig
   val rl_train_only : string -> int -> unit
   val rl_search : string -> int -> unit
   val rl_train : string -> int -> unit
-  val parspec : (tnn, int, (int * prog) list) smlParallel.extspec
+  val parspec : (tnn, int, (int * prog) list * (int * prog) list) 
+    smlParallel.extspec
 
   (* reading solutions *)
   val read_isol : int -> (int * prog) list

@@ -6,7 +6,8 @@ sig
   
   (* OEIS array *)
   val oseq : Arbint.int list option array
-  
+  val oseql : (int * Arbint.int list) list
+
   (* tree of OEIS sequences *)
   datatype ttree = 
     Tleaf of int * Arbint.int list |

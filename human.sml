@@ -9,11 +9,13 @@ type prog = kernel.prog
 val polynorm_flag = ref false
 val imperative_flag = ref false
 
+
 fun mk_xn vn = if vn = ~1 then "x" else "X"
 fun mk_yn vn = if vn = ~1 then "y" else "Y"
 
 (* -------------------------------------------------------------------------
-   Polynomial normalization
+   Polynomial normalization 
+   (todo: message users to turn it off when it fails)
    ------------------------------------------------------------------------- *)
 
 fun itsm i = if i < 0 then "-" ^ its (~i) else its i
@@ -120,74 +122,9 @@ val funn = ref 0
 fun incrs s = s ^ " = " ^ s ^ " + 1";
 fun decrs s = s ^ " = " ^ s ^ " - 1";
 
-fun human vn prog = case prog of
-    Ins (3,[p1,p2]) => 
-    if !polynorm_flag 
-    then reg_add vn prog
-    else "(" ^ human vn p1 ^ " + " ^ human vn p2 ^ ")"   
-  | Ins (4,[p1,p2]) =>  
-    if !polynorm_flag 
-    then reg_add vn prog
-    else "(" ^ human vn p1 ^ " - " ^ human vn p2 ^ ")"   
-  | Ins (5,[p1,p2]) =>
-    if !polynorm_flag 
-    then reg_mult vn prog
-    else "(" ^ human vn p1 ^ " * " ^ human vn p2 ^ ")"
-  | Ins (6,[p1,p2]) => 
-    if !imperative_flag
-    then "(" ^ human vn p1 ^ " // " ^ human vn p2 ^ ")"
-    else "(" ^ human vn p1 ^ " div " ^ human vn p2 ^ ")"
-  | Ins (7,[p1,p2]) => 
-    if !imperative_flag
-    then "(" ^ human vn p1 ^ " % " ^ human vn p2 ^ ")"
-    else "(" ^ human vn p1 ^ " mod " ^ human vn p2 ^ ")"
-  | Ins (8,[p1,p2,p3]) => 
-     if !imperative_flag
-     then "(" ^ rm_par (human vn p2) ^ " if " ^ 
-                rm_par (human vn p1) ^ " <= 0 else " ^
-                rm_par (human vn p3) ^ ")"
-     else "(if " ^ 
-       rm_par (human vn p1) ^ " <= 0 then " ^ rm_par (human vn p2)  ^ " else " ^ 
-       rm_par (human vn p3) ^ ")"
-  | Ins (9,[p1,p2,p3]) => 
-      let
-        val wn = (!funn)
-        val _ = incr funn
-        val s1 = rm_par (human (~1) p1)
-        val s2 = human wn p2 ^ " + 1"
-        val s3 = rm_par (human wn p3)
-        val fs = "f" ^ its wn
-        val fprev1 = if depend_on_y prog 
-          then fs ^ "(" ^ mk_xn wn ^ "," ^ mk_yn wn ^ ")"
-          else fs ^ "(" ^ mk_xn wn ^ ")"
-        val fprev2 = if depend_on_y prog 
-          then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_yn vn ^ ")"
-          else fs ^ "(" ^ mk_xn vn ^ ")"
-        val fs_head = "def " ^ fprev1 ^ ":"
-      in
-        if !imperative_flag then
-          let val cs = 
-            [fs_head,
-             "  x = " ^ s3,
-             "  " ^ "for i in range (1," ^ s2 ^ "):",
-             "    x = " ^ s1,
-             "  return x", ""]
-          in
-            ctxt := !ctxt @ cs; fprev2
-          end
-        else
-          "loop(\\(x,y)." ^ s1  ^ ", " ^ 
-          rm_par (human (~1) p2)  ^ ", " ^ rm_par (human (~1) p3) ^ ")"
-      end
-  | Ins (10,[]) => mk_xn vn
-  | Ins (11,[]) => mk_yn vn
-  | Ins (12,[p1,p2]) => 
-    let
-      val wn = (!funn)
-      val _ = incr funn
-      val s1 = rm_par (human (~1) p1)
-      val s2 = rm_par (human wn p2)
-      val fs = "f" ^ its wn
+fun mk_def vn wn prog =
+  let
+    val fs = "f" ^ its wn
       val fprev1 = if depend_on_y prog 
         then fs ^ "(" ^ mk_xn wn ^ "," ^ mk_yn wn ^ ")"
         else fs ^ "(" ^ mk_xn wn ^ ")"
@@ -195,30 +132,102 @@ fun human vn prog = case prog of
         then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_yn vn ^ ")"
         else fs ^ "(" ^ mk_xn vn ^ ")"
       val fs_head = "def " ^ fprev1 ^ ":"
+   in
+     (fs_head, fprev2)
+   end
+
+fun human vn prog = 
+  let 
+    fun rhuman a p = rm_par (human a p)
+    fun h p = human vn p
+    fun rh p = rm_par (human vn p)
+    fun hx p = human (~1) p
+    fun rhx b = rm_par (human (~1) b)
+    fun lrhx b = "\\(x,y)." ^ rhx b
+    fun wrap_def f =
+      let
+        val wn = (!funn)
+        val _ = incr funn
+        val (fs_head, fprev2) = mk_def vn wn prog
+        val cs = fs_head :: f wn @ [""]
+      in
+        ctxt := !ctxt @ cs; fprev2
+      end
+  in
+  case prog of
+    Ins (3,[p1,p2]) => 
+    if !polynorm_flag then reg_add vn prog 
+    else "(" ^ h p1 ^ " + " ^ h p2 ^ ")"   
+  | Ins (4,[p1,p2]) =>  
+    if !polynorm_flag then reg_add vn prog
+    else "(" ^ h p1 ^ " - " ^ h p2 ^ ")"   
+  | Ins (5,[p1,p2]) =>
+    if !polynorm_flag then reg_mult vn prog
+    else "(" ^ h p1 ^ " * " ^ h p2 ^ ")"
+  | Ins (6,[p1,p2]) => 
+    if !imperative_flag then "(" ^ h p1 ^ " // " ^ h p2 ^ ")"
+    else "(" ^ h p1 ^ " div " ^ h p2 ^ ")"
+  | Ins (7,[p1,p2]) => 
+    if !imperative_flag then "(" ^ h p1 ^ " % " ^ h p2 ^ ")"
+    else "(" ^ h p1 ^ " mod " ^ h p2 ^ ")"
+  | Ins (8,[p1,p2,p3]) => 
+     let fun rh p =  (h p) in
+       if !imperative_flag
+       then "(" ^ rh p2 ^ " if " ^ rh p1 ^ " <= 0 else " ^ rh p3 ^ ")"
+       else "(if " ^ rh p1 ^ " <= 0 then " ^ rh p2  ^ " else " ^ rh p3 ^ ")"
+     end
+  | Ins (9,[p1,p2,p3]) => 
+    if not (!imperative_flag) then
+      "loop(" ^ String.concatWith ", " [lrhx p1, rhx p2, rhx p3] ^ ")"
+    else let fun f wn =
+      let val (s1,s2,s3) = (rhx p1, human wn p2 ^ " + 1", rhuman wn p3) in
+        ["  x = " ^ s3,
+         "  for y in range (1," ^ s2 ^ "):",
+         "    x = " ^ s1,
+         "  return x"]
+      end
     in
-      if !imperative_flag then
-        let val cs = [fs_head,
-          "  x,i = 0,0",
-          "  while i <= " ^ s2 ^ ":",
-          "    if " ^ s1 ^ " <= 0:",
-          "      i = i + 1",
-          "    x = x + 1",
-          "  return x - 1", ""]
-        in
-          ctxt := !ctxt @ cs; fprev2
-        end
-      else
-        "compr(\\x." ^ s1 ^ ", " ^ rm_par (human (~1) p2) ^ ")" 
+      wrap_def f
+    end
+  | Ins (10,[]) => mk_xn vn
+  | Ins (11,[]) => mk_yn vn
+  | Ins (12,[p1,p2]) => 
+    if not (!imperative_flag) 
+      then "compr(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")"
+    else let fun f wn = 
+      let val (s1,s2) = (rhx p1, rhuman wn p2) in
+        ["  x,y,i = 0,0,0",
+         "  while i <= " ^ s2 ^ ":",
+         "    if " ^ s1 ^ " <= 0:",
+         "      i = i + 1",
+         "    x = x + 1",
+         "  return x - 1"]
+      end
+    in
+      wrap_def f
     end
   | Ins (13,[p1,p2,p3,p4,p5]) => 
-    "loop2(\\(x,y)." ^ rm_par (human (~1) p1)  ^ 
-       ", \\(x,y)." ^ rm_par (human (~1) p2)  ^ ", " ^ 
-       rm_par (human (~1) p3) ^ ", " ^ 
-       rm_par (human (~1) p4) ^ ", " ^ 
-       rm_par (human (~1) p5) ^ ")"
+    if not (!imperative_flag) 
+      then "loop2(" ^ String.concatWith ", "
+            [lrhx p1, lrhx p2, rhx p3, rhx p4, rhx p5] ^ ")"
+    else let fun f wn =
+      let
+        val (s1,s2) = (hx p1, hx p2)
+        val s3 = human wn p3 ^ " + 1"
+        val (s4,s5) = (rhuman wn p4, rhuman wn p5) 
+      in
+        ["  x = " ^ s4,
+         "  y = " ^ s5,
+         "  for i in range (1," ^ s3 ^ "):",
+         "    x,y = " ^ s1 ^ "," ^ s2,
+         "  return x"]
+      end
+    in
+      wrap_def f
+    end
   | Ins (s,[]) => its s
-  | Ins (s,l) => "(" ^ its s ^ " " ^ 
-      String.concatWith " " (map (human vn) l) ^ ")"
+  | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
+  end
 
 and reg_add vn p = 
   let 
@@ -271,7 +280,6 @@ fun humanf p =
   let 
     val _ = imperative_flag := false
     val s = human (~1) p
-    val _ = imperative_flag := false
   in rm_par s end
 
 fun humani ntop p =
@@ -308,11 +316,11 @@ fun humani ntop p =
   end
 
 (*
-load "rl"; open aiLib kernel rl;
-let val p = random_prog 20 in 
-  print_endline (humanf p ^ "\n"); 
-  print_endline (humani p) 
-end;
+load "rl"; open aiLib kernel human rl;
+val p = random_prog 20;
+print_endline (humanf p ^ "\n"); 
+print_endline (humani 32 p) ;
+
 *)
 
 end (* struct *)

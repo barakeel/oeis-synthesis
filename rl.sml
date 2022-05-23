@@ -129,6 +129,39 @@ fun string_of_board (board : board) =
 fun board_compare (a,b) = list_compare prog_compare (a,b)
 
 (* -------------------------------------------------------------------------
+   Keep multiple programs as solutions of an OEIS sequence
+   ------------------------------------------------------------------------- *)
+
+fun number_of_loops (p as Ins (id,pl)) = 
+  (case p of
+     Ins (9, [a,b,c]) => if depend_on_x b then 1 else 0
+   | Ins (13, [a,b,c,d,e]) => if depend_on_x b then 1 else 0
+   | _ => 0)
+  + sum_int (map number_of_loops pl)
+ 
+val altsol_flag = ref false
+
+val altwind = ref (dempty (cpl_compare Int.compare Int.compare))
+
+fun update_altwind_one d (anum,p) =
+  let val n = number_of_loops p in
+    case (SOME (dfind (anum,n) (!d)) handle NotFound => NONE) of 
+      NONE => d := dadd (anum,n) p (!d)
+    | SOME oldp =>
+      if prog_compare_size (p,oldp) = LESS
+      then d := dadd (anum,n) p (!d)
+      else ()
+
+fun merge_altisol isol = 
+  let 
+    val d = ref (dempty Int.compare) 
+    fun forget ((a,b),c) = (a,c)  
+  in
+    app (update_altwind_one d) isol;
+    map forget (dlist (!d))
+  end
+  
+(* -------------------------------------------------------------------------
    Check if a program is a solution (i.e) covers an OEIS sequence
    ------------------------------------------------------------------------- *)
 
@@ -143,7 +176,9 @@ fun update_wind_one d (anum,p) =
 fun update_wind_glob p =
   let
     val anuml = find_wins p
-    fun f anum = update_wind_one wind (anum,p)  
+    fun f anum = 
+      (if !altsol_flag then update_altwind_one wind (anum,p) else (); 
+       update_wind_one wind (anum,p))
   in
     app f anuml
   end
@@ -170,6 +205,7 @@ fun exec_fun p plb =
   SOME (p :: plb)
   )
 
+(* maybe prevent the first argument of compr from depending on y*)
 fun apply_moveo move board =
   let 
     val arity = arity_of_oper move
@@ -673,7 +709,8 @@ fun init_dicts () =
   (
   progd := eempty prog_compare;
   embd := dempty Term.compare;
-  wind := dempty Int.compare
+  wind := dempty Int.compare;
+  altwind := dempty (cpl_compare Int.compare Int.compare)
   )
 
 (* -------------------------------------------------------------------------
@@ -709,7 +746,9 @@ fun search tnn coreid =
     val _ = in_search := false
     val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
-    val r = dlist (!wind)
+    val r1 = dlist (!wind)
+    fun forget ((a,b),c) = (a,c)  
+    val r2 = map forget (dlist (!altwind))
   in
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
     print_endline ("tree_size: " ^ its n);
@@ -717,12 +756,12 @@ fun search tnn coreid =
     print_endline ("solutions: " ^ its (dlength (!wind)));
     init_dicts ();
     PolyML.fullGC ();
-    r
+    (r1,r2)
   end
 
 
 
-val parspec : (tnn, int, (int * prog) list) extspec =
+val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -734,15 +773,20 @@ val parspec : (tnn, int, (int * prog) list) extspec =
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.coreid_glob := " ^ its (!coreid_glob),
      "rl.dim_glob := " ^ its (!dim_glob),
-     "rl.time_opt := " ^ string_of_timeo ()] 
+     "rl.time_opt := " ^ string_of_timeo (),
+     "rl.altsol_flag := " ^ bts (!altsol_flag)
+     ] 
     ^ ")"),
   function = search,
   write_param = write_tnn,
   read_param = read_tnn,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = write_iprogl,
-  read_result = read_iprogl
+  write_result = let fun f file (r1,r2) = (write_iprogl (file ^ "_r1");
+                                           write_iprogl (file ^ "_r2")) 
+                 in f end
+  read_result = let fun f file = 
+    (read_iprogl (file ^ "_r1"), read_iprogl (file ^ "_r2"))
   }
 
 (* -------------------------------------------------------------------------
@@ -820,14 +864,18 @@ fun rl_search_only tmpname ngen =
     val isol = if ngen <= 0
                then []
                else read_isol (ngen - 1)
-    val (iprogll,t) = add_time
+    val (iprogll_both,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
+    val (iprogll, iprogll_alt) = split iprogll_both
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("solutions for each search:")
     val _ = log (String.concatWith " " (map (its o length) iprogll))
     val newisol = merge_isol (List.concat (isol :: iprogll))
+    val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))
   in
     write_isol ngen tmpname newisol;
+    if !altsol_flag then write_iprogl (isol_file ngen ^ "_alt") newaltisol
+    else ();
     log ("solutions: " ^ (its (length newisol)));
     stats_ngen (!buildheap_dir) ngen
   end
@@ -864,7 +912,9 @@ end (* struct *)
 
 load "rl"; open rl;
 expname := "your_experiment";
+altsol_flag := true;
 rl_search "_main" 1;
+
 
 
 *)

@@ -25,6 +25,11 @@ fun update_oseq s =
 
 val _ = app update_oseq oraw
 
+val oseql = 
+  let fun f (i,x,l) = case x of NONE => l | SOME y => (i,y) :: l in
+    Array.foldri f [] oseq
+  end
+
 (* -------------------------------------------------------------------------
    OEIS tree
    ------------------------------------------------------------------------- *)

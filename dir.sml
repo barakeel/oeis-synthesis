@@ -1,6 +1,6 @@
 structure dir :> dir =
 struct
 
-val selfdir = "/home/user/oeis-synthesis"
+val selfdir = "/home/thibault/oeis-dev"
 
 end
