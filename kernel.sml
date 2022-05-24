@@ -95,13 +95,23 @@ fun depend_on v (Ins (id,pl)) =
 
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
+fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 fun number_of_loops (p as Ins (id,pl)) = 
   (case p of
-     Ins (9, [a,b,c]) => if depend_on_x b then 1 else 0
-   | Ins (13, [a,b,c,d,e]) => if depend_on_x b then 1 else 0
+     Ins (9, [_,b,_]) => if is_constant b then 0 else 1
+   | Ins (13, [_,_,c,_,_]) => if is_constant c then 0 else 1
    | _ => 0)
   + sum_int (map number_of_loops pl)
+
+fun all_loops_aux (p as Ins (id,pl)) = 
+  (case p of
+     Ins (9, [_,b,_]) => if is_constant b then [] else [p]
+   | Ins (13, [_,_,c,_,_]) => if is_constant c then [] else [p]
+   | _ => []) @  
+  List.concat (map all_loops_aux pl)
+
+fun all_loops p = dict_sort prog_compare_size (all_loops_aux p)
 
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha

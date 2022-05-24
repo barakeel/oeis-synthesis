@@ -904,7 +904,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_alt" 44;
+rl_search "_main" 50;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
@@ -914,7 +914,6 @@ val tnn = random_tnn (get_tnndim ());
 val (r1,r2) = search tnn 1;
 
 (* post processing alternative solutions *)
-load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val d = dregroup Int.compare r2;
 val l = filter (fn (i,a) => length a >= 2) (dlist d);  
 fun f a = pair_of_list (
@@ -923,13 +922,28 @@ val l2 = map_snd f l;
 human.polynorm_flag := false;
 fun g1 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, human.humanf a, human.humanf b];
 fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, sexpr a, sexpr b];
-writel "equalities/human" (map g1 l2);
-writel "equalities/sexpr" (map g2 l2);
 
-(* todo simplify and regroup equalities 
-   by computing the first (n/depending on the oeis sequence) 
-   values of each loop and finding the matching sub
-   expression if it exists *)
+fun ipp_compare ((i1,(a1,b1)), (i2,(a2,b2))) =
+  prog_compare_size (Ins (~1,[a1,b1]), Ins (~1, [a2,b2]));
+ 
+
+
+val l3 = dict_sort ipp_compare l2;
+
+val dsimp = ref (eempty (list_compare prog_compare));
+fun rm_dupl (i,(p1,p2)) = 
+  let val loopl = all_loops (Ins (~1,[p1,p2])) in
+    if emem loopl (!dsimp)
+    then NONE
+    else (dsimp := eadd loopl (!dsimp); SOME (i,(p1,p2)))
+  end;
+  
+dsimp := eempty (list_compare prog_compare);
+val l4 = List.mapPartial I (map rm_dupl l3);  
+  
+writel "equalities/human" (map g1 l4);
+writel "equalities/sexpr" (map g2 l4);
+
 
 
 *)
