@@ -868,7 +868,7 @@ fun rl_search_only tmpname ngen =
     val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))
   in
     write_isol ngen tmpname newisol;
-    if !altsol_flag then write_iprogl (isol_file ngen ^ "_alt") newaltisol
+    if !altsol_flag then write_iprogl (isol_file ngen ^ "__altisol") newaltisol
     else ();
     log ("solutions: " ^ (its (length newisol)));
     stats_ngen (!buildheap_dir) ngen
@@ -904,7 +904,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main" 50;
+rl_search "_main" 45;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
