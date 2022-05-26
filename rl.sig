@@ -18,13 +18,12 @@ sig
   val ntarget : int ref
   val maxgen : int option ref
   val in_search : bool ref
-  val altsol_flag : bool ref
   
   (* data *)
   val progd: prog set ref
   val embd : (term, real vector) dict ref
   val wind : (int, prog) dict ref
-  val altwind : (int * int, prog) dict ref
+  
   (* game *)
   val game : (board,move) mcts.game
     
@@ -74,4 +73,9 @@ sig
   val search_target : mlTreeNeuralNetwork.tnn -> Arbint.int list -> 
     kernel.prog option
  
+  (* inductive theorem benchmark *)
+  val altsol_flag : bool ref
+  val altwind : (int * int, prog) dict ref
+  val merge_altisol : (int * prog) list -> (int * prog) list
+  
 end

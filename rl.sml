@@ -904,33 +904,47 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main" 45;
+rl_search "_main2" 46;
+
+
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 time_opt := SOME 60.0;
 altsol_flag := true;
 val tnn = random_tnn (get_tnndim ());
-val (r1,r2) = search tnn 1;
+val (r1,r2') = search tnn 1;
+
+
+(* importing r2 from main run *)
+load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
+fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
+fun has_compr2 (i,(a,b)) = has_compr a orelse has_compr b;
+
+val r2 = List.concat (map (fn x => read_iprogl ("model/" ^ x)) 
+  ["isol46__altisol","isol47__altisol","isol48__altisol"]);
+val r2' = mk_fast_set (cpl_compare Int.compare prog_compare) r2;
+val r2'' = filter (not o has_compr o snd) r2';
+length r2'';
 
 (* post processing alternative solutions *)
-val d = dregroup Int.compare r2;
-val l = filter (fn (i,a) => length a >= 2) (dlist d);  
+val d = dregroup Int.compare r2';
+val l1 = filter (fn (i,a) => length a >= 2) (dlist d);  
 fun f a = pair_of_list (
   first_n 2 (map fst (dict_sort compare_imin (map_assoc number_of_loops a))));
-val l2 = map_snd f l;
-human.polynorm_flag := false;
-fun g1 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, human.humanf a, human.humanf b];
-fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, sexpr a, sexpr b];
+val l2 = map_snd f l1;
 
+
+(* sorting solutions *)
 fun ipp_compare ((i1,(a1,b1)), (i2,(a2,b2))) =
   prog_compare_size (Ins (~1,[a1,b1]), Ins (~1, [a2,b2]));
- 
-
-
 val l3 = dict_sort ipp_compare l2;
+val l3'' = filter (not o has_compr2) l3;
+length l3'';
 
+(* removing duplicates *)
 val dsimp = ref (eempty (list_compare prog_compare));
+
 fun rm_dupl (i,(p1,p2)) = 
   let val loopl = all_loops (Ins (~1,[p1,p2])) in
     if emem loopl (!dsimp)
@@ -939,10 +953,22 @@ fun rm_dupl (i,(p1,p2)) =
   end;
   
 dsimp := eempty (list_compare prog_compare);
+
 val l4 = List.mapPartial I (map rm_dupl l3);  
+val l4' = filter (not o has_compr2) l4; length l4';
   
-writel "equalities/human" (map g1 l4);
-writel "equalities/sexpr" (map g2 l4);
+(* printing equations *)
+human.polynorm_flag := false;
+fun g1 (i,(a,b)) = 
+String.concatWith "\n" ["A" ^ its i,
+string_of_seq (valOf (Array.sub (bloom.oseq,i))),
+ human.humanf a, human.humanf b];
+fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i, 
+string_of_seq (valOf (Array.sub (bloom.oseq,i))), 
+sexpr a, sexpr b];  
+  
+writel "equalities/human_full" (map g1 l4');
+writel "equalities/sexpr_full" (map g2 l4');
 
 
 

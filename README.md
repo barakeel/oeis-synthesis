@@ -1,5 +1,7 @@
 This repository contains the software QSynt accompanying the paper 
 "Learning Program Synthesis for Integer Sequences from Scratch". 
+and recent modifications are presented in "
+
 
 
 Solutions found during the full-scale self-learning run can be inspected in the file `results/solutions`.
