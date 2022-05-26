@@ -1,14 +1,12 @@
-This repository contains and
-the software QSynt accompanying the paper 
-"Learning Program Synthesis for Integer Sequences from Scratch". 
-and modifications for recreating the benchmark described in
+This repository contains the software QSynt accompanying the paper 
+"Learning Program Synthesis for Integer Sequences from Scratch". Modifications to this software leading to the creation inductive problerms are described in
 "A Natural Benchmark of Arithmetical Problems for Inductive 
 	Theorem Provers"
 
-
-
-
-Solutions found during the full-scale self-learning run can be inspected in the file `results/solutions`.
+Solutions found during the full-scale self-learning run 
+can be inspected in the file `results/solutions`.
+The inductive problems benchmark 
+is included in the file `equalities/todo`
 
 ### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
@@ -32,6 +30,9 @@ Edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
+In this directory switch to the dev branch:
+git checkout todo
+
 In this directory, edit the file `dir.sml` by replacing the value of
 `val selfdir = "/home/thibault/oeis-dev"` by 
 `val selfdir = "the_directory_where_this_file_is_located"`.
@@ -42,6 +43,8 @@ Holmake
 ```
 
 ### Recreate the benchmark of inductive problems
+In this directory run `rlwrap hol` then copy-paste commands from
+bhenc
 
 
 
