@@ -44,7 +44,10 @@ Holmake
 
 ### Recreate the benchmark of inductive problems
 In this directory run `rlwrap hol` then copy-paste commands from
-bhenc
+benchmark.sml in the interactive shell.
+This should produce the files `equalities/human_full` and
+`equalities/sexpr_full`. 
+The final S-expr benchmark can be created from this by running the script todo.
 
 
 
