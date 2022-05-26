@@ -2,8 +2,10 @@
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
 fun has_compr2 (i,(a,b)) = has_compr a orelse has_compr b;
-val r2 = List.concat (map (fn x => read_iprogl ("model/" ^ x)) 
-  ["isol46__altisol","isol47__altisol","isol48__altisol"]);
+val r2 = merge_altisol 
+  (List.concat (map (fn x => read_iprogl ("model/" ^ x)) 
+  ["isol46__altisol","isol47__altisol","isol48__altisol"]));
+
 val r2' = mk_fast_set (cpl_compare Int.compare prog_compare) r2;
 val r2'' = filter (not o has_compr o snd) r2';
 length r2'';

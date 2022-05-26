@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/thibault/big/oeis-synthesis
+cd /home/thibault/big/oeis-dev
 git pull
 Holmake cleanAll
 Holmake
