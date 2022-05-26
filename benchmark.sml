@@ -14,10 +14,11 @@ val l1 = filter (fn (i,a) => length a >= 2) (dlist d);
 fun f a = pair_of_list (
   first_n 2 (map fst (dict_sort compare_imin (map_assoc number_of_loops a))));
 val l2 = map_snd f l1;
-
+  
 (* sorting equations by size *)
 fun ipp_compare ((i1,(a1,b1)), (i2,(a2,b2))) =
-  prog_compare_size (Ins (~1,[a1,b1]), Ins (~1, [a2,b2]));
+  cpl_compare prog_compare_size Int.compare
+    ((Ins (~1,[a1,b1]),i1), (Ins (~1, [a2,b2]),i2));
 val l3 = dict_sort ipp_compare l2;
 val l3'' = filter (not o has_compr2) l3;
 length l3'';
