@@ -1,13 +1,17 @@
-This repository contains the software QSynt accompanying the paper 
+This repository contains and
+the software QSynt accompanying the paper 
 "Learning Program Synthesis for Integer Sequences from Scratch". 
-and recent modifications are presented in "
+and modifications for recreating the benchmark described in
+"A Natural Benchmark of Arithmetical Problems for Inductive 
+	Theorem Provers"
+
 
 
 
 Solutions found during the full-scale self-learning run can be inspected in the file `results/solutions`.
 
 ### Try the Web interface
-http://3.71.110.215/~anon/qsynt.html
+http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
 ### Install on the Ubuntu OS a modified HOL (required)
 In your /home/your_username directory:
@@ -29,13 +33,17 @@ PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
 In this directory, edit the file `dir.sml` by replacing the value of
-`val selfdir = "/home/user/oeis-synthesis"` by 
+`val selfdir = "/home/thibault/oeis-dev"` by 
 `val selfdir = "the_directory_where_this_file_is_located"`.
 
 Save the file and run in this directory:
 ```
 Holmake
 ```
+
+### Recreate the benchmark of inductive problems
+
+
 
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds):
 In this directory run `rlwrap hol` then run in the interative shell:
@@ -56,6 +64,8 @@ print_endline (humanf p);
 val seq = penum p 10;
 ```
 
+
+
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
 In this directory run `rlwrap hol` then run in the interative shell:
 ```
@@ -63,6 +73,7 @@ load "rl"; open rl;
 expname := "your_experiment";
 rl_search "_main" 1;
 ```
+
 
 ### Install MKL libary (optional for faster training)
 #### Ubuntu 20.04
