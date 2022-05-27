@@ -1,6 +1,10 @@
-(* importing solutions from three loops of the main self-learning run *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
+
+(* -------------------------------------------------------------------------
+   Importing solutions from three loops of the main self-learning run 
+   ------------------------------------------------------------------------- *)
+
 
 val data =  map (fn x => "isol" ^ its x ^ "__altisol") 
  [46,47,48,49,50,51,52,53,54];
@@ -10,7 +14,10 @@ val r4 = mk_fast_set (cpl_compare Int.compare prog_compare) r3;
 val r5 = filter (not o has_compr o snd) r4;
 length r5; 
 
-(* post processing alternative solutions and creating equations *)
+(* -------------------------------------------------------------------------
+   Post-processing alternative solutions and creating equations
+   ------------------------------------------------------------------------- *)
+
 val d = dregroup Int.compare r5;
 val l1 = filter (fn (i,a) => length a >= 2) (dlist d);  
 fun f a = pair_of_list (
@@ -35,7 +42,10 @@ dsimp := eempty (list_compare prog_compare);
 val l4 = List.mapPartial I (map rm_dupl l3);  
 length l4;
   
-(* printing equations *)
+(* -------------------------------------------------------------------------
+   Filtering trivial solutions based some compression heuristic.
+   ------------------------------------------------------------------------- *)
+
 val ERR = mk_HOL_ERR "test" 
 
 fun test_pair (p1,p2) = 
@@ -45,11 +55,12 @@ fun test_pair (p1,p2) =
     else raise ERR "test_pair" (humanf p1 ^ " ::: " ^ humanf p2)
   end;
   
-fun print_pair (p1,p2) = 
-  if test_pair (p1,p2) then "non-trivial" else "maybe-trivial";
-
 val l5 = filter (test_pair o snd) l4;
 length l5;
+
+(* -------------------------------------------------------------------------
+   Printing equations
+   ------------------------------------------------------------------------- *)
 
 human.polynorm_flag := false;
 fun g1 (i,(a,b)) = 
