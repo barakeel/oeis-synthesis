@@ -163,14 +163,12 @@ fun add_cache p =
   if dmem p (!cache) then () else
   let
     val _ = init_timer ()
-    val _ = timelimit := 0.001;
     val f = mk_execarb_aux p
     val l = ref []
     fun loop i x =
       if i >= 1000 then raise Div else
       if Arbint.<= (f (x, Arbint.zero), Arbint.zero)
-      then (l := x :: !l; timelimit := !timelimit + 0.001; loop (i+1) 
-        (Arbint.+ (x,Arbint.one))) 
+      then (l := x :: !l; incr_timer (); loop (i+1) (Arbint.+ (x,Arbint.one))) 
       else  loop i (Arbint.+ (x,Arbint.one))
     val _ = loop 0 Arbint.zero handle Div => () | ProgTimeout => ();
     val v = Vector.fromList (rev (!l))
