@@ -11,16 +11,18 @@ val ERR = mk_HOL_ERR "rl"
    Globals
    ------------------------------------------------------------------------- *)
 
+val local_test = false
+
 val use_mkl = ref true
 val dim_glob = ref 64
-val ncore = ref 16
-val ntarget = ref 160
+val ncore = ref (if local_test then 2 else 16)
+val ntarget = ref (if local_test then 2 else 160)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
 val noise_coeff_glob = ref 0.1
 val nsim_opt = ref NONE
-val time_opt = ref (SOME 600.0)
+val time_opt = ref (if local_test then SOME 60.0 else SOME 600.0)
 
 (* experiments *)
 val randsol_flag = false
@@ -903,12 +905,20 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main2" 46;
+rl_search "_main3" 46;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-time_opt := SOME 60.0;
-altsol_flag := true;
+time_opt := SOME 120.0;
 val tnn = random_tnn (get_tnndim ());
-val (r1,r2') = search tnn 1;
+PolyML.print_depth 2;
+val (r1,_) = search tnn 1;
+PolyML.print_depth 40;
+length r1;
+val l = filter (has_compr o snd) r1;
+app print_endline (map string_of_iprog l);
+dlength (!execarb.cache);
+random_elem (map_fst humanf precomputed);
+
+
 *)

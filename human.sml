@@ -319,12 +319,73 @@ fun sexpr (Ins (id,pl)) =
   if null pl then its id else 
   "(" ^ String.concatWith " " (its id :: map sexpr pl) ^ ")";
 
+
+(* -------------------------------------------------------------------------
+   Parsing S-expressions
+   ------------------------------------------------------------------------- *)
+
+datatype sexp = Sexp of sexp list | Stoken of string;
+
+fun lex_sexp_aux buf sl charl = case charl of
+    [] => if null buf then rev sl else rev (implode (rev buf) :: sl)
+  | #"(" :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] ("(" :: sl) m
+   else lex_sexp_aux [] ("(" :: implode (rev buf) :: sl) m
+   )
+  | #")" :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] (")" :: sl) m
+   else lex_sexp_aux [] (")" :: implode (rev buf) :: sl) m
+   )
+  | #" " :: m => 
+   (
+   if null buf 
+   then lex_sexp_aux [] sl m
+   else lex_sexp_aux [] (implode (rev buf) :: sl) m
+   )
+  | a :: m => lex_sexp_aux (a :: buf) sl m
+  
+fun lex_sexp s = lex_sexp_aux [] [] (explode s)
+ 
+fun parse_sexpl sexpl sl = case sl of
+    [] => (rev sexpl, [])
+  | "(" :: m =>
+    let val (a,contl) = parse_sexpl [] m in
+      parse_sexpl (Sexp a :: sexpl) contl     
+    end
+  | ")" :: m => (rev sexpl, m)
+  | a :: m => parse_sexpl (Stoken a :: sexpl) m 
+
+fun parse_sexp s =
+  let val (l1,l2) = parse_sexpl [] (lex_sexp s) in
+    case (l1,l2) of
+     ([a],[]) => a 
+    | _ => raise ERR "parse_sexp" s
+  end
+
+val tokenl =    
+  ["0","1","2","+","-","*","/","%","cond","loop","x","y","compr","loop2"]
+val tokend = dnew String.compare (number_snd 0 tokenl)
+  
+fun parse_human_aux sexp = case sexp of
+    Stoken token => Ins (dfind token tokend, [])
+  | Sexp (Stoken token :: m)  => 
+    Ins (dfind token tokend, map parse_human_aux m)
+  | _ => raise ERR "parse_human" ""
+  
+fun parse_human s = parse_human_aux (parse_sexp s)
+  handle HOL_ERR _ => raise ERR "parse_human" s
+ 
+  
 (*
 load "rl"; open aiLib kernel human rl;
 val p = random_prog 20;
 print_endline (humanf p ^ "\n"); 
 print_endline (humani 32 p) ;
-
+val p = parse_human "(+ 1 1)";
 *)
 
 end (* struct *)

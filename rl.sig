@@ -68,7 +68,8 @@ sig
 
   (* reading solutions *)
   val read_isol : int -> (int * prog) list
-
+  val string_of_iprog : (int * prog) -> string
+  
   (* interactive search *)
   val search_target : mlTreeNeuralNetwork.tnn -> Arbint.int list -> 
     kernel.prog option

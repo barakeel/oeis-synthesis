@@ -5,7 +5,6 @@ fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
    Importing solutions from three loops of the main self-learning run 
    ------------------------------------------------------------------------- *)
 
-
 val data =  map (fn x => "isol" ^ its x ^ "__altisol") 
  [46,47,48,49,50,51,52,53,54];
 val r2 = List.concat (map (fn x => read_iprogl ("model/" ^ x)) data);

@@ -19,10 +19,12 @@ sig
   val prog_size : prog -> int
   val prog_compare_size : prog * prog -> order
   val all_subprog : prog -> prog list
+  val all_subcompr : prog -> prog list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
   val number_of_loops : prog -> int
   val all_loops : prog -> prog list
+  val has_compr : prog -> bool
   
   (* I/O *)
   val read_progl : string -> prog list
@@ -39,6 +41,9 @@ sig
   exception ProgTimeout
   val timelimit : real ref
   val rt_glob : Timer.real_timer ref
-  
+  val timeincr : real
+  val incr_timer : unit -> unit
+  val skip_counter : int ref
+  val init_timer : unit -> unit
   
 end

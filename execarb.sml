@@ -24,9 +24,6 @@ fun test_aux y =
     if t > !timelimit then raise ProgTimeout else ()
   end
 
-val skip_counter = ref 0
-val skip_large_counter = ref 0
-
 fun test f x =
   let val y = f x in
     if large_arb y then raise ProgTimeout
@@ -72,6 +69,8 @@ fun mk_quintf2 opf fl = case fl of
   | _ => raise ERR "mk_quintf2" ""
 
 
+fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
+
 local open Arbint in
 
 val aits = toString
@@ -95,12 +94,24 @@ fun loop_f_aux i f n x =
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
  
+(* deprecated code for compr *)
 fun compr_f_aux x f n0 n =
    if f (x,zero) <= zero then 
    (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
   else compr_f_aux (x+one) f n0 n
 fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
 val compr_f = mk_binf1 compr_f_aux2
+
+(* precompute comprehension functions *)
+val cache = ref (dempty prog_compare)
+fun clean_cache () = cache := dempty prog_compare
+
+fun compr_f_cache v f2 x = 
+  let val input = Arbint.toInt (f2 x) handle Overflow => raise Div in
+    if Int.< (input,0) orelse Int.>= (input, Vector.length v) 
+    then raise Div 
+    else test Vector.sub (v,input)
+  end
 
 fun loop2_f_aux f1 f2 n x1 x2 = 
   if n <= zero then x1 else 
@@ -138,28 +149,78 @@ val base_execv = Vector.fromList base_execl
    Execute a program on some input
    ------------------------------------------------------------------------- *)
 
-fun mk_execarb (Ins (id,pl)) = Vector.sub (base_execv,id) (map mk_execarb pl)
+fun mk_execarb_aux (p as (Ins (id,pl))) = 
+  let val fl = map mk_execarb_aux pl in
+    if id = 12 
+    then 
+      let val v = dfind (hd pl) (!cache) handle NotFound =>
+        raise ERR "mk_execarb_aux" "cache"
+      in compr_f_cache v (hd (tl fl)) end 
+    else Vector.sub (base_execv,id) fl
+  end
+  
+fun add_cache p =
+  if dmem p (!cache) then () else
+  let
+    val _ = init_timer ()
+    val _ = timelimit := 0.001;
+    val f = mk_execarb_aux p
+    val l = ref []
+    fun loop i x =
+      if i >= 1000 then raise Div else
+      if Arbint.<= (f (x, Arbint.zero), Arbint.zero)
+      then (l := x :: !l; timelimit := !timelimit + 0.001; loop (i+1) 
+        (Arbint.+ (x,Arbint.one))) 
+      else  loop i (Arbint.+ (x,Arbint.one))
+    val _ = loop 0 Arbint.zero handle Div => () | ProgTimeout => ();
+    val v = Vector.fromList (rev (!l))
+  in
+    cache := dadd p v (!cache)
+  end
 
-fun find_wins p =
-  (
-  skip_counter := 0;
-  rt_glob := Timer.startRealTimer (); 
-  tcover (mk_execarb p)
-  )
+fun init_execarb p =
+  let val comprl = dict_sort prog_compare_size (all_subcompr p) in
+    app add_cache comprl
+  end
+  
+fun mk_execarb p = 
+  let 
+    val _ = 
+      if dlength (!cache) > 1000 
+      then clean_cache ()
+      else ();
+    val _ = init_execarb p in 
+    (fn x => mk_execarb_aux p x) 
+  end
 
-fun pcover p target =
-  (
-  skip_counter := 0;
-  rt_glob := Timer.startRealTimer (); 
-  fcover (mk_execarb p) target
-  )
+fun find_wins p = (init_timer (); tcover (mk_execarb p))
+
+fun pcover p target = (init_timer (); fcover (mk_execarb p) target)
 
 fun penum p n = 
-  let val f = mk_execarb p in
-    skip_counter := 0;
-    rt_glob := Timer.startRealTimer (); 
-    timelimit := 1.0;
-    List.tabulate (n,fn i => f (Arbint.fromInt i,Arbint.zero))
+  let 
+    val f = mk_execarb p 
+    val _ = init_timer ()
+    val _ = timelimit := 1.0
+    val l = ref []
+    fun loop i x = if i >= n then raise Div else
+      (
+      l := f (x, Arbint.zero) :: !l; 
+      loop (i+1) (Arbint.+ (x,Arbint.one))
+      )
+    val _ = loop 0 Arbint.zero handle Div => () | ProgTimeout => ();  
+  in  
+    rev (!l)
   end
 
 end (* struct *)
+
+(* 
+load "execarb"; open execarb; 
+load "human"; open kernel human aiLib;
+val p =  parse_human "(loop ( * 2 x) (+ x 2) 1)";
+val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2val (l1,t) = add_time (penum p) 5;)) x) 2"; 
+humanf p;
+val (l1,t) = add_time (penum p) 30;
+!cache;
+*)

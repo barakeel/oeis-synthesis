@@ -39,6 +39,9 @@ fun prog_compare_size (p1,p2) =
 
 fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
 
+fun all_subcompr (Ins (id,pl)) = 
+  (if id = 12 then [hd pl] else []) @ List.concat (map all_subcompr pl);
+
 (* -------------------------------------------------------------------------
    Storing programs
    ------------------------------------------------------------------------- *)
@@ -96,11 +99,18 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
+fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
 
 fun number_of_loops (p as Ins (id,pl)) = 
   (case p of
-     Ins (9, [_,b,_]) => if is_constant b then 0 else 1
-   | Ins (13, [_,_,c,_,_]) => if is_constant c then 0 else 1
+     Ins (9, [a,b,_]) =>
+     if depend_on_x a andalso not (is_constant b) then 1 else 0
+   | Ins (13, [a,b,c,_,_]) => 
+    if 
+    ((depend_on_x a andalso depend_on_y a andalso not (is_constant b)) 
+    orelse 
+     (depend_on_x b andalso depend_on_y b andalso not (is_constant a)))
+    andalso not (is_constant c) then 1 else 0
    | _ => 0)
   + sum_int (map number_of_loops pl)
 
@@ -147,6 +157,12 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
 val timelimit = ref 0.00005
-
-
+val timeincr = 0.00005
+fun incr_timer () = timelimit := !timelimit + timeincr
+val skip_counter = ref 0
+fun init_timer () =
+  (skip_counter := 0;
+   rt_glob := Timer.startRealTimer ();
+   timelimit := timeincr)
+  
 end (* struct *)
