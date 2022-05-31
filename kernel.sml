@@ -7,6 +7,12 @@ val ERR = mk_HOL_ERR "kernel";
 val selfdir = dir.selfdir 
 
 (* -------------------------------------------------------------------------
+   Utils
+   ------------------------------------------------------------------------- *)
+
+fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
+
+(* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
 
@@ -66,6 +72,32 @@ end
 
 fun write_iprogl file r = write_data enc_iprogl file r
 fun read_iprogl file = read_data dec_iprogl file
+
+
+local open HOLsexp in
+val enc_ocache = 
+  list_encode (pair_encode (enc_prog, list_encode String))
+val dec_ocache = 
+  list_decode (pair_decode (dec_prog, list_decode string_decode))
+end
+
+fun write_ocache file l0 = 
+  let
+    fun f (a,b) = (a, map (rm_i o Arbint.toString) (vector_to_list b))
+    val l1 = map f (dlist l0)
+  in
+    write_data enc_ocache file l1
+  end
+    
+fun read_ocache file = 
+  let 
+    val l0 = read_data dec_ocache file 
+    fun f (a,b) = (a, Vector.fromList (map Arbint.fromString b))
+    val l1 = map f l0
+  in
+    dnew prog_compare l1
+  end
+
 
 (* -------------------------------------------------------------------------
    Instructions

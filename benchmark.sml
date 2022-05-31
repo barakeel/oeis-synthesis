@@ -6,7 +6,7 @@ fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
    ------------------------------------------------------------------------- *)
 
 val data =  map (fn x => "isol" ^ its x ^ "__altisol") 
- [46,47,48,49,50,51,52,53,54];
+  [46,47,48,49,50,51,52,53,54];
 val r2 = List.concat (map (fn x => read_iprogl ("model/" ^ x)) data);
 val r3 = merge_altisol r2;
 val r4 = mk_fast_set (cpl_compare Int.compare prog_compare) r3;

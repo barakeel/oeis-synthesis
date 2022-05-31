@@ -563,6 +563,7 @@ fun mctsobj tnn =
 
 fun tnn_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/tnn" ^ its ngen
 fun isol_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/isol" ^ its ngen
+fun ocache_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/ocache" ^ its ngen
 
 fun get_expdir () = selfdir ^ "/exp/" ^ !expname
 
@@ -721,6 +722,7 @@ fun search tnn coreid =
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
+    
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -740,6 +742,8 @@ fun search tnn coreid =
     val _ = print_endline "end search"
     val n = tree_size newtree
     val _ = in_search := false
+    val _ = PolyML.fullGC ();
+    val _ = ocache := read_ocache (ocache_file (!ngen_glob))
     val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
     val r1 = dlist (!wind)
@@ -751,6 +755,7 @@ fun search tnn coreid =
     print_endline ("progd: " ^ its (elength (!progd)));
     print_endline ("solutions: " ^ its (dlength (!wind)));
     init_dicts ();
+    ocache := dempty prog_compare;
     PolyML.fullGC ();
     (r1,r2)
   end
@@ -846,6 +851,21 @@ fun stats_ngen dir ngen =
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
 
+fun update_ocache ngen pl =
+  let 
+    val prevcache = 
+      if exists_file (ocache_file (ngen - 1))
+      then read_ocache (ocache_file (ngen - 1))
+      else dempty prog_compare 
+    fun f p = case dfindo p prevcache of
+      SOME v => ocache := dadd p v (!ocache) 
+    | NONE => add_ocache p
+  in
+    ocache := dempty prog_compare;
+    app f pl;
+    write_ocache (ocache_file ngen) (!ocache)
+  end
+  
 fun rl_search_only tmpname ngen =
   let 
     val expdir = mk_dirs ()
@@ -857,9 +877,11 @@ fun rl_search_only tmpname ngen =
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
-    val isol = if ngen <= 0
+    val isol = if ngen - 1 <= ~1
                then []
                else read_isol (ngen - 1)
+    val (_,t) = add_time (update_ocache ngen) (map snd isol)
+    val _ = log ("ocache time: " ^ rts_round 6 t)
     val (iprogll_both,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val (iprogll, iprogll_alt) = split iprogll_both
@@ -905,7 +927,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main4" 71;
+rl_search "_main5" 71;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

@@ -5,6 +5,9 @@ sig
   (* directory *)
   val selfdir : string 
   
+  (* utils *)
+  val dfindo : 'a -> ('a, 'b) Redblackmap.dict -> 'b option
+  
   (* sequences *)
   type seq = Arbint.int list
   val seq_compare : seq * seq -> order
@@ -31,7 +34,10 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
-
+  val write_ocache : 
+    string -> (prog, Arbint.int vector) Redblackmap.dict -> unit
+  val read_ocache : string -> (prog, Arbint.int vector) Redblackmap.dict
+  
   (* operators *)
   val operv : term vector
   val arity_of_oper : int -> int
