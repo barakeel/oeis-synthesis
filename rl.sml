@@ -823,7 +823,7 @@ fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p;
 
 fun stats_sol prefix isol =
   let
-    val isolsort = dict_sort (snd_compare prog_compare) isol
+    val isolsort = dict_sort (snd_compare prog_compare_size) isol
     val freql1 = compute_freq all_subprog (map snd isol)
   in
     writel (prefix ^ "prog") (map string_of_iprog isolsort);
@@ -905,7 +905,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main3" 71;
+rl_search "_main4" 71;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
