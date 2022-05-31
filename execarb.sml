@@ -141,7 +141,7 @@ val ocache = ref (dempty prog_compare)
 fun ocachef v id fl (x as (a,_)) =
   if Arbint.< (a,Arbint.zero) then Vector.sub (base_execv,id) fl x else 
   let val ai = Arbint.toInt a handle Overflow => raise Div in 
-    if ai >= Vector.length v then raise Div else Vector.sub (v,ai)
+    if ai >= Vector.length v then raise Div else test Vector.sub (v,ai)
   end
 
 fun mk_execarb_aux (p as (Ins (id,pl))) = 

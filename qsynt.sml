@@ -6,7 +6,7 @@ val ERR = mk_HOL_ERR "qsynt";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
 val main_iprogl = read_iprogl (selfdir ^ "/model/isol25")
-val _ = ocache := read_ocache (selfdir ^ "/model/ocache25")
+(* val _ = ocache := read_ocache (selfdir ^ "/model/ocache25") *)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
@@ -47,5 +47,15 @@ val p = valOf po;
 print_endline (humanf p);
 val seq = penum p 10;
 
+Lasse's sequence.
+time_opt := SOME 600.0;
+polynorm_flag := false;
+val po = qsynt (map Arbint.fromInt [0,1,2,3,5,7,10,13,18,23,30,37,47,57,70,83,101,119,142,165,195,225,262,299]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
 
 *)
+
+
+
