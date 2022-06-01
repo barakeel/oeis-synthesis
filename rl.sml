@@ -940,7 +940,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main6" 73;
+rl_search "_main7" 74;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

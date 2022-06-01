@@ -1,9 +1,9 @@
 signature kernel =
 sig
 
+  include Abbrev
   (* directory *)
   val selfdir : string 
-  
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
