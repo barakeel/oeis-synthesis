@@ -40,7 +40,6 @@ sig
   val random_prog : int -> prog
   
   (* search parameters *)
-  val wnoise_flag : bool ref
   val noise_coeff_glob : real ref
   val noise_flag : bool ref
   val nsim_opt : int option ref

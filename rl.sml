@@ -3,7 +3,7 @@ struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel mcts
   mlNeuralNetwork smlExecScripts mlTreeNeuralNetwork kernel bloom execarb
-  human
+  human poly
 
 val ERR = mk_HOL_ERR "rl"
 
@@ -49,15 +49,6 @@ fun butlast_string s =
 
 fun string_of_seq seq = 
   String.concatWith " " (map (butlast_string o Arbint.toString) seq)
-
-(* -------------------------------------------------------------------------
-   Dictionaries shortcuts
-   ------------------------------------------------------------------------- *)
-
-fun eaddi x d = d := eadd x (!d)
-fun ememi x d = emem x (!d)
-fun daddi k v d = d := dadd k v (!d) 
-fun dmemi x d = dmem x (!d)
 
 (* -------------------------------------------------------------------------
    Parameters
@@ -201,7 +192,6 @@ fun exec_fun p plb =
   SOME (p :: plb)
   )
 
-(* maybe prevent the first argument of compr from depending on y*)
 fun apply_moveo move board =
   let 
     val arity = arity_of_oper move
@@ -711,10 +701,29 @@ fun init_dicts () =
   )
 
 (* -------------------------------------------------------------------------
-   Main search function
+   Deduplication based on polynomial normalization
    ------------------------------------------------------------------------- *)
 
-val wnoise_flag = ref false
+fun deduplicate pl = 
+  let 
+    val d = ref (dempty poly_compare) 
+    fun f p = 
+      let val py = norm p in
+        case dfindo py (!d) of
+          NONE => daddi py p d
+        | SOME oldp => if prog_compare_size (p,oldp) = LESS 
+                       then daddi py p d
+                       else ()
+      end
+  in
+    app f pl;
+    print_endline ("deduplication end: " ^ its (dlength (!d)));
+    map snd (dlist (!d))
+  end
+
+(* -------------------------------------------------------------------------
+   Main search function
+   ------------------------------------------------------------------------- *)
 
 fun search tnn coreid =
   let
@@ -737,23 +746,27 @@ fun search tnn coreid =
     val _ = init_dicts ()
     val _ = in_search := true
     val tree = starting_tree (mctsobj tnn) []
-    val _ = print_endline "start search"
+    val _ = print_endline "search start"
     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
-    val _ = print_endline "end search"
+    val _ = print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
     val n = tree_size newtree
+    val _ = print_endline ("tree_size: " ^ its n)
     val _ = in_search := false
     val _ = PolyML.fullGC ();
-    val _ = ocache :=   ²read_ocache (ocache_file (!ngen_glob))
-    val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
-    val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
+    val _ = print_endline ("dedupl start: " ^ its (elength (!progd)))
+    val (dedupl1,t) = add_time deduplicate (elist (!progd))
+    val _ = print_endline ("dedupl time: " ^ rts_round 2 t ^ " seconds")
+    val dedupl2 = dict_sort prog_compare_size dedupl1
+    val _ = if exists_file (ocache_file (!ngen_glob)) 
+            then ocache := read_ocache (ocache_file (!ngen_glob))
+            else ocache := dempty prog_compare 
+    val (_,t) = add_time (app update_wind_glob) dedupl2
+    val _ = print_endline ("check time: "  ^ rts_round 2 t ^ " seconds")
+    val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
     val r1 = dlist (!wind)
     fun forget ((a,b),c) = (a,c)  
     val r2 = map forget (dlist (!altwind))
   in
-    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
-    print_endline ("tree_size: " ^ its n);
-    print_endline ("progd: " ^ its (elength (!progd)));
-    print_endline ("solutions: " ^ its (dlength (!wind)));
     init_dicts ();
     ocache := dempty prog_compare;
     PolyML.fullGC ();
@@ -791,7 +804,7 @@ val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
   }
 
 (* -------------------------------------------------------------------------
-   For interactive calls
+   For interactive calls.
    ------------------------------------------------------------------------- *)
 
 fun search_target tnn target =
@@ -937,7 +950,7 @@ PolyML.print_depth 2;
 val (r1,_) = search tnn 1;
 PolyML.print_depth 40;
 length r1;
-val l = filter (has_compr o snd) r1;
+
 app print_endline (map string_of_iprog l);
 dlength (!execarb.cache);
 random_elem (map_fst humanf precomputed);

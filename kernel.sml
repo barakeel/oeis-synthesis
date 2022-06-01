@@ -7,9 +7,14 @@ val ERR = mk_HOL_ERR "kernel";
 val selfdir = dir.selfdir 
 
 (* -------------------------------------------------------------------------
-   Utils
+   Dictionaries shortcuts
    ------------------------------------------------------------------------- *)
 
+type ('a,'b) dict = ('a, 'b) Redblackmap.dict
+fun eaddi x d = d := eadd x (!d)
+fun ememi x d = emem x (!d)
+fun daddi k v d = d := dadd k v (!d) 
+fun dmemi x d = dmem x (!d)
 fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
 
 (* -------------------------------------------------------------------------
