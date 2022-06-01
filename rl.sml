@@ -743,7 +743,7 @@ fun search tnn coreid =
     val n = tree_size newtree
     val _ = in_search := false
     val _ = PolyML.fullGC ();
-    val _ = ocache := read_ocache (ocache_file (!ngen_glob))
+    val _ = ocache :=   ²read_ocache (ocache_file (!ngen_glob))
     val (_,t2) = add_time (app update_wind_glob) (elist (!progd))
     val _ = print_endline ("win check: "  ^ rts_round 2 t2 ^ " seconds")
     val r1 = dlist (!wind)
@@ -927,7 +927,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main5" 73;
+rl_search "_main6" 73;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

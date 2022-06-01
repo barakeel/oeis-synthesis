@@ -1,7 +1,6 @@
 signature kernel =
 sig
 
-  include Abbrev
   (* directory *)
   val selfdir : string 
   
