@@ -14,11 +14,12 @@ sig
     Tdict of int list * (Arbint.int, ttree) Redblackmap.dict
   val tempty : ttree
   val tadd : Arbint.int list * int -> ttree -> ttree
-  val tcover : (Arbint.int * Arbint.int -> Arbint.int) -> int list
+  val cover_oeis : (Arbint.int * Arbint.int -> Arbint.int) -> 
+                   (int list * int * int list)
   val ost : ttree
 
   (* user-given sequence *)
-  val fcover : (Arbint.int * Arbint.int -> Arbint.int) -> Arbint.int list -> 
-    bool
+  val cover_target : (Arbint.int * Arbint.int -> Arbint.int) -> 
+    Arbint.int list -> bool
 
 end

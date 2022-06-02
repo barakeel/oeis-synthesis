@@ -59,6 +59,30 @@ fun taddo (i,seqo,st) =
 val ost = Array.foldli taddo tempty oseq
 
 (* -------------------------------------------------------------------------
+   Collecting partial sequences stopped because of timeout
+   ------------------------------------------------------------------------- *)
+
+val anlrefpart = ref []
+val maxparti = ref 0
+val maxpart = 32
+val ncoveri = ref 0
+fun init_partial () = (anlrefpart := []; maxparti := 0; ncoveri := 0)
+
+fun collect_partseq st = 
+  if !maxparti > maxpart then anlrefpart := [] else
+  (
+  case st of
+    Tleaf (an2,[]) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
+  | Tleaf (an2,a2 :: m2) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
+  | Tdict (anl,d) =>
+    ( 
+    maxparti := !maxparti + length anl; 
+    anlrefpart := anl @ !anlrefpart;
+    app collect_partseq (map snd (dlist d))
+    )
+  )
+
+(* -------------------------------------------------------------------------
    Checking if a program covers an OEIS sequence
    ------------------------------------------------------------------------- *)
 
@@ -66,51 +90,57 @@ val anlref = ref []
 
 local open Arbint in
 
-fun tcover_aux f i st = case st of
+fun cover_oeis_aux f i st = case st of
     Tleaf (an2,[]) => anlref := an2 :: !anlref
   | Tleaf (an2,a2 :: m2) => 
-    if f (i,zero) = a2 
-    then 
-      (incr_timer ();
-       tcover_aux f (i + one) (Tleaf (an2,m2))) 
-    else ()
+    (
+    case SOME (f (i,zero) = a2) handle ProgTimeout => NONE of
+      SOME true =>  
+      (incr_timer (); incr ncoveri;
+       cover_oeis_aux f (i + one) (Tleaf (an2,m2))) 
+    | SOME false => ()
+    | NONE => anlrefpart := [an2]
+    )
   | Tdict (anl,d) =>
-    let 
-      val _ = anlref := anl @ !anlref
-      val a1 = f (i,zero)
-      val sto = SOME (dfind a1 d) handle NotFound => NONE 
-    in
-      case sto of 
-        NONE => ()
-      | SOME newst => (incr_timer (); tcover_aux f (i + one) newst)
+    let val _ = anlref := anl @ !anlref in
+      case SOME (f (i,zero)) handle ProgTimeout => NONE of
+        SOME a1 =>
+        (
+        case SOME (dfind a1 d) handle NotFound => NONE of 
+          NONE => ()
+        | SOME newst => (incr_timer (); incr ncoveri; 
+                         cover_oeis_aux f (i + one) newst)
+        )
+      | NONE => app collect_partseq (map snd (dlist d))
     end
 
 end (* local *)
 
-fun tcover f = 
-  let val _ = anlref := [] in
-    timelimit := timeincr;
-    tcover_aux f Arbint.zero ost;
-    !anlref
+fun cover_oeis f = 
+  let val _ = (anlref := []; init_partial ()) in
+    init_timer ();
+    cover_oeis_aux f Arbint.zero ost;
+    (!anlref, !ncoveri, !anlrefpart) 
   end
-  handle Div => !anlref | ProgTimeout => !anlref
+  handle Div => (!anlref, !ncoveri, !anlrefpart) 
+       | ProgTimeout => (!anlref, !ncoveri, !anlrefpart)
 
 (* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence
    ------------------------------------------------------------------------- *)
 
 local open Arbint in
-fun fcover_aux f i target = case target of 
+fun cover_target_aux f i target = case target of 
     [] => true
   | a :: m => if f (i,zero) = a 
-              then (incr_timer (); fcover_aux f (i+one) m)
+              then (incr_timer (); cover_target_aux f (i+one) m)
               else false
 end
 
-fun fcover f target = 
+fun cover_target f target = 
   (
-  timelimit := timeincr;
-  fcover_aux f Arbint.zero target
+  init_timer ();
+  cover_target_aux f Arbint.zero target
   )
   handle Div => false | ProgTimeout => false
 

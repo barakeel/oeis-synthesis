@@ -76,6 +76,9 @@ val embd = ref (dempty Term.compare)
 val wind = ref (dempty Int.compare)
 val progd = ref (eempty prog_compare)
 
+val altwind = ref (dempty (cpl_compare Int.compare Int.compare))
+val partwind = ref (dempty Int.compare) 
+
 (* -------------------------------------------------------------------------
    Main process logging function
    ------------------------------------------------------------------------- *)
@@ -127,8 +130,6 @@ fun board_compare (a,b) = list_compare prog_compare (a,b)
  
 val altsol_flag = ref false
 
-val altwind = ref (dempty (cpl_compare Int.compare Int.compare))
-
 fun update_altwind_one d (anum,p) =
   let val n = number_of_loops p in
     case (SOME (dfind (anum,n) (!d)) handle NotFound => NONE) of 
@@ -152,21 +153,50 @@ fun merge_altisol isol =
    Check if a program is a solution (i.e) covers an OEIS sequence
    ------------------------------------------------------------------------- *)
 
+fun update_partwind_one d p (anum,ncover) =
+  case dfindo anum (!d) of 
+    NONE => d := dadd anum [(ncover,p)] (!d)
+  | SOME oldl => 
+    let 
+      fun test1 (oldncover,oldp) = 
+        prog_compare_size (p,oldp) = LESS orelse ncover > oldncover 
+      fun test2 (oldncover,oldp) =
+        prog_compare_size (p,oldp) = LESS andalso ncover > oldncover 
+    in
+      if all test1 oldl
+      then d := dadd anum ((ncover,p) :: filter (not o test2) oldl) (!d) 
+      else ()      
+    end
+
+(* optional todo: filter ones that are already solutions? *)
+
 fun update_wind_one d (anum,p) =
-  case (SOME (dfind anum (!d)) handle NotFound => NONE) of 
+  case dfindo anum (!d) of 
     NONE => d := dadd anum p (!d)
   | SOME oldp =>
     if prog_compare_size (p,oldp) = LESS
     then d := dadd anum p (!d)
     else ()
 
+fun create_anumlpart (anuml,ncover,anumlpart1) =
+  let 
+    fun f x = length (valOf (Array.sub (oseq, x)))
+    fun g x = ncover
+  in
+    map_assoc f anuml @ map_assoc g anumlpart1
+  end
+  
 fun update_wind_glob p =
   let
-    val anuml = find_wins p
+    val (anuml,ncover,anumlpart1) = coverp_oeis p
+    val anumlpart2 = create_anumlpart (anuml,ncover,anumlpart1) 
     fun f anum = 
-      (if !altsol_flag then update_altwind_one altwind (anum,p) else (); 
-       update_wind_one wind (anum,p))
+      (
+      if !altsol_flag then update_altwind_one altwind (anum,p) else ();  
+      update_wind_one wind (anum,p)
+      )
   in
+    app (update_partwind_one partwind p) anumlpart2;
     app f anuml
   end
 
@@ -185,7 +215,7 @@ fun exec_fun p plb =
   if !online_flag andalso not (depend_on_y p) andalso 
      not (ememi p progd)
     then (eaddi p progd; 
-          if pcover p (!target_glob) then raise ResultP p else ())   
+          if coverp_target p (!target_glob) then raise ResultP p else ())   
   else if !in_search andalso not (depend_on_y p)
      then eaddi p progd 
   else (); 
@@ -697,7 +727,8 @@ fun init_dicts () =
   progd := eempty prog_compare;
   embd := dempty Term.compare;
   wind := dempty Int.compare;
-  altwind := dempty (cpl_compare Int.compare Int.compare)
+  altwind := dempty (cpl_compare Int.compare Int.compare);
+  partwind := dempty Int.compare
   )
 
 (* -------------------------------------------------------------------------
@@ -731,7 +762,6 @@ fun search tnn coreid =
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
-    
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -788,8 +818,7 @@ val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
      "rl.coreid_glob := " ^ its (!coreid_glob),
      "rl.dim_glob := " ^ its (!dim_glob),
      "rl.time_opt := " ^ string_of_timeo (),
-     "rl.altsol_flag := " ^ bts (!altsol_flag)
-     ] 
+     "rl.altsol_flag := " ^ bts (!altsol_flag)] 
     ^ ")"),
   function = search,
   write_param = write_tnn,
@@ -940,7 +969,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main7" 74;
+rl_search "_main8" 74;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

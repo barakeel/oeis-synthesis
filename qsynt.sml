@@ -1,4 +1,4 @@
-structure qsynt :> qsynt =
+qstructure qsynt :> qsynt =
 struct
 
 open HolKernel Abbrev boolLib aiLib kernel mcts execarb mlTreeNeuralNetworkAlt rl;

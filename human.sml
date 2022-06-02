@@ -14,8 +14,7 @@ fun mk_xn vn = if vn = ~1 then "x" else "X"
 fun mk_yn vn = if vn = ~1 then "y" else "Y"
 
 (* -------------------------------------------------------------------------
-   Polynomial normalization 
-   (todo: message users to turn it off when it fails)
+   Polynomial normalization
    ------------------------------------------------------------------------- *)
 
 fun itsm i = if i < 0 then "-" ^ its (~i) else its i
@@ -367,7 +366,7 @@ fun parse_sexp s =
   end
 
 val tokenl =    
-  ["0","1","2","+","-","*","/","%","cond","loop","x","y","compr","loop2"]
+  ["0","1","2","+","-","mult","/","%","cond","loop","x","y","compr","loop2"]
 val tokend = dnew String.compare (number_snd 0 tokenl)
   
 fun parse_human_aux sexp = case sexp of
