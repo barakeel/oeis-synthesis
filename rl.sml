@@ -15,8 +15,8 @@ val local_test = false
 
 val use_mkl = ref true
 val dim_glob = ref 64
-val ncore = ref (if local_test then 2 else 10)
-val ntarget = ref (if local_test then 2 else 100)
+val ncore = ref (if local_test then 2 else 15)
+val ntarget = ref (if local_test then 2 else 150)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
@@ -749,6 +749,8 @@ fun init_dicts () =
 
 (* -------------------------------------------------------------------------
    Deduplication based on polynomial normalization
+   Somehow buggy in very rare cases (disabled as not providing 
+   signficiant speed up).
    ------------------------------------------------------------------------- *)
 
 fun deduplicate pl = 
@@ -798,16 +800,18 @@ fun search tnn coreid =
     val n = tree_size newtree
     val _ = print_endline ("tree_size: " ^ its n)
     val _ = in_search := false
-    val _ = PolyML.fullGC ();
+    (*
     val _ = print_endline ("dedupl start: " ^ its (elength (!progd)))
     val (dedupl1,t) = add_time deduplicate (elist (!progd))
     val _ = print_endline ("dedupl time: " ^ rts_round 2 t ^ " seconds")
     val dedupl2 = dict_sort prog_compare_size dedupl1
+    val _ = print_endline ("checkb start: " ^ its (length dedupl2))
+    *)
     val _ = if exists_file (ocache_file (!ngen_glob)) 
             then ocache := read_ocache (ocache_file (!ngen_glob))
             else ocache := dempty prog_compare 
-    val _ = print_endline ("checkb start: " ^ its (length dedupl2))
-    val (_,t) = add_time (app checka) dedupl2
+    val _ = print_endline ("checka start: " ^ its (elength (!progd)))
+    val (_,t) = add_time (app checka) (elist (!progd))
     val _ = print_endline ("checka time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
     val bestpl1 = mk_fast_set prog_compare 
@@ -822,7 +826,6 @@ fun search tnn coreid =
   in
     init_dicts ();
     ocache := dempty prog_compare;
-    PolyML.fullGC ();
     r
   end
 
@@ -938,7 +941,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 18000"
+    val _ = buildheap_options := "--maxheap 12000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -993,7 +996,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main9" 75;
+rl_search "_main10" 75;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
