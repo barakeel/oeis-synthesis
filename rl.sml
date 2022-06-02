@@ -808,11 +808,11 @@ fun search tnn coreid =
     val (_,t) = add_time (app checka) dedupl2
     val _ = print_endline ("checka time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
-    val bestpl = mk_fast_set prog_compare 
+    val bestpl1 = mk_fast_set prog_compare 
       (map snd (List.concat (map snd (dlist (!partwind)))))
-    val _ = print_endline ("checkb: " ^ its (length bestpl))
-    val (_,t) = add_time (app checkb) 
-      (dict_sort prog_compare_size bestpl)
+    val _ = print_endline ("checkb: " ^ its (length bestpl1))
+    val bestpl2 = dict_sort prog_compare_size bestpl1
+    val (_,t) = add_time (app checkb) bestpl2
     val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))
     fun forget ((a,b),c) = (a,c)
