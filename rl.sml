@@ -188,6 +188,7 @@ fun create_anumlpart (anuml,ncover,anumlpart1) =
   
 fun checka p =
   let
+    val _ = timeincr := short_timeincr
     val (anuml,ncover,anumlpart1) = coverp_oeis p
     val anumlpart2 = create_anumlpart (anuml,ncover,anumlpart1) 
     fun f anum = 
@@ -805,6 +806,7 @@ fun search tnn coreid =
     val _ = if exists_file (ocache_file (!ngen_glob)) 
             then ocache := read_ocache (ocache_file (!ngen_glob))
             else ocache := dempty prog_compare 
+    val _ = print_endline ("checkb start: " ^ its (length dedupl2))
     val (_,t) = add_time (app checka) dedupl2
     val _ = print_endline ("checka time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
@@ -995,7 +997,7 @@ rl_search "_main9" 75;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-time_opt := SOME 120.0;
+time_opt := SOME 60.0;
 val tnn = random_tnn (get_tnndim ());
 PolyML.print_depth 2;
 val (r1,_) = search tnn 1;
