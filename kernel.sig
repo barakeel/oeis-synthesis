@@ -50,9 +50,11 @@ sig
   
   (* timer *)
   exception ProgTimeout
+  val short_timeincr : real
+  val long_timeincr : real
+  val timeincr : real ref
   val timelimit : real ref
   val rt_glob : Timer.real_timer ref
-  val timeincr : real
   val incr_timer : unit -> unit
   val skip_counter : int ref
   val init_timer : unit -> unit

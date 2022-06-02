@@ -193,13 +193,16 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
-val timelimit = ref 0.00005
-val timeincr = 0.00005
-fun incr_timer () = timelimit := !timelimit + timeincr
+val short_timeincr = 0.00001
+val long_timeincr = 0.001
+val timeincr = ref (short_timeincr)
+val timelimit = ref (!timeincr)
+
+fun incr_timer () = timelimit := !timelimit + !timeincr
 val skip_counter = ref 0
 fun init_timer () =
   (skip_counter := 0;
    rt_glob := Timer.startRealTimer ();
-   timelimit := timeincr)
+   timelimit := !timeincr)
   
 end (* struct *)

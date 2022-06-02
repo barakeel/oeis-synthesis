@@ -15,8 +15,8 @@ val local_test = false
 
 val use_mkl = ref true
 val dim_glob = ref 64
-val ncore = ref (if local_test then 2 else 16)
-val ntarget = ref (if local_test then 2 else 160)
+val ncore = ref (if local_test then 2 else 10)
+val ntarget = ref (if local_test then 2 else 100)
 val maxgen = ref NONE
 val target_glob = ref []
 val noise_flag = ref false
@@ -77,7 +77,7 @@ val wind = ref (dempty Int.compare)
 val progd = ref (eempty prog_compare)
 
 val altwind = ref (dempty (cpl_compare Int.compare Int.compare))
-val partwind = ref (dempty Int.compare) 
+val partwind = ref (dempty Int.compare)
 
 (* -------------------------------------------------------------------------
    Main process logging function
@@ -186,7 +186,7 @@ fun create_anumlpart (anuml,ncover,anumlpart1) =
     map_assoc f anuml @ map_assoc g anumlpart1
   end
   
-fun update_wind_glob p =
+fun checka p =
   let
     val (anuml,ncover,anumlpart1) = coverp_oeis p
     val anumlpart2 = create_anumlpart (anuml,ncover,anumlpart1) 
@@ -199,6 +199,21 @@ fun update_wind_glob p =
     app (update_partwind_one partwind p) anumlpart2;
     app f anuml
   end
+  
+fun checkb p =
+  let
+    val _ = timeincr := long_timeincr
+    val (anuml,_,_) = coverp_oeis p
+    val _ = timeincr := short_timeincr
+    fun f anum = 
+      (
+      if !altsol_flag then update_altwind_one altwind (anum,p) else ();  
+      update_wind_one wind (anum,p)
+      )
+  in
+    app f anuml
+  end
+  
 
 fun merge_isol isol = 
   let val d = ref (dempty Int.compare) in
@@ -790,17 +805,23 @@ fun search tnn coreid =
     val _ = if exists_file (ocache_file (!ngen_glob)) 
             then ocache := read_ocache (ocache_file (!ngen_glob))
             else ocache := dempty prog_compare 
-    val (_,t) = add_time (app update_wind_glob) dedupl2
-    val _ = print_endline ("check time: "  ^ rts_round 2 t ^ " seconds")
+    val (_,t) = add_time (app checka) dedupl2
+    val _ = print_endline ("checka time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
-    val r1 = dlist (!wind)
-    fun forget ((a,b),c) = (a,c)  
-    val r2 = map forget (dlist (!altwind))
+    val bestpl = mk_fast_set prog_compare 
+      (map snd (List.concat (map snd (dlist (!partwind)))))
+    val _ = print_endline ("checkb: " ^ its (length bestpl))
+    val (_,t) = add_time (app checkb) 
+      (dict_sort prog_compare_size bestpl)
+    val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
+    val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))
+    fun forget ((a,b),c) = (a,c)
+    val r = (dlist (!wind), map forget (dlist (!altwind)))
   in
     init_dicts ();
     ocache := dempty prog_compare;
     PolyML.fullGC ();
-    (r1,r2)
+    r
   end
 
 
@@ -915,7 +936,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 12000"
+    val _ = buildheap_options := "--maxheap 18000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -934,7 +955,8 @@ fun rl_search_only tmpname ngen =
     val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))
   in
     write_isol ngen tmpname newisol;
-    if !altsol_flag then write_iprogl (isol_file ngen ^ "__altisol") newaltisol
+    if !altsol_flag 
+    then write_iprogl (isol_file ngen ^ "__altisol") newaltisol
     else ();
     log ("solutions: " ^ (its (length newisol)));
     stats_ngen (!buildheap_dir) ngen
@@ -969,7 +991,7 @@ end (* struct *)
 load "rl"; open rl;
 expname := "run312";
 altsol_flag := true;
-rl_search "_main8" 74;
+rl_search "_main9" 75;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

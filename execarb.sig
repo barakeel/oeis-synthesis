@@ -13,8 +13,8 @@ sig
   val penum : prog -> int -> Arbint.int list
   
   (* compr cache *)
-  val cache : (kernel.prog, Arbint.int vector) Redblackmap.dict ref
-  val clean_cache : unit -> unit
+  val ccache : (kernel.prog, Arbint.int vector) Redblackmap.dict ref
+  val add_ccache : prog -> unit
   
   (* oeis cache *)
   val ocache : (kernel.prog, Arbint.int vector) Redblackmap.dict ref
