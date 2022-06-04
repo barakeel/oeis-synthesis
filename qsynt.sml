@@ -35,7 +35,6 @@ end (* struct *)
 
 load "qsynt"; open aiLib human execarb rl qsynt;
 time_opt := SOME 60.0;
-polynorm_flag := true;
 
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);
 val p = valOf po;

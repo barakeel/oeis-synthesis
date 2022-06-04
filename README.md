@@ -57,7 +57,6 @@ In this directory run `rlwrap hol` then run in the interative shell:
 ```
 load "qsynt"; open aiLib human rl qsynt;
 time_opt := SOME 60.0;
-polynorm_flag := true; (* optional *)
 
 val po = qsynt (map Arbint.fromInt [3,5,7]);
 val p = valOf po;

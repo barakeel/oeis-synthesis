@@ -110,10 +110,9 @@ fun human vn prog =
         val s3 = human wn p3 ^ " + 1"
         val (s4,s5) = (rhuman wn p4, rhuman wn p5) 
       in
-        ["  x = " ^ s4,
-         "  y = " ^ s5,
+        ["  x,y = "  ^ s4 ^ ", " ^ s5,
          "  for i in range (1," ^ s3 ^ "):",
-         "    x,y = " ^ s1 ^ "," ^ s2,
+         "    x,y = " ^ s1 ^ ", " ^ s2,
          "  return x"]
       end
     in
@@ -163,7 +162,7 @@ fun human_python ntop p =
   end
 
 (* -------------------------------------------------------------------------
-   S-expressions input/output.
+   S-expressions I/O
    ------------------------------------------------------------------------- *)
 
 datatype sexp = Sexp of sexp list | Stoken of string;
@@ -225,15 +224,13 @@ fun parse_human s = parse_human_aux (parse_sexp s)
 fun sexpr (Ins (id,pl)) =
   if null pl then its id else 
   "(" ^ String.concatWith " " (Vector.sub (tokenv,id) :: map sexpr pl) ^ ")";  
- 
-  
-  
+
 (*
 load "rl"; open aiLib kernel human rl;
 val p = random_prog 20;
 print_endline (humanf p ^ "\n"); 
-print_endline (humani 32 p) ;
-val p = parse_human "( * 1 1)"; (* space required for it not be a comment *)
+print_endline (human_python 32 p) ;
+val p = parse_human "( * 1 1)";
 print_endline (sexpr p);
 *)
 

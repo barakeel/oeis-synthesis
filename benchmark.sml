@@ -61,7 +61,6 @@ length l5;
    Printing equations
    ------------------------------------------------------------------------- *)
 
-human.polynorm_flag := false;
 fun g1 (i,(a,b)) = 
 String.concatWith "\n" ["A" ^ its i, 
 string_of_seq (valOf (Array.sub (bloom.oseq,i))),
@@ -69,6 +68,6 @@ string_of_seq (valOf (Array.sub (bloom.oseq,i))),
 fun g2 (i,(a,b)) = String.concatWith "\n" ["A" ^ its i,
 string_of_seq (valOf (Array.sub (bloom.oseq,i))), 
 sexpr a, sexpr b];  
-writel "equalities/human_full" (map g1 l5);
-writel "equalities/sexpr_full" (map g2 l5);
+writel "equalities/human" (map g1 l5);
+writel "equalities/sexpr" (map g2 l5);
 
