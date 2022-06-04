@@ -3,7 +3,7 @@ struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel mcts
   mlNeuralNetwork smlExecScripts mlTreeNeuralNetwork kernel bloom execarb
-  human poly
+  human
 
 val ERR = mk_HOL_ERR "rl"
 
@@ -748,29 +748,6 @@ fun init_dicts () =
   )
 
 (* -------------------------------------------------------------------------
-   Deduplication based on polynomial normalization
-   Somehow buggy in very rare cases (disabled as not providing 
-   signficiant speed up).
-   ------------------------------------------------------------------------- *)
-
-fun deduplicate pl = 
-  let 
-    val d = ref (dempty poly_compare) 
-    fun f p = 
-      let val py = norm p in
-        case dfindo py (!d) of
-          NONE => daddi py p d
-        | SOME oldp => if prog_compare_size (p,oldp) = LESS 
-                       then daddi py p d
-                       else ()
-      end
-  in
-    app f pl;
-    print_endline ("deduplication end: " ^ its (dlength (!d)));
-    map snd (dlist (!d))
-  end
-
-(* -------------------------------------------------------------------------
    Main search function
    ------------------------------------------------------------------------- *)
 
@@ -800,13 +777,6 @@ fun search tnn coreid =
     val n = tree_size newtree
     val _ = print_endline ("tree_size: " ^ its n)
     val _ = in_search := false
-    (*
-    val _ = print_endline ("dedupl start: " ^ its (elength (!progd)))
-    val (dedupl1,t) = add_time deduplicate (elist (!progd))
-    val _ = print_endline ("dedupl time: " ^ rts_round 2 t ^ " seconds")
-    val dedupl2 = dict_sort prog_compare_size dedupl1
-    val _ = print_endline ("checkb start: " ^ its (length dedupl2))
-    *)
     val _ = if exists_file (ocache_file (!ngen_glob)) 
             then ocache := read_ocache (ocache_file (!ngen_glob))
             else ocache := dempty prog_compare 
@@ -828,8 +798,6 @@ fun search tnn coreid =
     ocache := dempty prog_compare;
     r
   end
-
-
 
 val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
   {
