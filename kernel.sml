@@ -181,6 +181,7 @@ val base_operl =
   ]
   
 val operv = Vector.fromList base_operl
+val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
 val maxbaseoper = length base_operl
 val maxoper = Vector.length operv
 val operav = Vector.map arity_of operv

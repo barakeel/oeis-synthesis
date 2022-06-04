@@ -1,8 +1,8 @@
 structure execarb :> execarb =
 struct
 
-open HolKernel boolLib aiLib kernel bloom;
-val ERR = mk_HOL_ERR "execarb";
+open HolKernel boolLib aiLib kernel bloom
+val ERR = mk_HOL_ERR "execarb"
 type prog = kernel.prog
 
 (* -------------------------------------------------------------------------

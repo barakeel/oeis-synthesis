@@ -45,6 +45,7 @@ sig
   
   (* operators *)
   val operv : term vector
+  val maxarity : int
   val arity_of_oper : int -> int
   val name_of_oper : int -> string
   

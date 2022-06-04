@@ -1,7 +1,7 @@
 structure jump :> jump =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel mcts execarb game;
+open HolKernel Abbrev boolLib aiLib kernel;
 val ERR = mk_HOL_ERR "jump";
 
 (* construct the jump tree *)

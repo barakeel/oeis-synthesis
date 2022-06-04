@@ -3,23 +3,24 @@ sig
 
   type prog = kernel.prog
   type seq = kernel.seq
+  type anum = int
   
   (* OEIS array *)
   val oseq : Arbint.int list option array
   val oseql : (int * Arbint.int list) list
 
   (* tree of OEIS sequences *)
-  datatype ttree = 
-    Tleaf of int * Arbint.int list |
-    Tdict of int list * (Arbint.int, ttree) Redblackmap.dict
-  val tempty : ttree
-  val tadd : Arbint.int list * int -> ttree -> ttree
+  datatype otree = 
+    Oleaf of anum * Arbint.int list |
+    Odict of anum list * (Arbint.int, otree) Redblackmap.dict
+  val oempty : otree
+  val oadd : Arbint.int list * int -> otree -> otree
   val cover_oeis : (Arbint.int * Arbint.int -> Arbint.int) -> 
-                   (int list * int * int list)
-  val ost : ttree
+                   (anum list * int * anum list)
+  val otree : otree
 
   (* user-given sequence *)
   val cover_target : (Arbint.int * Arbint.int -> Arbint.int) -> 
-    Arbint.int list -> bool
+    seq -> bool
 
 end

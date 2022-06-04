@@ -148,7 +148,7 @@ fun select_child obj buildl (node,cv) =
 fun mk_timer param =
   if isSome (#nsim param) then
     let val threshold = valOf (#nsim param) in
-      fn n => (Real.round n) >= threshold
+      fn n => Real.round n >= threshold
     end
   else if isSome (#time param) then
     let

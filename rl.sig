@@ -8,74 +8,35 @@ sig
   type tnn = mlTreeNeuralNetwork.tnn
   type 'a set = 'a Redblackset.set
   type ('a,'b) dict = ('a,'b) Redblackmap.dict
-
-  type move = int
-  type board = prog list
-  type player = (board,move) mcts.player
-
+  type anum = bloom.anum
+ 
   (* globals *)
   val ncore : int ref
+  val coreid_glob : int ref
   val ntarget : int ref
   val maxgen : int option ref
-  val in_search : bool ref
-  
-  (* data *)
-  val progd: prog set ref
-  val embd : (term, real vector) dict ref
-  val wind : (int, prog) dict ref
-  
-  (* game *)
-  val game : (board,move) mcts.game
-    
-  (* players *)
-  val player_uniform : tnn -> player
-  val player_wtnn : tnn -> player
-  val player_wtnn_cache : tnn -> player
-  val player_glob : (tnn -> player) ref
-
-  (* replaying solutions *)
-  val linearize : prog -> (board * move) list
-  val apply_movel : move list -> board -> board 
-  val random_board : int -> board
-  val random_prog : int -> prog
-  
-  (* search parameters *)
-  val noise_coeff_glob : real ref
-  val noise_flag : bool ref
-  val nsim_opt : int option ref
-  val time_opt : real option ref  
-  val coreid_glob : int ref
-
-  (* train parameters *)
-  val use_mkl : bool ref
-  val dim_glob : int ref
-  val get_tnndim : unit -> (term * int list) list
-
-  (* functions *)
-  val search : tnn -> int -> (int * kernel.prog) list * (int * kernel.prog) list
-  val trainf : string -> unit
-
-  (* reinforcement learning *)
-  val expname : string ref
   val ngen_glob : int ref
+  val expname : string ref
+  
+  (* functions *)
+  val search : tnn -> int -> (anum * prog) list * (anum * prog) list
+  val trainf : string -> unit
+  
+  (* reinforcement learning *)
   val rl_search_only : string -> int -> unit
   val rl_train_only : string -> int -> unit
   val rl_search : string -> int -> unit
   val rl_train : string -> int -> unit
-  val parspec : (tnn, int, (int * prog) list * (int * prog) list) 
+  val parspec : (tnn, int, (anum * prog) list * (anum * prog) list) 
     smlParallel.extspec
 
-  (* reading solutions *)
-  val read_isol : int -> (int * prog) list
-  val string_of_iprog : (int * prog) -> string
+  (* solutions I/O *)
+  val read_isol : int -> (anum * prog) list
+  val string_of_iprog : (anum * prog) -> string
   
   (* interactive search *)
   val search_target : mlTreeNeuralNetwork.tnn -> Arbint.int list -> 
     kernel.prog option
  
-  (* inductive theorem benchmark *)
-  val altsol_flag : bool ref
-  val altwind : (int * int, prog) dict ref
-  val merge_altisol : (int * prog) list -> (int * prog) list
   
 end

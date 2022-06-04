@@ -3,6 +3,7 @@ struct
 
 open HolKernel Abbrev boolLib aiLib kernel smlTimeout;
 val ERR = mk_HOL_ERR "bloom";
+type anum = int
 
 (* -------------------------------------------------------------------------
    OEIS array read from disk
@@ -34,29 +35,29 @@ val oseql =
    OEIS tree
    ------------------------------------------------------------------------- *)
 
-datatype ttree = 
-  Tleaf of int * Arbint.int list |
-  Tdict of int list * (Arbint.int, ttree) Redblackmap.dict
+datatype otree = 
+  Oleaf of anum * Arbint.int list |
+  Odict of anum list * (Arbint.int, otree) Redblackmap.dict
 
-val tempty = Tdict ([],dempty Arbint.compare)
+val oempty = Odict ([], dempty Arbint.compare)
 
-fun tadd (seq,an) st = case (st,seq) of
-    (Tleaf (an2,[]),_) => 
-    tadd (seq,an) (Tdict ([an2],dempty Arbint.compare))
-  | (Tleaf (an2,a2 :: m2),_) => 
-    tadd (seq,an) (Tdict ([], dnew Arbint.compare [(a2,(Tleaf (an2,m2)))]))
-  | (Tdict (anl,d), []) => Tdict (an :: anl, d)
-  | (Tdict (anl,d), a1 :: m1) =>
-    let val sto = SOME (dfind a1 d) handle NotFound => NONE in
-      case sto of 
-        NONE => Tdict (anl, dadd a1 (Tleaf (an,m1)) d) 
-      | SOME newst => Tdict (anl, dadd a1 (tadd (m1,an) newst) d)
+fun oadd (seq,an) ot = case (ot,seq) of
+    (Oleaf (an2,[]),_) => 
+    oadd (seq,an) (Odict ([an2],dempty Arbint.compare))
+  | (Oleaf (an2,a2 :: m2),_) => 
+    oadd (seq,an) (Odict ([], dnew Arbint.compare [(a2,(Oleaf (an2,m2)))]))
+  | (Odict (anl,d), []) => Odict (an :: anl, d)
+  | (Odict (anl,d), a1 :: m1) =>
+    let val oto = SOME (dfind a1 d) handle NotFound => NONE in
+      case oto of 
+        NONE => Odict (anl, dadd a1 (Oleaf (an,m1)) d) 
+      | SOME newot => Odict (anl, dadd a1 (oadd (m1,an) newot) d)
     end
 
-fun taddo (i,seqo,st) = 
-  case seqo of NONE => st | SOME seq => tadd (seq,i) st
+fun oaddo (i,seqo,ot) = 
+  case seqo of NONE => ot | SOME seq => oadd (seq,i) ot
 
-val ost = Array.foldli taddo tempty oseq
+val otree = Array.foldli oaddo oempty oseq
 
 (* -------------------------------------------------------------------------
    Collecting partial sequences stopped because of timeout
@@ -68,13 +69,13 @@ val maxpart = 32
 val ncoveri = ref 0
 fun init_partial () = (anlrefpart := []; maxparti := 0; ncoveri := 0)
 
-fun collect_partseq st = 
+fun collect_partseq ot = 
   if !maxparti > maxpart then anlrefpart := [] else
   (
-  case st of
-    Tleaf (an2,[]) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
-  | Tleaf (an2,a2 :: m2) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
-  | Tdict (anl,d) =>
+  case ot of
+    Oleaf (an2,[]) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
+  | Oleaf (an2,a2 :: m2) => (incr maxparti; anlrefpart := an2 :: !anlrefpart)
+  | Odict (anl,d) =>
     ( 
     maxparti := !maxparti + length anl; 
     anlrefpart := anl @ !anlrefpart;
@@ -90,26 +91,26 @@ val anlref = ref []
 
 local open Arbint in
 
-fun cover_oeis_aux f i st = case st of
-    Tleaf (an2,[]) => anlref := an2 :: !anlref
-  | Tleaf (an2,a2 :: m2) => 
+fun cover_oeis_aux f i ot = case ot of
+    Oleaf (an2,[]) => anlref := an2 :: !anlref
+  | Oleaf (an2,a2 :: m2) => 
     (
     case SOME (f (i,zero) = a2) handle ProgTimeout => NONE of
       SOME true =>  
       (incr_timer (); incr ncoveri;
-       cover_oeis_aux f (i + one) (Tleaf (an2,m2))) 
+       cover_oeis_aux f (i + one) (Oleaf (an2,m2))) 
     | SOME false => ()
     | NONE => anlrefpart := [an2]
     )
-  | Tdict (anl,d) =>
+  | Odict (anl,d) =>
     let val _ = anlref := anl @ !anlref in
       case SOME (f (i,zero)) handle ProgTimeout => NONE of
         SOME a1 =>
         (
         case SOME (dfind a1 d) handle NotFound => NONE of 
           NONE => ()
-        | SOME newst => (incr_timer (); incr ncoveri; 
-                         cover_oeis_aux f (i + one) newst)
+        | SOME newot => (incr_timer (); incr ncoveri; 
+                         cover_oeis_aux f (i + one) newot)
         )
       | NONE => app collect_partseq (map snd (dlist d))
     end
@@ -119,7 +120,7 @@ end (* local *)
 fun cover_oeis f = 
   let val _ = (anlref := []; init_partial ()) in
     init_timer ();
-    cover_oeis_aux f Arbint.zero ost;
+    cover_oeis_aux f Arbint.zero otree;
     (!anlref, !ncoveri, !anlrefpart) 
   end
   handle Div => (!anlref, !ncoveri, !anlrefpart) 
