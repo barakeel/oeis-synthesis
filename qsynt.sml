@@ -1,4 +1,4 @@
-qstructure qsynt :> qsynt =
+structure qsynt :> qsynt =
 struct
 
 open HolKernel Abbrev boolLib aiLib kernel mcts execarb mlTreeNeuralNetworkAlt rl;
@@ -37,19 +37,6 @@ load "qsynt"; open aiLib human execarb rl qsynt;
 time_opt := SOME 60.0;
 
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
-
-val po = qsynt (map Arbint.fromInt [3,5,7]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
-
-Lasse's sequence.
-time_opt := SOME 600.0;
-polynorm_flag := false;
-val po = qsynt (map Arbint.fromInt [0,1,2,3,5,7,10,13,18,23,30,37,47,57,70,83,101,119,142,165,195,225,262,299]);
 val p = valOf po;
 print_endline (humanf p);
 val seq = penum p 10;
