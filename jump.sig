@@ -1,14 +1,15 @@
 signature jump =
 sig
 
-type move = int
+  datatype jtree = 
+    Jleaf of game.move list |
+    Jdict of (bool * (game.move, jtree) Redblackmap.dict)
 
-datatype jtree = 
-  Jleaf of move list |
-  Jdict of (bool * (move, jtree) Redblackmap.dict)
-
-val count_subboard : kernel.prog list -> (game.board * int) list
-val create_jtree : kernel.prog list -> jtree
-val jump : jtree -> game.board -> game.board option
-
+  val best_subprog : kernel.prog Redblackset.set -> 
+    kernel.prog list -> kernel.prog option
+  val create_jtree_board : game.board list -> jtree
+  val create_jtree : kernel.prog list -> jtree
+  val jump : jtree -> game.board -> game.move list option
+  val shortcut : jtree -> kernel.prog -> (game.board * game.move) list
+  
 end
