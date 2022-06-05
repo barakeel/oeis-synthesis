@@ -1,7 +1,7 @@
 structure game :> game =
 struct
 
-open HolKernel Abbrev boolLib aiLib smlParallel mcts kernel human execarb
+open HolKernel Abbrev boolLib aiLib smlParallel mcts kernel human exec
 
 val ERR = mk_HOL_ERR "game"
 
@@ -131,6 +131,8 @@ fun invapp_move board = case board of
 fun linearize_aux acc board = case invapp_move board of
     SOME (prev,move) => linearize_aux ((prev,move) :: acc) prev
   | NONE => acc
+
+fun linearize_board board = linearize_aux [] board
 
 fun linearize p = linearize_aux [] [p]
 

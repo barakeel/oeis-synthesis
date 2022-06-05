@@ -1,8 +1,8 @@
 structure web :> web =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel mcts execarb 
-  mlTreeNeuralNetworkAlt rl human bloom;
+open HolKernel Abbrev boolLib aiLib 
+  mcts kernel human bloom exec rl;
 val ERR = mk_HOL_ERR "web";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
@@ -146,7 +146,7 @@ end (* struct *)
    Test oeis-synthesis
    ------------------------------------------------------------------------- 
 
-load "web"; open aiLib human execarb rl web;
+load "web"; open aiLib human exec rl web;
 time_opt := SOME 60.0;
 
 val po = web 32 "2 4 16 256";

@@ -1,7 +1,7 @@
 structure qsynt :> qsynt =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel mcts execarb mlTreeNeuralNetworkAlt rl;
+open HolKernel Abbrev boolLib aiLib kernel mcts exec rl;
 val ERR = mk_HOL_ERR "qsynt";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
@@ -33,7 +33,7 @@ end (* struct *)
    Test oeis-synthesis
    ------------------------------------------------------------------------- 
 
-load "qsynt"; open aiLib human execarb rl qsynt;
+load "qsynt"; open aiLib human exec rl qsynt;
 time_opt := SOME 60.0;
 
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);

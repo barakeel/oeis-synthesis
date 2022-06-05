@@ -346,25 +346,3 @@ fun read_ctnn sl = dnew Term.compare (combine (operlext,read_ctnn_aux sl))
 
 end (* struct *)
 
-(*
-(* Train on the oeis *)
-load "rl"; open rl;
-expname := "run312";
-altsol_flag := true;
-rl_search "_main10" 75;
-
-(* standalone search *)
-load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-time_opt := SOME 60.0;
-val tnn = random_tnn (get_tnndim ());
-PolyML.print_depth 2;
-val (r1,_) = search tnn 1;
-PolyML.print_depth 40;
-length r1;
-
-app print_endline (map string_of_iprog l);
-dlength (!execarb.cache);
-random_elem (map_fst humanf precomputed);
-
-
-*)

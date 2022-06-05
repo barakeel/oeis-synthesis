@@ -2,7 +2,7 @@ structure check :> check =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel 
-  mcts kernel bloom human execarb game
+  mcts kernel bloom human exec game
 
 val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum

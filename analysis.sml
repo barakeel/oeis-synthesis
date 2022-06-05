@@ -83,10 +83,10 @@ fun is_constant p = not (depend_on_x p) andalso not (depend_on_y p);
 val constl = filter (is_constant o fst) prognl2;
 app print_endline (map humanif constl);
 
-load "execarb"; open execarb;
+load "exec"; open exec;
 rt_glob := Timer.startRealTimer (); 
 timelimit := 100.0;
-val constel = map_assoc (fn (p,i) => mk_execarb p (Arbint.zero,Arbint.zero)) constl; 
+val constel = map_assoc (fn (p,i) => mk_exec p (Arbint.zero,Arbint.zero)) constl; 
 
 val largel = first_n 3 (rev (dict_sort (snd_compare Arbint.compare) constel));
 fun humanrif ((p,i),r) = Arbint.toString r ^ ": " ^ its i ^ ": " ^ humanf p;

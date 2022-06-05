@@ -24,6 +24,7 @@ sig
   val game : (board,move) mcts.game
   
   (* conversion between a sequence of moves and a board *)
+  val linearize_board : board -> (board * move) list
   val linearize : kernel.prog -> (board * move) list
   val linearize_safe : kernel.prog -> (board * move) list
   val apply_movel : move list -> board -> board

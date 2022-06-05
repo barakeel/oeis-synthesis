@@ -3,7 +3,7 @@ struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel smlExecScripts 
   mlTreeNeuralNetwork
-  mcts kernel human bloom execarb game check tnn
+  mcts kernel human bloom exec game check tnn
   
 
 val ERR = mk_HOL_ERR "rl"
@@ -397,8 +397,6 @@ PolyML.print_depth 40;
 length r1;
 
 app print_endline (map string_of_iprog l);
-dlength (!execarb.cache);
-random_elem (map_fst humanf precomputed);
 
 
 *)

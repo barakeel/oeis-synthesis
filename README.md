@@ -55,13 +55,8 @@ The final S-expr benchmark can be created from this by running the script todo.
 In this directory run `rlwrap hol` then run in the interative shell:
 
 ```
-load "qsynt"; open aiLib human rl qsynt;
+load "qsynt"; open aiLib human exec rl qsynt;
 time_opt := SOME 60.0;
-
-val po = qsynt (map Arbint.fromInt [3,5,7]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 8;
 
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);
 val p = valOf po;
