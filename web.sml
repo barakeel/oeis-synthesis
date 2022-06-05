@@ -118,12 +118,8 @@ fun web n targets =
     val target = parse_seq targets
     val l = filter (test_cache_one target) main_iprogl
     val po =
-      if null l then (print_endline "Starting search";  
-        search_target main_tnn target) else
-      (
-      print_endline "Found in cache"; 
-      SOME (hd (dict_sort prog_compare_size (map snd l))) 
-      )
+      if null l then search_target main_tnn target else
+      (SOME (hd (dict_sort prog_compare_size (map snd l))))
   in
     web_result n po
   end
@@ -141,10 +137,6 @@ end (* struct *)
 load "web"; open aiLib human exec rl web;
 time_opt := SOME 60.0;
 
-val po = web 32 "2 4 16 256";
-val po = web 32 "2 3 5 7";
-
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
+web 32 "2 4 16 256";
+web 32 "2 3 5 7";
 *)
