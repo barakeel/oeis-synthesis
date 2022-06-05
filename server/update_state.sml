@@ -1,3 +1,3 @@
-load "synt"; open synt;
-PolyML.SaveState.saveState "synt_state";
+load "web"; open web;
+PolyML.SaveState.saveState "qsynt_v2_state";
 raise Match;

@@ -1,7 +1,7 @@
 structure web :> web =
 struct
 
-open HolKernel Abbrev boolLib aiLib 
+open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
   mcts kernel human bloom exec rl;
 val ERR = mk_HOL_ERR "web";
 
@@ -58,7 +58,7 @@ fun score_oeis gseq (anum,seq) =
         ((matchn,contb,shiftn,anum), scoref (matchn,contb,shiftn))
         :: loop (shiftn + 1) n (tl cseq)
       end
-    val l = loop 0 16 seq
+    val l = loop 0 3 seq
   in    
     if null l then NONE else SOME (find_largest (hd l) (tl l))
   end
@@ -71,19 +71,11 @@ fun print_oeis (matchn,contb,shiftn,anum) =
 
 fun oeis_result n gseq =
   let 
-    val l = List.mapPartial (score_oeis gseq) oseql
-    fun test (x,_) = #1 x >= n
-    val l2 = filter test l
-    val l3 = map fst (first_n 3 (dict_sort compare_rmax l2))
-  in
-    if null l3
-    then 
-      print_endline (
-        "Proposed sequence does not match any " ^
-        "<a href=https://oeis.org>OEIS</a> sequences. ")
-    else 
-      print_endline ("Generated sequence matches best with: " ^ 
-        String.concatWith ", " (map print_oeis l3)) 
+    val l1 = List.mapPartial (score_oeis gseq) oseql
+    val l2 = map fst (first_n 3 (dict_sort compare_rmax l1))
+  in      
+    print_endline ("Generated sequence matches best with: " ^ 
+    String.concatWith ", " (map print_oeis l2)) 
   end
 
 (* -------------------------------------------------------------------------

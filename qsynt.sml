@@ -1,7 +1,7 @@
 structure qsynt :> qsynt =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel mcts exec rl;
+open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork kernel mcts exec rl;
 val ERR = mk_HOL_ERR "qsynt";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
