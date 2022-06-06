@@ -60,7 +60,6 @@ fun merge_isol isol =
 
 fun tnn_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/tnn" ^ its ngen
 fun isol_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/isol" ^ its ngen
-fun ocache_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/ocache" ^ its ngen
 
 fun get_expdir () = selfdir ^ "/exp/" ^ !expname
 
@@ -189,13 +188,6 @@ fun end_search () =
 fun mctsobj tnn = 
   {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
 
-fun init_check () =
-  if exists_file (ocache_file (!ngen_glob)) 
-  then ocache := read_ocache (ocache_file (!ngen_glob))
-  else ocache := dempty prog_compare
-
-fun end_check () = ocache := dempty prog_compare
-
 fun search tnn coreid =
   let
     val _ = init_search coreid
@@ -209,11 +201,8 @@ fun search tnn coreid =
         print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
       end
     val progl = end_search ()
-    val _ = init_check ();
-    val r = check progl
-    val _ = end_check ()
   in 
-    r
+    check progl
   end
 
 fun string_of_timeo () = (case !time_opt of
@@ -303,25 +292,6 @@ fun stats_ngen dir ngen =
   end
 
 (* -------------------------------------------------------------------------
-   Caching slow OEIS sequences
-   ------------------------------------------------------------------------- *)
-
-fun update_ocache ngen pl =
-  let 
-    val prevcache = 
-      if exists_file (ocache_file (ngen - 1))
-      then read_ocache (ocache_file (ngen - 1))
-      else dempty prog_compare 
-    fun f p = case dfindo p prevcache of
-      SOME v => ocache := dadd p v (!ocache) 
-    | NONE => add_ocache p
-  in
-    ocache := dempty prog_compare;
-    app f pl;
-    write_ocache (ocache_file ngen) (!ocache)
-  end
-
-(* -------------------------------------------------------------------------
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
 
@@ -339,8 +309,6 @@ fun rl_search_only tmpname ngen =
     val isol = if ngen - 1 <= ~1
                then []
                else read_isol (ngen - 1)
-    val (_,t) = add_time (update_ocache ngen) (map snd isol)
-    val _ = log ("ocache time: " ^ rts_round 6 t)
     val (iprogll_both,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val (iprogll, iprogll_alt) = split iprogll_both
@@ -384,7 +352,7 @@ end (* struct *)
 (* Train on the oeis *)
 load "rl"; open rl;
 expname := "run312";
-rl_search "_main10" 75;
+rl_search "_main11" 75;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

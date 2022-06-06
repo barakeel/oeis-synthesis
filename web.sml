@@ -6,8 +6,7 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
 val ERR = mk_HOL_ERR "web";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
-val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
-val _ = ocache := read_ocache (selfdir ^ "/model/ocache87")
+val main_iprogl = read_iprogl (selfdir ^ "/model/isol87")
 
 (* -------------------------------------------------------------------------
    Escape uri
@@ -216,8 +215,7 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "web"; open aiLib game human exec rl web;
-
-web 10.0 32 "52 14 16 256";
+web 10.0 32 "2 3 5 7 11 13 17 19 23 29";
 *)
 
 

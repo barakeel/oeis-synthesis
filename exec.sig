@@ -12,11 +12,5 @@ sig
   (* compr cache *)
   val ccache : (kernel.prog, Arbint.int vector) Redblackmap.dict ref
   val add_ccache : prog -> unit
-  
-  (* oeis cache *)
-  val ocache : (kernel.prog, Arbint.int vector) Redblackmap.dict ref
-  val add_ocache : prog -> unit
-  
-  
-  
+    
 end

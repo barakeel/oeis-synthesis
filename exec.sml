@@ -135,17 +135,8 @@ val base_execv = Vector.fromList base_execl
    Execute a program on some inputs with auto-initialization of compr
    ------------------------------------------------------------------------- *)
 
-val ocache = ref (dempty prog_compare)
-
-fun ocachef v id fl (x as (a,_)) =
-  if Arbint.< (a,Arbint.zero) then Vector.sub (base_execv,id) fl x else 
-  let val ai = Arbint.toInt a handle Overflow => raise Div in 
-    if ai >= Vector.length v then raise Div else test Vector.sub (v,ai)
-  end
-
 fun mk_exec_aux (p as (Ins (id,pl))) = 
   let val fl = map mk_exec_aux pl in
-    case dfindo p (!ocache) of SOME v => ocachef v id fl | NONE => 
     if id = 12 then
       let val v = dfind (hd pl) (!ccache) handle NotFound =>
         raise ERR "mk_exec_aux" (raw_prog p)
@@ -204,7 +195,7 @@ fun penum p n =
     val l = ref []
     fun loop i x = if i >= n then () else
       (
-      l := f (x, Arbint.zero) :: !l; 
+      l := f (x, Arbint.zero) :: !l; incr_timer ();
       loop (i+1) (Arbint.+ (x,Arbint.one))
       )
     val _ = loop 0 Arbint.zero handle Div => () | ProgTimeout => ();  
@@ -236,24 +227,6 @@ fun penumt p n =
     reset_ccache ();
     rev (!l)
   end
-
-fun add_ocache p = 
-  if dmem p (!ocache) then () else
-  let 
-    val _ = timeincr := short_timeincr  
-    val l1 = penumt p 1000 
-  in
-    if length l1 >= 1000 then () else
-    let 
-      val _ = timeincr := long_timeincr  
-      val l2 = penumt p 1000
-      val _ = timeincr := short_timeincr
-    in
-      ocache := dadd p (Vector.fromList l2) (!ocache) 
-    end
-  end
-
-
 
 end (* struct *)
 
