@@ -6,7 +6,7 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
 val ERR = mk_HOL_ERR "web";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
-val main_iprogl = read_iprogl (selfdir ^ "/model/isol87")
+val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
 
 (* -------------------------------------------------------------------------
    Escape uri
