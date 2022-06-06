@@ -5,8 +5,9 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
   mcts kernel human bloom exec rl;
 val ERR = mk_HOL_ERR "web";
 
-val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
-val main_iprogl = read_iprogl (selfdir ^ "/model/isol25")
+val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
+val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
+val _ = ocache := read_ocache (selfdir ^ "/model/ocache87")
 
 (* -------------------------------------------------------------------------
    Escape uri

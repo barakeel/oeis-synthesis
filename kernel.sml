@@ -80,7 +80,7 @@ fun read_iprogl file = read_data dec_iprogl file
 
 
 local open HOLsexp in
-val enc_ocache = 
+val enc_ocache =
   list_encode (pair_encode (enc_prog, list_encode String))
 val dec_ocache = 
   list_decode (pair_decode (dec_prog, list_decode string_decode))
