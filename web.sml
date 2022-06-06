@@ -149,7 +149,7 @@ fun oeis_result n gseq =
 fun prog_result p =
   (
   print_endline ("Program found:");
-  print_endline ("f(x) := " ^ rm_par (humanf p))
+  print_endline ("f(x) := " ^ humanf p)
   )
 
 fun python_result gseq p =
