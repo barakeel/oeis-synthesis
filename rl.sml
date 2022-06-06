@@ -313,8 +313,8 @@ fun rl_search_only tmpname ngen =
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val (iprogll, iprogll_alt) = split iprogll_both
     val _ = log ("search time: " ^ rts_round 6 t)
-    val _ = log ("solutions for each search:")
-    val _ = log (String.concatWith " " (map (its o length) iprogll))
+    val _ = log ("average number of solutions per search:" ^
+                  rts_round 2 (average_int (map length iprogll)))
     val newisol = merge_isol (List.concat (isol :: iprogll))
     val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))
   in
@@ -352,7 +352,7 @@ end (* struct *)
 (* Train on the oeis *)
 load "rl"; open rl;
 expname := "run312";
-rl_search "_main11" 75;
+rl_search "_main11" 72;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
