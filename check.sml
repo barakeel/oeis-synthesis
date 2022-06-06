@@ -34,11 +34,11 @@ fun update_partwind_one d p (anum,ncover) =
   case dfindo anum (!d) of 
     NONE => d := dadd anum [(ncover,p)] (!d)
   | SOME oldl => 
-    let 
+    let
       fun test1 (oldncover,oldp) = 
         prog_compare_size (p,oldp) = LESS orelse ncover > oldncover 
       fun test2 (oldncover,oldp) =
-        prog_compare_size (p,oldp) = LESS andalso ncover > oldncover 
+        prog_compare_size (p,oldp) <> GREATER andalso ncover >= oldncover 
     in
       if all test1 oldl
       then d := dadd anum ((ncover,p) :: filter (not o test2) oldl) (!d) 
@@ -103,6 +103,6 @@ fun check progl =
     fun forget ((a,b),c) = (a,c)
   in
     (dlist (!wind), map forget (dlist (!altwind)))
-  end
+  end  
   
 end (* struct *)

@@ -92,8 +92,7 @@ fun test_cache target = List.find (test_cache_one target) main_iprogl
 
 fun gseq_result gseq =
   (
-  print_endline ("First " ^ its (length gseq) ^ 
-    " generated terms (f(0),f(1),f(2),...):");
+  print_endline ("Generated sequence:");
   print_endline (string_of_seq gseq)
   )
 
@@ -133,12 +132,12 @@ fun print_oeis (matchn,contb,shiftn,anum) =
     "(" ^ its shiftn ^ "-" ^ its (shiftn + matchn) ^ ")"
   end
 
-fun oeis_result n gseq =
+fun oeis_result gseq =
   let 
     val l1 = List.mapPartial (score_oeis gseq) oseql
     val l2 = map fst (first_n 3 (dict_sort compare_rmax l1))
   in      
-    print_endline ("Generated sequence matches best with: " ^ 
+    print_endline ("Matches best with: " ^ 
     String.concatWith ", " (map print_oeis l2)) 
   end
 
@@ -146,11 +145,14 @@ fun oeis_result n gseq =
    Generated program
    ------------------------------------------------------------------------- *)
 
-fun prog_result p =
-  (
-  print_endline ("Program found:");
-  print_endline ("f(x) := " ^ humanf p)
-  )
+fun prog_result (p,to) =
+  let val s = case to of 
+      NONE => "in cache:"
+    | SOME t => "during search in " ^ rts_round 2 t ^ " seconds:"
+  in
+    print_endline ("Program found " ^ s);
+    print_endline ("f(x) := " ^ humanf p)
+  end
 
 fun python_result gseq p =
   let 
@@ -158,7 +160,7 @@ fun python_result gseq p =
     val address = brython ^ (escape code)
   in
     print_endline ("Execute the equivalent Python program " ^
-                   "<a href=\"" ^ address ^ "\">here</a>");
+                   "<a href=\"" ^ address ^ "\">here</a>:");
     print_endline "";
     print_iframe address
   end
@@ -170,23 +172,37 @@ fun python_result gseq p =
 fun parse_seq s = map Arbint.fromString 
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
 
-fun web_result n po = case po of
-    NONE => print_endline "Could not find a covering program" 
-  | SOME p => 
+fun web_result n (po,to) = case (po,to) of
+    (NONE,NONE) => 
+      (
+      print_endline "Unexpected error";
+      app print_endline (List.tabulate (8,fn _ => ""))  
+      )
+  | (NONE, SOME t) => 
+      (
+      print_endline ("Could not find a program for the given sequence in " ^
+      rts_round 2 t ^ " seconds:");
+      app print_endline (List.tabulate (8,fn _ => ""))        
+      )
+  | (SOME p, to) => 
     let val gseq = penum p n handle NotFound => [] in
       gseq_result gseq;
-      oeis_result n gseq;
-      prog_result p;
+      oeis_result gseq;
+      prog_result (p,to);
       python_result gseq p
     end
 
-fun web n targets = 
+fun web tim n targets = 
   let 
+    val _ = game.time_opt := SOME tim
     val target = parse_seq targets
     val l = filter (test_cache_one target) main_iprogl
     val po =
-      if null l then search_target main_tnn target else
-      (SOME (hd (dict_sort prog_compare_size (map snd l))))
+      if null l then 
+        let val (po,t) = add_time (search_target main_tnn) target in
+          (po, SOME t)
+        end
+      else (SOME (hd (dict_sort prog_compare_size (map snd l))), NONE)
   in
     web_result n po
   end
@@ -195,14 +211,12 @@ fun web n targets =
 end (* struct *)
 
 (* -------------------------------------------------------------------------
-   Test oeis-synthesis
+   Test web interface
    ------------------------------------------------------------------------- 
 
-load "web"; open aiLib human exec rl web;
-time_opt := SOME 60.0;
+load "web"; open aiLib game human exec rl web;
 
-web 32 "2 4 16 256";
-web 32 "2 3 5 7";
+web 10.0 32 "52 14 16 256";
 *)
 
 

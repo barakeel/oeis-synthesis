@@ -1,6 +1,6 @@
 signature web =
 sig
 
-  val web : int -> string -> unit
+  val web : real -> int -> string -> unit
 
 end

@@ -13,6 +13,7 @@ val record_flag = ref false
 val progd = ref (eempty prog_compare)
 
 val online_flag = ref false
+val bestl_online = ref []
 exception ResultP of prog
 
 val target_glob = ref []
@@ -60,12 +61,35 @@ fun board_compare (a,b) = list_compare prog_compare (a,b)
    Application of a move to a board
    ------------------------------------------------------------------------- *)
 
+fun test1 (ncover,p) (oldncover,oldp) = 
+  prog_compare_size (p,oldp) = LESS orelse ncover > oldncover 
+fun test2 (ncover,p) (oldncover,oldp) =
+  prog_compare_size (p,oldp) <> GREATER andalso ncover >= oldncover
+
+fun check_target p target =
+  let 
+    val _ = timeincr := short_timeincr
+    val (b1,n) = coverp_target p (!target_glob)
+  in
+    if b1 then raise ResultP p else
+    if not (all (test1 (n,p)) (!bestl_online)) then () else
+    let 
+      val _ = bestl_online := filter (not o (test2 (n,p))) (!bestl_online)
+      val _ = bestl_online := (n,p) :: (!bestl_online)
+      val _ = timeincr := long_timeincr
+      val (b2,_) = coverp_target p (!target_glob)
+      val _ = timeincr := short_timeincr
+    in
+      if b2 then raise ResultP p else ()
+    end
+  end
+
+
 fun exec_fun p plb =
   (
   if !online_flag andalso not (depend_on_y p) andalso 
      not (ememi p progd)
-    then (eaddi p progd;
-          if coverp_target p (!target_glob) then raise ResultP p else ())   
+    then (eaddi p progd; check_target p (!target_glob))
   else if !record_flag andalso not (depend_on_y p)
      then eaddi p progd
   else (); 

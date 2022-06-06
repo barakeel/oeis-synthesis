@@ -132,17 +132,18 @@ fun cover_oeis f =
 
 local open Arbint in
 fun cover_target_aux f i target = case target of 
-    [] => true
+    [] => (true, !ncoveri)
   | a :: m => if f (i,zero) = a 
-              then (incr_timer (); cover_target_aux f (i+one) m)
-              else false
+              then (incr_timer (); incr ncoveri; cover_target_aux f (i+one) m)
+              else (false, !ncoveri)
 end
 
 fun cover_target f target = 
   (
+  ncoveri := 0;
   init_timer ();
   cover_target_aux f Arbint.zero target
   )
-  handle Div => false | ProgTimeout => false
+  handle Div => (false, !ncoveri) | ProgTimeout => (false, !ncoveri)
 
 end (* struct *)

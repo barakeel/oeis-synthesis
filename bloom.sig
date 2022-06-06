@@ -21,6 +21,6 @@ sig
 
   (* user-given sequence *)
   val cover_target : (Arbint.int * Arbint.int -> Arbint.int) -> 
-    seq -> bool
+    seq -> bool * int
 
 end

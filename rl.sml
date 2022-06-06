@@ -249,19 +249,17 @@ val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
 (* -------------------------------------------------------------------------
    Variant of the search function for interactive calls
    ------------------------------------------------------------------------- *)
-
-
+   
 fun search_target tnn target =
   let
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := true
     val _ = target_glob := target
     val _ = online_flag := true
-    val _ = timeincr := long_timeincr 
     val tree = starting_tree (mctsobj tnn) []
     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
   in
-    online_flag := false; timeincr := short_timeincr; clean_dicts (); NONE
+    online_flag := false; clean_dicts (); NONE
   end
   handle ResultP p => SOME p
 
