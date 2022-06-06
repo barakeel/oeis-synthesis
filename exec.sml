@@ -197,7 +197,8 @@ fun coverp_target p target =
 
 fun penum p n = 
   let 
-    val f = mk_exec p 
+    val _ = timeincr := long_timeincr
+    val f = mk_exec p
     val _ = init_timer ()
     val _ = timelimit := 1.0
     val l = ref []
@@ -208,6 +209,7 @@ fun penum p n =
       )
     val _ = loop 0 Arbint.zero handle Div => () | ProgTimeout => ();  
   in  
+    timeincr := short_timeincr;
     reset_ccache ();
     rev (!l)
   end
