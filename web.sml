@@ -175,7 +175,10 @@ fun python_result gseq p =
    Main function
    ------------------------------------------------------------------------- *)
 
-fun parse_seq s = map Arbint.fromString 
+fun afs s = 
+  if String.size s > 285 then Arbint.zero else Arbint.fromString s  
+
+fun parse_seq s = map afs 
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
 
 fun web_result n target (po,t) = 
