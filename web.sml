@@ -9,6 +9,69 @@ val main_tnn = read_tnn (selfdir ^ "/model/tnn24")
 val main_iprogl = read_iprogl (selfdir ^ "/model/isol25")
 
 (* -------------------------------------------------------------------------
+   Escape uri
+   ------------------------------------------------------------------------- *)
+
+(* Copyright from https://github.com/kni/sml-uri/blob/master/uri-escape.sml *)
+fun toHex1 i =
+  if i >=  0 andalso i <=  9 then SOME (chr (i + 48)) else
+  if i >= 10 andalso i <= 15 then SOME (chr (i + 55)) else
+  NONE
+
+fun fromHex1 c =
+let
+  val i = ord c
+in
+  if i >= 48 andalso i <=  57 then SOME (i - 48) else
+  if i >= 97 andalso i <= 102 then SOME (i - 87) else
+  if i >= 65 andalso i <=  70 then SOME (i - 55) else
+  NONE
+end
+
+fun fromHex2 (h2, h1) =
+  case fromHex1 h2 of NONE => NONE | SOME d2 =>
+  case fromHex1 h1 of NONE => NONE | SOME d1 =>
+  SOME (d2 * 16 + d1);
+
+fun toHex2 d =
+  if d < 0 orelse d >= 16 * 16 then NONE else
+  SOME (valOf (toHex1 (d div 16)), valOf (toHex1 (d mod 16)));
+
+
+fun isNotEscapedChar c = (* RFC3986 *)
+  let
+    val i = ord c
+  in
+    (i >= 65 andalso i <= 90)  (* A-Z *) orelse
+    (i >= 97 andalso i <= 122) (* a-z *) orelse
+    (i >= 48 andalso i <= 57)  (* 0-9 *) orelse
+    c = #"-" orelse
+    c = #"." orelse
+    c = #"_" orelse
+    c = #"~"
+  end
+
+fun escapeChar (c, r) = if isNotEscapedChar c then c::r else
+  case toHex2 (ord c) of NONE => r | SOME (h2, h1) => (h1::(h2::(#"%"::r)));
+
+fun escape text =
+  String.implode (List.rev (CharVector.foldl escapeChar [] text))
+(* end copyright *)
+
+(* -------------------------------------------------------------------------
+   Print iframe
+   ------------------------------------------------------------------------- *)
+
+val brython = "https://brython.info/tests/editor.html?code=";
+
+fun print_iframe addr = print_endline (
+  "<iframe name=\"pypres\" src =\"$url\" width=\"95%\" height=\"400\"" ^
+  "scrolling=\"yes\" style=\"margin:5px\" frameborder=\"1\">" ^
+  "<p>Your user agent does not support iframes or is currently configured" ^
+  " not to display iframes. However, you may visit" ^
+  "<A href=\"" ^ addr ^ "\">the related document.</A></p></iframe>")
+
+(* -------------------------------------------------------------------------
    Test if the input sequence is in the cache
    ------------------------------------------------------------------------- *)
 
@@ -89,12 +152,15 @@ fun prog_result p =
   )
 
 fun python_result gseq p =
-  (
-  print_endline "Equivalent Python program:";
-  print "<code>";
-  print_endline (human_python (length gseq) p);
-  print_endline "</code>"
-  )
+  let 
+    val code = human_python (length gseq) p 
+    val address = brython ^ (escape code)
+  in
+    print_endline ("Execute the equivalent Python program " ^
+                   "<a href=\"" ^ address ^ "\">here</a>");
+    print_endline "";
+    print_iframe address
+  end
 
 (* -------------------------------------------------------------------------
    Main function
@@ -124,9 +190,6 @@ fun web n targets =
     web_result n po
   end
 
-fun add_gap n = print_endline (String.concat (List.tabulate (n,fn _ => "\n")))
-
-
 
 end (* struct *)
 
@@ -140,3 +203,7 @@ time_opt := SOME 60.0;
 web 32 "2 4 16 256";
 web 32 "2 3 5 7";
 *)
+
+
+
+
