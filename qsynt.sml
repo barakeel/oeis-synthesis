@@ -6,7 +6,6 @@ val ERR = mk_HOL_ERR "qsynt";
 
 val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
 val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
-(* val _ = ocache := read_ocache (selfdir ^ "/model/ocache87") *)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
