@@ -146,11 +146,15 @@ fun oeis_result gseq =
    ------------------------------------------------------------------------- *)
 
 fun prog_result (p,b,t) =
-  let val s = 
-    if b 
-    then "during search (" ^ rts_round 2 t ^ " s):"
-    else "in cache after a failed search (" ^ 
-         rts_round 2 t ^ " s):"
+  let 
+    val ts = "(" ^ rts_round 2 t ^ "s)"
+    val s = 
+    if b = 0 
+      then "during search " ^ ts ^ ":"
+    else if b = 1 
+      then "in cache after a failed search " ^ ts ^ ":"
+    else "in cache smaller than a solution found during search " ^ ts ^ ":"
+      
   in
     print_endline ("Program found " ^ s);
     print_endline ("f(x) := " ^ humanf p)
@@ -175,18 +179,24 @@ fun parse_seq s = map Arbint.fromString
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
 
 fun web_result n target (po,t) = 
-  let val (newpo,b) = 
-    if isSome po then (po,true) else
-    let val l = filter (test_cache_one target) main_iprogl in  
-      if null l then (NONE, false) else
-      (SOME (hd (dict_sort prog_compare_size (map snd l))), false)
-    end
+  let  
+    val l = filter (test_cache_one target) main_iprogl  
+    val pocache = if null l then NONE else
+      SOME (hd (dict_sort prog_compare_size (map snd l)))
+    val (newpo,b) = case (po,pocache) of
+        (NONE,NONE) => (NONE,0)
+      | (SOME p, NONE) => (SOME p, 0)
+      | (NONE, SOME pcache) => (SOME pcache, 1)
+      | (SOME p, SOME pcache) => 
+        if prog_compare (p,pcache) <> GREATER
+        then (SOME p, 0)
+        else (SOME pcache, 2)   
   in
    case newpo of
     NONE => 
       (
       print_endline 
-        ("Could not find a program in" ^ rts_round 2 t ^ " s");
+        ("Could not find a program in " ^ rts_round 2 t ^ "s");
       app print_endline (List.tabulate (8,fn _ => ""))        
       )
   | SOME p => 
@@ -207,9 +217,6 @@ fun web tim n targets =
     web_result n target (po,t)
   end
   
-
-
-
 end (* struct *)
 
 (* -------------------------------------------------------------------------
@@ -217,7 +224,7 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "web"; open aiLib game human exec rl web;
-web 10.0 32 "2 3 5 7 11 13 17 19 23 29";
+web 10.0 32 "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 51";
 *)
 
 
