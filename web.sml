@@ -145,10 +145,12 @@ fun oeis_result gseq =
    Generated program
    ------------------------------------------------------------------------- *)
 
-fun prog_result (p,to) =
-  let val s = case to of 
-      NONE => "in cache:"
-    | SOME t => "during search in " ^ rts_round 2 t ^ " seconds:"
+fun prog_result (p,b,t) =
+  let val s = 
+    if b 
+    then "during search (" ^ rts_round 2 t ^ " s):"
+    else "in cache after a failed search (" ^ 
+         rts_round 2 t ^ " s):"
   in
     print_endline ("Program found " ^ s);
     print_endline ("f(x) := " ^ humanf p)
@@ -172,40 +174,40 @@ fun python_result gseq p =
 fun parse_seq s = map Arbint.fromString 
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
 
-fun web_result n (po,to) = case (po,to) of
-    (NONE,NONE) => 
+fun web_result n target (po,t) = 
+  let val (newpo,b) = 
+    if isSome po then (po,true) else
+    let val l = filter (test_cache_one target) main_iprogl in  
+      if null l then (NONE, false) else
+      (SOME (hd (dict_sort prog_compare_size (map snd l))), false)
+    end
+  in
+   case newpo of
+    NONE => 
       (
-      print_endline "Unexpected error";
-      app print_endline (List.tabulate (8,fn _ => ""))  
-      )
-  | (NONE, SOME t) => 
-      (
-      print_endline ("Could not find a program for the given sequence in " ^
-      rts_round 2 t ^ " seconds:");
+      print_endline 
+        ("Could not find a program in" ^ rts_round 2 t ^ " s");
       app print_endline (List.tabulate (8,fn _ => ""))        
       )
-  | (SOME p, to) => 
+  | SOME p => 
     let val gseq = penum p n handle NotFound => [] in
       gseq_result gseq;
       oeis_result gseq;
-      prog_result (p,to);
+      prog_result (p,b,t);
       python_result gseq p
     end
+  end
 
 fun web tim n targets = 
   let 
     val _ = game.time_opt := SOME tim
     val target = parse_seq targets
-    val l = filter (test_cache_one target) main_iprogl
-    val po =
-      if null l then 
-        let val (po,t) = add_time (search_target main_tnn) target in
-          (po, SOME t)
-        end
-      else (SOME (hd (dict_sort prog_compare_size (map snd l))), NONE)
+    val (po,t) = add_time (search_target main_tnn) target 
   in
-    web_result n po
+    web_result n target (po,t)
   end
+  
+
 
 
 end (* struct *)
