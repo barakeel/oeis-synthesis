@@ -65,7 +65,8 @@ fun escape text =
 val brython = "https://brython.info/tests/editor.html?code=";
 
 fun print_iframe addr = print_endline (
-  "<iframe name=\"pypres\" src =\"$url\" width=\"95%\" height=\"400\"" ^
+  "<iframe name=\"pypres\" src =\"" ^ addr ^ 
+  "\" width=\"95%\" height=\"400\"" ^
   "scrolling=\"yes\" style=\"margin:5px\" frameborder=\"1\">" ^
   "<p>Your user agent does not support iframes or is currently configured" ^
   " not to display iframes. However, you may visit" ^
