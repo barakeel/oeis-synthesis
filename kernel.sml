@@ -195,7 +195,7 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
 val short_timeincr = 0.00001
-val long_timeincr = 0.001
+val long_timeincr = 0.01
 val timeincr = ref (short_timeincr)
 val timelimit = ref (!timeincr)
 

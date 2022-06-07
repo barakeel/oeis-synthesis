@@ -313,7 +313,7 @@ fun rl_search_only tmpname ngen =
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val (iprogll, iprogll_alt) = split iprogll_both
     val _ = log ("search time: " ^ rts_round 6 t)
-    val _ = log ("average number of solutions per search:" ^
+    val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length iprogll)))
     val newisol = merge_isol (List.concat (isol :: iprogll))
     val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))

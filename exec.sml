@@ -166,10 +166,7 @@ fun init_exec p =
     app add_ccache comprl
   end
 
-fun reset_ccache () = 
-  if dlength (!ccache) >= 1000 
-  then ccache := dempty prog_compare
-  else ()
+fun reset_ccache () = ccache := dempty prog_compare
 
 fun mk_exec p = 
   let val _ = init_exec p in (fn x => mk_exec_aux p x) end
