@@ -36,25 +36,6 @@ fun log s =
   )
 
 (* -------------------------------------------------------------------------
-   Merging solutions from different processes
-   ------------------------------------------------------------------------- *)
-
-fun merge_altisol isol = 
-  let 
-    val d = ref (dempty (cpl_compare Int.compare Int.compare))
-    fun forget ((a,b),c) = (a,c)  
-  in
-    app (update_altwind_one d) isol;
-    map forget (dlist (!d))
-  end
-  
-fun merge_isol isol = 
-  let val d = ref (dempty Int.compare) in
-    app (update_wind_one d) isol;
-    dlist (!d)
-  end
-
-(* -------------------------------------------------------------------------
    Files
    ------------------------------------------------------------------------- *)
 
@@ -209,7 +190,8 @@ fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
 
-val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
+val parspec : (tnn, int, (anum * prog) list * 
+  (anum * (int * prog) list) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -229,10 +211,10 @@ val parspec : (tnn, int, (int * prog) list * (int * prog) list) extspec =
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
   write_result = let fun f file (r1,r2) = (write_iprogl (file ^ "_r1") r1;
-                                           write_iprogl (file ^ "_r2") r2) 
+                                           write_partiprogl (file ^ "_r2") r2) 
                  in f end,
   read_result = let fun f file = 
-    (read_iprogl (file ^ "_r1"), read_iprogl (file ^ "_r2")) in f end
+    (read_iprogl (file ^ "_r1"), read_partiprogl (file ^ "_r2")) in f end
   }
 
 (* -------------------------------------------------------------------------
@@ -263,12 +245,22 @@ fun compute_freq f sol1 =
     dict_sort compare_imax freql
   end
 
+fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
+
 fun string_of_iprog (i,p) = 
   "A" ^ its i ^ ": " ^ 
   string_of_seq (valOf (Array.sub (oseq,i))) ^ 
-  "\n" ^ humanf p;
+  "\n" ^ humanf p
 
-fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p;
+fun string_of_partiprog (i,npl) =
+  let 
+    val npl' = dict_sort (fst_compare Int.compare) npl
+    fun f (n,p) = its n ^ ": " ^ humanf p
+  in
+    "A" ^ its i ^ ": " ^ 
+    string_of_seq (valOf (Array.sub (oseq,i))) ^ 
+    "\n" ^ String.concatWith " | " (map f npl')
+  end
 
 fun stats_sol prefix isol =
   let
@@ -286,7 +278,9 @@ fun stats_ngen dir ngen =
     val solnew = read_iprogl (isol_file ngen)
     val prevd = dnew Int.compare solprev
     val soldiff = filter (fn (i,_) => not (dmem i prevd)) solnew
+    val partsol = read_partiprogl (isol_file ngen ^ "_part")
   in
+    writel (dir ^ "/full_part") (map string_of_partiprog partsol);
     stats_sol (dir ^ "/full_") solnew;
     stats_sol (dir ^ "/diff_") soldiff
   end
@@ -294,6 +288,11 @@ fun stats_ngen dir ngen =
 (* -------------------------------------------------------------------------
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
+
+fun mk_partial (anum,p) = 
+  let fun f x = length (valOf (Array.sub (oseq, x))) in
+    (anum,[(f anum,p)])
+  end
 
 fun rl_search_only tmpname ngen =
   let 
@@ -306,21 +305,27 @@ fun rl_search_only tmpname ngen =
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
-    val isol = if ngen - 1 <= ~1
-               then []
-               else read_isol (ngen - 1)
-    val (iprogll_both,t) = add_time
+
+    val (r,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
-    val (iprogll, iprogll_alt) = split iprogll_both
+    val (isoll, partisoll) = split r
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
-                  rts_round 2 (average_int (map length iprogll)))
-    val newisol = merge_isol (List.concat (isol :: iprogll))
-    val newaltisol = merge_altisol (List.concat (isol :: iprogll_alt))
+                  rts_round 2 (average_int (map length isoll)))
+    val oldisol = if ngen - 1 <= ~1
+                  then []
+                  else read_isol (ngen - 1)
+    val newisol = merge_isol (List.concat (oldisol :: isoll))
+    val _ = log ("solutions: " ^ (its (length newisol)))
+    val _ = write_isol ngen tmpname newisol
+    val oldpartisol = 
+       if exists_file (isol_file (ngen-1) ^ "_part")
+       then read_partiprogl (isol_file (ngen-1) ^ "_part")
+       else map mk_partial oldisol
+    val newpartisol = merge_partisol (List.concat (oldpartisol :: partisoll))
+    val _ = write_partiprogl (isol_file ngen ^ "_part") newpartisol
+    val _ = log ("partials: " ^ (its (length newpartisol)))
   in
-    write_isol ngen tmpname newisol;
-    write_iprogl (isol_file ngen ^ "__altisol") newaltisol;
-    log ("solutions: " ^ (its (length newisol)));
     stats_ngen (!buildheap_dir) ngen
   end
 

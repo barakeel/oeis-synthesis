@@ -39,9 +39,8 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
-  val write_ocache : 
-    string -> (prog, Arbint.int vector) dict -> unit
-  val read_ocache : string -> (prog, Arbint.int vector) dict
+  val read_partiprogl : string -> (int * (int * prog) list) list
+  val write_partiprogl : string -> (int * (int * prog) list) list -> unit
   
   (* operators *)
   val operv : term vector

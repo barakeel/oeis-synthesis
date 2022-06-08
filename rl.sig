@@ -19,7 +19,7 @@ sig
   val expname : string ref
   
   (* functions *)
-  val search : tnn -> int -> (anum * prog) list * (anum * prog) list
+  val search : tnn -> int -> (anum * prog) list * (anum * (int * prog) list) list
   val trainf : string -> unit
   
   (* reinforcement learning *)
@@ -27,7 +27,7 @@ sig
   val rl_train_only : string -> int -> unit
   val rl_search : string -> int -> unit
   val rl_train : string -> int -> unit
-  val parspec : (tnn, int, (anum * prog) list * (anum * prog) list) 
+  val parspec : (tnn, int, (anum * prog) list * (anum * (int * prog) list) list) 
     smlParallel.extspec
 
   (* solutions I/O *)
