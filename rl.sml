@@ -352,7 +352,7 @@ end (* struct *)
 (* Train on the oeis *)
 load "rl"; open rl;
 expname := "run312";
-rl_train "_main12" 78;
+rl_train "_main12" 76;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

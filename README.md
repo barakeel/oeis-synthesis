@@ -1,12 +1,8 @@
 This repository contains the software QSynt accompanying the paper 
-"Learning Program Synthesis for Integer Sequences from Scratch". Modifications to this software leading to the creation inductive problerms are described in
-"A Natural Benchmark of Arithmetical Problems for Inductive 
-	Theorem Provers"
+"Learning Program Synthesis for Integer Sequences from Scratch". 
 
 Solutions found during the full-scale self-learning run 
 can be inspected in the file `results/solutions`.
-The inductive problems benchmark 
-is included in the file `equalities/todo`
 
 ### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/qsynt.html

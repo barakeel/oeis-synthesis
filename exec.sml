@@ -225,15 +225,5 @@ val p =  parse_human "(loop ( * 2 x) (+ x 2) 1)";
 val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2val (l1,t) = add_time (penum p) 5;)) x) 2"; 
 humanf p;
 val (l1,t) = add_time (penum p) 30;
-!cache;
-
-(* create cache from the solutions *)
-load "exec"; open exec; 
-load "human"; open kernel human aiLib;
-val iprogl = read_iprogl (selfdir ^ "/model/isol25");
-val (_,t) = add_time (app add_ocache) (map snd iprogl);
-
-map_fst humanf (dlist (!ocache));
-
 
 *)
