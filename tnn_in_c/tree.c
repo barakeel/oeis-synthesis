@@ -324,7 +324,7 @@ int main()
   max_threads = mkl_get_max_threads();
   printf ("max_threads: %li\n", max_threads);
   mkl_set_num_threads(4);
-  printf ("threads: %i\n", 1);
+  printf ("threads: %i\n", 4);
   //training
   long EP = 200;
   double lr = 0.001;
