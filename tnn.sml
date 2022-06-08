@@ -13,7 +13,7 @@ type player = (board,move) player
    ------------------------------------------------------------------------- *)
 
 val use_mkl = ref true
-val dim_glob = ref 64
+val dim_glob = ref 128
 val embd = ref (dempty Term.compare)
 
 (* -------------------------------------------------------------------------

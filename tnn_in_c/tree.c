@@ -4,7 +4,7 @@
 #include <mkl.h>
 #include <math.h>
 #include <string.h>
-#define DIM 64
+#define DIM 128
 #define BUFFER 10000000
 #define ALIGN 64
 #define MAXARITY 5
@@ -323,7 +323,7 @@ int main()
   // setting the number of threads
   max_threads = mkl_get_max_threads();
   printf ("max_threads: %li\n", max_threads);
-  mkl_set_num_threads(1);
+  mkl_set_num_threads(4);
   printf ("threads: %i\n", 1);
   //training
   long EP = 200;
