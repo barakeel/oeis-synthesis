@@ -17,9 +17,9 @@ type anum = bloom.anum
    Globals
    ------------------------------------------------------------------------- *)
 
-val ncore = ref (15 * 4)
+val ncore = ref 15
 val coreid_glob = ref 0
-val ntarget = ref (150 * 4)
+val ntarget = ref 150
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
@@ -356,7 +356,7 @@ end (* struct *)
 (* Train on the oeis *)
 load "rl"; open rl;
 expname := "run312";
-rl_search "_main14" 81;
+rl_search "_main15" 80;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
