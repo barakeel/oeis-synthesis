@@ -12,6 +12,7 @@ type tnn = mlTreeNeuralNetwork.tnn
 type 'a set = 'a Redblackset.set
 type ('a,'b) dict = ('a,'b) Redblackmap.dict
 type anum = bloom.anum
+type eff = int * real option
 
 (* -------------------------------------------------------------------------
    Globals
@@ -190,7 +191,7 @@ fun string_of_timeo () = (case !time_opt of
   | SOME s => "Option.SOME " ^ rts s)
 
 val parspec : (tnn, int, (anum * prog) list * 
-  (anum * (int * prog) list) list) extspec =
+  (anum * (eff * prog) list) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -251,10 +252,13 @@ fun string_of_iprog (i,p) =
   string_of_seq (valOf (Array.sub (oseq,i))) ^ 
   "\n" ^ humanf p
 
+fun inv_cmp cmp (a,b) = cmp (b,a)
+
 fun string_of_partiprog (i,npl) =
   let 
-    val npl' = dict_sort (fst_compare Int.compare) npl
-    fun f (n,p) = its n ^ ": " ^ humanf p
+    val npl' = dict_sort (inv_cmp (fst_compare (fst_compare Int.compare))) npl
+    fun f ((n,to),p) = its n ^ (if isSome to then (", " ^ rts (valOf to)) else
+      "") ^ ": " ^ humanf p
   in
     "A" ^ its i ^ ": " ^ 
     string_of_seq (valOf (Array.sub (oseq,i))) ^ 
@@ -289,7 +293,7 @@ fun stats_ngen dir ngen =
    ------------------------------------------------------------------------- *)
 
 fun mk_partial (anum,p) = 
-  let fun f x = length (valOf (Array.sub (oseq, x))) in
+  let fun f x = (length (valOf (Array.sub (oseq, x))), NONE) in
     (anum,[(f anum,p)])
   end
   

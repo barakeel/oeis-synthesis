@@ -49,7 +49,7 @@ In this directory run `rlwrap hol` then run in the interative shell:
 
 ```
 load "qsynt"; open aiLib human exec rl qsynt;
-time_opt := SOME 60.0;
+game.time_opt := SOME 60.0;
 
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);
 val p = valOf po;

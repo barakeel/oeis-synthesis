@@ -16,7 +16,7 @@ sig
   val oempty : otree
   val oadd : Arbint.int list * int -> otree -> otree
   val cover_oeis : (Arbint.int * Arbint.int -> Arbint.int) -> 
-                   (anum list * int * anum list)
+                   (anum list * (int * real option) * anum list)
   val otree : otree
 
   (* user-given sequence *)

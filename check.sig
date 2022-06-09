@@ -8,10 +8,11 @@ sig
     (anum * kernel.prog) list ->
     (anum * kernel.prog) list
   val merge_partisol : 
-    (anum * (int * kernel.prog) list) list -> 
-    (anum * (int * kernel.prog) list) list
+    (anum * ((int * real option) * kernel.prog) list) list -> 
+    (anum * ((int * real option) * kernel.prog) list) list
 
   val check : kernel.prog list -> 
-    (anum * kernel.prog) list *  (anum * (int * kernel.prog) list) list
+    (anum * kernel.prog) list *  
+    (anum * ((int * real option) * kernel.prog) list) list
 
 end

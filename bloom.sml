@@ -118,13 +118,16 @@ fun cover_oeis_aux f i ot = case ot of
 end (* local *)
 
 fun cover_oeis f = 
-  let val _ = (anlref := []; init_partial ()) in
-    init_timer ();
-    cover_oeis_aux f Arbint.zero otree;
-    (!anlref, !ncoveri, !anlrefpart) 
+  let 
+    val _ = (anlref := []; init_partial ())
+    val _ = init_timer ();
+    val _ = cover_oeis_aux f Arbint.zero otree;
+    val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) 
+  in
+    (!anlref, (!ncoveri, SOME t), !anlrefpart) 
   end
-  handle Div => (!anlref, !ncoveri, !anlrefpart) 
-       | ProgTimeout => (!anlref, !ncoveri, !anlrefpart)
+  handle Div => (!anlref, (!ncoveri, NONE), !anlrefpart) 
+       | ProgTimeout => (!anlref, (!ncoveri, NONE), !anlrefpart)
 
 (* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence

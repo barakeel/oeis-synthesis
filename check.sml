@@ -26,18 +26,30 @@ fun merge_isol isol =
     dlist (!d)
   end
 
-fun update_partwind_one d (anum,(ncover,p)) =
+fun compare_to (t1,t2) = case (t1,t2) of
+    (NONE,NONE) => EQUAL
+  | (SOME _, NONE) => LESS
+  | (NONE, SOME _) => GREATER
+  | (SOME x1, SOME x2) => Real.compare (x1,x2)
+
+fun inv_cmp cmp (a,b) = cmp (b,a)
+
+val compare_eff = cpl_compare (inv_cmp Int.compare) compare_to
+
+fun update_partwind_one d (anum,(eff,p)) =
   case dfindo anum (!d) of 
-    NONE => d := dadd anum [(ncover,p)] (!d)
+    NONE => d := dadd anum [(eff,p)] (!d)
   | SOME oldl => 
     let
-      fun test1 (oldncover,oldp) = 
-        prog_compare_size (p,oldp) = LESS orelse ncover > oldncover 
-      fun test2 (oldncover,oldp) =
-        prog_compare_size (p,oldp) <> GREATER andalso ncover >= oldncover 
+      fun test1 (oldeff,oldp) = 
+        prog_compare_size (p,oldp) = LESS orelse 
+        compare_eff (eff,oldeff) = LESS
+      fun test2 (oldeff,oldp) =
+        prog_compare_size (p,oldp) <> GREATER andalso 
+        compare_eff (eff,oldeff) = LESS
     in
       if all test1 oldl
-      then d := dadd anum ((ncover,p) :: filter (not o test2) oldl) (!d) 
+      then d := dadd anum ((eff,p) :: filter (not o test2) oldl) (!d) 
       else ()      
     end
 
@@ -54,10 +66,10 @@ fun merge_partisol partisol =
    Check if a program is a solution (i.e) covers an OEIS sequence
    ------------------------------------------------------------------------- *)
 
-fun create_anumlpart (anuml,ncover,anumlpart1) =
+fun create_anumlpart (anuml,(n,to),anumlpart1) =
   let 
-    fun f x = length (valOf (Array.sub (oseq, x)))
-    fun g x = ncover
+    fun f x = (length (valOf (Array.sub (oseq, x))), to)
+    fun g x = (n, to)
   in
     map_assoc f anuml @ map_assoc g anumlpart1
   end
@@ -68,12 +80,12 @@ fun check progl =
     val partwind = ref (dempty Int.compare)
     fun checkx p =
       let
-        val (anuml,ncover,anumlpart1) = coverp_oeis p
+        val (anuml,eff,anumlpart1) = coverp_oeis p
         fun f anum = update_wind_one wind (anum,p)
-        fun g (anum,ncover) = update_partwind_one partwind (anum,(ncover,p))
+        fun g (anum,eff) = update_partwind_one partwind (anum,(eff,p))
       in
         app f anuml;
-        app g (create_anumlpart (anuml,ncover,anumlpart1))
+        app g (create_anumlpart (anuml,eff,anumlpart1))
       end
     fun checka p = (timeincr := short_timeincr; checkx p)
     fun checkb p = (timeincr := long_timeincr; checkx p; 
