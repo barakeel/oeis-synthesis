@@ -20,7 +20,7 @@ type eff = int * real option
 
 val ncore = ref 30
 val coreid_glob = ref 0
-val ntarget = ref 120
+val ntarget = ref 150
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
@@ -434,18 +434,17 @@ end (* struct *)
 (* train/search loop *)
 load "rl"; open rl;
 expname := "run400";
-rl_train "_main30" 100;
+rl_train "_m30" 100;
 
 (* continous searching *)
 load "rl"; open rl;
 expname := "run400";
-rl_search_cont "_main31" 101;
+rl_search_cont "_m31" 101;
 
 (* continuous training *)
 load "rl"; open rl;
 expname := "run400";
-rl_train_cont "_main31" 101;
-
+rl_train_cont "_m31" 101;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
@@ -455,8 +454,6 @@ PolyML.print_depth 2;
 val (r1,_) = search tnn 1;
 PolyML.print_depth 40;
 length r1;
-
 app print_endline (map string_of_iprog l);
-
 
 *)
