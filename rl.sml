@@ -17,9 +17,9 @@ type anum = bloom.anum
    Globals
    ------------------------------------------------------------------------- *)
 
-val ncore = ref 15
+val ncore = ref 30
 val coreid_glob = ref 0
-val ntarget = ref 150
+val ntarget = ref 300
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
