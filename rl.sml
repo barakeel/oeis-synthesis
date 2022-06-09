@@ -20,10 +20,14 @@ type eff = int * real option
 
 val ncore = ref 30
 val coreid_glob = ref 0
-val ntarget = ref 300
+val ntarget = ref 120
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
+
+(* continous training/searching *)
+val cont_flag = ref false
+val startgen_cont = 100
 
 (* -------------------------------------------------------------------------
    Logging function
@@ -63,9 +67,20 @@ fun read_isol ngen = read_iprogl (isol_file ngen)
    Training
    ------------------------------------------------------------------------- *)
 
+fun find_isol ngen =
+  if exists_file (isol_file ngen)
+  then find_isol (ngen+1) 
+  else 
+    if exists_file (isol_file (ngen - 1))
+    then read_iprogl (isol_file (ngen - 1))
+    else raise ERR "find_isol" (its ngen)
+
 fun trainf tmpname =
   let 
-    val isol = read_isol (!ngen_glob) 
+    val isol = 
+      if !cont_flag 
+      then find_isol startgen_cont
+      else read_isol (!ngen_glob) 
     val _ = print_endline ("reading isol " ^ (its (length isol)))
     val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
@@ -125,6 +140,7 @@ fun wrap_trainf ngen tmpname =
      "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
      "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
      "tnn.use_mkl := " ^ bts (!use_mkl) ^ ";",
+     "rl.cont_flag := " ^ bts (!cont_flag) ^ ";",
      "trainf " ^ mlquote tmpname];
      exec_script scriptfile
   end
@@ -316,7 +332,16 @@ fun count_newsol oldisol isoll =
       String.concatWith " " (map its il)) 
   end
   
+
   
+fun find_tnn ngen =
+  if exists_file (tnn_file ngen)
+  then find_tnn (ngen+1) 
+  else 
+    if exists_file (tnn_file (ngen - 1))
+    then read_tnn (tnn_file (ngen - 1))
+    else raise ERR "find_tnn" (its ngen)
+
 fun rl_search_only tmpname ngen =
   let 
     val expdir = mk_dirs ()
@@ -327,8 +352,10 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_options := "--maxheap 6000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
-              else read_tnn (tnn_file (ngen - 1))
-
+              else 
+                if !cont_flag 
+                then find_tnn startgen_cont
+                else read_tnn (tnn_file (ngen - 1))
     val (r,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val (isoll, partisoll) = split r
@@ -353,12 +380,7 @@ fun rl_search_only tmpname ngen =
     stats_ngen (!buildheap_dir) ngen
   end
 
-and rl_search tmpname ngen = 
-  (rl_search_only tmpname ngen; 
-   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
-   rl_train tmpname ngen)
-
-and rl_train_only tmpname ngen =
+fun rl_train_only tmpname ngen =
   let
     val expdir = mk_dirs ()
     val _ = log ("Train " ^ its ngen)
@@ -372,16 +394,58 @@ and rl_train_only tmpname ngen =
     ()
   end
 
+
+
+fun rl_search tmpname ngen = 
+  (
+  cont_flag := false;
+  rl_search_only tmpname ngen; 
+  if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
+  rl_train tmpname ngen
+  )
+
 and rl_train tmpname ngen = 
-  (rl_train_only tmpname ngen; rl_search tmpname (ngen + 1))
+  (
+  cont_flag := false; 
+  rl_train_only tmpname ngen; 
+  rl_search tmpname (ngen + 1)
+  )
+
+
+fun rl_search_cont tmpname ngen = 
+  (
+  cont_flag := true;
+  rl_search_only tmpname ngen; 
+  if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
+  rl_search_cont tmpname ngen
+  )
+
+fun rl_train_cont tmpname ngen = 
+  (
+  cont_flag := true; 
+  rl_train_only tmpname ngen; 
+  rl_train_cont tmpname (ngen + 1)
+  )
+
 
 end (* struct *)
 
 (*
-(* Train on the oeis *)
- load "rl"; open rl;
- expname := "run400";
- rl_train "_main30" 100;
+(* train/search loop *)
+load "rl"; open rl;
+expname := "run400";
+rl_train "_main30" 100;
+
+(* continous searching *)
+load "rl"; open rl;
+expname := "run400";
+rl_search_cont "_main31" 101;
+
+(* continuous training *)
+load "rl"; open rl;
+expname := "run400";
+rl_train_cont "_main31" 101;
+
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

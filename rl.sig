@@ -32,6 +32,11 @@ sig
   val parspec : (tnn, int, (anum * prog) list * (anum * (eff * prog) list) list) 
     smlParallel.extspec
 
+  (* continuous training and searching *)
+  val cont_flag : bool ref
+  val rl_search_cont : string -> int -> unit
+  val rl_train_cont : string -> int -> unit
+
   (* solutions I/O *)
   val read_isol : int -> (anum * prog) list
   val string_of_iprog : (anum * prog) -> string
