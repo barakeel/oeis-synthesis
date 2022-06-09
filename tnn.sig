@@ -9,7 +9,7 @@ sig
   (* globals *)
   val use_mkl : bool ref
   val dim_glob : int ref 
-  val embd : (string, real vector) Redblackmap.dict ref
+  val embd : (term, real vector) Redblackmap.dict ref
   val operlext : term list
   val get_tnndim : unit -> (term * int list) list
 
