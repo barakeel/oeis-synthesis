@@ -133,8 +133,7 @@ fun wrap_trainf ngen tmpname =
    ------------------------------------------------------------------------- *)
 
 fun clean_dicts () = 
-  (progd := eempty prog_compare; 
-   embd := dempty Term.compare)
+  (progd := eempty prog_compare; embd := dempty String.compare)
 
 fun init_search coreid =
   let
@@ -375,7 +374,9 @@ end (* struct *)
 
 (*
 (* Train on the oeis *)
- 
+load "rl"; open rl;
+expname := "run312";
+rl_search "_main20" 80;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

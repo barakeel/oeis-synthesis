@@ -14,7 +14,7 @@ type player = (board,move) player
 
 val use_mkl = ref true
 val dim_glob = ref 64
-val embd = ref (dempty Term.compare)
+val embd = ref (dempty String.compare)
 
 (* -------------------------------------------------------------------------
    I/O utils
@@ -137,7 +137,40 @@ fun get_tnndim () =
    ------------------------------------------------------------------------- *)
 
 fun fp_emb_either tnn oper newembl = fp_emb tnn oper newembl
-   
+
+fun zip_term_aux tm =
+  let val (oper,argl) = strip_comb tm in
+    dfind oper opernd :: List.concat (map zip_term_aux argl)
+  end 
+  
+fun zip_term tm = implode (map (fn x => Char.chr (x + 65)) (zip_term_aux tm))
+
+fun infer_emb_cache tnn tm =
+  if is_capped tm 
+  then 
+    let val ziptm = (zip_term tm) in
+      (tm, dfind ziptm (!embd)) handle NotFound =>
+      let
+        val (oper,argl) = strip_comb tm
+        val embl = map (infer_emb_cache tnn) argl
+        val (newargl,newembl) = split embl
+        val emb = fp_emb_either tnn oper newembl
+      in
+        embd := dadd ziptm emb (!embd);
+        (tm,emb)
+      end
+    end
+  else
+    let
+      val (oper,argl) = strip_comb tm
+      val embl = map (infer_emb_cache tnn) argl
+      val (newargl,newembl) = split embl
+      val emb = fp_emb_either tnn oper newembl
+    in
+      (tm,emb)
+    end
+
+(*   
 fun infer_emb_cache tnn tm =
   if is_capped tm 
   then 
@@ -163,7 +196,7 @@ fun infer_emb_cache tnn tm =
     in
       (tm,emb)
     end
-
+*)
 (* -------------------------------------------------------------------------
    Players
    ------------------------------------------------------------------------- *)
@@ -185,9 +218,6 @@ fun player_wtnn tnn board =
 
 fun player_wtnn_cache tnn board =
   let
-    (* val _ = if !debug_flag then print "." else () *)
-    val _ = if dlength (!embd) > 1000000
-            then embd := dempty Term.compare else ()
     val tm = term_of_join board
     val (_,preboarde) = (infer_emb_cache tnn) tm
       handle NotFound => 
