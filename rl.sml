@@ -2,8 +2,7 @@ structure rl :> rl =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel smlExecScripts 
-  mlTreeNeuralNetwork
-  mcts kernel human bloom exec game check tnn
+  mlTreeNeuralNetwork mcts kernel human bloom exec game check tnn
   
 
 val ERR = mk_HOL_ERR "rl"
@@ -18,9 +17,9 @@ type anum = bloom.anum
    Globals
    ------------------------------------------------------------------------- *)
 
-val ncore = ref 15
+val ncore = ref (15 * 4)
 val coreid_glob = ref 0
-val ntarget = ref 150
+val ntarget = ref (150 * 4)
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
@@ -357,7 +356,7 @@ end (* struct *)
 (* Train on the oeis *)
 load "rl"; open rl;
 expname := "run312";
-rl_train "_main13" 80;
+rl_search "_main14" 81;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
