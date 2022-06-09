@@ -417,7 +417,7 @@ fun rl_search_cont tmpname ngen =
   cont_flag := true;
   rl_search_only tmpname ngen; 
   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
-  rl_search_cont tmpname ngen
+  rl_search_cont tmpname (ngen + 1)
   )
 
 fun rl_train_cont tmpname ngen = 
