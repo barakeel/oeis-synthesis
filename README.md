@@ -26,9 +26,6 @@ Edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
-In this directory switch to the dev branch:
-git checkout todo
-
 In this directory, edit the file `dir.sml` by replacing the value of
 `val selfdir = "/home/thibault/oeis-dev"` by 
 `val selfdir = "the_directory_where_this_file_is_located"`.
