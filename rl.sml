@@ -320,7 +320,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 6000"
+    val _ = buildheap_options := "--maxheap 12000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else read_tnn (tnn_file (ngen - 1))
@@ -377,7 +377,7 @@ end (* struct *)
 (* Train on the oeis *)
  load "rl"; open rl;
  expname := "run312";
- rl_search "_main23" 80;
+ rl_search "_main25" 80;
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
