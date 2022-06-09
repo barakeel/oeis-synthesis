@@ -150,7 +150,6 @@ fun infer_emb_cache tnn tm =
       val emb = fp_emb_either tnn oper newembl
       val newtm = list_mk_comb (oper,newargl)
     in
-      if dlength (!embd) > 10000 then embd := dempty Term.compare else ();
       embd := dadd newtm emb (!embd); 
       (newtm,emb)
     end

@@ -292,7 +292,27 @@ fun mk_partial (anum,p) =
   let fun f x = length (valOf (Array.sub (oseq, x))) in
     (anum,[(f anum,p)])
   end
-
+  
+fun count_newsol oldisol isoll =
+  let 
+    val d = ref (enew Int.compare (map fst oldisol))
+    val orgn = elength (!d)
+    fun loop acc l = case l of
+        [] => rev acc
+      | _ => let 
+               val (l1,l2) = part_n 10 l 
+               val l3 = mk_fast_set Int.compare (map fst (List.concat l1))
+             in
+               d := eaddl l3 (!d);
+               loop (elength (!d) - orgn :: acc) l2
+             end
+    val il = loop [] isoll
+  in
+    log ("new solutions (after 10 more searches each time): " ^
+      String.concatWith " " (map its il)) 
+  end
+  
+  
 fun rl_search_only tmpname ngen =
   let 
     val expdir = mk_dirs ()
@@ -311,11 +331,12 @@ fun rl_search_only tmpname ngen =
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length isoll)))
-    val oldisol = if ngen - 1 <= ~1
+    val oldisol = if ngen <= 0
                   then []
                   else read_isol (ngen - 1)
     val newisol = merge_isol (List.concat (oldisol :: isoll))
     val _ = log ("solutions: " ^ (its (length newisol)))
+    val _ = count_newsol oldisol isoll
     val _ = write_isol ngen tmpname newisol
     val oldpartisol = 
        if exists_file (isol_file (ngen-1) ^ "_part")
@@ -354,9 +375,7 @@ end (* struct *)
 
 (*
 (* Train on the oeis *)
-load "rl"; open rl;
-expname := "run312";
-rl_search "_main15" 80;
+ 
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
