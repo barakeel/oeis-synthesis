@@ -380,7 +380,7 @@ end (* struct *)
 (*
 (* Train on the oeis *)
  load "rl"; open rl;
- expname := "run312";
+ expname := "run400";
  rl_train "_main30" 100;
 
 (* standalone search *)
