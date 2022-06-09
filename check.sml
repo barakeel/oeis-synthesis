@@ -33,7 +33,6 @@ fun compare_to (t1,t2) = case (t1,t2) of
   | (SOME x1, SOME x2) => Real.compare (x1,x2)
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
-
 val compare_eff = cpl_compare (inv_cmp Int.compare) compare_to
 
 fun update_partwind_one d (anum,(eff,p)) =
@@ -46,7 +45,7 @@ fun update_partwind_one d (anum,(eff,p)) =
         compare_eff (eff,oldeff) = LESS
       fun test2 (oldeff,oldp) =
         prog_compare_size (p,oldp) <> GREATER andalso 
-        compare_eff (eff,oldeff) = LESS
+        compare_eff (eff,oldeff) <> GREATER
     in
       if all test1 oldl
       then d := dadd anum ((eff,p) :: filter (not o test2) oldl) (!d) 
