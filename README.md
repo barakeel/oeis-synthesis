@@ -22,7 +22,12 @@ cat tools/sequences/kernel tools/sequences/core-theories > shortseq
 bin/build --seq=shortseq
 ```
 
-Edit your .bashrc (or .bash_aliases) by adding the following line:
+You may need to create the file `HOL/tools-poly/poly-includes.ML` with content:
+```
+val polymllibdir = "/usr/lib/x86_64-linux-gnu";
+```
+
+Finally, edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:

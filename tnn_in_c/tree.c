@@ -326,12 +326,18 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 200;
+  long EP = 400;
   double lr = 0.001;
   for (ep = 0; ep < EP; ++ep) {
-  if (ep == 50) {lr = 0.0005;}
-  if (ep == 100) {lr = 0.0002;}  
-  if (ep == 150) {lr = 0.0001;}  
+  if (ep == 40)  {lr = 0.0005;}
+  if (ep == 80)  {lr = 0.0002;}  
+  if (ep == 120) {lr = 0.0001;}
+  if (ep == 160) {lr = 0.00005;}
+  if (ep == 200) {lr = 0.00002;}
+  if (ep == 240) {lr = 0.00001;}
+  if (ep == 280) {lr = 0.000005;}  
+  if (ep == 320) {lr = 0.000002;}
+  if (ep == 360) {lr = 0.000001;}
   shuffle (nex,SHF);
   zero_vect (bY*sum,GTY); //zeroing gradients of every examples
   err = 0;
