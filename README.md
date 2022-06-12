@@ -72,6 +72,11 @@ expname := "your_experiment";
 rl_search "_main" 1;
 ```
 
+Known bug:
+- If you interrupt the process, 
+  it is safer to delete the parallel_search directory in this directory,
+  otherwise you might get some bad file descriptor error.
+  
 
 ### Install MKL libary (optional for faster training)
 #### Ubuntu 20.04

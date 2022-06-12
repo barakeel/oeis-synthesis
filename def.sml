@@ -1,7 +1,7 @@
 structure def :> def =
 struct
 
-open HolKernel Abbrev boolLib aiLib dir kernel;
+open HolKernel Abbrev boolLib aiLib dir kernel human;
 val ERR = mk_HOL_ERR "def";
 
 (* -------------------------------------------------------------------------
@@ -76,7 +76,7 @@ val p = inst_pat  (Ins (3,[Ins(~1,[]),Ins (4,[Ins(~1,[])])])) [(Ins (2,[])),(Ins
 *)
 
 (* definitions *)
-val def_id = length base_operl
+val def_id = Vector.length operv
 
 fun mk_def pat =
   if not (has_hole pat) then
@@ -156,5 +156,9 @@ end (* struct *)
 
 
 (* 
+load "def"; open kernel def;
+val isol = read_iprogl "model/isol100";
+val (defl,newsol) = nbest_def 10 (map snd isol);
+
 
 *)
