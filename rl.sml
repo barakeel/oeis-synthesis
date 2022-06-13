@@ -349,7 +349,7 @@ fun rl_search_only tmpname ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ tmpname;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 6000"
+    val _ = buildheap_options := "--maxheap 8000"
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else 

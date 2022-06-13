@@ -30,8 +30,6 @@ sig
   val all_subcompr : prog -> prog list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
-  val number_of_loops : prog -> int
-  val all_loops : prog -> prog list
   val has_compr : prog -> bool
   
   (* I/O *)
