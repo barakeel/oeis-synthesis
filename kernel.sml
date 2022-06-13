@@ -1,10 +1,10 @@
 structure kernel :> kernel =
 struct
 
-open HolKernel Abbrev boolLib aiLib dir;
+open HolKernel Abbrev boolLib aiLib;
 val ERR = mk_HOL_ERR "kernel";
                
-val selfdir = dir.selfdir 
+val selfdir = hd (readl 
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -131,7 +131,27 @@ val base_operl =
    mk_var ("compr",alpha3),
    mk_var ("loop2",rpt_fun_type 6 alpha)
   ]
-  
+
+(* extended operl *)
+val ext_operl1 =
+  [
+   mk_var ("power",alpha),
+   mk_var ("prime",alpha),
+   mk_var ("among",alpha),
+   mk_var ("sqrt",alpha3),
+   mk_var ("log2",alpha3),
+   mk_var ("three",alpha3),
+   mk_var ("four",alpha3)
+  ]
+
+val ext_operl2 =
+  [
+   mk_var ("l",alpha3),
+   mk_var ("tl",alpha4),
+   mk_var ("let", alpha3),
+   mk_var ("loopl",alpha4)
+  ]
+
 val operv = Vector.fromList base_operl
 val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
 val maxbaseoper = length base_operl
@@ -139,6 +159,39 @@ val maxoper = Vector.length operv
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = arity_of (Vector.sub (operv,i))
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
+
+
+
+
+val polishl = (map (valOf o Char.fromString)
+  ["0","1","2","+","-","*","/","%","i","l","x","y","c","m"])
+val polishv = Vector.fromList polishl
+val polishd = dnew Char.compare (number_snd 0 polishl)
+
+(* -------------------------------------------------------------------------
+   Polish notations
+   ------------------------------------------------------------------------- *)
+
+fun polish_of_prog_aux (Ins (id,pl)) = 
+  Vector.sub (polishv, id) :: List.concat (map polish_of_prog_aux pl)
+
+fun polish_of_prog p = implode (polish_of_prog_aux p)  
+  
+fun progl_of_polish charl = case charl of
+    [] => []  
+  | a :: m => 
+    let 
+      val id = dfind a polishd 
+      val arity = arity_of_oper id
+      val (pl1,pl2) = part_n arity (progl_of_polish m)
+    in
+      Ins (dfind a polishd, pl1) :: pl2
+    end 
+    
+fun prog_of_polish s = case progl_of_polish (explode s) of
+    [a] => a
+  | _ => raise ERR "prog_of_polish" ""
+  
 
 (* -------------------------------------------------------------------------
    Timer
