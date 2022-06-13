@@ -9,9 +9,10 @@ val selfdir = dir.selfdir
 val configd = 
   let 
     val sl = readl (selfdir ^ "/config")
-    fun f s = pair_of_list (String.tokens Char.isSpace s)  
+    fun f s = SOME (pair_of_list (String.tokens Char.isSpace s)) 
+      handle HOL_ERR _ => NONE
   in
-    dnew String.compare (map f sl)
+    dnew String.compare (List.mapPartial f sl)
   end
 
 (* -------------------------------------------------------------------------
