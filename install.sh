@@ -12,4 +12,4 @@ sed "s#directory_template#$PWD#g" tnn_in_c/tree_template > tnn_in_c/tree.c
 Holmake cleanAll
 Holmake
 
-echo "Installation completed: training will additionally require manually compiling the tnn_in_c/tree.c file"
+echo "Installation completed: training additionally requires manually compiling the tnn_in_c/tree.c file"
