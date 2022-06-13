@@ -156,7 +156,7 @@ fun update_fp_op () =
         val n = dfind oper opernd 
         val Xv = Vector.concat (embl @ [biais])
         val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
-        val Y = Array.tabulate (!dim_glob,fn i => 0.0)
+        val Y = Array.tabulate (!dim_glob, fn i => 0.0)
       in 
         fp_op0 (n,X,Y);
         Array.vector Y
@@ -172,7 +172,7 @@ end (* local *)
    ------------------------------------------------------------------------- *)
 
 fun fp_emb_either tnn oper newembl = 
-  if !use_ob (* andalso !ngen_glob > 0 *)
+  if !use_ob
   then (!fp_op_glob) oper newembl
   else fp_emb tnn oper newembl 
 

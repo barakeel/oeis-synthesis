@@ -180,6 +180,7 @@ fun init_search coreid =
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache    
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
+    val _ = if !use_ob andalso !ngen_glob > 0 then update_fp_op () else ()
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -375,7 +376,7 @@ fun rl_search_only subexp ngen =
                 then read_tnn (tnn_file (find_last_tnn ()))
                 else read_tnn (tnn_file (ngen - 1))
     val _ = if !use_ob andalso ngen > 0 
-      then cmd_in_dir (selfdir ^ "/tnn_in_c") ("sh compile_ob.sh")
+      then cmd_in_dir (selfdir ^ "/tnn_in_c") "sh compile_ob.sh"
       else ()
     val (isoll,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))

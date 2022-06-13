@@ -25,4 +25,8 @@ sig
   val export_traindata : (term * real list) list list -> unit
   val read_ctnn : string list -> tnn
 
+  (* openblas *)
+  val fp_op_glob : (term -> real vector list -> real vector) ref
+  val update_fp_op : unit -> unit
+
 end
