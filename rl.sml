@@ -429,14 +429,14 @@ and rl_train subexp ngen =
 fun rl_search_cont subexp = 
   (
   cont_flag := true;
-  rl_search_only subexp (find_last_isol () + 1); 
+  rl_search_only subexp ((find_last_isol () + 1) handle HOL_ERR _ => 0); 
   rl_search_cont subexp
   )
 
 fun rl_train_cont subexp = 
   (
   cont_flag := true; 
-  rl_train_only subexp (find_last_tnn () + 1); 
+  rl_train_only subexp ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont subexp
   )
 
