@@ -31,23 +31,11 @@ Finally, edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
-In this directory, edit the file `dir.sml` by replacing the value of
-`val selfdir = "/home/thibault/oeis-dev"` by 
-`val selfdir = "the_directory_where_this_file_is_located"`.
+Run in this directory:
 
-Save the file and run in this directory:
 ```
-Holmake
+sh install.sh
 ```
-
-### Recreate the benchmark of inductive problems
-In this directory run `rlwrap hol` then copy-paste commands from
-benchmark.sml in the interactive shell.
-This should produce the files `equalities/human_full` and
-`equalities/sexpr_full`. 
-The final S-expr benchmark can be created from this by running the script todo.
-
-
 
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds):
 In this directory run `rlwrap hol` then run in the interative shell:
@@ -62,8 +50,6 @@ print_endline (humanf p);
 val seq = penum p 10;
 ```
 
-
-
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores):
 In this directory run `rlwrap hol` then run in the interative shell:
 ```
@@ -71,17 +57,13 @@ load "rl"; open rl;
 expname := "your_experiment";
 rl_search "_main" 1;
 ```
-
 ### Install MKL libary (optional for faster training)
 #### Ubuntu 20.04
+
+Install mkl:
 ```
 sudo apt install intel-mkl
 ```
-
-Edit the `tnn_in_c/tree.c` file: 
-
-Change `/home/user/oeis-synthesis/tnn_in_c/`
-to the absolute path to your  `tnn_in_c` directory.
 
 In the `tnn_in_c` directory and compile `tree.c`: 
 ```
@@ -89,6 +71,7 @@ In the `tnn_in_c` directory and compile `tree.c`:
 ```
 
 #### Ubuntu 18.04
+Install mkl:
 
 See https://github.com/eddelbuettel/mkl4deb 
 
@@ -98,12 +81,6 @@ Initializing bash variables:
   export LD_LIBRARY_PATH=/opt/intel/lib/intel64:$LD_LIBRARY_PATH
   sh /opt/intel/mkl/bin/mklvars.sh intel64
 ```
-
-Edit the `tnn_in_c/tree.c` file: 
-
-Change `/home/user/oeis-synthesis/tnn_in_c/`
-to the absolute path to your  `tnn_in_c` directory.
-
 
 In the `tnn_in_c` directory and compile `tree.c`: 
 ```

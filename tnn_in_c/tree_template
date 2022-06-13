@@ -524,7 +524,7 @@ int main()
   FILE *fp;
   
   // export to standard ml
-  fp = fopen("/home/thibault/oeis-dev/out_sml", "w");
+  fp = fopen("directory_template/out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + bA * op;
