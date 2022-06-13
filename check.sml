@@ -6,6 +6,7 @@ open HolKernel Abbrev boolLib aiLib smlParallel
 
 val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum
+type prog = kernel.prog
 type ('a,'b) dict = ('a,'b) Redblackmap.dict
 
 (* -------------------------------------------------------------------------
@@ -103,7 +104,7 @@ fun check progl =
     val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))  
     fun forget ((a,b),c) = (a,c)
   in
-    (dlist (!wind), dlist (!partwind))
+    dlist (!wind)
   end  
   
 end (* struct *)

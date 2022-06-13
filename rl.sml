@@ -56,11 +56,17 @@ fun mk_dirs () =
     expdir
   end
 
-fun write_isol ngen tmpname iprogl = 
-  (
-  write_iprogl (isol_file ngen ^ tmpname) iprogl;
-  write_iprogl (isol_file ngen) iprogl
-  )
+fun write_isol_atomic ngen tmpname iprogl = 
+  let 
+    val savefile = isol_file ngen ^ tmpname
+    val newfile = isol_file ngen
+    val oldfile = isol_file ngen ^ "_temp"
+  in
+    write_iprogl savefile iprogl;
+    write_iprogl oldfile iprogl;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end
+  
 fun read_isol ngen = read_iprogl (isol_file ngen)
 
 (* -------------------------------------------------------------------------
@@ -74,6 +80,18 @@ fun find_isol ngen =
     if exists_file (isol_file (ngen - 1))
     then read_iprogl (isol_file (ngen - 1))
     else raise ERR "find_isol" (its ngen)
+
+
+fun write_tnn_atomic ngen tmpname tnn =
+  let 
+    val savefile = tnn_file ngen ^ tmpname
+    val newfile = tnn_file ngen
+    val oldfile = tnn_file ngen ^ "_temp"
+  in
+    write_tnn savefile tnn;
+    write_tnn oldfile tnn;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end
 
 fun trainf tmpname =
   let 
@@ -102,8 +120,7 @@ fun trainf tmpname =
         val _ = OS.Process.sleep (Time.fromReal 1.0)
         val tnn = read_ctnn (readl tnnsml_file)
       in
-        write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
-        write_tnn (tnn_file (!ngen_glob)) tnn
+        write_tnn_atomic (!ngen_glob) tmpname tnn
       end
     else
     let
@@ -122,8 +139,7 @@ fun trainf tmpname =
       val (tnn,t) = add_time (train_tnn schedule (random_tnn tnndim)) 
         (part_pct 1.0 (shuffle ex))
     in
-      write_tnn (tnn_file (!ngen_glob) ^ tmpname) tnn;
-      write_tnn (tnn_file (!ngen_glob)) tnn
+      write_tnn_atomic (!ngen_glob) tmpname tnn
     end
   end
 
@@ -206,8 +222,7 @@ fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
 
-val parspec : (tnn, int, (anum * prog) list * 
-  (anum * (eff * prog) list) list) extspec =
+val parspec : (tnn, int, (anum * prog) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -226,11 +241,8 @@ val parspec : (tnn, int, (anum * prog) list *
   read_param = read_tnn,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = let fun f file (r1,r2) = (write_iprogl (file ^ "_r1") r1;
-                                           write_partiprogl (file ^ "_r2") r2) 
-                 in f end,
-  read_result = let fun f file = 
-    (read_iprogl (file ^ "_r1"), read_partiprogl (file ^ "_r2")) in f end
+  write_result = write_iprogl,
+  read_result = read_iprogl 
   }
 
 (* -------------------------------------------------------------------------
@@ -297,9 +309,7 @@ fun stats_ngen dir ngen =
     val solnew = read_iprogl (isol_file ngen)
     val prevd = dnew Int.compare solprev
     val soldiff = filter (fn (i,_) => not (dmem i prevd)) solnew
-    val partsol = read_partiprogl (isol_file ngen ^ "_part")
   in
-    writel (dir ^ "/full_part") (map string_of_partiprog partsol);
     stats_sol (dir ^ "/full_") solnew;
     stats_sol (dir ^ "/diff_") soldiff
   end
@@ -320,7 +330,7 @@ fun count_newsol oldisol isoll =
     fun loop acc l = case l of
         [] => rev acc
       | _ => let 
-               val (l1,l2) = part_n 10 l 
+               val (l1,l2) = part_n 8 l 
                val l3 = mk_fast_set Int.compare (map fst (List.concat l1))
              in
                d := eaddl l3 (!d);
@@ -328,12 +338,10 @@ fun count_newsol oldisol isoll =
              end
     val il = loop [] isoll
   in
-    log ("new solutions (after 10 more searches each time): " ^
-      String.concatWith " " (map its il)) 
+    log ("new solutions (after 8 more searches each time): " ^
+         String.concatWith " " (map its il)) 
   end
-  
 
-  
 fun find_tnn ngen =
   if exists_file (tnn_file ngen)
   then find_tnn (ngen+1) 
@@ -356,9 +364,8 @@ fun rl_search_only tmpname ngen =
                 if !cont_flag 
                 then find_tnn startgen_cont
                 else read_tnn (tnn_file (ngen - 1))
-    val (r,t) = add_time
+    val (isoll,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
-    val (isoll, partisoll) = split r
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length isoll)))
@@ -368,14 +375,7 @@ fun rl_search_only tmpname ngen =
     val newisol = merge_isol (List.concat (oldisol :: isoll))
     val _ = log ("solutions: " ^ (its (length newisol)))
     val _ = count_newsol oldisol isoll
-    val _ = write_isol ngen tmpname newisol
-    val oldpartisol = 
-       if exists_file (isol_file (ngen-1) ^ "_part")
-       then read_partiprogl (isol_file (ngen-1) ^ "_part")
-       else map mk_partial oldisol
-    val newpartisol = merge_partisol (List.concat (oldpartisol :: partisoll))
-    val _ = write_partiprogl (isol_file ngen ^ "_part") newpartisol
-    val _ = log ("partials: " ^ (its (length newpartisol)))
+    val _ = write_isol_atomic ngen tmpname newisol
   in
     stats_ngen (!buildheap_dir) ngen
   end
@@ -416,7 +416,6 @@ fun rl_search_cont tmpname ngen =
   (
   cont_flag := true;
   rl_search_only tmpname ngen; 
-  if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
   rl_search_cont tmpname (ngen + 1)
   )
 

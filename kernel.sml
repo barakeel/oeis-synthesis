@@ -78,38 +78,6 @@ end
 fun write_iprogl file r = write_data enc_iprogl file r
 fun read_iprogl file = read_data dec_iprogl file
 
-local open HOLsexp in
-val enc_partiprog = pair_encode (Integer, 
-  list_encode (pair_encode (pair_encode (Integer, String), enc_prog)))
-val enc_partiprogl = list_encode enc_partiprog
-val dec_partiprog = pair_decode (int_decode, 
-  list_decode (pair_decode (pair_decode (int_decode, string_decode), dec_prog)))
-val dec_partiprogl = list_decode dec_partiprog
-end
-
-fun rots ro = case ro of
-    NONE => "N" 
-  | SOME r => "S" ^ rts r 
-
-fun stro s = if s = "N" then NONE else Real.fromString (tl_string s)
-
-fun write_partiprogl file r = 
-  let 
-    fun f (a,l) = (a, map (fn ((x1,x2),y) => ((x1,rots x2),y)) l)
-    val r1 = map f r
-  in 
-    write_data enc_partiprogl file r1
-  end
-  
-fun read_partiprogl file = 
-  let 
-    fun f (a,l) = (a, map (fn ((x1,x2),y) => ((x1,stro x2),y)) l)
-    val r = read_data dec_partiprogl file 
-  in
-    map f r
-  end  
-
-
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)

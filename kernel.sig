@@ -37,10 +37,6 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
-  val read_partiprogl : 
-    string -> (int * ((int * real option) * prog) list) list
-  val write_partiprogl : 
-    string -> (int * ((int * real option) * prog) list) list -> unit
   
   (* operators *)
   val operv : term vector
