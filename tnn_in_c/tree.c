@@ -532,7 +532,7 @@ int main()
     else {fprint_mat (fp,"A",ARITY[op]*DIM+1,DIM,Acur);}
   }
   fclose(fp);
-
+  
 
 return 0;
 }

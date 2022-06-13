@@ -533,6 +533,36 @@ int main()
   }
   fclose(fp);
 
+  //export to openblas
+    fp = fopen("directory_template/ob_mat", "w");
+  fprintf(fp, "double A[%ld] = {", bA*nop);
+  for (i = 0; i < bA*nop; i++)
+    {
+    fprintf(fp, "%.16f", A[i]);
+    if (i < bA*nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+  fp = fopen("directory_template/ob_head", "w");
+  fprintf(fp, "long HEAD[%ld] = {", nop);
+  for (i = 0; i < nop; i++)
+    {
+    fprintf(fp, "%ld", HEAD[i]);
+    if (i < nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+  fp = fopen("directory_template/ob_arity", "w");
+  fprintf(fp, "long ARITY[%ld] = {", nop);
+  for (i = 0; i < nop; i++)
+    {
+    fprintf(fp, "%ld", ARITY[i]);
+    if (i < nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+
+
 
 return 0;
 }
