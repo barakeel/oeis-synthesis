@@ -4,7 +4,7 @@
 #include <mkl.h>
 #include <math.h>
 #include <string.h>
-#define DIM 64
+#define DIM dimension_template
 #define BUFFER 10000000
 #define ALIGN 64
 #define MAXARITY 5

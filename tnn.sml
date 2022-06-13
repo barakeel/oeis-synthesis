@@ -13,7 +13,8 @@ type player = (board,move) player
    ------------------------------------------------------------------------- *)
 
 val use_mkl = ref true
-val dim_glob = ref 64
+val dim_glob = ref  
+  (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val embd = ref (dempty Term.compare)
 
 (* -------------------------------------------------------------------------

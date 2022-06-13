@@ -1,3 +1,4 @@
+dim_glob 96
 ncore 32
 ntarget 32
 time_opt 600.0
