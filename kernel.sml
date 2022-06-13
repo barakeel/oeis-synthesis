@@ -168,17 +168,16 @@ val operav = Vector.map arity_of operv
 fun arity_of_oper i = arity_of (Vector.sub (operv,i))
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
-
-
+(*
+(* -------------------------------------------------------------------------
+   Polish notations
+   ------------------------------------------------------------------------- *)
 
 val polishl = (map (valOf o Char.fromString)
   ["0","1","2","+","-","*","/","%","i","l","x","y","c","m"])
 val polishv = Vector.fromList polishl
 val polishd = dnew Char.compare (number_snd 0 polishl)
 
-(* -------------------------------------------------------------------------
-   Polish notations
-   ------------------------------------------------------------------------- *)
 
 fun polish_of_prog_aux (Ins (id,pl)) = 
   Vector.sub (polishv, id) :: List.concat (map polish_of_prog_aux pl)
@@ -197,7 +196,7 @@ fun progl_of_polish charl = case charl of
 fun prog_of_polish s = case progl_of_polish (explode s) of
     [a] => a
   | _ => raise ERR "prog_of_polish" ""
-  
+*)  
 
 (* -------------------------------------------------------------------------
    Timer

@@ -38,8 +38,10 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
+  (*
   val polish_of_prog : prog -> string
   val prog_of_polish : string -> prog
+  *)
   
   (* operators *)
   val operv : term vector
