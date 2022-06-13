@@ -13,6 +13,7 @@ type player = (board,move) player
    ------------------------------------------------------------------------- *)
 
 val use_mkl = ref true
+val use_ob = ref true
 val dim_glob = ref  
   (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val embd = ref (dempty Term.compare)
@@ -133,12 +134,48 @@ fun get_tnndim () =
   map_assoc dim_std_alt allcap @ 
     [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] 
 
+
+(* -------------------------------------------------------------------------
+   OpenBlas Foreign Function Interface
+   ------------------------------------------------------------------------- *)
+
+fun fp_op_default oper embl = Vector.fromList [100.0]
+val fp_op_glob = ref fp_op_default
+val biais = Vector.fromList ([1.0])
+
+local open Foreign in
+
+fun update_fp_op () =
+  let
+    val lib = loadLibrary (selfdir ^ "/tnn_in_c/ob.so");
+    val fp_op_sym = getSymbol lib "fp_op";
+    val cra = cArrayPointer cDouble;
+    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid);
+    fun fp_op oper embl =
+      let 
+        val n = dfind oper opernd 
+        val Xv = Vector.concat (embl @ [biais])
+        val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
+        val Y = Array.tabulate (!dim_glob,fn i => 0.0)
+      in 
+        fp_op0 (n,X,Y);
+        Array.vector Y
+      end
+  in
+    fp_op_glob := fp_op
+  end
+
+end (* local *)
+
 (* -------------------------------------------------------------------------
    TNN cache
    ------------------------------------------------------------------------- *)
 
-fun fp_emb_either tnn oper newembl = fp_emb tnn oper newembl
-   
+fun fp_emb_either tnn oper newembl = 
+  if !use_ob (* andalso !ngen_glob > 0 *)
+  then (!fp_op_glob) oper newembl
+  else fp_emb tnn oper newembl 
+
 fun infer_emb_cache tnn tm =
   if is_capped tm 
   then 

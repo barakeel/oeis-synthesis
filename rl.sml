@@ -158,6 +158,7 @@ fun wrap_trainf ngen tmpname =
      "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
      "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
      "tnn.use_mkl := " ^ bts (!use_mkl) ^ ";",
+     "tnn.use_ob := " ^ bts (!use_ob) ^ ";",
      "rl.cont_flag := " ^ bts (!cont_flag) ^ ";",
      "trainf " ^ mlquote tmpname];
      exec_script scriptfile
@@ -175,8 +176,12 @@ fun init_search coreid =
   let
     val _ = print_endline "initialization"
     val _ = coreid_glob := coreid
-    val _ = player_glob := player_wtnn_cache
+    val _ = player_glob := player_wtnn_cache    
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
+    val _ = if !ngen_glob <= 0 then use_ob := false else ()
+    val _ = if !use_ob 
+      then cmd_in_dir (selfdir ^ "/tnn_in_c") ("sh compile_ob.sh")
+      else ()
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -236,6 +241,7 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.coreid_glob := " ^ its (!coreid_glob),
      "tnn.dim_glob := " ^ its (!dim_glob),
+     "tnn.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo ()] 
     ^ ")"),
   function = search,
@@ -427,56 +433,6 @@ fun rl_train_cont tmpname ngen =
   rl_train_only tmpname ngen; 
   rl_train_cont tmpname (ngen + 1)
   )
-
-(*
-(* -------------------------------------------------------------------------
-   OpenBlas Foreign Function Interface
-   Be aware that using it (use_ob := true + installing openblas) 
-   creates a difficult to reproduce bug.
-   It seems that updating the binary during the search creates
-   a bad file descriptor
-   ------------------------------------------------------------------------- *)
-
-fun fp_op_default oper embl = Vector.fromList [100.0]
-val fp_op_glob = ref fp_op_default
-val biais = Vector.fromList ([1.0])
-
-local open Foreign in
-
-fun update_fp_op () =
-  let
-    val lib = loadLibrary (selfdir ^ "/tnn_in_c/ob.so");
-    val fp_op_sym = getSymbol lib "fp_op";
-    val cra = cArrayPointer cDouble;
-    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid);
-    fun fp_op oper embl =
-      let 
-        val n = dfind oper opernd 
-        val Xv = Vector.concat (embl @ [biais])
-        val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
-        val Y = Array.tabulate (!dim_glob,fn i => 0.0)
-      in 
-        fp_op0 (n,X,Y);
-        Array.vector Y
-      end
-  in
-    fp_op_glob := fp_op
-  end
-
-end (* local *)
-
-
-
-fun fp_emb_either tnn oper newembl = 
-  (* if !use_ob andalso !ngen_glob > 0 
-  then (!fp_op_glob) oper newembl
-  else *) fp_emb tnn oper newembl 
-
-
-  (* val _ = if !use_ob then 
-    cmd_in_dir (selfdir ^ "/tnn_in_c") ("sh compile_ob.sh")
-    else () *)
-*)
 
 end (* struct *)
 

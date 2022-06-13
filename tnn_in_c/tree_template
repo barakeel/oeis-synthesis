@@ -326,7 +326,7 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 200;
+  long EP = 100;
   double lr = 0.001;
   for (ep = 0; ep < EP; ++ep) {
   if (ep == 25)  {lr = 0.0005;}
@@ -534,6 +534,7 @@ int main()
   fclose(fp);
 
   //export to openblas
+  long i;
     fp = fopen("directory_template/ob_mat", "w");
   fprintf(fp, "double A[%ld] = {", bA*nop);
   for (i = 0; i < bA*nop; i++)
