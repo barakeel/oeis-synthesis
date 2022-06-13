@@ -326,7 +326,7 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 200;
+  long EP = 100;
   double lr = 0.001;
   for (ep = 0; ep < EP; ++ep) {
   if (ep == 25)  {lr = 0.0005;}
@@ -524,7 +524,7 @@ int main()
   FILE *fp;
   
   // export to standard ml
-  fp = fopen("/home/thibault/oeis-dev/out_sml", "w");
+  fp = fopen("/home/thibault/oeis-dev/tnn_in_c/out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + bA * op;
@@ -532,7 +532,38 @@ int main()
     else {fprint_mat (fp,"A",ARITY[op]*DIM+1,DIM,Acur);}
   }
   fclose(fp);
-  
+
+  //export to openblas
+  long i;
+    fp = fopen("/home/thibault/oeis-dev/tnn_in_c/ob_mat", "w");
+  fprintf(fp, "double A[%ld] = {", bA*nop);
+  for (i = 0; i < bA*nop; i++)
+    {
+    fprintf(fp, "%.16f", A[i]);
+    if (i < bA*nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+  fp = fopen("/home/thibault/oeis-dev/tnn_in_c/ob_head", "w");
+  fprintf(fp, "long HEAD[%ld] = {", nop);
+  for (i = 0; i < nop; i++)
+    {
+    fprintf(fp, "%ld", HEAD[i]);
+    if (i < nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+  fp = fopen("/home/thibault/oeis-dev/tnn_in_c/ob_arity", "w");
+  fprintf(fp, "long ARITY[%ld] = {", nop);
+  for (i = 0; i < nop; i++)
+    {
+    fprintf(fp, "%ld", ARITY[i]);
+    if (i < nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fclose(fp);
+
+
 
 return 0;
 }

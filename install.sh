@@ -9,7 +9,7 @@ fi
 
 sed "s#directory_template#$PWD#g" dir_template > dir.sml
 DIM=$(grep '^dim_glob' config_template | sed -e 's/dim_glob *//')
-sed "s#directory_template#$PWD#g" tnn_in_c/tree_template > tnn_in_c/tree_temp
+sed "s#directory_template#$PWD/tnn_in_c#g" tnn_in_c/tree_template > tnn_in_c/tree_temp
 sed "s#dimension_template#$DIM#g" tnn_in_c/tree_temp > tnn_in_c/tree.c
 rm tnn_in_c/tree_temp
 
