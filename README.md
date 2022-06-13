@@ -86,3 +86,23 @@ In the `tnn_in_c` directory and compile `tree.c`:
 ```
   gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
+
+### Install OpenBlas (optional for faster search)
+In your home directory:
+
+```
+git clone https://github.com/xianyi/OpenBLAS/releases
+```
+
+and follow the install instructions
+
+Add to your bashrc.
+```
+export LD_LIBRARY_PATH=path_to_OpenBLAS:$LD_LIBRARY_PATH
+```
+
+
+
+
+
+
