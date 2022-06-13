@@ -32,8 +32,8 @@ sig
 
   (* continuous training and searching *)
   val cont_flag : bool ref
-  val rl_search_cont : string -> int -> unit
-  val rl_train_cont : string -> int -> unit
+  val rl_search_cont : string -> unit
+  val rl_train_cont : string -> unit
 
   (* solutions I/O *)
   val read_isol : int -> (anum * prog) list
