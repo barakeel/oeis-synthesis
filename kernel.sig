@@ -4,6 +4,7 @@ sig
   include Abbrev
   (* directory *)
   val selfdir : string 
+  val configd : (string ,string) Redblackmap.dict
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -39,7 +40,6 @@ sig
   val write_iprogl : string -> (int * prog) list -> unit
   val polish_of_prog : prog -> string
   val prog_of_polish : string -> prog
-  
   
   (* operators *)
   val operv : term vector

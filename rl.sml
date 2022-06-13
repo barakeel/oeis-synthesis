@@ -17,10 +17,12 @@ type eff = int * real option
 (* -------------------------------------------------------------------------
    Globals
    ------------------------------------------------------------------------- *)
-
-val ncore = ref 30
+  
+val ncore = ref 
+  (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val coreid_glob = ref 0
-val ntarget = ref 150
+val ntarget = ref
+  (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"

@@ -1,10 +1,18 @@
 structure kernel :> kernel =
 struct
 
-open HolKernel Abbrev boolLib aiLib;
+open HolKernel Abbrev boolLib aiLib dir;
 val ERR = mk_HOL_ERR "kernel";
                
-val selfdir = hd (readl 
+val selfdir = dir.selfdir 
+
+val configd = 
+  let 
+    val sl = readl (selfdir ^ "/config")
+    fun f s = pair_of_list (String.tokens Char.isSpace s)  
+  in
+    dnew String.compare (map f sl)
+  end
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -174,8 +182,6 @@ val polishd = dnew Char.compare (number_snd 0 polishl)
 
 fun polish_of_prog_aux (Ins (id,pl)) = 
   Vector.sub (polishv, id) :: List.concat (map polish_of_prog_aux pl)
-
-fun polish_of_prog p = implode (polish_of_prog_aux p)  
   
 fun progl_of_polish charl = case charl of
     [] => []  
