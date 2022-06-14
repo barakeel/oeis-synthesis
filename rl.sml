@@ -228,6 +228,16 @@ fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
 
+fun catch_fwrite msg f file x =
+  f file x handle Interrupt => raise Interrupt | _ => 
+       (print_endline ("rl: " ^ msg ^ ": " ^ file); 
+         raise ERR msg file)
+
+fun catch_fread msg f file =
+  f file handle Interrupt => raise Interrupt | _ => 
+       (print_endline ("rl: " ^ msg ^ ": " ^ file); 
+         raise ERR msg file)
+
 val parspec : (tnn, int, (anum * prog) list) extspec =
   {
   self_dir = selfdir,
@@ -244,12 +254,14 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
      "game.time_opt := " ^ string_of_timeo ()] 
     ^ ")"),
   function = search,
-  write_param = write_tnn,
-  read_param = read_tnn,
-  write_arg = let fun f file arg = writel file [its arg] in f end,
-  read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
-  write_result = write_iprogl,
-  read_result = read_iprogl 
+  write_param = catch_fwrite "write_tnn" write_tnn,
+  read_param = catch_fread "read_tnn" write_tnn,
+  write_arg = let fun f file arg = writel file [its arg] 
+       in catch_fwrite "write_arg" f end,
+  read_arg = let fun f file = string_to_int (hd (readl file)) 
+       in catch_fread "read_arg" f end,
+  write_result = catch_fwrite "write_iprogl" write_iprogl,
+  read_result = catch_fread "read_iprogl" read_iprogl
   }
 
 (* -------------------------------------------------------------------------

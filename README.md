@@ -16,7 +16,7 @@ sudo apt install polyml
 sudo apt install libpolyml-dev
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
-git checkout cf03ce2dc756feb6c0bc4b042f879595d21f2e68
+git checkout 389bdc0d52a3e1ebdcba83cf893303316ea54db7
 poly < "tools/smart-configure.sml"
 cat tools/sequences/kernel tools/sequences/core-theories > shortseq
 bin/build --seq=shortseq
