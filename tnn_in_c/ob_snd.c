@@ -1,5 +1,5 @@
 double *Acur;
-long bA = (3*DIM+1)*DIM;
+long bA = (MAXARITY*DIM+1)*DIM;
 //to do add the biais at the end on the SML side
 
 void mv (long arity, double A[], double X[], double Y[]) {

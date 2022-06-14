@@ -13,6 +13,8 @@ sed "s#directory_template#$PWD/tnn_in_c#g" tnn_in_c/tree_template > tnn_in_c/tre
 sed "s#dimension_template#$DIM#g" tnn_in_c/tree_temp > tnn_in_c/tree.c
 rm tnn_in_c/tree_temp
 
+sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
+
 if [ -f "tnn_in_c/compile_ob.sh" ]
 then
 echo 'Keeping existing "tnn_in_c/compile_ob.sh" file'
