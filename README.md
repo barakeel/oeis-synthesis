@@ -98,6 +98,7 @@ and follow the install instructions
 
 Add to your bashrc.
 ```
+export OPENBLAS_NUM_THREADS=1
 export LD_LIBRARY_PATH=path_to_OpenBLAS:$LD_LIBRARY_PATH
 ```
 
