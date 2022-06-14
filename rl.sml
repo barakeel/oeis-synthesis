@@ -385,7 +385,9 @@ fun rl_search_only subexp ngen =
               then random_tnn (get_tnndim ())
               else 
                 if !cont_flag 
-                then read_tnn (tnn_file (find_last_tnn ()))
+                then 
+                  (log ("Last tnn: " ^ its (find_last_tnn ()));
+                   read_tnn (tnn_file (find_last_tnn ())))
                 else read_tnn (tnn_file (ngen - 1))
     val _ = if !use_ob andalso ngen > 0 
       then cmd_in_dir (selfdir ^ "/tnn_in_c") "sh compile_ob.sh"
