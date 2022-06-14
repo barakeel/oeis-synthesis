@@ -131,8 +131,19 @@ fun trainf subexp =
           )
         val _ = OS.Process.sleep (Time.fromReal 1.0)
         val tnn = read_ctnn (readl tnnsml_file)
+        val cdir = selfdir ^ "/tnn_in_c"
+        val oldfile = cdir ^ "/ob_temp.c"
+        val newfile = cdir ^ "/ob.c"
       in
-        write_tnn_atomic (!ngen_glob) subexp tnn
+        write_tnn_atomic (!ngen_glob) subexp tnn;
+        if !use_ob 
+        then 
+          (
+          cmd_in_dir cdir 
+            "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob_temp.c";
+          OS.FileSys.rename {old = oldfile, new = newfile}
+          )    
+        else ()
       end
     else
     let
@@ -476,7 +487,7 @@ rl_search_cont "_subexp0";
 load "rl"; open rl;
 expname := "run500";
 rl_train_cont "_subexp0";
-g
+
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 time_opt := SOME 60.0;
