@@ -31,6 +31,12 @@ Finally, edit your .bashrc (or .bash_aliases) by adding the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis:
+Copy and modify values of the `config` file (optional):
+
+```
+cp config_template config
+```
+
 Run in this directory:
 
 ```
@@ -75,7 +81,7 @@ Install mkl:
 
 See https://github.com/eddelbuettel/mkl4deb 
 
-Initializing bash variables:
+Initializing bash variables (put in your .bashrc)
 ```
   export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH
   export LD_LIBRARY_PATH=/opt/intel/lib/intel64:$LD_LIBRARY_PATH
@@ -91,17 +97,19 @@ In the `tnn_in_c` directory and compile `tree.c`:
 In your home directory:
 
 ```
-git clone https://github.com/xianyi/OpenBLAS/releases
+git clone https://github.com/xianyi/OpenBLAS
 ```
 
 and follow the install instructions
 
-Add to your bashrc.
+Add to your `.bashrc`
 ```
 export OPENBLAS_NUM_THREADS=1
 export LD_LIBRARY_PATH=path_to_OpenBLAS:$LD_LIBRARY_PATH
 ```
 
+Modify `compile_ob.sh` by replacing /home/thibault/big/OpenBLAS with
+the path to your OpenBLAS directory.
 
 
 
