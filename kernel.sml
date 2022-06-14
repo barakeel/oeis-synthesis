@@ -146,7 +146,7 @@ val ext_operl1 =
   [
    mk_var ("power",alpha),
    mk_var ("prime",alpha),
-   mk_var ("among",alpha),
+   mk_var ("bin",alpha),
    mk_var ("sqrt",alpha3),
    mk_var ("log2",alpha3),
    mk_var ("three",alpha3),
@@ -155,6 +155,7 @@ val ext_operl1 =
 
 val ext_operl2 =
   [
+   mk_var ("shift",alpha),
    mk_var ("l",alpha3),
    mk_var ("tl",alpha4),
    mk_var ("let", alpha3),
