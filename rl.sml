@@ -71,20 +71,28 @@ fun write_isol_atomic ngen subexp iprogl =
   
 fun read_isol ngen = read_iprogl (isol_file ngen)
 
+fun is_number s = all Char.isDigit (explode s)
+
+fun find_last s =
+  let 
+    val sl1 = listDir (get_expdir ()) 
+    val sl2 = filter (String.isPrefix s) sl1
+    val sl3 = mapfilter (snd o split_string s) sl2
+    val sl4 = filter is_number sl3
+    val il = mapfilter string_to_int sl4
+  in
+    if null il 
+    then raise ERR "find_last" ("no " ^ s)
+    else list_imax il
+  end
+
+fun find_last_isol () = find_last "isol"
+fun find_last_tnn () = find_last "tnn"
+
+
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
-
-fun find_last_isol () =
-  let 
-    val sl1 = listDir (get_expdir ()) 
-    val sl2 = filter (String.isPrefix "isol") sl1
-    val il = mapfilter (string_to_int o snd o (split_string "isol")) sl2
-  in
-    if null il 
-    then raise ERR "find_last_isol" "no isol"
-    else list_imax il
-  end
 
 fun write_tnn_atomic ngen subexp tnn =
   let 
@@ -362,16 +370,6 @@ fun count_newsol oldisol isoll =
   end
 
 
-fun find_last_tnn () =
-  let 
-    val sl1 = listDir (get_expdir ()) 
-    val sl2 = filter (String.isPrefix "tnn") sl1
-    val il = mapfilter (string_to_int o snd o (split_string "tnn")) sl2
-  in
-    if null il 
-    then raise ERR "find_last_tnn" "no tnn"
-    else list_imax il
-  end
 
 fun rl_search_only subexp ngen =
   let 
@@ -385,9 +383,7 @@ fun rl_search_only subexp ngen =
               then random_tnn (get_tnndim ())
               else 
                 if !cont_flag 
-                then 
-                  (log ("Last tnn: " ^ its (find_last_tnn ()));
-                   read_tnn (tnn_file (find_last_tnn ())))
+                then read_tnn (tnn_file (find_last_tnn ()))
                 else read_tnn (tnn_file (ngen - 1))
     val _ = if !use_ob andalso ngen > 0 
       then cmd_in_dir (selfdir ^ "/tnn_in_c") "sh compile_ob.sh"
@@ -473,7 +469,7 @@ rl_search_cont "_subexp0";
 load "rl"; open rl;
 expname := "run500";
 rl_train_cont "_subexp0";
-
+g
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 time_opt := SOME 60.0;
