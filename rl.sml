@@ -379,7 +379,10 @@ fun rl_search_only subexp ngen =
     val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ subexp;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
-    val _ = buildheap_options := "--maxheap 8000"
+    val _ = buildheap_options := 
+      "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) 
+         handle NotFound => 8000) 
     val tnn = if ngen <= 0 
               then random_tnn (get_tnndim ())
               else 
@@ -411,7 +414,10 @@ fun rl_train_only subexp ngen =
     val _ = log ("Train " ^ its ngen)
     val _ = buildheap_dir := expdir ^ "/train" ^ its ngen ^ subexp
     val _ = mkDir_err (!buildheap_dir)
-    val _ = buildheap_options := "--maxheap 100000"
+    val _ = buildheap_options :=
+      "--maxheap " ^ its 
+      (string_to_int (dfind "train_memory" configd) 
+         handle NotFound => 50000) 
     val _ = ngen_glob := ngen
     val (_,t) = add_time (wrap_trainf ngen) subexp 
     val _ = log ("train time: " ^ rts_round 6 t)
