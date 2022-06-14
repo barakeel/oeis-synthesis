@@ -141,16 +141,20 @@ fun get_tnndim () =
 
 fun fp_op_default oper embl = Vector.fromList [100.0]
 val fp_op_glob = ref fp_op_default
+val fp_op_flag = ref false
 val biais = Vector.fromList ([1.0])
+
 
 local open Foreign in
 
 fun update_fp_op () =
+  if !fp_op_flag then () else
   let
-    val lib = loadLibrary (selfdir ^ "/tnn_in_c/ob.so");
-    val fp_op_sym = getSymbol lib "fp_op";
+    val lib = loadLibrary (selfdir ^ "/tnn_in_c/ob.so")
+    val _ = fp_op_flag := true
+    val fp_op_sym =  getSymbol lib "fp_op"
     val cra = cArrayPointer cDouble;
-    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid);
+    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid)
     fun fp_op oper embl =
       let 
         val n = dfind oper opernd 
