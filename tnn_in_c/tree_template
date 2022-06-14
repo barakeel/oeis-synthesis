@@ -329,13 +329,10 @@ int main()
   long EP = 100;
   double lr = 0.001;
   for (ep = 0; ep < EP; ++ep) {
-  if (ep == 25)  {lr = 0.0005;}
-  if (ep == 50)  {lr = 0.0002;}  
-  if (ep == 75) {lr = 0.0001;}
-  if (ep == 100) {lr = 0.00005;}
-  if (ep == 125) {lr = 0.00002;}
-  if (ep == 150) {lr = 0.00001;}
-  if (ep == 175) {lr = 0.000005;}
+  if (ep == 20)  {lr = 0.0005;}
+  if (ep == 60)  {lr = 0.0002;}  
+  if (ep == 140) {lr = 0.0001;}
+  if (ep == 300) {lr = 0.00005;}
   shuffle (nex,SHF);
   zero_vect (bY*sum,GTY); //zeroing gradients of every examples
   err = 0;
