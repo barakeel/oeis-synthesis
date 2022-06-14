@@ -255,7 +255,7 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
     ^ ")"),
   function = search,
   write_param = catch_fwrite "write_tnn" write_tnn,
-  read_param = catch_fread "read_tnn" write_tnn,
+  read_param = catch_fread "read_tnn" read_tnn,
   write_arg = let fun f file arg = writel file [its arg] 
        in catch_fwrite "write_arg" f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) 
