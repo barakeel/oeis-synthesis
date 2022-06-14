@@ -188,7 +188,8 @@ fun init_search coreid =
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache    
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
-    val _ = if !use_ob andalso !ngen_glob > 0 then update_fp_op () else ()
+    val _ = if !ngen_glob <= 0 then use_ob := false else ()
+    val _ = if !use_ob then update_fp_op () else ()
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
