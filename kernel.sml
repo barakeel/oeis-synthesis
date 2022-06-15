@@ -106,7 +106,15 @@ val y_id = 11
 val compr_id = 12
 val loop2_id = 13
 
-val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2])
+val assign_id = 14
+val lookup_id = 15
+
+val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2]
+  @ 
+  (if (string_to_bool (dfind "mem" configd) handle NotFound => false)
+   then [0,0]
+   else [])
+  )
 
 fun depend_on v (Ins (id,pl)) = 
   (id = v) orelse 
@@ -121,6 +129,7 @@ fun depend_on_y p = depend_on y_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
 
+val alpha2 = rpt_fun_type 2 alpha
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
 val base_operl =
@@ -142,63 +151,16 @@ val base_operl =
   ]
 
 (* extended operl *)
-val ext_operl1 =
-  [
-   mk_var ("power",alpha),
-   mk_var ("prime",alpha),
-   mk_var ("bin",alpha),
-   mk_var ("sqrt",alpha3),
-   mk_var ("log2",alpha3),
-   mk_var ("three",alpha3),
-   mk_var ("four",alpha3)
-  ]
+val mem_operlo =
+  if (string_to_bool (dfind "mem" configd) handle NotFound => false)
+  then [mk_var ("assign",alpha4), mk_var ("lookup",alpha2)]
+  else []
 
-val ext_operl2 =
-  [
-   mk_var ("shift",alpha),
-   mk_var ("l",alpha3),
-   mk_var ("tl",alpha4),
-   mk_var ("let", alpha3),
-   mk_var ("loopl",alpha4)
-  ]
-
-val operv = Vector.fromList base_operl
+val operv = Vector.fromList (base_operl @ mem_operlo)
 val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
-val maxbaseoper = length base_operl
-val maxoper = Vector.length operv
 val operav = Vector.map arity_of operv
-fun arity_of_oper i = arity_of (Vector.sub (operv,i))
+fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
-
-(*
-(* -------------------------------------------------------------------------
-   Polish notations
-   ------------------------------------------------------------------------- *)
-
-val polishl = (map (valOf o Char.fromString)
-  ["0","1","2","+","-","*","/","%","i","l","x","y","c","m"])
-val polishv = Vector.fromList polishl
-val polishd = dnew Char.compare (number_snd 0 polishl)
-
-
-fun polish_of_prog_aux (Ins (id,pl)) = 
-  Vector.sub (polishv, id) :: List.concat (map polish_of_prog_aux pl)
-  
-fun progl_of_polish charl = case charl of
-    [] => []  
-  | a :: m => 
-    let 
-      val id = dfind a polishd 
-      val arity = arity_of_oper id
-      val (pl1,pl2) = part_n arity (progl_of_polish m)
-    in
-      Ins (dfind a polishd, pl1) :: pl2
-    end 
-    
-fun prog_of_polish s = case progl_of_polish (explode s) of
-    [a] => a
-  | _ => raise ERR "prog_of_polish" ""
-*)  
 
 (* -------------------------------------------------------------------------
    Timer
@@ -217,5 +179,11 @@ fun init_timer () =
   (skip_counter := 0;
    rt_glob := Timer.startRealTimer ();
    timelimit := !timeincr)
+   
+fun catch_perror f x g =
+  f x handle Div => g () 
+           | ProgTimeout => g () 
+           | Overflow => g ()
+   
   
 end (* struct *)

@@ -59,5 +59,6 @@ sig
   val incr_timer : unit -> unit
   val skip_counter : int ref
   val init_timer : unit -> unit
+  val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b
   
 end

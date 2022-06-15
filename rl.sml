@@ -29,7 +29,6 @@ val expname = ref "test"
 
 (* continous training/searching *)
 val cont_flag = ref false
-val startgen_cont = 100
 
 (* -------------------------------------------------------------------------
    Logging function
@@ -343,7 +342,7 @@ fun stats_sol prefix isol =
 
 fun stats_ngen dir ngen =
   let 
-    val solprev = 
+    val solprev =
       if ngen = 0 then [] else read_iprogl (isol_file (ngen - 1))
     val solnew = read_iprogl (isol_file ngen)
     val prevd = dnew Int.compare solprev
@@ -490,12 +489,12 @@ rl_train_cont "_subexp0";
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-time_opt := SOME 60.0;
-val tnn = random_tnn (get_tnndim ());
+game.time_opt := SOME 600.0;
+val tnn = random_tnn (tnn.get_tnndim ());
 PolyML.print_depth 2;
-val (r1,_) = search tnn 1;
+val r1 = search tnn 0;
 PolyML.print_depth 40;
 length r1;
-app print_endline (map string_of_iprog l);
-
+val isolsort = dict_sort (snd_compare prog_compare_size) isol;
+writel ("aaa_prog") (map string_of_iprog isolsort);
 *)

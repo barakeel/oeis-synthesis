@@ -118,6 +118,9 @@ fun human vn prog =
     in
       wrap_def f
     end
+  | Ins (14,[p1,p2,p3]) => "assign(" ^ 
+     String.concatWith ", " [rhx p1, rhx p2, rhx p3] ^ ")"  
+  | Ins (15,[p1]) => "lookup(" ^ rhx p1 ^ ")"
   | Ins (s,[]) => its s
   | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
   end

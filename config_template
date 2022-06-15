@@ -1,6 +1,0 @@
-dim_glob 96
-ncore 32
-ntarget 32
-time_opt 600.0
-search_memory 8000
-train_memory 50000

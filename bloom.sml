@@ -117,7 +117,7 @@ fun cover_oeis_aux f i ot = case ot of
 
 end (* local *)
 
-fun cover_oeis f = 
+fun cover_oeis_aux2 f = 
   let 
     val _ = (anlref := []; init_partial ())
     val _ = init_timer ();
@@ -126,8 +126,10 @@ fun cover_oeis f =
   in
     (!anlref, (!ncoveri, SOME t), !anlrefpart) 
   end
-  handle Div => (!anlref, (!ncoveri, NONE), !anlrefpart) 
-       | ProgTimeout => (!anlref, (!ncoveri, NONE), !anlrefpart)
+
+fun cover_oeis f = catch_perror cover_oeis_aux2 f 
+  (fn () => (!anlref, (!ncoveri, NONE), !anlrefpart))
+
 
 (* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence
@@ -141,12 +143,15 @@ fun cover_target_aux f i target = case target of
               else (false, !ncoveri)
 end
 
-fun cover_target f target = 
+fun cover_target_aux2 f target = 
   (
   ncoveri := 0;
   init_timer ();
   cover_target_aux f Arbint.zero target
   )
-  handle Div => (false, !ncoveri) | ProgTimeout => (false, !ncoveri)
+
+fun cover_target f target = catch_perror (cover_target_aux2 f) target 
+  (fn () => (false, !ncoveri))
+  
 
 end (* struct *)
