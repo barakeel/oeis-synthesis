@@ -7,13 +7,20 @@ can be inspected in the file `results/solutions`.
 ### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
-### Install on the Ubuntu OS a modified HOL (required)
+### Install polyml version 5.9 or higher from source
+```
+git clone https://github.com/polyml/polyml
+cd polyml
+git checkout fixes-5.9
+./configure --prefix=/usr
+make
+make install
+```
+
+### Install HOL (a modified version)
 In your /home/your_username directory:
 
 ```
-sudo apt install rlwrap
-sudo apt install polyml
-sudo apt install libpolyml-dev
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
 git checkout 389bdc0d52a3e1ebdcba83cf893303316ea54db7
@@ -22,13 +29,11 @@ cat tools/sequences/kernel tools/sequences/core-theories > shortseq
 bin/build --seq=shortseq
 ```
 
-You may need to create the file `HOL/tools-poly/poly-includes.ML` with content:
-```
-val polymllibdir = "/usr/lib/x86_64-linux-gnu";
-```
+Add to your .bashr the following line:
 
-Finally, edit your .bashrc (or .bash_aliases) by adding the following line:
+```
 PATH=/home/your_username/HOL/bin:$PATH
+```
 
 ### Install oeis-synthesis:
 Copy and modify values of the `config` file (optional):
