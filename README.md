@@ -35,7 +35,7 @@ Add to your .bashr the following line:
 PATH=/home/your_username/HOL/bin:$PATH
 ```
 
-### Install oeis-synthesis:
+### Install oeis-synthesis
 Copy and modify values of the `config` file (optional):
 
 ```
@@ -48,7 +48,7 @@ Run in this directory:
 sh install.sh
 ```
 
-### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds):
+### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
 In this directory run `rlwrap hol` then run in the interative shell:
 
 ```
@@ -61,7 +61,7 @@ print_endline (humanf p);
 val seq = penum p 10;
 ```
 
-### Train oeis-syntheis (requires 200GB of ram and 20 cores):
+### Train oeis-syntheis (requires 200GB of ram and 20 cores)
 In this directory run `rlwrap hol` then run in the interative shell:
 ```
 load "rl"; open rl;
