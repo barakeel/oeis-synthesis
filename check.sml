@@ -87,9 +87,9 @@ fun check progl =
         app f anuml;
         app g (create_anumlpart (anuml,eff,anumlpart1))
       end
-    fun checka p = (timeincr := short_timeincr; checkx p)
-    fun checkb p = (timeincr := long_timeincr; checkx p; 
-                    timeincr := short_timeincr)
+    fun checka p = (init_fast_test (); checkx p)
+    fun checkb p = (init_slow_test (); checkx p; 
+                    init_fast_test ())
     val _ = print_endline ("checka start: " ^ its (length progl))
     val (_,t) = add_time (app checka) progl
     val _ = print_endline ("checka time: "  ^ rts_round 2 t ^ " seconds")

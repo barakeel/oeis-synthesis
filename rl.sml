@@ -140,7 +140,13 @@ fun trainf subexp =
           (
           cmd_in_dir cdir 
             "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob_temp.c";
-          OS.FileSys.rename {old = oldfile, new = newfile}
+          OS.FileSys.rename {old = oldfile, new = newfile};
+          cmd_in_dir cdir 
+            ("cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob" ^ 
+             its (!ngen_glob) ^ ".c");  
+          cmd_in_dir cdir 
+            ("cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob" ^ 
+              its (!ngen_glob) ^ subexp ^ ".c")
           )    
         else ()
       end
@@ -489,12 +495,11 @@ rl_train_cont "_subexp0";
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-game.time_opt := SOME 600.0;
+game.time_opt := SOME 120.0;
 val tnn = random_tnn (tnn.get_tnndim ());
 PolyML.print_depth 2;
-val r1 = search tnn 0;
-PolyML.print_depth 40;
-length r1;
+val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
+PolyML.print_depth 40;
 writel ("aaa_prog") (map string_of_iprog isolsort);
 *)

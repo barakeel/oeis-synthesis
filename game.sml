@@ -61,6 +61,7 @@ fun board_compare (a,b) = list_compare prog_compare (a,b)
    Application of a move to a board
    ------------------------------------------------------------------------- *)
 
+(* these functions should match the one in check.sml *)
 fun test1 (ncover,p) (oldncover,oldp) = 
   prog_compare_size (p,oldp) = LESS orelse ncover > oldncover 
 fun test2 (ncover,p) (oldncover,oldp) =
@@ -68,7 +69,7 @@ fun test2 (ncover,p) (oldncover,oldp) =
 
 fun check_target p target =
   let 
-    val _ = timeincr := short_timeincr
+    val _ = init_fast_test ()
     val (b1,n) = coverp_target p (!target_glob)
   in
     if b1 then raise ResultP p else
@@ -76,9 +77,9 @@ fun check_target p target =
     let 
       val _ = bestl_online := filter (not o (test2 (n,p))) (!bestl_online)
       val _ = bestl_online := (n,p) :: (!bestl_online)
-      val _ = timeincr := long_timeincr
+      val _ = init_slow_test ()
       val (b2,_) = coverp_target p (!target_glob)
-      val _ = timeincr := short_timeincr
+      val _ = init_fast_test ()
     in
       if b2 then raise ResultP p else ()
     end

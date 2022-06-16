@@ -19,19 +19,15 @@ local open Arbint in
   fun large_int x = x > maxint orelse x < minint
 end 
 
-fun test_aux y = 
-  let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
-    if t > !timelimit then raise ProgTimeout else ()
-  end
-
 fun test f x =
   let val y = f x in
     if large_arb y then raise ProgTimeout
-    else if large_int y then test_aux y
+    else if large_int y then check_timelimit ()
     else 
       if !skip_counter > 1000 
-      then (skip_counter := 0; test_aux y) 
-      else incr skip_counter;
+      then (skip_counter := 0; check_timelimit ()) 
+      else incr skip_counter
+    ;
     y
   end
 
@@ -174,9 +170,11 @@ fun mk_exec_aux2 ccache (p as (Ins (id,pl))) =
   
   
 fun mk_exec_aux ccache p =
-  let val _ = mem_glob := Array.array (1000,Arbint.zero) in
-    mk_exec_aux2 ccache p
+  let val f = mk_exec_aux2 ccache p in
+    (fn x => (mem_glob := Array.array (!memsize, Arbint.zero); f x))
   end
+
+val max_compr_number = 1000
 
 fun add_ccache ccache p =
   if dmem p (!ccache) then () else
@@ -185,7 +183,7 @@ fun add_ccache ccache p =
     val f = mk_exec_aux (!ccache) p
     val l = ref []
     fun loop i x =
-      if i >= 1000 then () else
+      if i >= max_compr_number then () else
       if Arbint.<= (f (x, Arbint.zero), Arbint.zero)
       then (l := x :: !l; incr_timer (); loop (i+1) (Arbint.+ (x,Arbint.one))) 
       else  loop i (Arbint.+ (x,Arbint.one))
@@ -214,7 +212,7 @@ fun coverp_target p target = cover_target (mk_exec p) target
 
 fun penum p n = 
   let 
-    val _ = timeincr := long_timeincr
+    val _ = init_slow_test ()
     val f = mk_exec p
     val _ = init_timer ()
     val l = ref []
@@ -226,7 +224,7 @@ fun penum p n =
       )
     val _ = catch_perror (loop 0) Arbint.zero (fn () => ())
   in  
-    timeincr := short_timeincr;
+    init_fast_test ();
     rev (!l)
   end
   
