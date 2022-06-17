@@ -71,7 +71,6 @@ fun outofbound x a = x < 0 orelse x >= Array.length a
 
 local open Arbint in
 
-val aits = toString
 (* first-order *)
 val zero_f = mk_nullf (fn _ => zero)
 val one_f = mk_nullf (fn _ => one)
@@ -167,12 +166,12 @@ fun mk_exec_aux2 ccache (p as (Ins (id,pl))) =
     else (Vector.sub (execv,id) fl
           handle Subscript => raise ERR "mk_exec_aux2" (its id))
   end
-  
-  
+   
 fun mk_exec_aux ccache p =
   let val f = mk_exec_aux2 ccache p in
     (fn x => (mem_glob := Array.array (!memsize, Arbint.zero); f x))
   end
+
 
 val max_compr_number = 1000
 
