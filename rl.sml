@@ -88,7 +88,6 @@ fun find_last s =
 fun find_last_isol () = find_last "isol"
 fun find_last_tnn () = find_last "tnn"
 
-
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
@@ -103,6 +102,8 @@ fun write_tnn_atomic ngen subexp tnn =
     write_tnn oldfile tnn;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
+
+val loss_threshold = 0.8
 
 fun trainf subexp =
   let 
@@ -133,14 +134,20 @@ fun trainf subexp =
         val cdir = selfdir ^ "/tnn_in_c"
         val oldfile = cdir ^ "/ob_temp.c"
         val newfile = cdir ^ "/ob.c"
+        val loss = (valOf o Real.fromString) (last (String.tokens 
+          Char.isSpace (last (readl tnnlog_file))))        
       in
         write_tnn_atomic (!ngen_glob) subexp tnn;
         if !use_ob 
         then 
           (
-          cmd_in_dir cdir 
-            "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob_temp.c";
-          OS.FileSys.rename {old = oldfile, new = newfile};
+          if loss < loss_threshold then
+            (
+            cmd_in_dir cdir 
+              "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob_temp.c";
+            OS.FileSys.rename {old = oldfile, new = newfile}
+            )
+          else ();
           cmd_in_dir cdir 
             ("cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob" ^ 
              its (!ngen_glob) ^ ".c");  
