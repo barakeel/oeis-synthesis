@@ -26,8 +26,6 @@ rm tnn_in_c/tree_temp
 echo 'Overwrite tnn_in_c/ob_fst.c'
 sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
 
-
-
 Holmake cleanAll
 Holmake
 
