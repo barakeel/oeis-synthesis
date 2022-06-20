@@ -37,19 +37,18 @@ PATH=/home/your_username/HOL/bin:$PATH
 
 ### Install oeis-synthesis
 Copy and modify values of the `config` file (optional):
-
 ```
 cp config_template config
 ```
 
 Run in this directory:
-
 ```
 sh install.sh
 ```
 
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
-In this directory run `rlwrap hol` then run in the interative shell:
+In this directory run `rlwrap hol` (sudo apt install rlwrap) 
+then run in the interative shell:
 
 ```
 load "qsynt"; open aiLib human exec rl qsynt;
@@ -66,8 +65,9 @@ In this directory run `rlwrap hol` then run in the interative shell:
 ```
 load "rl"; open rl;
 expname := "your_experiment";
-rl_search "_main" 1;
+rl_search 0;
 ```
+
 ### Install MKL libary (optional for faster training)
 #### Ubuntu 20.04
 
@@ -98,23 +98,22 @@ In the `tnn_in_c` directory and compile `tree.c`:
   gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
 
-### Install OpenBlas (optional for faster search)
-In your home directory:
+### Install OpenBlas (recommended for faster search)
+In the same directory oeis-synthesis was installed (usually 
+home/user directory) run:
 
 ```
 git clone https://github.com/xianyi/OpenBLAS
 ```
 
-and follow the install instructions
+and follow the install instructions 
 
 Add to your `.bashrc`
 ```
 export OPENBLAS_NUM_THREADS=1
-export LD_LIBRARY_PATH=path_to_OpenBLAS:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 ```
-
-Modify `compile_ob.sh` by replacing /home/thibault/big/OpenBLAS with
-the path to your OpenBLAS directory.
+and replace user by your user name.
 
 
 

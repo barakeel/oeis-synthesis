@@ -27,25 +27,16 @@ val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
-
-(* continous training/searching *)
-val cont_flag = ref false
-
-(* -------------------------------------------------------------------------
-   Logging function
-   ------------------------------------------------------------------------- *)
-
-fun log s = 
-  (
-  print_endline s;
-  append_endline (selfdir ^ "/exp/" ^ !expname ^ "/log") s
-  )
+val loss_threshold = 0.8 (* ignore tnn with a loss above this threshold *)
+val cont_flag = ref false (* continous training/searching *)
 
 (* -------------------------------------------------------------------------
    Files
    ------------------------------------------------------------------------- *)
 
 fun expdir () = selfdir ^ "/exp/" ^ !expname
+fun log s = (print_endline s; append_endline (expdir () ^ "/log") s)
+
 fun traindir () = expdir () ^ "/train"
 fun searchdir () = expdir () ^ "/search"
 fun histdir () = expdir () ^ "/hist"
@@ -89,6 +80,23 @@ fun find_last s =
 fun find_last_isol () = find_last "isol"
 fun find_last_tnn () = find_last "tnn"
 
+fun find_last_notbad s =
+  let 
+    val sl1 = listDir (histdir ())
+    val sl2 = filter (String.isPrefix s) sl1
+    val sl3 = mapfilter (snd o split_string s) sl2
+    val sl4 = filter is_number sl3
+    val il = mapfilter string_to_int sl4
+    fun test i = not (exists_file (histdir () ^ "/" ^ s ^ its i ^ "_bad"))
+    val il2 = filter test il
+  in
+    if null il2 
+    then raise ERR "find_last_notbad" ("no " ^ s)
+    else list_imax il2
+  end
+
+fun find_last_ob_notbad () = find_last_notbad "ob"
+
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
@@ -101,8 +109,6 @@ fun write_tnn_atomic ngen tnn =
     write_tnn oldfile tnn;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
-
-val loss_threshold = 0.8 (* used with openblas *)
 
 fun trainf () =
   let
@@ -129,28 +135,17 @@ fun trainf () =
           )
         val _ = OS.Process.sleep (Time.fromReal 1.0)
         val tnn = read_ctnn (readl tnnsml_file)
-        val oldfile = tnndir ^ "/ob_temp.c"
-        val newfile = tnndir ^ "/ob.c"
-        val histfile = histdir () ^ "/ob" ^ its (!ngen_glob) ^ ".c"
+        val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
+        val obfile_temp = obfile ^ "_temp"
         val loss = (valOf o Real.fromString) (last (String.tokens 
           Char.isSpace (last (readl tnnlog_file))))
         val catcmd = "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > "  
       in
+        cmd_in_dir tnndir (catcmd ^ obfile_temp);
+        OS.FileSys.rename {old = obfile_temp, new = obfile};
         write_tnn_atomic (!ngen_glob) tnn;
-        if !use_ob 
-        then 
-          (
-          if loss < loss_threshold then
-            ( 
-            cmd_in_dir tnndir (catcmd ^ oldfile);
-            OS.FileSys.rename {old = oldfile, new = newfile}
-            )
-          else print_endline ("loss above " ^ rts loss_threshold ^ 
-                ": ignoring tnn " ^ its (!ngen_glob)) 
-          ;
-          cmd_in_dir tnndir (catcmd ^ histfile)
-          )    
-        else ()
+        if loss < loss_threshold then () else 
+          writel_atomic (obfile ^ "_bad") ["Empty file"]
       end
     else
     let
@@ -403,23 +398,30 @@ fun rl_search_only ngen =
       "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
-    val tnn = if ngen <= 0 
-              then random_tnn (get_tnndim ())
-              else 
-                if !cont_flag 
-                then read_tnn (tnn_file (find_last_tnn ()))
-                else read_tnn (tnn_file (ngen - 1))
-    val _ = if !use_ob andalso ngen > 0 
-      then cmd_in_dir tnndir "sh compile_ob.sh"
-      else ()
+    val (b,tnn) = 
+      if !cont_flag 
+      then if can find_last_tnn () 
+           then (true, read_tnn (tnn_file (find_last_tnn ())))
+           else (false, random_tnn (get_tnndim ()))
+      else if exists_file (tnn_file (ngen - 1))
+           then (true, read_tnn (tnn_file (ngen - 1)))
+           else (false, random_tnn (get_tnndim ()))
+    val _ = if not (!use_ob andalso b) then () else
+      let 
+        val tnngen = if !cont_flag then find_last_ob_notbad () else ngen - 1
+        val obfile = histdir () ^ "/ob" ^ its tnngen
+        val obc = tnndir ^ "/ob.c"
+        val cpcmd = String.concatWith " " ["cp",obfile,obc]
+      in
+        cmd_in_dir tnndir cpcmd;
+        cmd_in_dir tnndir "sh compile_ob.sh"
+      end
     val (isoll,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length isoll)))
-    val oldisol = if ngen <= 0
-                  then []
-                  else read_isol (ngen - 1)
+    val oldisol = if ngen <= 0 then [] else read_isol (ngen - 1)
     val newisol = merge_isol (List.concat (oldisol :: isoll))
     val _ = log ("solutions: " ^ (its (length newisol)))
     val _ = count_newsol oldisol isoll
@@ -471,10 +473,15 @@ fun rl_search_cont () =
   rl_search_cont ()
   )
 
+fun wait_isol () = 
+  if can find_last_isol () then () else 
+     (OS.Process.sleep (Time.fromReal 1.0); wait_isol ())
+
 fun rl_train_cont () = 
   (
   cont_flag := true;
   ignore (mk_dirs ());
+  wait_isol ();
   rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ()
   )
@@ -499,7 +506,7 @@ rl_train_cont ();
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-game.time_opt := SOME 600.0;
+game.time_opt := SOME 60.0;
 val tnn = random_tnn (tnn.get_tnndim ());
 PolyML.print_depth 2;
 val isol = search tnn 0;
@@ -507,5 +514,4 @@ val isolsort = dict_sort (snd_compare prog_compare_size) isol;
 PolyML.print_depth 40;
 writel ("aaa_prog") (map string_of_iprog isolsort);
 
-print all possible best continuations in order.
 *)
