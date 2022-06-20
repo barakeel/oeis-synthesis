@@ -55,9 +55,9 @@ Run in this directory:
 sh install.sh
 ```
 
-### Install MKL libary (recommended for faster training)
-#### Ubuntu 20.04
+### Install MKL
 
+#### Ubuntu 20.04
 Install mkl:
 ```
 sudo apt install intel-mkl
@@ -69,9 +69,7 @@ In the `tnn_in_c` directory and compile `tree.c`:
 ```
 
 #### Ubuntu 18.04
-Install mkl:
-
-See https://github.com/eddelbuettel/mkl4deb 
+Install mkl (See https://github.com/eddelbuettel/mkl4deb) 
 
 Initializing bash variables (put in your .bashrc)
 ```
@@ -85,10 +83,9 @@ In the `tnn_in_c` directory and compile `tree.c`:
   gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
 
-### Install OpenBlas (recommended for faster search)
+### Install OpenBLAS
 In the same directory oeis-synthesis was installed (usually 
 home/user directory) run:
-
 ```
 git clone https://github.com/xianyi/OpenBLAS
 ```
