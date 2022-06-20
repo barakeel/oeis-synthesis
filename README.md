@@ -7,7 +7,15 @@ can be inspected in the file `results/solutions`.
 ### Try the Web interface
 http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
+### Installations remarks
+The software installed (polyml,HOL,oeis-synthesis,OpenBLAS) except the mkl
+are assumed to be installed locally in the same directory.
+In the following, we will assume that this directory is /home/user.
+This file should be in the /home/user/oeis-synthesis directory.
+If not, some of the following instructions need to be adapted accordingly.
+
 ### Install polyml version 5.9 or higher from source
+In your /home/user directory:
 ```
 git clone https://github.com/polyml/polyml
 cd polyml
@@ -18,8 +26,7 @@ make install
 ```
 
 ### Install HOL (a modified version)
-In your /home/your_username directory:
-
+In your /home/user directory:
 ```
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
@@ -30,12 +37,14 @@ bin/build --seq=shortseq
 ```
 
 Add to your .bashr the following line:
-
 ```
-PATH=/home/your_username/HOL/bin:$PATH
+PATH=/home/user/HOL/bin:$PATH
 ```
 
 ### Install oeis-synthesis
+In the directory where this 
+
+
 Copy and modify values of the `config` file (optional):
 ```
 cp config_template config
@@ -46,29 +55,7 @@ Run in this directory:
 sh install.sh
 ```
 
-### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
-In this directory run `rlwrap hol` (sudo apt install rlwrap) 
-then run in the interative shell:
-
-```
-load "qsynt"; open aiLib human exec rl qsynt;
-game.time_opt := SOME 60.0;
-
-val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
-```
-
-### Train oeis-syntheis (requires 200GB of ram and 20 cores)
-In this directory run `rlwrap hol` then run in the interative shell:
-```
-load "rl"; open rl;
-expname := "your_experiment";
-rl_search 0;
-```
-
-### Install MKL libary (optional for faster training)
+### Install MKL libary (recommended for faster training)
 #### Ubuntu 20.04
 
 Install mkl:
@@ -105,15 +92,38 @@ home/user directory) run:
 ```
 git clone https://github.com/xianyi/OpenBLAS
 ```
+and follow the install instructions.
 
-and follow the install instructions 
-
-Add to your `.bashrc`
+Add to your `.bashrc`:
 ```
 export OPENBLAS_NUM_THREADS=1
 export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 ```
-and replace user by your user name.
+and replace user by your username.
+
+### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
+In this directory run `rlwrap hol` (sudo apt install rlwrap) 
+then run in the interative shell:
+
+```
+load "qsynt"; open aiLib human exec rl qsynt;
+game.time_opt := SOME 60.0;
+
+val po = qsynt (map Arbint.fromInt [2,4,16,256]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
+```
+
+### Train oeis-syntheis (requires 200GB of ram and 20 cores)
+In this directory run `rlwrap hol` then run in the interative shell:
+```
+load "rl"; open rl;
+expname := "your_experiment";
+rl_search 0;
+```
+
+
 
 
 
