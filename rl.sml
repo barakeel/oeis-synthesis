@@ -203,7 +203,8 @@ fun init_search coreid =
     val _ = coreid_glob := coreid
     val _ = player_glob := player_wtnn_cache    
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
-    val _ = if !ngen_glob <= 0 then use_ob := false else ()
+    val _ = if not (exists_file (tnndir ^ "/ob.so")) 
+            then use_ob := false else ()
     val _ = if !use_ob then update_fp_op () else ()
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
@@ -421,7 +422,7 @@ fun rl_search_only ngen =
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length isoll)))
-    val oldisol = if ngen <= 0 then [] else read_isol (ngen - 1)
+    val oldisol = if ngen = 0 then [] else read_isol (ngen - 1)
     val newisol = merge_isol (List.concat (oldisol :: isoll))
     val _ = log ("solutions: " ^ (its (length newisol)))
     val _ = count_newsol oldisol isoll
