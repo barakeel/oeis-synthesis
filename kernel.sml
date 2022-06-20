@@ -181,7 +181,7 @@ val short_timeincr = 0.00001
 val long_timeincr = 0.01
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
-val small_mem = 200
+val small_mem = 100
 val big_mem = 10000 
 val memsize = ref small_mem
 

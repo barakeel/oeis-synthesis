@@ -206,7 +206,8 @@ fun init_search coreid =
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
             then use_ob := false else ()
     val _ = if !use_ob then update_fp_op () else ()
-    val _ = if can find_last_tnn () then () else player_glob := player_random
+    val _ = if can find_last_tnn () then () else 
+            (player_glob := player_random; time_opt := SOME 120.0)
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -499,12 +500,12 @@ rl_train 100;
 
 (* continous searching *)
 load "rl"; open rl;
-expname := "run601";
+expname := "run602";
 rl_search_cont ();
 
 (* continuous training *)
 load "rl"; open rl;
-expname := "run601";
+expname := "run602";
 rl_train_cont ();
 
 (* standalone search *)
