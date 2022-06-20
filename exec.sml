@@ -169,7 +169,7 @@ val max_compr_number = 1000
 fun add_ccache ccache (p,id) =
   if dmem (p,id) (!ccache) then () else
   let
-    val test = if id = 12 then aleq else (op =)
+    val test = if id = 12 then aleq else (op =) (* id = 15 *)
     val _ = init_timer ()
     val f = mk_exec_aux (!ccache) p
     val l = ref []

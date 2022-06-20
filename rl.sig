@@ -22,6 +22,7 @@ sig
   (* functions *)
   val search : tnn -> int -> (anum * prog) list
   val trainf : unit -> unit
+  val cont_flag : bool ref (* necessary *)
   
   (* reinforcement learning *)
   val rl_search_only : int -> unit

@@ -508,9 +508,8 @@ load "rl"; open rl;
 expname := "run602";
 rl_train_cont ();
 
-(* standalone search *)
+(* standalone search (run for 2minutes) *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-game.time_opt := SOME 60.0;
 val tnn = random_tnn (tnn.get_tnndim ());
 PolyML.print_depth 2;
 val isol = search tnn 0;
