@@ -49,18 +49,25 @@ datatype prog = Ins of (id * prog list);
 fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
   cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
 
+(* fun make_assign_big = *)
+
+fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
+  cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
+
+
 fun raw_prog (Ins (id,pl)) =
   "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
-fun prog_size (Ins(s,pl)) = 1 + sum_int (map prog_size pl)
+fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)
 fun prog_compare_size (p1,p2) =
   cpl_compare Int.compare prog_compare ((prog_size p1,p1),(prog_size p2,p2))
 
-fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl);
+fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl)
 
 fun all_subcompr (Ins (id,pl)) = 
-  (if id = 12 then [hd pl] else []) @ List.concat (map all_subcompr pl);
+  (if mem id [12,15] then [(hd pl,id)] else []) @ 
+  List.concat (map all_subcompr pl)
 
 (* -------------------------------------------------------------------------
    Storing programs
@@ -106,15 +113,50 @@ val y_id = 11
 val compr_id = 12
 val loop2_id = 13
 
-val assign_id = 14
-val lookup_id = 15
 
-val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2]
-  @ 
-  (if (string_to_bool (dfind "mem" configd) handle NotFound => false)
-   then [0,0]
-   else [])
-  )
+val alpha2 = rpt_fun_type 2 alpha
+val alpha3 = rpt_fun_type 3 alpha
+val alpha4 = rpt_fun_type 4 alpha
+val base_operl = [
+  mk_var ("zero",alpha),
+  mk_var ("one",alpha),
+  mk_var ("two",alpha),
+  mk_var ("addi",alpha3),
+  mk_var ("diff",alpha3),
+  mk_var ("mult",alpha3),
+  mk_var ("divi",alpha3),
+  mk_var ("modu",alpha3),
+  mk_var ("cond",alpha4),
+  mk_var ("loop",alpha4),
+  mk_var ("x",alpha),
+  mk_var ("y",alpha),
+  mk_var ("compr",alpha3),
+  mk_var ("loop2",rpt_fun_type 6 alpha),
+  mk_var ("condeq", alpha4),
+  mk_var ("compreq", alpha3)
+  ]
+
+val ratio_operl = [
+  mk_var ("numer", alpha2),
+  mk_var ("denom", alpha2),
+  mk_var ("divr", alpha3),
+  mk_var ("intpart", alpha2)
+  ]
+
+val mem_operl = [mk_var ("lookup",alpha2), mk_var ("assign",alpha4)]
+
+val operv = Vector.fromList (base_operl @ ratio_operl @ mem_operl)
+val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
+val operav = Vector.map arity_of operv
+fun arity_of_oper i = Vector.sub (operav,i)
+fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
+
+(* -------------------------------------------------------------------------
+   Detect dependencies: ho_ariv should match operv
+   ------------------------------------------------------------------------- *)
+
+val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2,0,1]
+  @ List.tabulate (length ratio_operl + length mem_operl, fn _ => 0))
 
 fun depend_on v (Ins (id,pl)) = 
   (id = v) orelse 
@@ -127,40 +169,8 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
-fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
+fun has_compr (Ins (id,pl)) = id = compr_id orelse exists has_compr pl;
 
-val alpha2 = rpt_fun_type 2 alpha
-val alpha3 = rpt_fun_type 3 alpha
-val alpha4 = rpt_fun_type 4 alpha
-val base_operl =
-  [
-   mk_var ("zero",alpha),
-   mk_var ("one",alpha),
-   mk_var ("two",alpha),
-   mk_var ("addi",alpha3),
-   mk_var ("diff",alpha3),
-   mk_var ("mult",alpha3),
-   mk_var ("divi",alpha3),
-   mk_var ("modu",alpha3),
-   mk_var ("cond",alpha4),
-   mk_var ("loop",alpha4),
-   mk_var ("x",alpha),
-   mk_var ("y",alpha),
-   mk_var ("compr",alpha3),
-   mk_var ("loop2",rpt_fun_type 6 alpha)
-  ]
-
-(* extended operl *)
-val mem_operlo =
-  if (string_to_bool (dfind "mem" configd) handle NotFound => false)
-  then [mk_var ("assign",alpha4), mk_var ("lookup",alpha2)]
-  else []
-
-val operv = Vector.fromList (base_operl @ mem_operlo)
-val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
-val operav = Vector.map arity_of operv
-fun arity_of_oper i = Vector.sub (operav,i)
-fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 (* -------------------------------------------------------------------------
    Timer

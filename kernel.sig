@@ -28,7 +28,7 @@ sig
   val prog_size : prog -> int
   val prog_compare_size : prog * prog -> order
   val all_subprog : prog -> prog list
-  val all_subcompr : prog -> prog list
+  val all_subcompr : prog -> (prog * int) list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
   val has_compr : prog -> bool
@@ -38,10 +38,6 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
-  (*
-  val polish_of_prog : prog -> string
-  val prog_of_polish : string -> prog
-  *)
   
   (* operators *)
   val operv : term vector

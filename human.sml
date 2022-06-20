@@ -21,7 +21,7 @@ fun rm_par s =
    Printing to custom language or Python 
    ------------------------------------------------------------------------- *)
 
-fun is_loop (Ins(id,pl)) = mem id [9,12,13]
+fun is_loop (Ins(id,pl)) = mem id [9,12,13,16]
 
 val ctxt = ref []
 val funn = ref 0
@@ -51,6 +51,7 @@ fun human vn prog =
     fun rhx b = rm_par (human (~1) b)
     fun lrhx b = "\\(x,y)." ^ rhx b
     fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
+    fun sunop s p1 = s ^ "(" ^ rh p1 ^ ")"
     fun wrap_def f =
       let
         val wn = (!funn)
@@ -89,7 +90,7 @@ fun human vn prog =
   | Ins (12,[p1,p2]) => 
     if not (!python_flag) then "compr(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")" else 
     let fun f wn = 
-      let val (s1,s2) = (rhx p1, rhuman wn p2) in
+      let val (s1,s2) = (hx p1, rhuman wn p2) in
         ["  x,y,i = 0,0,0",
          "  while i <= " ^ s2 ^ ":",
          "    if " ^ s1 ^ " <= 0:",
@@ -118,9 +119,31 @@ fun human vn prog =
     in
       wrap_def f
     end
-  | Ins (14,[p1,p2,p3]) => "assign(" ^ 
+  | Ins (14,[p1,p2,p3]) => 
+    if !python_flag
+    then "(" ^ h p2 ^ " if " ^ h p1 ^ " = 0 else " ^ h p3 ^ ")"
+    else "(if " ^ h p1 ^ " = 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+  | Ins (15,[p1,p2]) =>
+    if not (!python_flag) then "compreq(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")" else 
+    let fun f wn = 
+      let val (s1,s2) = (hx p1, rhuman wn p2) in
+        ["  x,y,i = 0,0,0",
+         "  while i <= " ^ s2 ^ ":",
+         "    if " ^ s1 ^ " = 0:",
+         "      i = i + 1",
+         "    x = x + 1",
+         "  return x - 1"]
+      end
+    in
+      wrap_def f
+    end
+  | Ins (16,[p1]) => sunop "numer" p1
+  | Ins (17,[p1]) => sunop "denom" p1
+  | Ins (18,[p1,p2]) => sbinop "divr" (p1,p2)
+  | Ins (19,[p1]) => sunop "intpart" p1
+  | Ins (20,[p1]) => "lookup(" ^ rhx p1 ^ ")"
+  | Ins (21,[p1,p2,p3]) => "assign(" ^ 
      String.concatWith ", " [rhx p1, rhx p2, rhx p3] ^ ")"  
-  | Ins (15,[p1]) => "lookup(" ^ rhx p1 ^ ")"
   | Ins (s,[]) => its s
   | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
   end

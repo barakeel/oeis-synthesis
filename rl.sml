@@ -26,6 +26,7 @@ val ntarget = ref
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
+val tnndir = selfdir ^ "/tnn_in_c"
 
 (* continous training/searching *)
 val cont_flag = ref false
@@ -44,26 +45,26 @@ fun log s =
    Files
    ------------------------------------------------------------------------- *)
 
-fun tnn_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/tnn" ^ its ngen
-fun isol_file ngen = selfdir ^ "/exp/" ^ !expname ^ "/isol" ^ its ngen
-
-fun get_expdir () = selfdir ^ "/exp/" ^ !expname
+fun expdir () = selfdir ^ "/exp/" ^ !expname
+fun traindir () = expdir () ^ "/train"
+fun searchdir () = expdir () ^ "/search"
+fun histdir () = expdir () ^ "/hist"
+fun tnn_file ngen = histdir () ^ "/tnn" ^ its ngen
+fun isol_file ngen = histdir () ^ "/isol" ^ its ngen
 
 fun mk_dirs () = 
-  let val expdir = selfdir ^ "/exp/" ^ !expname in
-    mkDir_err (selfdir ^ "/exp");
-    mkDir_err expdir;
-    mkDir_err (selfdir ^ "/parallel_search");
-    expdir
-  end
+  ( 
+  mkDir_err (selfdir ^ "/parallel_search");
+  mkDir_err (selfdir ^ "/exp");
+  mkDir_err (expdir ());
+  app mkDir_err [traindir (),searchdir (), histdir ()]
+  ) 
 
-fun write_isol_atomic ngen subexp iprogl = 
-  let 
-    val savefile = isol_file ngen ^ subexp
+fun write_isol_atomic ngen iprogl = 
+  let
     val newfile = isol_file ngen
-    val oldfile = isol_file ngen ^ "_temp"
+    val oldfile = newfile ^ "_temp"
   in
-    write_iprogl savefile iprogl;
     write_iprogl oldfile iprogl;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
@@ -74,7 +75,7 @@ fun is_number s = all Char.isDigit (explode s)
 
 fun find_last s =
   let 
-    val sl1 = listDir (get_expdir ()) 
+    val sl1 = listDir (histdir ())
     val sl2 = filter (String.isPrefix s) sl1
     val sl3 = mapfilter (snd o split_string s) sl2
     val sl4 = filter is_number sl3
@@ -92,21 +93,19 @@ fun find_last_tnn () = find_last "tnn"
    Training
    ------------------------------------------------------------------------- *)
 
-fun write_tnn_atomic ngen subexp tnn =
+fun write_tnn_atomic ngen tnn =
   let 
-    val savefile = tnn_file ngen ^ subexp
     val newfile = tnn_file ngen
-    val oldfile = tnn_file ngen ^ "_temp"
+    val oldfile = newfile ^ "_temp"
   in
-    write_tnn savefile tnn;
     write_tnn oldfile tnn;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
-val loss_threshold = 0.8
+val loss_threshold = 0.8 (* used with openblas *)
 
-fun trainf subexp =
-  let 
+fun trainf () =
+  let
     val isol = 
       if !cont_flag 
       then read_isol (find_last_isol ())
@@ -117,8 +116,8 @@ fun trainf subexp =
   in
     if !use_mkl then
       let
-        val tnnlog_file = tnn_file (!ngen_glob) ^ subexp ^ "_C"
-        val tnnsml_file = selfdir ^ "/tnn_in_c/out_sml"
+        val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
+        val tnnsml_file = tnndir ^ "/out_sml"
         val sbin = "./tree"
         val _= 
           (
@@ -126,34 +125,30 @@ fun trainf subexp =
           export_traindata ex;
           print_endline "exporting end";
           OS.Process.sleep (Time.fromReal 1.0);
-          cmd_in_dir (selfdir ^ "/tnn_in_c") 
-          (sbin ^ " > " ^ tnnlog_file)
+          cmd_in_dir tnndir (sbin ^ " > " ^ tnnlog_file)
           )
         val _ = OS.Process.sleep (Time.fromReal 1.0)
         val tnn = read_ctnn (readl tnnsml_file)
-        val cdir = selfdir ^ "/tnn_in_c"
-        val oldfile = cdir ^ "/ob_temp.c"
-        val newfile = cdir ^ "/ob.c"
+        val oldfile = tnndir ^ "/ob_temp.c"
+        val newfile = tnndir ^ "/ob.c"
+        val histfile = histdir () ^ "/ob" ^ its (!ngen_glob) ^ ".c"
         val loss = (valOf o Real.fromString) (last (String.tokens 
-          Char.isSpace (last (readl tnnlog_file))))        
+          Char.isSpace (last (readl tnnlog_file))))
+        val catcmd = "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > "  
       in
-        write_tnn_atomic (!ngen_glob) subexp tnn;
+        write_tnn_atomic (!ngen_glob) tnn;
         if !use_ob 
         then 
           (
           if loss < loss_threshold then
-            (
-            cmd_in_dir cdir 
-              "cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob_temp.c";
+            ( 
+            cmd_in_dir tnndir (catcmd ^ oldfile);
             OS.FileSys.rename {old = oldfile, new = newfile}
             )
-          else ();
-          cmd_in_dir cdir 
-            ("cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob" ^ 
-             its (!ngen_glob) ^ ".c");  
-          cmd_in_dir cdir 
-            ("cat ob_fst.c ob_arity ob_head ob_mat ob_snd.c > ob" ^ 
-              its (!ngen_glob) ^ subexp ^ ".c")
+          else print_endline ("loss above " ^ rts loss_threshold ^ 
+                ": ignoring tnn " ^ its (!ngen_glob)) 
+          ;
+          cmd_in_dir tnndir (catcmd ^ histfile)
           )    
         else ()
       end
@@ -174,18 +169,19 @@ fun trainf subexp =
       val (tnn,t) = add_time (train_tnn schedule (random_tnn tnndim)) 
         (part_pct 1.0 (shuffle ex))
     in
-      write_tnn_atomic (!ngen_glob) subexp tnn
+      write_tnn_atomic (!ngen_glob) tnn
     end
   end
 
-fun wrap_trainf ngen subexp =
+fun wrap_trainf ngen =
   let
     val scriptfile = !buildheap_dir ^ "/train.sml" 
     val makefile = !buildheap_dir ^ "/Holmakefile"
   in
     writel makefile ["INCLUDES = " ^ selfdir]; 
     writel scriptfile
-    ["open rl;",
+     [
+     "open rl;",
      "rl.expname := " ^ mlquote (!expname) ^ ";",
      "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
      "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
@@ -193,7 +189,8 @@ fun wrap_trainf ngen subexp =
      "tnn.use_mkl := " ^ bts (!use_mkl) ^ ";",
      "tnn.use_ob := " ^ bts (!use_ob) ^ ";",
      "rl.cont_flag := " ^ bts (!cont_flag) ^ ";",
-     "trainf " ^ mlquote subexp];
+     "trainf ()"
+     ];
      exec_script scriptfile
   end
 
@@ -395,11 +392,11 @@ fun count_newsol oldisol isoll =
 
 
 
-fun rl_search_only subexp ngen =
+fun rl_search_only ngen =
   let 
-    val expdir = mk_dirs ()
+    val _ = mk_dirs ()
     val _ = log ("Search " ^ its ngen)
-    val _ = buildheap_dir := expdir ^ "/search" ^ its ngen ^ subexp;
+    val _ = buildheap_dir := searchdir () ^ "/" ^ its ngen;
     val _ = mkDir_err (!buildheap_dir)
     val _ = ngen_glob := ngen
     val _ = buildheap_options := 
@@ -413,7 +410,7 @@ fun rl_search_only subexp ngen =
                 then read_tnn (tnn_file (find_last_tnn ()))
                 else read_tnn (tnn_file (ngen - 1))
     val _ = if !use_ob andalso ngen > 0 
-      then cmd_in_dir (selfdir ^ "/tnn_in_c") "sh compile_ob.sh"
+      then cmd_in_dir tnndir "sh compile_ob.sh"
       else ()
     val (isoll,t) = add_time
       (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
@@ -426,23 +423,23 @@ fun rl_search_only subexp ngen =
     val newisol = merge_isol (List.concat (oldisol :: isoll))
     val _ = log ("solutions: " ^ (its (length newisol)))
     val _ = count_newsol oldisol isoll
-    val _ = write_isol_atomic ngen subexp newisol
+    val _ = write_isol_atomic ngen newisol
   in
     stats_ngen (!buildheap_dir) ngen
   end
 
-fun rl_train_only subexp ngen =
+fun rl_train_only ngen =
   let
-    val expdir = mk_dirs ()
+    val _ = mk_dirs ()
     val _ = log ("Train " ^ its ngen)
-    val _ = buildheap_dir := expdir ^ "/train" ^ its ngen ^ subexp
+    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen
     val _ = mkDir_err (!buildheap_dir)
     val _ = buildheap_options :=
       "--maxheap " ^ its 
       (string_to_int (dfind "train_memory" configd) 
          handle NotFound => 50000) 
     val _ = ngen_glob := ngen
-    val (_,t) = add_time (wrap_trainf ngen) subexp 
+    val (_,t) = add_time wrap_trainf ngen
     val _ = log ("train time: " ^ rts_round 6 t)
   in
     ()
@@ -450,36 +447,36 @@ fun rl_train_only subexp ngen =
 
 
 
-fun rl_search subexp ngen = 
+fun rl_search ngen = 
   (
   cont_flag := false;
-  rl_search_only subexp ngen; 
+  rl_search_only ngen; 
   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
-  rl_train subexp ngen
+  rl_train ngen
   )
 
-and rl_train subexp ngen = 
+and rl_train ngen = 
   (
   cont_flag := false; 
-  rl_train_only subexp ngen; 
-  rl_search subexp (ngen + 1)
+  rl_train_only ngen; 
+  rl_search (ngen + 1)
   )
 
 
-fun rl_search_cont subexp = 
+fun rl_search_cont () = 
   (
   cont_flag := true;
   ignore (mk_dirs ());
-  rl_search_only subexp ((find_last_isol () + 1) handle HOL_ERR _ => 0); 
-  rl_search_cont subexp
+  rl_search_only ((find_last_isol () + 1) handle HOL_ERR _ => 0); 
+  rl_search_cont ()
   )
 
-fun rl_train_cont subexp = 
+fun rl_train_cont () = 
   (
   cont_flag := true;
   ignore (mk_dirs ());
-  rl_train_only subexp ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
-  rl_train_cont subexp
+  rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
+  rl_train_cont ()
   )
 
 end (* struct *)
@@ -488,25 +485,27 @@ end (* struct *)
 (* train/search loop *)
 load "rl"; open rl;
 expname := "run500";
-rl_train "_subexp0" 100;
+rl_train 100;
 
 (* continous searching *)
 load "rl"; open rl;
 expname := "run500";
-rl_search_cont "_subexp0";
+rl_search_cont ();
 
 (* continuous training *)
 load "rl"; open rl;
 expname := "run500";
-rl_train_cont "_subexp0";
+rl_train_cont ();
 
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-game.time_opt := SOME 120.0;
+game.time_opt := SOME 600.0;
 val tnn = random_tnn (tnn.get_tnndim ());
 PolyML.print_depth 2;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
 PolyML.print_depth 40;
 writel ("aaa_prog") (map string_of_iprog isolsort);
+
+print all possible best continuations in order.
 *)

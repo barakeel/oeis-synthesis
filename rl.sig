@@ -21,19 +21,18 @@ sig
   
   (* functions *)
   val search : tnn -> int -> (anum * prog) list
-  val trainf : string -> unit
+  val trainf : unit -> unit
   
   (* reinforcement learning *)
-  val rl_search_only : string -> int -> unit
-  val rl_train_only : string -> int -> unit
-  val rl_search : string -> int -> unit
-  val rl_train : string -> int -> unit
+  val rl_search_only : int -> unit
+  val rl_train_only : int -> unit
+  val rl_search : int -> unit
+  val rl_train : int -> unit
   val parspec : (tnn, int, (anum * prog) list) smlParallel.extspec
 
   (* continuous training and searching *)
-  val cont_flag : bool ref
-  val rl_search_cont : string -> unit
-  val rl_train_cont : string -> unit
+  val rl_search_cont : unit -> unit
+  val rl_train_cont : unit -> unit
 
   (* solutions I/O *)
   val read_isol : int -> (anum * prog) list
