@@ -215,6 +215,9 @@ fun rewardf board = 0.0
 fun player_uniform tnn board = 
   (0.0, map (fn x => (x,1.0)) (#available_movel game board))
 
+fun player_random tnn board = 
+  (0.0, map (fn x => (x,random_real ())) (#available_movel game board))
+
 fun player_wtnn tnn board =
   let 
     val rl = infer_tnn tnn [term_of_board board]

@@ -16,6 +16,7 @@ sig
 
   (* tnn-based players *)  
   val player_uniform : tnn -> player
+  val player_random : tnn -> player
   val player_wtnn : tnn -> player
   val player_wtnn_cache : tnn -> player
   val player_glob : (tnn -> player) ref
