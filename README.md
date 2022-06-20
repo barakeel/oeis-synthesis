@@ -44,7 +44,6 @@ PATH=/home/user/HOL/bin:$PATH
 ### Install oeis-synthesis
 In the directory where this 
 
-
 Copy and modify values of the `config` file (optional):
 ```
 cp config_template config
@@ -55,10 +54,23 @@ Run in this directory:
 sh install.sh
 ```
 
-### Install MKL
+### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
+In this directory run `rlwrap hol` (sudo apt install rlwrap) 
+then run in the interative shell:
+
+```
+load "qsynt"; open aiLib human exec rl qsynt;
+tnn.use_ob := false;
+game.time_opt := SOME 60.0;
+val po = qsynt (map Arbint.fromInt [2,4,16,256]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
+```
+
+### Install MKL (Required for training)
 
 #### Ubuntu 20.04
-Install mkl:
 ```
 sudo apt install intel-mkl
 ```
@@ -69,7 +81,7 @@ In the `tnn_in_c` directory and compile `tree.c`:
 ```
 
 #### Ubuntu 18.04
-Install mkl (See https://github.com/eddelbuettel/mkl4deb) 
+See https://github.com/eddelbuettel/mkl4deb
 
 Initializing bash variables (put in your .bashrc)
 ```
@@ -83,7 +95,7 @@ In the `tnn_in_c` directory and compile `tree.c`:
   gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
 
-### Install OpenBLAS
+### Install OpenBLAS (Faster search using foreign function interface)
 In the same directory oeis-synthesis was installed (usually 
 home/user directory) run:
 ```
@@ -98,19 +110,7 @@ export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 ```
 and replace user by your username.
 
-### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
-In this directory run `rlwrap hol` (sudo apt install rlwrap) 
-then run in the interative shell:
 
-```
-load "qsynt"; open aiLib human exec rl qsynt;
-game.time_opt := SOME 60.0;
-
-val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
-```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)
 In this directory run `rlwrap hol` then run in the interative shell:
