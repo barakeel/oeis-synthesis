@@ -407,6 +407,7 @@ fun rl_search_only ngen =
       else if exists_file (tnn_file (ngen - 1))
            then (true, read_tnn (tnn_file (ngen - 1)))
            else (false, random_tnn (get_tnndim ()))
+    val _ = cmd_in_dir tnndir "rm ob.so"
     val _ = if not (!use_ob andalso b) then () else
       let 
         val tnngen = if !cont_flag then find_last_ob_notbad () else ngen - 1
@@ -497,12 +498,12 @@ rl_train 100;
 
 (* continous searching *)
 load "rl"; open rl;
-expname := "run500";
+expname := "run600";
 rl_search_cont ();
 
 (* continuous training *)
 load "rl"; open rl;
-expname := "run500";
+expname := "run600";
 rl_train_cont ();
 
 (* standalone search *)
