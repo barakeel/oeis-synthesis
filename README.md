@@ -111,7 +111,6 @@ export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 and replace user by your username.
 
 
-
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)
 In this directory run `rlwrap hol` then run in the interative shell:
 ```
