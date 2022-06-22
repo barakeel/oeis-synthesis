@@ -191,7 +191,7 @@ fun human_python ntop p =
    S-expressions I/O
    ------------------------------------------------------------------------- *)
 
-datatype sexp = Sexp of sexp list | Stoken of string;
+datatype sexp = Sexp of sexp list | Stoken of string
 
 fun lex_sexp_aux buf sl charl = case charl of
     [] => if null buf then rev sl else rev (implode (rev buf) :: sl)

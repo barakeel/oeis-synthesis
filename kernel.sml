@@ -145,7 +145,7 @@ val ratio_operl = [
 val mem_operl = [mk_var ("lookup",alpha2), mk_var ("assign",alpha4)]
 
 val operv = Vector.fromList (base_operl @ ratio_operl @ mem_operl)
-val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
+val maxarity = 5 (* limited by the tnn *)
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
@@ -178,7 +178,7 @@ fun has_compr (Ins (id,pl)) = id = compr_id orelse exists has_compr pl;
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
 val short_timeincr = 0.00001
-val long_timeincr = 0.01
+val long_timeincr = 0.001
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val small_mem = 100
