@@ -64,11 +64,6 @@ fun mk_quintf2 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3 x, f4 x, f5 x)))
   | _ => raise ERR "mk_quintf2" ""
 
-
-(* memory operators *)
-val mem_glob = ref (Array.array (0, Arbint.zero))
-fun outofbound x a = x < 0 orelse x >= Array.length a
-
 local open Arbint in
 
 (* first-order *)
@@ -90,14 +85,6 @@ fun loop_f_aux i f n x =
   if n <= zero then x else loop_f_aux (i+one) f (n-one) (f (x,i))
 fun loop_f_aux2 (f,n,x) = loop_f_aux one f n x
 val loop_f = mk_ternf1 loop_f_aux2
- 
-(* deprecated code for compr used as a placeholder *)
-fun compr_f_aux x f n0 n =
-   if f (x,zero) <= zero then 
-   (if n0 >= n then x else compr_f_aux (x+one) f (n0+one) n)
-  else compr_f_aux (x+one) f n0 n
-fun compr_f_aux2 (f,n) = compr_f_aux zero f zero n
-val compr_f = mk_binf1 compr_f_aux2
 
 fun compr_f_cache v f2 x = 
   let val input = Arbint.toInt (f2 x) handle Overflow => raise Div in
@@ -116,27 +103,6 @@ fun loop2_f_aux f1 f2 n x1 x2 =
 fun loop2_f_aux2 (f1,f2,n,x1,x2) = loop2_f_aux f1 f2 n x1 x2
 val loop2_f = mk_quintf2 loop2_f_aux2
 
-fun assign_f fl = case fl of
-   [f1,f2,f3] => 
-   (fn x => 
-      let fun g y =
-        let val z = Arbint.toInt (f1 y) in
-          if outofbound z (!mem_glob) then raise Div else 
-          (Array.update (!mem_glob, z, (f2 y)); f3 y)
-        end
-      in
-        test g x
-      end)
-  | _ => raise ERR "assign_f" ""
-  
-fun lookup_f fl = case fl of
-    [f1] => (fn x => 
-         let val z = Arbint.toInt (f1 x) in
-           if outofbound z (!mem_glob) then raise Div else 
-           test Array.sub (!mem_glob,z)
-         end)
-  | _ => raise ERR "lookup_f" ""
-
 end (* local *)
 
 val base_execl =
@@ -144,34 +110,23 @@ val base_execl =
    addi_f,diff_f,mult_f,divi_f,modu_f,
    cond_f,loop_f,
    x_f,y_f,
-   compr_f,loop2_f]
+   x_f (* placeholder *),loop2_f]
    
-val mem_execlo = 
-  if (string_to_bool (dfind "mem" configd) handle NotFound => false)
-  then [assign_f, lookup_f]   
-  else []
-  
-val execv = Vector.fromList (base_execl @ mem_execlo) 
+val execv = Vector.fromList base_execl
 
 (* -------------------------------------------------------------------------
    Execute a program on some inputs with auto-initialization of compr
    ------------------------------------------------------------------------- *)
 
-fun mk_exec_aux2 ccache (p as (Ins (id,pl))) = 
-  let val fl = map (mk_exec_aux2 ccache) pl in
+fun mk_exec_aux ccache (p as (Ins (id,pl))) = 
+  let val fl = map (mk_exec_aux ccache) pl in
     if id = 12 then
       let val v = dfind (hd pl) ccache handle NotFound =>
-        raise ERR "mk_exec_aux2" (raw_prog p)
+        raise ERR "mk_exec_aux" (raw_prog p)
       in compr_f_cache v (hd (tl fl)) end 
     else (Vector.sub (execv,id) fl
-          handle Subscript => raise ERR "mk_exec_aux2" (its id))
+          handle Subscript => raise ERR "mk_exec_aux" (its id))
   end
-   
-fun mk_exec_aux ccache p =
-  let val f = mk_exec_aux2 ccache p in
-    (fn x => (mem_glob := Array.array (!memsize, Arbint.zero); f x))
-  end
-
 
 val max_compr_number = 1000
 
