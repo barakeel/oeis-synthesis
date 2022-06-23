@@ -28,7 +28,7 @@ sig
   val prog_size : prog -> int
   val prog_compare_size : prog * prog -> order
   val all_subprog : prog -> prog list
-  val all_subcompr : prog -> (prog * int) list
+  val all_subcompr : prog -> prog list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
 

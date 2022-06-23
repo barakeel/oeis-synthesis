@@ -150,7 +150,6 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
-fun has_compr (Ins (id,pl)) = id = 12 orelse exists has_compr pl;
 
 
 (* -------------------------------------------------------------------------
