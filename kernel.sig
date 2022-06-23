@@ -31,8 +31,7 @@ sig
   val all_subcompr : prog -> (prog * int) list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
-  val has_compr : prog -> bool
-  
+
   (* I/O *)
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
