@@ -106,7 +106,6 @@ val y_id = 11
 val compr_id = 12
 val loop2_id = 13
 
-
 val alpha2 = rpt_fun_type 2 alpha
 val alpha3 = rpt_fun_type 3 alpha
 val alpha4 = rpt_fun_type 4 alpha
@@ -124,8 +123,7 @@ val base_operl = [
   mk_var ("x",alpha),
   mk_var ("y",alpha),
   mk_var ("compr",alpha3),
-  mk_var ("loop2",rpt_fun_type 6 alpha)
-  ]
+  mk_var ("loop2",rpt_fun_type 6 alpha)]
   
 val operv = Vector.fromList base_operl
 val maxarity = 5 (* limited by the tnn *)
@@ -150,7 +148,6 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
-
 
 (* -------------------------------------------------------------------------
    Timer
