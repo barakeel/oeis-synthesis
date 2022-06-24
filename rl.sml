@@ -493,20 +493,17 @@ fun rl_train_cont () =
 end (* struct *)
 
 (*
-(* train/search loop *)
+(* continuous training *)
 load "rl"; open rl;
-expname := "run600";
-rl_train 100;
+expname := "603";
+rl_train_cont ();
 
 (* continous searching *)
 load "rl"; open rl;
-expname := "run602";
+expname := "603";
 rl_search_cont ();
 
-(* continuous training *)
-load "rl"; open rl;
-expname := "run602";
-rl_train_cont ();
+
 
 (* standalone search (run for 2minutes) *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;

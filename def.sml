@@ -125,7 +125,7 @@ fun b_def cutoff sol =
 
 fun nb_def cutoff ntop soltop = 
   let 
-    val ntottop = sum_int (map prog_size soltop)
+    val ntottop = sum_int (map (prog_size o snd) soltop)
     val _ =  print_endline ("total size: " ^ its ntottop)
     fun loop defl n defn sol =
       if n <= 0 then (rev defl, sol) else
@@ -134,8 +134,8 @@ fun nb_def cutoff ntop soltop =
         val _ = print_endline (humanf def)
         val arity = nhole def
         val _ = arityd := dadd defn arity (!arityd) 
-        val newsol = map (psubst (def,defn)) sol
-        val ntot = sum_int (map prog_size newsol)
+        val newsol = map_snd (psubst (def,defn)) sol
+        val ntot = sum_int (map (prog_size o snd) newsol)
         val _ =  print_endline ("total size: " ^ its ntot)
       in
         loop ((def,defn) :: defl) (n-1) (defn + 1) newsol
@@ -150,8 +150,8 @@ end (* struct *)
 (* 
 PolyML.print_depth 2;
 load "def"; open aiLib kernel human def;
-val sol = map snd (read_iprogl "exp/run603/hist/isol100");
-val (defl,_) = nb_def 100 (96-14) sol;
-PolyML.print_depth 40;
+val isol = read_iprogl "exp/603/hist/boot211");
+val (defl,newisol) = nb_def 100 (96-14) isol;
 write_progl "def" (map fst defl);
+write_iprogl "exp/603/hist/isol0" newisol; 
 *)
