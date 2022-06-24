@@ -126,14 +126,15 @@ fun human vn prog =
 fun humanf p =
   let 
     val _ = python_flag := false
-    val s = human (~1) p
+    val s = human (~1) (undef_prog p)
   in rm_par s end
 
-fun human_python ntop p =
+fun human_python ntop ptop =
   let 
     val _ = python_flag := true
     val _ = ctxt := [] 
     val _ = funn := 0
+    val p = undef_prog ptop
     val ps = 
       if not (is_loop p) then
       let

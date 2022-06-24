@@ -182,7 +182,7 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 
 fun mk_def pat =
   if not (has_hole pat) then
-  let fun f l = case l of [] => pat | _ => raise ERR "defd" "" in
+  let fun f l = case l of [] => pat | _ => raise ERR "mk_def" "" in
     f
   end
   else inst_pat pat

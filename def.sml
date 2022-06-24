@@ -150,10 +150,8 @@ end (* struct *)
 (* 
 PolyML.print_depth 2;
 load "def"; open aiLib kernel human def;
-val isol = read_iprogl "model/isol100";
-val sol = map snd isol;
-val x = nb_def 100 (96-14) sol;
-
-
-
+val sol = map snd (read_iprogl "exp/run603/hist/isol100");
+val (defl,_) = nb_def 100 (96-14) sol;
+PolyML.print_depth 40;
+write_progl "def" (map fst defl);
 *)
