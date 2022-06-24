@@ -382,6 +382,18 @@ int main()
       mv (ARITY[op], Acur, Xcur, Ycur);
       vdTanh (bY,Ycur,TYcur);
       break;
+    case 4:
+      a1 = bY * (offset + D[bD*di+1]);
+      a2 = bY * (offset + D[bD*di+2]);
+      a3 = bY * (offset + D[bD*di+3]);
+      a4 = bY * (offset + D[bD*di+4]);
+      copy (DIM, TY + a1, Xcur);
+      copy (DIM, TY + a2, Xcur + bY);
+      copy (DIM, TY + a3, Xcur + bY*2);
+      copy (DIM, TY + a4, Xcur + bY*3);
+      mv (ARITY[op], Acur, Xcur, Ycur);
+      vdTanh (bY,Ycur,TYcur);
+      break;
     case 5:
       a1 = bY * (offset + D[bD*di+1]);
       a2 = bY * (offset + D[bD*di+2]);
@@ -452,6 +464,18 @@ int main()
       vdAdd (bY, GTY + a2, GXcur + bY, GTY + a2);
       vdAdd (bY, GTY + a3, GXcur + bY*2, GTY + a3);
       break;
+    case 4:
+      dtanh (bY, TYcur, GTYcur, GYcur);
+      tmv (ARITY[op], Acur, GYcur, GXcur);
+      a1 = bY * (offset + D[bD*di+1]);
+      a2 = bY * (offset + D[bD*di+2]);
+      a3 = bY * (offset + D[bD*di+3]);
+      a4 = bY * (offset + D[bD*di+4]);
+      vdAdd (bY, GTY + a1, GXcur, GTY + a1);
+      vdAdd (bY, GTY + a2, GXcur + bY, GTY + a2);
+      vdAdd (bY, GTY + a3, GXcur + bY*2, GTY + a3);
+      vdAdd (bY, GTY + a4, GXcur + bY*3, GTY + a4);
+    break;
     case 5:
       dtanh (bY, TYcur, GTYcur, GYcur);
       tmv (ARITY[op], Acur, GYcur, GXcur);
