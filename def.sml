@@ -150,7 +150,7 @@ end (* struct *)
 (* 
 PolyML.print_depth 2;
 load "def"; open aiLib kernel human def;
-val isol = read_iprogl "exp/603/hist/boot211");
+val isol = read_iprogl "exp/603/hist/boot211";
 val (defl,newisol) = nb_def 100 (96-14) isol;
 write_progl "def" (map fst defl);
 write_iprogl "exp/603/hist/isol0" newisol; 
