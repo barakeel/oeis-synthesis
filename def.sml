@@ -130,7 +130,7 @@ fun nb_def cutoff ntop soltop =
     fun loop defl n defn sol =
       if n <= 0 then (rev defl, sol) else
       let 
-        val def = b_def cutoff sol
+        val def = b_def cutoff (map snd sol)
         val _ = print_endline (humanf def)
         val arity = nhole def
         val _ = arityd := dadd defn arity (!arityd) 
