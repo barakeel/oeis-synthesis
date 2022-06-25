@@ -197,7 +197,7 @@ fun undef_prog_aux (Ins (id,pl)) =
     undef_prog_aux newp 
   end
 
-fun undef_prog p = if !def_flag then undef_prog_aux p else p
+fun undef_prog p = if def_flag then undef_prog_aux p else p
 
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
