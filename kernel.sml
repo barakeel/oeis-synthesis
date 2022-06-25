@@ -162,6 +162,8 @@ val defl =
     else []
   end
 
+val def_flag = exists_file (selfdir ^ "/def")
+
 val def_operl = 
   map (fn (i,pat) => mk_var ("def" ^ its i,
     rpt_fun_type (count_hole pat + 1) alpha)) defl;
@@ -189,11 +191,13 @@ fun mk_def pat =
 
 val defd = dnew Int.compare (map_snd mk_def defl);
 
-fun undef_prog (Ins (id,pl)) = 
-  if not (dmem id defd) then Ins (id, map undef_prog pl) else
+fun undef_prog_aux (Ins (id,pl)) = 
+  if not (dmem id defd) then Ins (id, map undef_prog_aux pl) else
   let val newp = (dfind id defd) pl in 
-    undef_prog newp 
+    undef_prog_aux newp 
   end
+
+fun undef_prog p = if !def_flag then undef_prog_aux p else p
 
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv

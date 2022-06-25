@@ -114,8 +114,15 @@ fun apply_movel movel board = foldl (uncurry apply_move) board movel
    Available moves, record all derived programs as a side effect
    ------------------------------------------------------------------------- *)
 
+fun test_move board move =
+  let val arity = arity_of_oper move in
+    length (first_n arity board) = arity
+  end
+
 fun available_movel board =
-  filter (fn move => isSome (apply_moveo move board)) movelg
+  if def_flag 
+  then filter (test_move board) movelg
+  else filter (fn move => isSome (apply_moveo move board)) movelg
 
 (* -------------------------------------------------------------------------
    Random program for testing

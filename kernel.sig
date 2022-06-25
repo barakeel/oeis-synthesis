@@ -34,6 +34,7 @@ sig
 
   (* definitons *)
   val def_id : int
+  val def_flag : bool
   val hole_id : int
   val hole : prog
   val inst_pat : prog -> prog list -> prog
