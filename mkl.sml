@@ -37,66 +37,12 @@ fun order_subtm tml =
     map snd subtml
   end;
 
-fun empty_sobj dim = rlts (List.tabulate (dim, fn _ => 9.0))
-
-
-
-fun linearize_ex (maxarity,dim,opernd) tmobjl =
-  let
-    val objd = dnew Term.compare tmobjl
-    val subtml = order_subtm (map fst tmobjl);
-    val indexd = dnew Term.compare (number_snd 0 subtml);
-    fun enc_sub x = 
-      let val (oper,argl) = strip_comb x in
-        dfind oper opernd :: map (fn x => dfind x indexd) argl
-      end
-    fun enc_obj x = dfind x objd handle NotFound => []
-    fun pad_sub l = 
-      ilts (l @ List.tabulate ((maxarity + 1) - length l, fn _ => 99))
-    fun pad_obj l = 
-      if null l then empty_sobj dim else 
-       rlts (l @ List.tabulate (dim - length l, fn _ => 9.0))
-  in
-    (String.concatWith " " (map (pad_sub o enc_sub) subtml),
-     String.concatWith " " (map (pad_obj o enc_obj) subtml),
-     length subtml
-    )
-  end
-
-fun export_traindata (maxmove,maxarity,dim,opernd,operlext) ex =
-  let
-    val datadir = kernel.selfdir ^ "/tnn_in_c/data_copy"
-    val _ = mkDir_err datadir
-    val _ =
-      (
-      erase_file (datadir ^ "/arg.txt");
-      erase_file (datadir ^ "/dag.txt");
-      erase_file (datadir ^ "/obj.txt");
-      erase_file (datadir ^ "/size.txt");
-      erase_file (datadir ^ "/arity.txt");
-      erase_file (datadir ^ "/head.txt")
-      )
-    val noper = length operlext
-    val tmobjll = ex
-    val nex = length tmobjll
-    val (dagl,objl,sizel) = split_triple 
-      (map (linearize_ex (maxarity,dim,opernd)) tmobjll);
-    fun find_head tm = if fst (dest_var tm) = "head_poli" then maxmove else 0
-  in
-    writel (datadir ^ "/arg.txt") (map its [noper,nex,dim]);
-    writel (datadir ^ "/dag.txt") dagl;
-    writel (datadir ^ "/obj.txt") objl;
-    writel (datadir ^ "/size.txt") (map its sizel);
-    writel (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
-    writel (datadir ^ "/head.txt") (map (its o find_head) operlext)
-  end
-
 fun cumul_il c il = case il of
     [] => raise ERR "cumul_il" ""
   | [a] => [c]
   | a :: m => c :: cumul_il (a + c) m 
 
-fun linearize_ex_nopad (maxarity,dim,opernd) tmobjl =
+fun linearize_ex (dim,opernd) tmobjl =
   let
     val objd = dnew Term.compare tmobjl
     val subtml = order_subtm (map fst tmobjl);
@@ -129,7 +75,7 @@ fun split_quintuple l = case l of
     end
 
 (* should have a datal for heads and their outputs *)
-fun export_traindata_nopad (maxmove,maxarity,dim,opernd,operlext) ex =
+fun export_traindata (maxmove,dim,opernd,operlext) ex =
   let
     val datadir = kernel.selfdir ^ "/tnn_in_c/data_comp"
     val _ = mkDir_err datadir
@@ -148,7 +94,7 @@ fun export_traindata_nopad (maxmove,maxarity,dim,opernd,operlext) ex =
     val tmobjll = ex
     val nex = length tmobjll
     val (dagl,dagil,objl,objil,sizel) = split_quintuple
-      (map (linearize_ex_nopad (maxarity,dim,opernd)) tmobjll);
+      (map (linearize_ex (dim,opernd)) tmobjll);
     fun find_head tm = if fst (dest_var tm) = "head_poli" then maxmove else 0
     val dagn = length (List.concat dagl)
     val dagin = length (List.concat dagil)

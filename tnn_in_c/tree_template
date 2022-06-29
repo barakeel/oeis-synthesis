@@ -7,7 +7,6 @@
 #define DIM dimension_template
 #define BUFFER 10000000
 #define ALIGN 64
-#define MAXARITY 5
 #define DBG 0
 #define FIXED 0
 

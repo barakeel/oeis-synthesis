@@ -269,7 +269,7 @@ fun create_exl iprogl =
    ------------------------------------------------------------------------- *)
 
 fun export_traindata ex = 
-  mkl.export_traindata (maxmove,maxarity,!dim_glob,opernd,operlext) ex
+  mkl.export_traindata (maxmove,!dim_glob,opernd,operlext) ex
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
 

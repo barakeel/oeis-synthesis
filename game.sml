@@ -43,7 +43,6 @@ fun mctsparam () = {
 type move = int
 val movelg = List.tabulate (Vector.length operv, I)
 val maxmove = length movelg
-val maxarity = list_imax (vector_to_list (Vector.map arity_of operv))
 val move_compare = Int.compare
 fun string_of_move x = its x
 

@@ -173,7 +173,6 @@ val def_operl =
    ------------------------------------------------------------------------- *)
 
 val operv = Vector.fromList (base_operl @ def_operl)
-val maxarity = 5 (* limited by the tnn *)
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))  

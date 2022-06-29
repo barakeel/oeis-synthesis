@@ -118,9 +118,8 @@ fun b_def cutoff sol =
     val defl1 = collect_def atree;   
     val defl2 = map (fn (a,b) => (a,gain (a,b))) defl1
     val defl3 = map fst (dict_sort compare_imax defl2)
-    val defl4 = filter (fn x => snd x <= maxarity) (map_assoc nhole defl3);
   in
-    fst (hd defl4)
+    fst (hd defl3)
   end
 
 fun nb_def cutoff ntop soltop = 
