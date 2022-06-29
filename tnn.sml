@@ -165,6 +165,8 @@ end (* local *)
    TNN cache
    ------------------------------------------------------------------------- *)
 
+val maxembn = 100000
+
 fun fp_emb_either tnn oper newembl = 
   if !use_ob
   then (!fp_op_glob) oper newembl
@@ -182,6 +184,7 @@ fun infer_emb_cache tnn tm =
       val emb = fp_emb_either tnn oper newembl
       val newtm = list_mk_comb (oper,newargl)
     in
+      (* if dlength (!embd) > maxembn then () else *) 
       embd := dadd newtm emb (!embd); 
       (newtm,emb)
     end

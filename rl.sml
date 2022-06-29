@@ -27,7 +27,7 @@ val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
-val loss_threshold = 1.2 (* ignore tnn with a loss above this threshold *)
+val loss_threshold = 0.8 (* ignore tnn with a loss above this threshold *)
 val cont_flag = ref false (* continous training/searching *)
 
 (* -------------------------------------------------------------------------
