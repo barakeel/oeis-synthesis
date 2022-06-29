@@ -161,11 +161,9 @@ fun export_traindata_nopad (maxmove,maxarity,dim,opernd,operlext) ex =
     writel (datadir ^ "/dag.txt") (map ilts dagl);
     writel (datadir ^ "/dago.txt") (mk_offset dagl);
     writel (datadir ^ "/dagi.txt") (map ilts dagil);
-    writel (datadir ^ "/dagio.txt") (mk_offset dagil);
     writel (datadir ^ "/obj.txt") (map rlts objl);
     writel (datadir ^ "/objo.txt") (mk_offset objl);
     writel (datadir ^ "/obji.txt") (map ilts objil);
-    writel (datadir ^ "/objio.txt") (mk_offset objil);
     writel (datadir ^ "/size.txt") (map its sizel);
     writel (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
     writel (datadir ^ "/head.txt") (map (its o find_head) operlext)
