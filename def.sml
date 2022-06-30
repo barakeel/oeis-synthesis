@@ -119,7 +119,7 @@ fun b_def cutoff sol =
     val defl2 = map (fn (a,b) => (a,gain (a,b))) defl1
     val defl3 = map fst (dict_sort compare_imax defl2)
   in
-    fst (hd defl3)
+    hd defl3
   end
 
 fun nb_def cutoff ntop soltop = 
