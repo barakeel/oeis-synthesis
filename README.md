@@ -110,6 +110,8 @@ export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 ```
 and replace user by your username.
 
+Make sure the file `/usr/lib/x86_64-linux-gnu/libm.a` exists or edit the file
+`compile_ob.sh` with the location of your `libm.a` after running `install.sh`.
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)
 In this directory run `rlwrap hol` then run in the interative shell:

@@ -503,8 +503,6 @@ load "rl"; open rl;
 expname := "603";
 rl_search_cont ();
 
-
-
 (* standalone search (run for 2minutes) *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
