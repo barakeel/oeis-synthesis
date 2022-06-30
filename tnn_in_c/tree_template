@@ -540,10 +540,10 @@ int main()
     if (i < mtot - 1) {fprintf(fp, ", ");}
     else {fprintf(fp,"};\n");}
     }
-  fprintf(fp, "long MO[%li] = {", ntop);
-  for (op = 0; op < nop; ++op) {
+  fprintf(fp, "long MO[%li] = {", nop);
+  for (op = 0; op < nop; ++op)
     {
-    fprintf(fp, "li", MO[i]);
+    fprintf(fp, "%li", MO[i]);
     if (i < nop - 1) {fprintf(fp, ", ");}
     else {fprintf(fp,"};\n");}
     }
