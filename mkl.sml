@@ -85,7 +85,7 @@ fun check_sl sl =
   
 fun export_traindata (maxmove,dim,opernd,operlext) ex =
   let
-    val datadir = kernel.selfdir ^ "/tnn_in_c/data_comp"
+    val datadir = kernel.selfdir ^ "/tnn_in_c/data"
     val _ = mkDir_err datadir
     val _ =
       (

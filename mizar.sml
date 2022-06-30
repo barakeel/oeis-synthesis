@@ -79,7 +79,7 @@ val alpha4 = rpt_fun_type 4 alpha
 
 fun mk_oper s = 
   let val a = arity_of_miz (dfind s opersd) in
-    if a = 0 then mk_var (s,alpha) else mk_var (s,alpha2)
+    mk_var (s, rpt_fun_type (a+1) alpha)
   end
 val mizoperv = Vector.fromList (map (mk_oper o fst) tokenl2);
 val maxoper = Vector.length mizoperv
@@ -283,16 +283,16 @@ fun term_of_prog (p as (Ins (id,pl))) =
   dfind p (!cached) handle NotFound => 
   let val r =
     if null pl then Vector.sub (mizoperv,id) else
-    cap (mk_comb (Vector.sub (mizoperv,id), term_of_progl pl))
+    cap (list_mk_comb (Vector.sub (mizoperv,id), map term_of_prog pl))
   in
     cached := dadd p r (!cached); r
   end
   
-and term_of_progl pl = case pl of
+fun term_of_progl progl = case progl of
     [] => prog_empty
   | [a] => term_of_prog a
   | a :: m => list_mk_comb (prog_cat, [term_of_prog a, term_of_progl m])
-
+  
 (* together *)
 val join_board = mk_var ("join_board", alpha4);
 val pair_cj = mk_var ("pair_cj", alpha3);
@@ -365,7 +365,7 @@ fun export_traindata exl =
   mkl.export_traindata (maxmove,(!dim_glob),opernd,operlext) exl;
 
 (* 
-PolyML.print_depth 2;
+PolyML.print_depth 1;
 load "mizar"; open mizar; 
 val exl = create_exl pbl1;
 time export_traindata exl;
