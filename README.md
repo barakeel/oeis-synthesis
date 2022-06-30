@@ -96,7 +96,7 @@ In the `tnn_in_c` directory and compile `tree.c`:
 ```
 
 ### Install OpenBLAS (Faster search using foreign function interface)
-In the same directory oeis-synthesis was installed (usually 
+In a sibling directory of oeis-synthesis (usually 
 home/user directory) run:
 ```
 git clone https://github.com/xianyi/OpenBLAS
