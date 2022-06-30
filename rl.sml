@@ -139,7 +139,7 @@ fun trainf () =
         val obfile_temp = obfile ^ "_temp"
         val loss = (valOf o Real.fromString) (last (String.tokens 
           Char.isSpace (last (readl tnnlog_file))))
-        val catcmd = "cat ob_fst.c ob_arrays ob_snd.c > "  
+        val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
       in
         cmd_in_dir tnndir (catcmd ^ obfile_temp);
         OS.FileSys.rename {old = obfile_temp, new = obfile};

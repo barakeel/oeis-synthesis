@@ -532,7 +532,7 @@ int main()
   //export to openblas
   long i;
 
-  fp = fopen("directory_template/ob_arrays", "w");
+  fp = fopen("directory_template/out_ob", "w");
   fprintf(fp, "double A[%li] = {", mtot);
   for (i = 0; i < mtot; i++)
     {
