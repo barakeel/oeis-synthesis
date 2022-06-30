@@ -75,6 +75,14 @@ fun split_quintuple l = case l of
     end
 
 (* should have a datal for heads and their outputs *)
+
+val buffer_limit = 10000000 - 1 (* same as in tree_template *)
+
+fun check_sl sl = 
+  if list_imax (map String.size sl) > buffer_limit
+  then (print_endline "line too big"; raise ERR "check_sl" "")
+  else sl
+  
 fun export_traindata (maxmove,dim,opernd,operlext) ex =
   let
     val datadir = kernel.selfdir ^ "/tnn_in_c/data_comp"
@@ -104,12 +112,12 @@ fun export_traindata (maxmove,dim,opernd,operlext) ex =
   in
     writel (datadir ^ "/arg.txt") (map its   
       [noper,nex,dim,dagn,dagin,objn,objin]);
-    writel (datadir ^ "/dag.txt") (map ilts dagl);
+    writel (datadir ^ "/dag.txt") (check_sl (map ilts dagl));
     writel (datadir ^ "/dago.txt") (mk_offset dagl);
-    writel (datadir ^ "/dagi.txt") (map ilts dagil);
-    writel (datadir ^ "/obj.txt") (map rlts objl);
+    writel (datadir ^ "/dagi.txt") (check_sl (map ilts dagil));
+    writel (datadir ^ "/obj.txt") (check_sl (map rlts objl));
     writel (datadir ^ "/objo.txt") (mk_offset objl);
-    writel (datadir ^ "/obji.txt") (map ilts objil);
+    writel (datadir ^ "/obji.txt") (check_sl (map ilts objil));
     writel (datadir ^ "/size.txt") (map its sizel);
     writel (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
     writel (datadir ^ "/head.txt") (map (its o find_head) operlext)
