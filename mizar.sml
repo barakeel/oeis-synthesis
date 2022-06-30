@@ -203,8 +203,6 @@ fun linearize_safe pl =
   end
 
 
-
-
 (*
 (* -------------------------------------------------------------------------
    Board status (all the checking/caching is done during apply move now)
@@ -277,6 +275,7 @@ val seqoperl = natoperl @ [seq_empty,seq_cat]
 (* todo: revert to n-ary predicates *)
 val prog_empty = mk_var ("prog_empty", alpha);
 val prog_cat = mk_var ("prog_cat",alpha3);
+val prog_cat8 = mk_var ("prog_cat8", rpt_fun_type 9 alpha);
 
 val cached = ref (dempty prog_compare)
 fun term_of_prog (p as (Ins (id,pl))) = 
@@ -288,11 +287,24 @@ fun term_of_prog (p as (Ins (id,pl))) =
     cached := dadd p r (!cached); r
   end
   
+fun term_of_progl_aux progl = case progl of
+    [] => prog_empty
+  | [a] => term_of_prog a
+  | a :: m => list_mk_comb (prog_cat, [term_of_prog a, term_of_progl_aux m])  
+  
+fun term_of_progl8 progl =
+  if length progl < 8 
+  then term_of_progl_aux progl
+  else list_mk_comb (prog_cat8, (map term_of_prog progl))
+
 fun term_of_progl progl = case progl of
     [] => prog_empty
   | [a] => term_of_prog a
-  | a :: m => list_mk_comb (prog_cat, [term_of_prog a, term_of_progl m])
-  
+  | a :: m => 
+    let val (b,c) = part_n 8 progl in
+      list_mk_comb (prog_cat, [term_of_progl8 b, term_of_progl c])
+    end
+
 (* together *)
 val join_board = mk_var ("join_board", alpha4);
 val pair_cj = mk_var ("pair_cj", alpha3);
@@ -313,7 +325,7 @@ fun term_of_board board = mk_comb (head_poli,
   mk_comb (prepoli, term_of_join board))
 
 (* collecting all possible operators *)
-val progoperl = vector_to_list mizoperv @ [prog_empty,prog_cat]
+val progoperl = vector_to_list mizoperv @ [prog_empty,prog_cat,prog_cat8]
 val progoperlcap = progoperl @ List.mapPartial cap_opt progoperl
 val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_cj, join_board] @ progoperlcap @ seqoperlcap
@@ -344,7 +356,8 @@ fun create_exl pbl =
       let
         val _ = cached := dempty prog_compare
         val _ = cj_glob := hd pl
-        val bml = linearize_safe (if null (tl pl) then [] else [hd (tl pl)])
+        val bml = linearize_safe (rev (dict_sort prog_compare_size (tl pl)))
+          (* (if null (tl pl) then [] else [hd (tl pl)]) *)
         val _ = print_endline (its (length bml))
         fun g (board,move) =
            let 
@@ -365,8 +378,9 @@ fun export_traindata exl =
   mkl.export_traindata (maxmove,(!dim_glob),opernd,operlext) exl;
 
 (* 
-PolyML.print_depth 1;
+PolyML.print_depth 0;
 load "mizar"; open mizar; 
+PolyML.print_depth 0;
 val exl = create_exl pbl1;
 time export_traindata exl;
 *)
