@@ -3,4 +3,3 @@
 #include <cblas.h>
 #include <math.h>
 #define DIM dimension_template
-#define MAXARITY 5

@@ -1,6 +1,4 @@
 double *Acur;
-long bA = (MAXARITY*DIM+1)*DIM;
-//to do add the biais at the end on the SML side
 
 void mv (long arity, double A[], double X[], double Y[]) {
   long indim = arity * DIM + 1;
@@ -18,7 +16,7 @@ void vtanh (long size, double Y[]) {
 
 void fp_op (long op, double X[], double Y[]) 
   {
-  Acur = A + bA * op;
+  Acur = A + MO[op];
   if (HEAD[op] > 0) {mv_head (HEAD[op], Acur, X, Y); vtanh (HEAD[op],Y);}
   else if (ARITY[op] == 0) 
     {mv (ARITY[op],Acur,X,Y);}

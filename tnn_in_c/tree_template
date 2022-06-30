@@ -390,7 +390,7 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 20; //nex=20;
+  long EP = 200; //nex=20;
   double lr = 0.0008;
   for (ep = 0; ep < EP; ++ep) {
   if (ep == 25) {lr = 0.0004;}
@@ -531,29 +531,33 @@ int main()
 
   //export to openblas
   long i;
-    fp = fopen("directory_template/ob_mat", "w");
-  fprintf(fp, "double A[%ld] = {", mtot);
+
+  fp = fopen("directory_template/ob_arrays", "w");
+  fprintf(fp, "double A[%li] = {", mtot);
   for (i = 0; i < mtot; i++)
     {
     fprintf(fp, "%.16f", A[i]);
     if (i < mtot - 1) {fprintf(fp, ", ");}
     else {fprintf(fp,"};\n");}
     }
-  fclose(fp);
-  fp = fopen("directory_template/ob_head", "w");
-  fprintf(fp, "long HEAD[%ld] = {", nop);
-  for (i = 0; i < nop; i++)
+  fprintf(fp, "long MO[%li] = {", ntop);
+  for (op = 0; op < nop; ++op) {
     {
-    fprintf(fp, "%ld", HEAD[i]);
+    fprintf(fp, "li", MO[i]);
     if (i < nop - 1) {fprintf(fp, ", ");}
     else {fprintf(fp,"};\n");}
     }
-  fclose(fp);
-  fp = fopen("directory_template/ob_arity", "w");
-  fprintf(fp, "long ARITY[%ld] = {", nop);
+  fprintf(fp, "long HEAD[%li] = {", nop);
   for (i = 0; i < nop; i++)
     {
-    fprintf(fp, "%ld", ARITY[i]);
+    fprintf(fp, "%li", HEAD[i]);
+    if (i < nop - 1) {fprintf(fp, ", ");}
+    else {fprintf(fp,"};\n");}
+    }
+  fprintf(fp, "long ARITY[%li] = {", nop);
+  for (i = 0; i < nop; i++)
+    {
+    fprintf(fp, "%li", ARITY[i]);
     if (i < nop - 1) {fprintf(fp, ", ");}
     else {fprintf(fp,"};\n");}
     }
