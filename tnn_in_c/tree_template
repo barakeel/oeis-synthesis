@@ -520,7 +520,7 @@ int main()
 
   FILE *fp;
   // export to standard ml
-  fp = fopen("directory_template/out_sml", "w");
+  fp = fopen("out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + MO[op];
@@ -532,7 +532,7 @@ int main()
   //export to openblas
   long i;
 
-  fp = fopen("directory_template/out_ob", "w");
+  fp = fopen("out_ob", "w");
   fprintf(fp, "double A[%li] = {", mtot);
   for (i = 0; i < mtot; i++)
     {
@@ -541,7 +541,7 @@ int main()
     else {fprintf(fp,"};\n");}
     }
   fprintf(fp, "long MO[%li] = {", nop);
-  for (op = 0; op < nop; ++op)
+  for (i = 0; i < nop; i++)
     {
     fprintf(fp, "%li", MO[i]);
     if (i < nop - 1) {fprintf(fp, ", ");}
