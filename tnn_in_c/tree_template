@@ -211,6 +211,7 @@ void dtanh (long size, double C[], double X[], double Y[]) {
   }
 }
 
+/*
 double locerr;
 double loctemp;
 double loss (long size, double X[]) {
@@ -221,13 +222,14 @@ double loss (long size, double X[]) {
   }
   return sqrt (locerr);
   }
+*/
   
 int main()
   {
   // some indices
   long tmpex,ex,nex,dim,ep,op,opi,nop;
   long offset,sub,di,nhead;
-  long sum,maxsize;
+git  long sum,maxsize;
   double err;
   long a1, argi;
   long max_threads;
@@ -463,8 +465,8 @@ int main()
       if (DBG) {print_vect ("expectv",HEAD[op],OBJcur);}
       vdSub (HEAD[op], OBJcur, TYcur, GTYcur);
       if (DBG) {print_vect ("diff",HEAD[op],GTYcur);}
-      //err += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));
-      err += loss (HEAD[op],GTYcur);
+      err += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));
+      //err += loss (HEAD[op],GTYcur);
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
       tmv_head (HEAD[op], Acur, GYcur, GXcur);
       a1 = bY * D[opi+1];
