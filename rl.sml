@@ -110,9 +110,9 @@ fun write_tnn_atomic ngen tnn =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
-fun trainf () =
+fun trainf_start () =
   let
-    val isol = 
+    val isol =
       if !cont_flag 
       then read_isol (find_last_isol ())
       else read_isol (!ngen_glob) 
@@ -120,73 +120,56 @@ fun trainf () =
     val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
   in
-    if !use_mkl then
-      let
-        val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
-        val tnnsml_file = tnndir ^ "/out_sml"
-        val sbin = "./tree"
-        val _= 
-          (
-          print_endline "exporting training data";
-          export_traindata ex;
-          print_endline "exporting end";
-          OS.Process.sleep (Time.fromReal 1.0);
-          cmd_in_dir tnndir (sbin ^ " > " ^ tnnlog_file)
-          )
-        val _ = OS.Process.sleep (Time.fromReal 1.0)
-        val tnn = read_ctnn (readl tnnsml_file)
-        val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
-        val obfile_temp = obfile ^ "_temp"
-        val loss = (valOf o Real.fromString) (last (String.tokens 
-          Char.isSpace (last (readl tnnlog_file))))
-        val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
-      in
-        cmd_in_dir tnndir (catcmd ^ obfile_temp);
-        OS.FileSys.rename {old = obfile_temp, new = obfile};
-        write_tnn_atomic (!ngen_glob) tnn;
-        if loss < loss_threshold then () else 
-          writel_atomic (obfile ^ "_bad") ["Empty file"]
-      end
-    else
-    let
-      val schedule =
-        [
-         {ncore = 4, verbose = true, learning_rate = 0.001,
-          batch_size = 1, nepoch = 50},
-         {ncore = 4, verbose = true, learning_rate = 0.0005,
-          batch_size = 1, nepoch = 50},
-         {ncore = 4, verbose = true, learning_rate = 0.0002,
-          batch_size = 1, nepoch = 50},
-         {ncore = 4, verbose = true, learning_rate = 0.0001,
-          batch_size = 1, nepoch = 50}
-        ]
-      val tnndim = get_tnndim ()
-      val (tnn,t) = add_time (train_tnn schedule (random_tnn tnndim)) 
-        (part_pct 1.0 (shuffle ex))
-    in
-      write_tnn_atomic (!ngen_glob) tnn
-    end
+    (print_endline "exporting training data";
+     export_traindata ex;
+     print_endline "exporting end")
   end
+
+fun trainf_end () =
+  let
+    (* sml *)  
+    val tnnsml_file = tnndir ^ "/out_sml"
+    val tnn = read_ctnn (readl tnnsml_file)
+    val _ = write_tnn_atomic (!ngen_glob) tnn
+    (* openblas *)
+    val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
+    val obfile_temp = obfile ^ "_temp"
+    val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
+    val loss = (valOf o Real.fromString) (last (String.tokens 
+        Char.isSpace (last (readl tnnlog_file))))
+    val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
+  in
+    cmd_in_dir tnndir (catcmd ^ obfile_temp);
+    OS.FileSys.rename {old = obfile_temp, new = obfile};
+    if loss < loss_threshold then () else 
+      writel_atomic (obfile ^ "_bad") ["Empty file"]
+  end
+
 
 fun wrap_trainf ngen =
   let
-    val scriptfile = !buildheap_dir ^ "/train.sml" 
     val makefile = !buildheap_dir ^ "/Holmakefile"
+    val script1 = !buildheap_dir ^ "/train_start.sml" 
+    val script2 = !buildheap_dir ^ "/train_end.sml" 
+    val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
+    val sbin = "./tree"
+    val preambule = 
+      [
+       "open rl;",
+       "rl.expname := " ^ mlquote (!expname) ^ ";",
+       "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
+       "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
+       "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
+       "tnn.use_ob := " ^ bts (!use_ob) ^ ";",
+       "rl.cont_flag := " ^ bts (!cont_flag) ^ ";"
+       ]
   in
     writel makefile ["INCLUDES = " ^ selfdir]; 
-    writel scriptfile
-     [
-     "open rl;",
-     "rl.expname := " ^ mlquote (!expname) ^ ";",
-     "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
-     "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
-     "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
-     "tnn.use_mkl := " ^ bts (!use_mkl) ^ ";",
-     "tnn.use_ob := " ^ bts (!use_ob) ^ ";",
-     "rl.cont_flag := " ^ bts (!cont_flag) ^ ";",
-     "trainf ()"
-     ];
-     exec_script scriptfile
+    writel script1 (preambule @ ["trainf_start ();"]);
+    writel script2 (preambule @ ["trainf_end ();"]);
+    exec_script script1;
+    cmd_in_dir tnndir (sbin ^ " > " ^ tnnlog_file);
+    exec_script script2
   end
 
 (* -------------------------------------------------------------------------
@@ -501,18 +484,18 @@ end (* struct *)
 (*
 (* continuous training *)
 load "rl"; open rl;
-expname := "603";
+expname := "604";
 rl_train_cont ();
 
 (* continous searching *)
 load "rl"; open rl;
-expname := "603";
+expname := "604";
 rl_search_cont ();
 
-(* standalone search (run for 2minutes) *)
+(* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
-use_random := true;
+(* use_random := true; *)
 game.time_opt := SOME 120.0;
 PolyML.print_depth 2;
 val isol = search tnn 0;

@@ -12,16 +12,18 @@ type player = (board,move) player
    Globals
    ------------------------------------------------------------------------- *)
 
-val use_mkl = ref true
 val use_ob = ref true
 val dim_glob = ref  
   (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val embd = ref (dempty Term.compare)
   
+val use_cache = ref false (* only used during export *)
+val progtmd = ref (dempty prog_compare)
+val seqtmd = ref (dempty seq_compare)
+
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
    ------------------------------------------------------------------------- *)
-
 val alpha2 = rpt_fun_type 2 alpha
 val alpha3 = rpt_fun_type 3 alpha
 
@@ -50,11 +52,27 @@ end
 val seq_empty = mk_var ("seq_empty", alpha);
 val seq_cat = mk_var ("seq_cat", alpha3);
 
-fun term_of_seq seq = case seq of
+fun term_of_seq_nocache seq = case seq of
     [] => seq_empty
   | a :: m => list_mk_comb 
-    (seq_cat, [term_of_nat a, term_of_seq m]);
+    (seq_cat, [term_of_nat a, term_of_seq_nocache m]);
 
+fun term_of_seq_cache seq = 
+  dfind seq (!seqtmd) handle NotFound => 
+  let val r =
+    case seq of
+      [] => seq_empty
+    | a :: m => list_mk_comb 
+      (seq_cat, [term_of_nat a, term_of_seq_nocache m]);
+  in
+    seqtmd := dadd seq r (!seqtmd); r
+  end
+  
+fun term_of_seq x = 
+  if !use_cache 
+  then term_of_seq_cache x
+  else term_of_seq_nocache x  
+  
 val seqoperl = natoperl @ [seq_empty,seq_cat]
 
 (* two layers *)
@@ -79,9 +97,24 @@ fun cap tm =
   end
 
 (* syntactic *)
-fun term_of_prog (Ins (id,pl)) = 
+fun term_of_prog_nocache (Ins (id,pl)) = 
   if null pl then Vector.sub (operv,id) else
-  cap (list_mk_comb (Vector.sub (operv,id), map term_of_prog pl))
+  cap (list_mk_comb (Vector.sub (operv,id), map term_of_prog_nocache pl))
+
+fun term_of_prog_cache (p as (Ins (id,pl))) = 
+  dfind p (!progtmd) handle NotFound => 
+  let val r =
+    if null pl then Vector.sub (operv,id) else
+    cap (list_mk_comb (Vector.sub (operv,id), map term_of_prog_cache pl))
+  in
+    progtmd := dadd p r (!progtmd); r
+  end
+
+fun term_of_prog x = 
+  if !use_cache 
+  then term_of_prog_cache x
+  else term_of_prog_nocache x
+
 
 (* stack *)
 val stack_empty = mk_var ("stack_empty", alpha);
@@ -334,8 +367,11 @@ fun create_exl iprogl =
       in
         map g bml    
       end
+    val _ = use_cache := true
+    val r = map create_ex iprogl
+    val _ = use_cache := false
   in
-    map create_ex iprogl
+    r
   end
 
 (* -------------------------------------------------------------------------

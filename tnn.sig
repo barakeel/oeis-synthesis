@@ -7,7 +7,6 @@ sig
   type player = (game.board,game.move) mcts.player
 
   (* globals *)
-  val use_mkl : bool ref
   val use_ob : bool ref
   val dim_glob : int ref 
   val embd : (term, real vector) Redblackmap.dict ref

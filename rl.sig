@@ -22,7 +22,8 @@ sig
   
   (* functions *)
   val search : tnn -> int -> (anum * prog) list
-  val trainf : unit -> unit
+  val trainf_start : unit -> unit
+  val trainf_end : unit -> unit
   val cont_flag : bool ref (* do not erase *)
   
   (* reinforcement learning *)
