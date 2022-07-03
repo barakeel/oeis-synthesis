@@ -453,7 +453,7 @@ int main()
       if (DBG) {print_vect ("expectv",HEAD[op],OBJcur);}
       vdSub (HEAD[op], OBJcur, TYcur, GTYcur);
       if (DBG) {print_vect ("diff",HEAD[op],GTYcur);}
-      if (HEAD[op] = 1) 
+      if (HEAD[op] == 1) 
         {valueerr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
       else {polierr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
