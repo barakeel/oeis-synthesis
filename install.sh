@@ -21,4 +21,17 @@ sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
 Holmake cleanAll
 Holmake
 
-echo "Installation completed: training additionally requires manually compiling the tnn_in_c/tree.c file"
+. /etc/lsb-release
+
+cd tnn_in_c
+
+if [ "$DISTRIB_RELEASE" = "18.04" ]; then
+  echo "Compiling MKL tree.c for Ubuntu 18.04"
+  sh compile_mkl18.sh
+elif [ "$DISTRIB_RELEASE" = "20.04" ]; then
+  echo "Compiling MKL tree.c for Ubuntu 20.04"
+  sh compile_mkl20.sh
+else
+  echo "Compiling MKL tree.c for Ubuntu $DISTRIB_RELEASE: defaulting to Ubuntu 20.04"
+  sh compile_mkl20.sh
+fi

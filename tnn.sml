@@ -21,6 +21,8 @@ val use_cache = ref false (* only used during export *)
 val progtmd = ref (dempty prog_compare)
 val seqtmd = ref (dempty seq_compare)
 
+val value_flag = ref true
+
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
    ------------------------------------------------------------------------- *)
@@ -135,9 +137,15 @@ fun term_of_join board =
 (* policy head *)
 val prepoli = mk_var ("prepoli",alpha2)
 val head_poli = mk_var ("head_poli", alpha2) (* name is important see mkl *)
-
-fun term_of_board board = mk_comb (head_poli, 
+fun poli_of_board board = mk_comb (head_poli, 
   mk_comb (prepoli, term_of_join board))
+
+(* value head *)
+val prevalue = mk_var ("prevalue",alpha2)
+val head_value = mk_var ("head_value", alpha2) (* name is important see mkl *)
+fun value_of_board board = mk_comb (head_value, 
+  mk_comb (prevalue, term_of_join board))
+
 
 (* embedding dimensions *)
 val operl = vector_to_list operv @ [stack_empty,stack_cat]
@@ -145,7 +153,8 @@ val operlcap = operl @ List.mapPartial cap_opt operl
 val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
 
-val operlext = allcap @ [prepoli,head_poli]
+val operlext = allcap @ [prepoli,head_poli] @
+  (if !value_flag then [prevalue,head_value] else [])
 val opernd = dnew Term.compare (number_snd 0 operlext)
 
 fun dim_std_alt oper =
@@ -155,8 +164,10 @@ fun dim_std_alt oper =
 
 fun get_tnndim () = 
   map_assoc dim_std_alt allcap @ 
-    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] 
-
+    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] @
+  (if !value_flag then  
+    [(prevalue,[!dim_glob,!dim_glob]),(head_value,[!dim_glob,1])] 
+   else [])
 
 (* -------------------------------------------------------------------------
    Use an array instead of a tree for storing embeddings
@@ -310,7 +321,16 @@ fun infer_emb_cache tnn tm =
    Players
    ------------------------------------------------------------------------- *)
 
-fun rewardf board = 0.0
+fun rewardf tnn e0 = 
+  if !value_flag 
+  then
+    let 
+      val e1 = fp_emb_either tnn prevalue [e0]
+      val e2 = fp_emb_either tnn head_value [e1]
+    in
+      singleton_of_list (descale_out e2)
+    end
+  else 0.0
 
 fun player_uniform tnn board = 
   (0.0, map (fn x => (x,1.0)) (#available_movel game board))
@@ -318,54 +338,57 @@ fun player_uniform tnn board =
 fun player_random tnn board = 
   (0.0, map (fn x => (x,random_real ())) (#available_movel game board))
 
-fun player_wtnn tnn board =
-  let 
-    val rl = infer_tnn tnn [term_of_board board]
-    val pol1 = Vector.fromList (snd (singleton_of_list rl))
-    val amovel = #available_movel game board 
-    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
-  in
-    (rewardf board, pol2)
-  end
-
 fun player_wtnn_cache tnn board =
   let
     val tm = term_of_join board
-    val (_,preboarde) = (infer_emb_cache tnn) tm
-      handle NotFound => 
-        raise ERR "player_wtnn_cache1" (#string_of_board game board)
+    val (_,preboarde) = infer_emb_cache tnn tm
     val prepolie = fp_emb_either tnn prepoli [preboarde]
     val ende = fp_emb_either tnn head_poli [prepolie]
     val pol1 = Vector.fromList (descale_out ende)
     val amovel = #available_movel game board
     val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
   in
-    (rewardf board, pol2)
+    (rewardf tnn preboarde, pol2)
   end
 
 val player_glob = ref player_wtnn_cache
-
 
 (* -------------------------------------------------------------------------
    Create examples
    ------------------------------------------------------------------------- *)
 
 fun create_exl iprogl =
-  let 
+  let    
+    val vect1 = [1.0]
+    val vect0 = [0.0]
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
     fun create_ex (i,p) = 
       let
         val _ = target_glob := valOf (Array.sub (oseq,i))
         val bml = linearize_safe p
+        fun f (board,move) =
+          let
+            val amovel = #available_movel game board
+            val boardl = map (fn x => (#apply_move game x board, x)) amovel
+            val valuel = map (fn (a,b) => 
+               (value_of_board a, if b = move then vect1 else vect0))
+               boardl
+          in
+            valuel
+          end
         fun g (board,move) =
            let 
              val newv = Vector.update (zerov, move, 1.0)
              val newl = vector_to_list newv
            in
-             (term_of_board board, newl)
+             (poli_of_board board, newl)
            end
+        fun h (board,move) = 
+          if !value_flag 
+          then g (board,move) :: f (board,move)
+          else [g (board,move)]
       in
-        map g bml    
+        List.concat (map h bml)
       end
     val _ = use_cache := true
     val r = map create_ex iprogl

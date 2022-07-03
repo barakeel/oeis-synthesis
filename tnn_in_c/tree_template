@@ -210,27 +210,14 @@ void dtanh (long size, double C[], double X[], double Y[]) {
     Y[i] = (1.0 - dtanh_temp * dtanh_temp) * X[i];
   }
 }
-
-/*
-double locerr;
-double loctemp;
-double loss (long size, double X[]) {
-  locerr = 0;
-  for (long i = 0; i < size ; ++i) {
-    loctemp = X[i];
-    locerr += loctemp * loctemp; 
-  }
-  return sqrt (locerr);
-  }
-*/
   
 int main()
   {
   // some indices
   long tmpex,ex,nex,dim,ep,op,opi,nop;
-  long offset,sub,di,nhead;
+  long offset,sub,di,npolihead,nvaluehead;
   long sum,maxsize;
-  double err;
+  double polierr, valueerr;
   long a1, argi;
   long max_threads;
   // main arguments
@@ -307,12 +294,13 @@ int main()
   for (ex = 0; ex < nex; ++ex) {SHF[ex]=ex;}
   
   // total number of heads
-  nhead = 0;
+  npolihead = 0; nvaluehead = 0;
   for (ex = 0; ex < nex; ++ex) {
     dago = DO[ex];
     exo = EXO[ex];
   for (sub = 0; sub < SIZE[ex]; ++sub) { 
-    if (HEAD [D[dago + DI[exo + sub]]] > 0) {++nhead;}
+    if (HEAD [D[dago + DI[exo + sub]]] == 1) {++nvaluehead;}
+    if (HEAD [D[dago + DI[exo + sub]]] > 1) {++npolihead;}
   }}
 
   // potential objectives for each head in the dag
@@ -323,7 +311,7 @@ int main()
   read("data/objo.txt",OBJO);
   OBJI = (long*)mkl_malloc(ARG[6]*sizeof(long),ALIGN);
   read("data/obji.txt",OBJI);
-  printf("%li objectives\n", nhead);
+  printf("%li %li objectives\n", nvaluehead, npolihead);
 
   //fixed biais for nullary operators
   double biais [1] = {1.0};
@@ -410,7 +398,7 @@ int main()
   if (ep == 50) {lr = 0.0002;}  
   if (ep == 75) {lr = 0.0001;}
   shuffle (nex,SHF);
-  err = 0;
+  polierr = 0; valueerr = 0;
   for (tmpex = 0; tmpex < nex; ++tmpex) {
     if (FIXED) {ex = tmpex;} else {ex = SHF[tmpex];}
     dago = DO[ex];
@@ -465,8 +453,9 @@ int main()
       if (DBG) {print_vect ("expectv",HEAD[op],OBJcur);}
       vdSub (HEAD[op], OBJcur, TYcur, GTYcur);
       if (DBG) {print_vect ("diff",HEAD[op],GTYcur);}
-      err += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));
-      //err += loss (HEAD[op],GTYcur);
+      if (HEAD[op] = 1) 
+        {valueerr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
+      else {polierr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
       tmv_head (HEAD[op], Acur, GYcur, GXcur);
       a1 = bY * D[opi+1];
@@ -528,7 +517,10 @@ int main()
 
   }//end example
   
-  printf("%li: %f\n", ep, err / nhead);
+  if (nvaluehead != 0) {printf("%li(v): %f\n", ep, valueerr / nvaluehead);}
+  if (npolihead != 0) {printf("%li: %f\n", ep, polierr / npolihead);}
+  
+  
   fflush(stdout);
   }//end training
 

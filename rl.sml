@@ -187,8 +187,8 @@ fun init_search coreid =
     val _ = print_endline "initialization"
     val _ = coreid_glob := coreid
     val _ = if !use_random 
-            then player_glob := player_wtnn_cache
-            else player_glob := player_random
+            then player_glob := player_random
+            else player_glob := player_wtnn_cache
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
             then use_ob := false else ()
@@ -496,7 +496,7 @@ rl_search_cont ();
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
 (* use_random := true; *)
-game.time_opt := SOME 120.0;
+game.time_opt := SOME 30.0;
 PolyML.print_depth 2;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
