@@ -18,11 +18,12 @@ sig
   val maxgen : int option ref
   val ngen_glob : int ref
   val expname : string ref
+  val use_random : bool ref
   
   (* functions *)
   val search : tnn -> int -> (anum * prog) list
   val trainf : unit -> unit
-  val cont_flag : bool ref (* necessary *)
+  val cont_flag : bool ref (* do not erase *)
   
   (* reinforcement learning *)
   val rl_search_only : int -> unit

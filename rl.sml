@@ -197,11 +197,15 @@ fun clean_dicts () =
   (progd := eempty prog_compare; 
    embd := dempty Term.compare)
 
+val use_random = ref false
+
 fun init_search coreid =
   let
     val _ = print_endline "initialization"
     val _ = coreid_glob := coreid
-    val _ = player_glob := player_wtnn_cache    
+    val _ = if !use_random 
+            then player_glob := player_wtnn_cache
+            else player_glob := player_random
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
             then use_ob := false else ()
@@ -508,12 +512,12 @@ rl_search_cont ();
 (* standalone search (run for 2minutes) *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
-game.time_opt := SOME 60.0;
-(* player_glob := player_random; *)
+use_random := true;
+game.time_opt := SOME 120.0;
 PolyML.print_depth 2;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
 PolyML.print_depth 40;
-writel ("aaa_prog") (map string_of_iprog isolsort);
+writel "aaa_prog" (map string_of_iprog isolsort);
 
 *)
