@@ -150,7 +150,7 @@ fun value_of_board board = mk_comb (head_value,
 (* embedding dimensions *)
 val operl = vector_to_list operv @ [stack_empty,stack_cat]
 val operlcap = operl @ List.mapPartial cap_opt operl
-val seqoperlcap =q seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
+val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
 
 val operlext = allcap @ [prepoli,head_poli] @

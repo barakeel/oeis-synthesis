@@ -150,7 +150,7 @@ fun read_cmatl sl = case sl of
     let 
       val (mat1,cont) = read_mat [] m
       val w1 = Vector.fromList mat1 
-    in 
+    in
       (
       if Vector.length (Vector.sub (w1,0)) = 1
       then 
