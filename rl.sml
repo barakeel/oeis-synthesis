@@ -213,7 +213,7 @@ fun init_search coreid =
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
-    fun loop () = 
+    fun loop () =
       let val i = random_int (0,Array.length oseq - 1) in
         case Array.sub (oseq, i) of NONE => loop () | SOME seq => (seq,i)
       end
@@ -509,6 +509,7 @@ rl_search_cont ();
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
 game.time_opt := SOME 60.0;
+(* player_glob := player_random; *)
 PolyML.print_depth 2;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;

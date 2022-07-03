@@ -95,7 +95,7 @@ fun cover_oeis_aux f i ot = case ot of
     Oleaf (an2,[]) => anlref := an2 :: !anlref
   | Oleaf (an2,a2 :: m2) => 
     (
-    case SOME (f (i,zero) = a2) handle ProgTimeout => NONE of
+    case SOME (f i = a2) handle ProgTimeout => NONE of
       SOME true =>  
       (incr_timer (); incr ncoveri;
        cover_oeis_aux f (i + one) (Oleaf (an2,m2))) 
@@ -104,7 +104,7 @@ fun cover_oeis_aux f i ot = case ot of
     )
   | Odict (anl,d) =>
     let val _ = anlref := anl @ !anlref in
-      case SOME (f (i,zero)) handle ProgTimeout => NONE of
+      case SOME (f i) handle ProgTimeout => NONE of
         SOME a1 =>
         (
         case SOME (dfind a1 d) handle NotFound => NONE of 
@@ -138,16 +138,16 @@ fun cover_oeis f = catch_perror cover_oeis_aux2 f
 local open Arbint in
 fun cover_target_aux f i target = case target of 
     [] => (true, !ncoveri)
-  | a :: m => if f (i,zero) = a 
+  | a :: m => if f i = a 
               then (incr_timer (); incr ncoveri; cover_target_aux f (i+one) m)
               else (false, !ncoveri)
 end
 
 fun cover_target_aux2 f target = 
   (
-  ncoveri := 0;
-  init_timer ();
-  cover_target_aux f Arbint.zero target
+    ncoveri := 0;
+    init_timer ();
+    cover_target_aux f Arbint.zero target
   )
 
 fun cover_target f target = catch_perror (cover_target_aux2 f) target 

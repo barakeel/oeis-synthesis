@@ -7,11 +7,6 @@ val ERR = mk_HOL_ERR "qsynt";
 val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
 val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
 
-fun is_prefix seq1 seq2 = case (seq1,seq2) of
-    ([],_) => true
-  | (_,[]) => false
-  | (a1 :: m1, a2 :: m2) => if a1 = a2 then is_prefix m1 m2 else false
-
 fun test_cache_one target (i,prog) = 
   let val seq = valOf (Array.sub(bloom.oseq,i)) in is_prefix target seq end
 

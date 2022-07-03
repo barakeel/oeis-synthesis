@@ -87,10 +87,10 @@ fun check_target p target =
 
 fun exec_fun p plb =
   (
-  if !online_flag andalso not (depend_on_y p) andalso 
-     not (ememi p progd)
+  if !online_flag andalso not (depend_on_y p) andalso not (depend_on_z p) 
+     andalso not (ememi p progd)
     then (eaddi p progd; check_target p (!target_glob))
-  else if !record_flag andalso not (depend_on_y p)
+  else if !record_flag andalso not (depend_on_y p) andalso not (depend_on_z p)
      then eaddi p progd
   else (); 
   SOME (p :: plb)

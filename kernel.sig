@@ -18,7 +18,8 @@ sig
   type seq = Arbint.int list
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
- 
+  val is_prefix : seq -> seq -> bool
+  
   (* programs *)
   type id = int
   datatype prog = Ins of (id * prog list)
@@ -31,6 +32,7 @@ sig
   val all_subcompr : prog -> prog list
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
+  val depend_on_z : prog -> bool
 
   (* definitons *)
   val def_id : int
@@ -53,7 +55,10 @@ sig
   
   (* timer *)
   exception ProgTimeout
+  val timeincr : real ref
+  val short_timeincr : real
   val init_fast_test : unit -> unit
+  val long_timeincr : real
   val init_slow_test : unit -> unit
   val check_timelimit : unit -> unit
   val memsize : int ref

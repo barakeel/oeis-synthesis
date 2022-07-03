@@ -39,6 +39,11 @@ fun rm_i s =
   else s;
 fun string_of_seq il = String.concatWith " " (map (rm_i o Arbint.toString) il)
 
+fun is_prefix seq1 seq2 = case (seq1,seq2) of
+    ([],_) => true
+  | (_,[]) => false
+  | (a1 :: m1, a2 :: m2) => if a1 = a2 then is_prefix m1 m2 else false
+
 (* -------------------------------------------------------------------------
    Program
    ------------------------------------------------------------------------- *)
@@ -218,6 +223,7 @@ fun depend_on v (Ins (id,pl)) =
 
 fun depend_on_x p = depend_on x_id (undef_prog p)
 fun depend_on_y p = depend_on y_id (undef_prog p)
+fun depend_on_z p = depend_on z_id (undef_prog p)
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 (* -------------------------------------------------------------------------

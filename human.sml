@@ -79,6 +79,7 @@ fun human vn prog =
     else let fun f wn =
       let val (s1,s2,s3) = (rhx p1, human wn p2 ^ " + 1", rhuman wn p3) in
         ["  x = " ^ s3,
+         "  z = x",
          "  for y in range (1," ^ s2 ^ "):",
          "    x = " ^ s1,
          "  return x"]
@@ -92,7 +93,7 @@ fun human vn prog =
     if not (!python_flag) then "compr(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")" else 
     let fun f wn = 
       let val (s1,s2) = (hx p1, rhuman wn p2) in
-        ["  x,y,i = 0,0,0",
+        ["  x,y,z,i = 0,0,0,0",
          "  while i <= " ^ s2 ^ ":",
          "    if " ^ s1 ^ " <= 0:",
          "      i = i + 1",
@@ -113,7 +114,7 @@ fun human vn prog =
         val (s4,s5) = (rhuman wn p4, rhuman wn p5) 
       in
         ["  x,y = "  ^ s4 ^ ", " ^ s5,
-         "  for i in range (1," ^ s3 ^ "):",
+         "  for z in range (1," ^ s3 ^ "):",
          "    x,y = " ^ s1 ^ ", " ^ s2,
          "  return x"]
       end
