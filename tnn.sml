@@ -17,7 +17,7 @@ val use_ob = ref true
 val dim_glob = ref  
   (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val embd = ref (dempty Term.compare)
-
+  
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
    ------------------------------------------------------------------------- *)
@@ -126,6 +126,64 @@ fun get_tnndim () =
 
 
 (* -------------------------------------------------------------------------
+   Use an array instead of a tree for storing embeddings
+   ------------------------------------------------------------------------- *)
+
+(*
+val tnneff_flag = false
+val tnneff_size = if tnneff_flag then 2000000 else 0
+val emba = 
+  Array.tabulate (tnneff_size, (fn _ => 
+    Vector.tabulate (!dim_glob, fn _ => 0.0)))
+val embai = 
+  Array.tabulate (2 * tnneff_size, (fn _ => Array.array (dlength opernd,0)))
+
+val embain = ref 1 (* 0 is stopping tag and starting position *)
+
+fun lin_tm toptm = 
+  let 
+    val l = ref [] 
+    fun loop tm =
+      let val (oper,argl) = strip_comb tm in
+        l := dfind oper opernd :: (!l);
+        app loop argl
+      end
+  in
+    loop toptm; !l
+  end
+
+fun embadd_aux i il emb = case il of
+    [] => Array.update (emba,i,emb)
+  | a :: m => 
+    let 
+      val newi1 = Array.sub (Array.sub (embai,i),a)
+      val newi2 = if newi1 > 0 then newi1 else 
+        let 
+          val newi3 = !embain
+          val _ = if newi3 >= Array.length embai 
+                  then raise ERR "embadd_aux" "out of memory" else ()
+        in
+          Array.update (Array.sub (embai,i), a, newi3);
+          incr embain;
+          newi3
+        end
+    in
+      embadd_aux newi2 m emb
+    end
+
+fun embadd tm emb = embadd_aux 0 (lin_tm tm) emb
+
+fun embfind_aux i il = case il of
+    [] => Array.sub (emba,i)
+  | a :: m => 
+    let val newi = Array.sub (Array.sub (embai,i),a) in
+      if newi <= 0 then raise NotFound else embfind_aux newi m
+    end
+
+fun embfind tm = embfind_aux 0 (lin_tm tm)
+*)
+
+(* -------------------------------------------------------------------------
    OpenBlas Foreign Function Interface
    ------------------------------------------------------------------------- *)
 
@@ -173,8 +231,24 @@ fun fp_emb_either tnn oper newembl =
   else fp_emb tnn oper newembl 
 
 fun infer_emb_cache tnn tm =
-  if is_capped tm 
+  if is_capped tm
   then 
+    (*
+    if tnneff_flag then  
+    (
+    (tm, embfind tm) handle NotFound =>
+    let
+      val (oper,argl) = strip_comb tm
+      val embl = map (infer_emb_cache tnn) argl
+      val (newargl,newembl) = split embl
+      val emb = fp_emb_either tnn oper newembl
+    in
+      embadd tm emb;
+      (tm,emb)   
+    end     
+    )
+    else
+    *)
     (
     Redblackmap.findKey (!embd,tm) handle NotFound =>
     let

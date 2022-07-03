@@ -105,6 +105,8 @@ val x_id = 10
 val y_id = 11
 val compr_id = 12
 val loop2_id = 13
+val z_id = 14
+val loop3_id = 15
 
 val base_operl = 
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
@@ -112,7 +114,9 @@ val base_operl =
    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
    ("cond",3),("loop",3),
    ("x",0),("y",0),
-   ("compr",2),("loop2",5)]
+   ("compr",2),("loop2",5),
+   ("z",0),("loop3",7)
+   ]
 
 (* -------------------------------------------------------------------------
    Definition tools
@@ -202,7 +206,7 @@ fun undef_prog p = if def_flag then undef_prog_aux p else p
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
-val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2])
+val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2,0,3])
 
 fun depend_on v (Ins (id,pl)) = 
   (id = v) orelse 

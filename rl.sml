@@ -206,8 +206,10 @@ fun init_search coreid =
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
             then use_ob := false else ()
     val _ = if !use_ob then update_fp_op () else ()
-    val _ = if can find_last_tnn () then () else 
+    (* val _ = 
+      if can find_last_tnn () then () else 
             (player_glob := player_random; time_opt := SOME 120.0)
+       *)
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
@@ -506,6 +508,7 @@ rl_search_cont ();
 (* standalone search (run for 2minutes) *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
+game.time_opt := SOME 60.0;
 PolyML.print_depth 2;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;

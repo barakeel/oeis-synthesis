@@ -10,6 +10,7 @@ val python_flag = ref false
 
 fun mk_xn vn = if vn = ~1 then "x" else "X"
 fun mk_yn vn = if vn = ~1 then "y" else "Y"
+fun mk_zn vn = if vn = ~1 then "z" else "Z"
 
 fun rm_par s = 
   if String.size s = 0 then s else
@@ -114,6 +115,25 @@ fun human vn prog =
         ["  x,y = "  ^ s4 ^ ", " ^ s5,
          "  for i in range (1," ^ s3 ^ "):",
          "    x,y = " ^ s1 ^ ", " ^ s2,
+         "  return x"]
+      end
+    in
+      wrap_def f
+    end
+  | Ins (14,[]) => mk_zn vn
+  | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => 
+    if not (!python_flag) 
+      then "loop3(" ^ String.concatWith ", "
+            [lrhx p1, lrhx p2, lrhx p3, rhx p4, rhx p5, rhx p6, rhx p7] ^ ")"
+    else let fun f wn =
+      let
+        val (s1,s2,s3) = (hx p1, hx p2, hx p3)
+        val s4 = human wn p4 ^ " + 1"
+        val (s5,s6,s7) = (rhuman wn p5, rhuman wn p6, rhuman wn p7) 
+      in
+        ["  x,y,z = "  ^ s5 ^ ", " ^ s6 ^ ", " ^ s7,
+         "  for i in range (1," ^ s4 ^ "):",
+         "    x,y,z = " ^ s1 ^ ", " ^ s2 ^ ", " ^ s3,
          "  return x"]
       end
     in
