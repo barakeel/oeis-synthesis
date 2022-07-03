@@ -103,7 +103,11 @@ fun export_traindata (maxmove,dim,opernd,operlext) ex =
     val nex = length tmobjll
     val (dagl,dagil,objl,objil,sizel) = split_quintuple
       (map (linearize_ex (dim,opernd)) tmobjll);
-    fun find_head tm = if fst (dest_var tm) = "head_poli" then maxmove else 0
+    fun find_head tm = 
+      let val s = fst (dest_var tm) in  
+        if s = "head_poli" then maxmove else 
+        if s = "head_value" then 1 else 0
+      end
     val dagn = length (List.concat dagl)
     val dagin = length (List.concat dagil)
     val objn = length (List.concat objl)
