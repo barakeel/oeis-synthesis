@@ -113,15 +113,16 @@ val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
 
+val z_flag = ref true
+
 val base_operl = 
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
-  [("zero",0),("one",0),("two",0),
+  ([("zero",0),("one",0),("two",0),
    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
    ("cond",3),("loop",3),
    ("x",0),("y",0),
-   ("compr",2),("loop2",5),
-   ("z",0),("loop3",7)
-   ]
+   ("compr",2),("loop2",5)] @
+  (if (!z_flag) then [("z",0),("loop3",7)] else [])
 
 (* -------------------------------------------------------------------------
    Definition tools

@@ -6,10 +6,9 @@ then
   export OPENBLAS_NUM_THREADS=1
   rm ob.o
   rm ob.so
-  gcc -fPIC -c ob.c -o ob.o -I$OBDIR
+  gcc -fPIC -O2 -c ob.c -o ob.o -I$OBDIR
   gcc -shared -o ob_temp.so ob.o /usr/lib/x86_64-linux-gnu/libm.a $OBFILE
   mv ob_temp.so ob.so
-  rm ob_temp.so
 else
   echo "$OBFILE does not exists"
 fi

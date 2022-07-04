@@ -49,6 +49,7 @@ sig
   val write_iprogl : string -> (int * prog) list -> unit
   
   (* operators *)
+  val z_flag : bool ref (* functions of arity 3 *)
   val operv : term vector
   val arity_of_oper : int -> int
   val name_of_oper : int -> string
