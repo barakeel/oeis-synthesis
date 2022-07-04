@@ -122,7 +122,7 @@ val base_operl =
    ("cond",3),("loop",3),
    ("x",0),("y",0),
    ("compr",2),("loop2",5)] @
-  (if (!z_flag) then [("z",0),("loop3",7)] else [])
+   (if (!z_flag) then [("z",0),("loop3",7)] else []))
 
 (* -------------------------------------------------------------------------
    Definition tools
