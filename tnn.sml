@@ -269,11 +269,12 @@ end (* local *)
 
 val maxembn = 100000
 
-fun fp_emb_either tnn oper newembl = 
+fun fp_emb_either tnn oper newembl = fp_emb tnn oper newembl 
+  (*
   if !use_ob
   then (!fp_op_glob) oper newembl
   else fp_emb tnn oper newembl 
-
+  *)
 fun infer_emb_cache tnn tm =
   if is_capped tm
   then 
