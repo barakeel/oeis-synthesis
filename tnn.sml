@@ -357,6 +357,12 @@ val player_glob = ref player_wtnn_cache
    Create examples
    ------------------------------------------------------------------------- *)
 
+fun random_step board =
+  #apply_move game (random_elem (#available_movel game board)) board
+
+fun random_nstep board = 
+  if random_real () < 0.5 then board else random_nstep (random_step board)
+  
 fun create_exl iprogl =
   let    
     val vect1 = [1.0]
@@ -367,14 +373,16 @@ fun create_exl iprogl =
         val _ = target_glob := valOf (Array.sub (oseq,i))
         val bml = linearize_safe p
         fun f (board,move) =
+          if random_real () < 0.5 
+          then (value_of_board  (#apply_move game move board), vect1)
+          else
           let
             val amovel = #available_movel game board
-            val boardl = map (fn x => (#apply_move game x board, x)) amovel
-            val valuel = map (fn (a,b) => 
-               (value_of_board a, if b = move then vect1 else vect0))
-               boardl
+            val amovel' = filter (fn x => x <> move) amovel
+            val b1 = #apply_move game (random_elem amovel') board
+            val b2 = random_nstep b1
           in
-            valuel
+            (value_of_board b2, vect0)
           end
         fun g (board,move) =
            let 
@@ -385,7 +393,7 @@ fun create_exl iprogl =
            end
         fun h (board,move) = 
           if !value_flag 
-          then g (board,move) :: f (board,move)
+          then [g (board,move), f (board,move)]
           else [g (board,move)]
       in
         List.concat (map h bml)
