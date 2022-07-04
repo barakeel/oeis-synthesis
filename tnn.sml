@@ -21,7 +21,7 @@ val use_cache = ref false (* only used during export *)
 val progtmd = ref (dempty prog_compare)
 val seqtmd = ref (dempty seq_compare)
 
-val value_flag = ref true
+val value_flag = ref false
 
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
