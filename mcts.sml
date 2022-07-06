@@ -78,11 +78,11 @@ fun add_noise param prepol =
    ------------------------------------------------------------------------- *)
 
 fun add_normtemp pol =
-  if !norm_temp = 1.0 then normalize_pol pol else
+  if Real.compare (!norm_temp,1.0) = EQUAL then normalize_distrib pol else
   let 
     val temp = 1.0 / !norm_temp
-    val pol0 = normalize_proba pol
-    val pol1 = normalize_proba (map_snd (fn x => Math.pow (x,temp)) pol0) 
+    val pol0 = normalize_distrib pol
+    val pol1 = normalize_distrib (map_snd (fn x => Math.pow (x,temp)) pol0) 
   in
     pol1
   end
