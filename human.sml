@@ -43,6 +43,11 @@ fun mk_def vn wn prog =
      (fs_head, fprev2)
    end
 
+fun get_vl p = 
+  (if depend_on_x p then ["x"] else []) @
+  (if depend_on_y p then ["y"] else []) @
+  (if depend_on_z p then ["z"] else [])
+
 fun human vn prog = 
   let 
     fun rhuman a p = rm_par (human a p)
@@ -50,7 +55,10 @@ fun human vn prog =
     fun rh p = rm_par (human vn p)
     fun hx p = human (~1) p
     fun rhx b = rm_par (human (~1) b)
-    fun lrhx b = "\\(x,y,z)." ^ rhx b
+    fun lrhx b = 
+      let val vl = get_vl b in 
+        "\\(" ^ String.concatWith "," vl ^ ")." ^ rhx b
+      end
     fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
     fun sunop s p1 = s ^ "(" ^ rh p1 ^ ")"
     fun wrap_def f =
@@ -78,9 +86,9 @@ fun human vn prog =
       "loop(" ^ String.concatWith ", " [lrhx p1, rhx p2, rhx p3] ^ ")"
     else let fun f wn =
       let val (s1,s2,s3) = (rhx p1, human wn p2 ^ " + 1", rhuman wn p3) in
-        ["  x = " ^ s3,
-         "  z = x",
-         "  for y in range (1," ^ s2 ^ "):",
+        ["  x = " ^ s3] @
+        (if depend_on_z p1 then ["  z = x"]  else []) @
+        ["  for y in range (1," ^ s2 ^ "):",
          "    x = " ^ s1,
          "  return x"]
       end
@@ -93,8 +101,10 @@ fun human vn prog =
     if not (!python_flag) then "compr(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")" else 
     let fun f wn = 
       let val (s1,s2) = (hx p1, rhuman wn p2) in
-        ["  x,y,z,i = 0,0,0,0",
-         "  while i <= " ^ s2 ^ ":",
+        ["  x,i = 0,0"] @
+        (if depend_on_y p1 then ["  y = 0"]  else []) @
+        (if depend_on_z p1 then ["  z = 0"]  else []) @
+        ["  while i <= " ^ s2 ^ ":",
          "    if " ^ s1 ^ " <= 0:",
          "      i = i + 1",
          "    x = x + 1",

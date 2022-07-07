@@ -93,7 +93,10 @@ fun cap_opt tm =
   then NONE
   else SOME (cap_tm tm)
 
+val nocap_flag = ref false
+
 fun cap tm = 
+  if !nocap_flag then tm else
   let val oper = fst (strip_comb tm) in
     mk_comb (cap_tm oper, tm)
   end
@@ -127,6 +130,15 @@ fun term_of_stack stack = case stack of
   | [a] => term_of_prog a
   | a :: m => 
     cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
+
+fun short_term_of_stack stack =
+  let 
+    val _ = nocap_flag := true
+    val r = term_of_stack stack
+    val _ = nocap_flag := false
+  in
+    r
+  end
 
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
@@ -417,6 +429,79 @@ fun export_traindata ex =
   mkl.export_traindata (maxmove,!dim_glob,opernd,operlext) ex
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
+
+(* -------------------------------------------------------------------------
+   Featurizers
+   ------------------------------------------------------------------------- *)
+
+fun path_of_len2 tm = 
+  let 
+    val (oper,argl) = strip_comb tm 
+    val sl = map (fst o dest_var o fst o strip_comb) argl
+    val s = fst (dest_var oper)
+  in
+    map (fn x => s :: [x]) sl 
+  end
+  
+fun path_of_len3 tm =
+  let 
+    val (oper,argl) = strip_comb tm     
+    val s = fst (dest_var oper)
+    val l = List.concat (map path_of_len2 argl)
+  in
+    map (fn x => s :: x) l 
+  end
+ 
+fun all_path3 tm =
+  let val (oper,argl) = strip_comb tm in
+    path_of_len3 tm @ List.concat (map all_path3 argl)
+  end
+  
+fun fea_of_stack stack = 
+  let fun f x = String.concatWith "-" x in 
+    map f (all_path3 (short_term_of_stack stack))
+  end     
+
+fun fea_of_seq seq = 
+  let fun f (a,b) = its a ^ "i-" ^ Arbint.toString b in
+    map f (number_fst 0 (first_n 16 seq))
+  end
+
+fun export_fea file iprogl =
+  let    
+    val vect1 = [1.0]
+    val vect0 = [0.0]
+    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
+    fun create_ex (i,p) = 
+      let
+        val _ = target_glob := valOf (Array.sub (oseq,i))
+        val bml = linearize_safe p
+        fun f (board,move) =
+           let 
+             val amovel = #available_movel game board
+             val feal = fea_of_seq (!target_glob) @ fea_of_stack board 
+             val feac1 = count_dict (dempty String.compare) feal
+             val feac2 = map (fn (a,b) => a ^ ":" ^ its b) (dlist feac1)
+             fun g m = String.concatWith " " 
+               ((if m = move then "1.0" else "0.0") :: feac2) 
+           in
+             map g amovel
+           end
+      in
+        List.concat (map f bml)
+      end
+    val _ = use_cache := true
+    val r = map create_ex iprogl
+    val _ = use_cache := false
+    val sl = List.concat (map create_ex iprogl)
+  in
+    writel file sl
+  end
+  
+  
+
+
+
 
 
 end (* struct *)
