@@ -454,7 +454,8 @@ fun path_of_len3 tm =
  
 fun all_path3 tm =
   let val (oper,argl) = strip_comb tm in
-    path_of_len3 tm @ List.concat (map all_path3 argl)
+    [[fst (dest_var oper)]] @ path_of_len2 tm @ path_of_len3 tm @ 
+    List.concat (map all_path3 argl)
   end
   
 fun fea_of_stack stack = 
@@ -462,13 +463,27 @@ fun fea_of_stack stack =
     map f (all_path3 (short_term_of_stack stack))
   end     
 
+
+
+local open Arbint in
+  fun string_of_nat n =
+    if n < zero then "~" ^ string_of_nat (~n)
+    else if n > fromInt 1000000 then "big"
+    else toString n
+end
+
 fun fea_of_seq seq = 
-  let fun f (a,b) = its a ^ "i-" ^ Arbint.toString b in
+  let fun f (a,b) = its a ^ "i-" ^ string_of_nat b in
     map f (number_fst 0 (first_n 16 seq))
   end
 
+
 fun export_fea file iprogl =
   let    
+    val feand = ref (dempty String.compare)
+    fun daddf s = if dmem s (!feand) then () else
+      feand := dadd s (dlength (!feand)) (!feand)
+    val _ = app daddf (map its (#movel game))
     val vect1 = [1.0]
     val vect0 = [0.0]
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
@@ -481,9 +496,13 @@ fun export_fea file iprogl =
              val amovel = #available_movel game board
              val feal = fea_of_seq (!target_glob) @ fea_of_stack board 
              val feac1 = count_dict (dempty String.compare) feal
-             val feac2 = map (fn (a,b) => a ^ ":" ^ its b) (dlist feac1)
-             fun g m = String.concatWith " " 
-               ((if m = move then "1.0" else "0.0") :: feac2) 
+             val _ = app daddf (dkeys feac1)
+             val feac2 = map (fn (a,b) => its (dfind a (!feand)) ^ ":" ^ 
+               its b) (dlist feac1)
+             
+             val feac3 = String.concatWith " " feac2 
+             fun g m = (if m = move then "1.0" else "0.0") ^ " " ^ 
+               its (dfind (its m) (!feand)) ^ ":1 " ^ feac3 
            in
              map g amovel
            end
