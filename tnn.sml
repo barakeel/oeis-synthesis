@@ -261,16 +261,16 @@ fun update_fp_op () =
     val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid)
     fun fp_op oper embl =
       let 
-        val n = dfind oper opernd 
+        val n = dfind oper opernd
         val dimout =  
           if term_eq oper head_poli then maxmove else 
-          if term_eq oper head_value then 1 
+          if term_eq oper head_value then 1
           else (!dim_glob)
         val Xv = Vector.concat (embl @ [biais])
         val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
         val Y = Array.array (dimout, 0.0)
+        val _ = fp_op0 (n,X,Y)
       in 
-        fp_op0 (n,X,Y);
         Array.vector Y
       end
   in

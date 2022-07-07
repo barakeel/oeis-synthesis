@@ -11,11 +11,9 @@ val ERR = mk_HOL_ERR "game"
 
 val record_flag = ref false
 val progd = ref (eempty prog_compare)
-
 val online_flag = ref false
 val bestl_online = ref []
 exception ResultP of prog
-
 val target_glob = ref []
 
 (* -------------------------------------------------------------------------

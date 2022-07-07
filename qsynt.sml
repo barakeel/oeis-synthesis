@@ -4,8 +4,8 @@ struct
 open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork kernel mcts exec rl;
 val ERR = mk_HOL_ERR "qsynt";
 
-val main_tnn = read_tnn (selfdir ^ "/model/tnn83")
-val main_iprogl = read_iprogl (selfdir ^ "/model/isol88")
+val main_tnn = read_tnn (selfdir ^ "/model/tnn17")
+val main_iprogl = read_iprogl (selfdir ^ "/model/isol274")
 
 fun test_cache_one target (i,prog) = 
   let val seq = valOf (Array.sub(bloom.oseq,i)) in is_prefix target seq end

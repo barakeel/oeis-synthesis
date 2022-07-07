@@ -287,6 +287,8 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
    
 fun search_target tnn target =
   let    
+    val _ = clean_dicts ()
+    val _ = if !use_ob then update_fp_op () else ()
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := true
     val _ = target_glob := target

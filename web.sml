@@ -6,7 +6,7 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
 val ERR = mk_HOL_ERR "web";
 
 val modeldir = selfdir ^ "/model"
-val main_tnn = read_tnn (modeldir ^ "/tnn7")
+val main_tnn = read_tnn (modeldir ^ "/tnn17")
 (* ob.so is required to be in tnn_in_c directory *)
 val main_iprogl = read_iprogl (modeldir ^ "/isol274")
 
