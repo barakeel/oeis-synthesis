@@ -27,6 +27,7 @@ val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
+val modeldir = modeldir ^ "/model"
 val loss_threshold = 0.8 (* ignore tnn with a loss above this threshold *)
 val cont_flag = ref false (* continous training/searching *)
 
@@ -285,7 +286,7 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
    ------------------------------------------------------------------------- *)
    
 fun search_target tnn target =
-  let
+  let    
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := true
     val _ = target_glob := target

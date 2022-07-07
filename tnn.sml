@@ -517,11 +517,10 @@ fun export_fea file iprogl =
     writel file sl
   end
   
-  
-
-
-
-
-
 end (* struct *)
 
+(*
+load "tnn"; open kernel aiLib tnn;
+time (export_fea "oeis_fea") (read_iprogl "isol295");
+
+*)
