@@ -5,8 +5,6 @@ open HolKernel Abbrev boolLib aiLib
 
 val ERR = mk_HOL_ERR "mcts"
 
-val norm_temp = ref 1.0
-
 (* -------------------------------------------------------------------------
    Search tree
    ------------------------------------------------------------------------- *)
@@ -73,20 +71,6 @@ fun add_noise param prepol =
     map f (combine (prepol,noisel2))
   end
 
-(* --------------------------------------------------------------------------
-   Temperature
-   ------------------------------------------------------------------------- *)
-
-fun add_normtemp pol =
-  if Real.compare (!norm_temp,1.0) = EQUAL then normalize_distrib pol else
-  let 
-    val temp = 1.0 / !norm_temp
-    val pol0 = normalize_distrib pol
-    val pol1 = normalize_distrib (map_snd (fn x => Math.pow (x,temp)) pol0) 
-  in
-    pol1
-  end
-  
 (* -------------------------------------------------------------------------
    Creation of a node
    ------------------------------------------------------------------------- *)
@@ -96,7 +80,7 @@ fun create_node obj board =
     val game = #game obj
     val param = #mctsparam obj
     val (value,pol1) = (#player obj) board
-    val pol2 = add_normtemp pol1
+    val pol2 = normalize_distrib pol1
     val pol3 = if #noise param then add_noise param pol2 else pol2
   in
     (Node ({board=board,sum=value,vis=1.0},

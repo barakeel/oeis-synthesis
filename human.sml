@@ -57,10 +57,7 @@ fun human vn prog =
     fun rhx b = rm_par (human (~1) b)
     fun lrhx b = 
       let val vl = get_vl b in 
-        (if length vl = 0 then "\\_." else
-         if length vl = 1 then "\\" ^ hd vl ^ "." else
-         "\\(" ^ String.concatWith "," vl ^ ").") ^ 
-         rhx b
+        "\\(" ^ String.concatWith "," vl ^ ")." ^  rhx b
       end
     fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
     fun sunop s p1 = s ^ "(" ^ rh p1 ^ ")"

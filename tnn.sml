@@ -247,7 +247,7 @@ fun fp_op_default oper embl = Vector.fromList [100.0]
 val fp_op_glob = ref fp_op_default
 val fp_op_flag = ref false
 val biais = Vector.fromList ([1.0])
-
+val invtemp = 0.5
 
 local open Foreign in
 
