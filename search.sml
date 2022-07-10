@@ -11,6 +11,25 @@ type boarde = (prog * emb * emb) list
 type branch = (boarde * real) list
 
 (* -------------------------------------------------------------------------
+   Noise
+   ------------------------------------------------------------------------- *)
+
+fun add_noise prepol =
+  let
+    val noisel1 = List.tabulate (length prepol, fn _ => random_real ())
+    val noisel2 = normalize_proba noisel1
+    fun f ((move,polv),noise) =
+      let
+        val coeff = #noise_coeff param
+        val newpolv = (1.0 - coeff) * polv + coeff * noise
+      in
+        (move,newpolv)
+      end
+  in
+    map f (combine (prepol,noisel2))
+  end
+
+(* -------------------------------------------------------------------------
    Available moves
    ------------------------------------------------------------------------- *)
 
@@ -97,8 +116,9 @@ and search_aux targete (boarde,oldr) =
             else raise ERR "search_aux" ""
     *)
     val pol3 = normalize_distrib pol2
+    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
   in
-    app (search_move targete (boarde,oldr)) pol3
+    app (search_move targete (boarde,oldr)) pol4
   end
 
 fun search () = 
