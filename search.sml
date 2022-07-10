@@ -64,42 +64,63 @@ fun apply_move move boarde =
    Search
    ------------------------------------------------------------------------- *)
 
-val threshold_glob = ref (1.0 / 1000000.0)
+val threshold_glob = ref 0.001
 val i_glob = ref 0
+val imax_glob = ref (Real.round (1.0 / !threshold_glob))
 
-fun search_move (boarde,oldr) (move,r) =
+fun equal_pol ((m1,r1),(m2,r2)) = 
+  cpl_compare Int.compare Real.compare ((m1,r1),(m2,r2)) = EQUAL
+  
+fun search_move targete (boarde,oldr) (move,r) =
   let val newr = oldr * r in
     if newr < !threshold_glob then () 
-    else search (apply_move move boarde, newr)
+    else search_aux targete (apply_move move boarde, newr)
   end
-  
-and search (boarde,oldr) = 
+
+and search_aux targete (boarde,oldr) = 
+  if (!i_glob > !imax_glob) 
+  then print_endline "search_aux: limit reached" else
   let
-    val _ = incr i_glob
+    val _ = incr i_glob          
     val movel = available_movel boarde
     val f = fp_emb_either (!tnn_glob) 
-    val preboarde = 
-      if null boarde then f stack_empty [] else #3 (hd boarde)
+    val progle = if null boarde then f stack_empty [] else #3 (hd boarde)
+    val preboarde = f pair_progseq [progle,targete]
     val prepolie = f prepoli [preboarde]
     val ende = f head_poli [prepolie]
     val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
     val amovel = available_movel boarde
-    val pol2 = normalize_distrib 
-      (map (fn x => (x, Vector.sub (pol1,x))) amovel)
+    val pol2 = (map (fn x => (x, Vector.sub (pol1,x))) amovel)
+    (*
+    val (_,pol2') = player_wtnn_cache (!tnn_glob) (map #1 boarde)
+    val _ = if all equal_pol (combine (pol2,pol2')) then ()
+            else raise ERR "search_aux" ""
+    *)
+    val pol3 = normalize_distrib pol2
   in
-    app (search_move (boarde,oldr)) pol2
+    app (search_move targete (boarde,oldr)) pol3
   end
 
-
-   
+fun search () = 
+  let 
+    val _ = imax_glob := Real.round (1.0 / !threshold_glob);
+    val _ = i_glob := 0
+    val targete = get_targete (!tnn_glob)
+  in
+    search_aux targete ([],1.0)
+  end
 
 end (* struct *)
 
 (* 
 load "search"; open kernel aiLib search; 
 tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
+search.threshold_glob := 0.00001;
+game.target_glob := List.tabulate (16,Arbint.fromInt);
 tnn.use_ob := false;
-time search ([],1.0);
-!i;
+time search ();
+!i_glob;
 
+
+todo check that the policy are equal on the first 1000 use player_wtnn_cache
 *)

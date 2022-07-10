@@ -290,6 +290,18 @@ fun fp_emb_either tnn oper newembl =
   then (!fp_op_glob) oper newembl
   else fp_emb tnn oper newembl 
 
+fun infer_emb_nocache tnn tm =
+  let
+    val (oper,argl) = strip_comb tm
+    val embl = map (infer_emb_nocache tnn) argl
+    val emb = fp_emb_either tnn oper embl
+  in
+    emb
+  end
+
+fun get_targete tnn = infer_emb_nocache tnn 
+  (cap (term_of_seq (first_n 16 (!target_glob))))
+
 fun infer_emb_cache tnn tm =
   if is_capped tm
   then 

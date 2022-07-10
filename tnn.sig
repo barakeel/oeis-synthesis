@@ -16,11 +16,13 @@ sig
   (* for search *) 
   val stack_cat : term
   val stack_empty : term
+  val pair_progseq : term
   val prepoli : term
   val head_poli : term
   val cap_tm : term -> term
   val fp_emb_either : tnn -> term -> real vector list -> real vector
-  
+  val get_targete : tnn -> real vector
+   
   (* tnn-based players *)  
   val player_uniform : tnn -> player
   val player_random : tnn -> player
