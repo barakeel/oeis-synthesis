@@ -112,7 +112,6 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
-
 val z_flag = ref true
 
 val base_operl = 
@@ -125,88 +124,13 @@ val base_operl =
    (if (!z_flag) then [("z",0),("loop3",7)] else []))
 
 (* -------------------------------------------------------------------------
-   Definition tools
-   ------------------------------------------------------------------------- *)
-
-val hole_id = ~1
-val hole = Ins (hole_id,[])
-
-fun prog_size_nohole (Ins(s,pl)) = 
-  if s = hole_id then 0 else (1 + sum_int (map prog_size_nohole pl))
-
-fun inst_pat_aux (pat as (Ins (id,patl))) instl =  
-  if id = hole_id then 
-   (case instl of [] => (pat,[]) | a :: m => (a,m))
-  else
-    let val (argl,newinstl) = inst_patl_aux [] patl instl in
-      (Ins (id, argl), newinstl)
-    end
-and inst_patl_aux argl patl instl = case patl of 
-    [] => (rev argl, instl)
-  | pata :: patm =>
-    let val (arga,newinstl) = inst_pat_aux pata instl in
-      inst_patl_aux (arga :: argl) patm newinstl
-    end
-  
-fun inst_pat pat instl = 
-  let val (p,newinstl) = inst_pat_aux pat instl in
-    if not (null newinstl) then raise ERR "inst_pat" "too many" else p
-  end
-
-fun has_hole (Ins (id,pl)) = 
-  if id = hole_id then true else exists has_hole pl
-
-fun count_hole (Ins (id,pl)) = 
-  if id = hole_id then 1 else sum_int (map count_hole pl)
-
-(* -------------------------------------------------------------------------
-   Importing definitions
-   ------------------------------------------------------------------------- *)
-
-val def_id = length base_operl
-
-val defl = 
-  let val file = selfdir ^ "/def" in
-    if exists_file file
-    then number_fst def_id (read_progl file) 
-    else []
-  end
-
-val def_flag = exists_file (selfdir ^ "/def")
-
-val def_operl = 
-  map (fn (i,pat) => mk_var ("def" ^ its i,
-    rpt_fun_type (count_hole pat + 1) alpha)) defl;
-
-(* -------------------------------------------------------------------------
    All operators
    ------------------------------------------------------------------------- *)
 
-val operv = Vector.fromList (base_operl @ def_operl)
+val operv = Vector.fromList base_operl
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))  
-
-(* -------------------------------------------------------------------------
-   Unfolding definitions
-   ------------------------------------------------------------------------- *)
-
-fun mk_def pat =
-  if not (has_hole pat) then
-  let fun f l = case l of [] => pat | _ => raise ERR "mk_def" "" in
-    f
-  end
-  else inst_pat pat
-
-val defd = dnew Int.compare (map_snd mk_def defl);
-
-fun undef_prog_aux (Ins (id,pl)) = 
-  if not (dmem id defd) then Ins (id, map undef_prog_aux pl) else
-  let val newp = (dfind id defd) pl in 
-    undef_prog_aux newp 
-  end
-
-fun undef_prog p = if def_flag then undef_prog_aux p else p
 
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
@@ -222,9 +146,9 @@ fun depend_on v (Ins (id,pl)) =
     else exists (depend_on v) (snd (part_n hari pl))
   end
 
-fun depend_on_x p = depend_on x_id (undef_prog p)
-fun depend_on_y p = depend_on y_id (undef_prog p)
-fun depend_on_z p = depend_on z_id (undef_prog p)
+fun depend_on_x p = depend_on x_id p
+fun depend_on_y p = depend_on y_id p
+fun depend_on_z p = depend_on z_id p
 fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 (* -------------------------------------------------------------------------
@@ -255,7 +179,6 @@ fun check_timelimit () =
   let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
     if t > !timelimit then raise ProgTimeout else ()
   end
-
 
 fun catch_perror f x g =
   f x handle Div => g () 

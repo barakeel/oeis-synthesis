@@ -21,8 +21,6 @@ val use_cache = ref false (* only used during export *)
 val progtmd = ref (dempty prog_compare)
 val seqtmd = ref (dempty seq_compare)
 
-val value_flag = ref false
-
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
    ------------------------------------------------------------------------- *)
@@ -131,15 +129,6 @@ fun term_of_stack stack = case stack of
   | a :: m => 
     cap (list_mk_comb (stack_cat, [term_of_prog a, term_of_stack m]))
 
-fun short_term_of_stack stack =
-  let 
-    val _ = nocap_flag := true
-    val r = term_of_stack stack
-    val _ = nocap_flag := false
-  in
-    r
-  end
-
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
 fun term_of_join board = 
@@ -152,21 +141,13 @@ val head_poli = mk_var ("head_poli", alpha2) (* name is important see mkl *)
 fun poli_of_board board = mk_comb (head_poli, 
   mk_comb (prepoli, term_of_join board))
 
-(* value head *)
-val prevalue = mk_var ("prevalue",alpha2)
-val head_value = mk_var ("head_value", alpha2) (* name is important see mkl *)
-fun value_of_board board = mk_comb (head_value, 
-  mk_comb (prevalue, term_of_join board))
-
-
 (* embedding dimensions *)
 val operl = vector_to_list operv @ [stack_empty,stack_cat]
 val operlcap = operl @ List.mapPartial cap_opt operl
 val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
 
-val operlext = allcap @ [prepoli,head_poli] @
-  (if !value_flag then [prevalue,head_value] else [])
+val operlext = allcap @ [prepoli,head_poli]
 val opernd = dnew Term.compare (number_snd 0 operlext)
 
 fun dim_std_alt oper =
@@ -176,68 +157,7 @@ fun dim_std_alt oper =
 
 fun get_tnndim () = 
   map_assoc dim_std_alt allcap @ 
-    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])] @
-  (if !value_flag then  
-    [(prevalue,[!dim_glob,!dim_glob]),(head_value,[!dim_glob,1])] 
-   else [])
-
-(* -------------------------------------------------------------------------
-   Use an array instead of a tree for storing embeddings
-   ------------------------------------------------------------------------- *)
-
-(*
-val tnneff_flag = false
-val tnneff_size = if tnneff_flag then 2000000 else 0
-val emba = 
-  Array.tabulate (tnneff_size, (fn _ => 
-    Vector.tabulate (!dim_glob, fn _ => 0.0)))
-val embai = 
-  Array.tabulate (2 * tnneff_size, (fn _ => Array.array (dlength opernd,0)))
-
-val embain = ref 1 (* 0 is stopping tag and starting position *)
-
-fun lin_tm toptm = 
-  let 
-    val l = ref [] 
-    fun loop tm =
-      let val (oper,argl) = strip_comb tm in
-        l := dfind oper opernd :: (!l);
-        app loop argl
-      end
-  in
-    loop toptm; !l
-  end
-
-fun embadd_aux i il emb = case il of
-    [] => Array.update (emba,i,emb)
-  | a :: m => 
-    let 
-      val newi1 = Array.sub (Array.sub (embai,i),a)
-      val newi2 = if newi1 > 0 then newi1 else 
-        let 
-          val newi3 = !embain
-          val _ = if newi3 >= Array.length embai 
-                  then raise ERR "embadd_aux" "out of memory" else ()
-        in
-          Array.update (Array.sub (embai,i), a, newi3);
-          incr embain;
-          newi3
-        end
-    in
-      embadd_aux newi2 m emb
-    end
-
-fun embadd tm emb = embadd_aux 0 (lin_tm tm) emb
-
-fun embfind_aux i il = case il of
-    [] => Array.sub (emba,i)
-  | a :: m => 
-    let val newi = Array.sub (Array.sub (embai,i),a) in
-      if newi <= 0 then raise NotFound else embfind_aux newi m
-    end
-
-fun embfind tm = embfind_aux 0 (lin_tm tm)
-*)
+    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])]
 
 (* -------------------------------------------------------------------------
    OpenBlas Foreign Function Interface
@@ -263,9 +183,7 @@ fun update_fp_op () =
       let 
         val n = dfind oper opernd
         val dimout =  
-          if term_eq oper head_poli then maxmove else 
-          if term_eq oper head_value then 1
-          else (!dim_glob)
+          if term_eq oper head_poli then maxmove else (!dim_glob)
         val Xv = Vector.concat (embl @ [biais])
         val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
         val Y = Array.array (dimout, 0.0)
@@ -304,23 +222,7 @@ fun get_targete tnn = infer_emb_nocache tnn
 
 fun infer_emb_cache tnn tm =
   if is_capped tm
-  then 
-    (*
-    if tnneff_flag then  
-    (
-    (tm, embfind tm) handle NotFound =>
-    let
-      val (oper,argl) = strip_comb tm
-      val embl = map (infer_emb_cache tnn) argl
-      val (newargl,newembl) = split embl
-      val emb = fp_emb_either tnn oper newembl
-    in
-      embadd tm emb;
-      (tm,emb)   
-    end     
-    )
-    else
-    *)
+  then
     (
     Redblackmap.findKey (!embd,tm) handle NotFound =>
     let
@@ -330,7 +232,6 @@ fun infer_emb_cache tnn tm =
       val emb = fp_emb_either tnn oper newembl
       val newtm = list_mk_comb (oper,newargl)
     in
-      (* if dlength (!embd) > maxembn then () else *) 
       embd := dadd newtm emb (!embd); 
       (newtm,emb)
     end
@@ -349,16 +250,7 @@ fun infer_emb_cache tnn tm =
    Players
    ------------------------------------------------------------------------- *)
 
-fun rewardf tnn e0 = 
-  if !value_flag 
-  then
-    let 
-      val e1 = fp_emb_either tnn prevalue [e0]
-      val e2 = fp_emb_either tnn head_value [e1]
-    in
-      singleton_of_list (descale_out e2)
-    end
-  else 0.0
+fun rewardf tnn e0 = 0.0
 
 fun player_uniform tnn board = 
   (0.0, map (fn x => (x,1.0)) (#available_movel game board))
@@ -401,30 +293,14 @@ fun create_exl iprogl =
         val _ = target_glob := valOf (Array.sub (oseq,i))
         val bml = linearize_safe p
         fun f (board,move) =
-          if random_real () < 0.5 
-          then (value_of_board  (#apply_move game move board), vect1)
-          else
-          let
-            val amovel = #available_movel game board
-            val amovel' = filter (fn x => x <> move) amovel
-            val b1 = #apply_move game (random_elem amovel') board
-            val b2 = random_nstep b1
-          in
-            (value_of_board b2, vect0)
-          end
-        fun g (board,move) =
            let 
              val newv = Vector.update (zerov, move, 1.0)
              val newl = vector_to_list newv
            in
              (poli_of_board board, newl)
            end
-        fun h (board,move) = 
-          if !value_flag 
-          then [g (board,move), f (board,move)]
-          else [g (board,move)]
       in
-        List.concat (map h bml)
+        map f bml
       end
     val _ = use_cache := true
     val r = map create_ex iprogl
@@ -443,8 +319,17 @@ fun export_traindata ex =
 fun read_ctnn sl = mkl.read_ctnn operlext sl
 
 (* -------------------------------------------------------------------------
-   Featurizers
+   XGboost featurizers
    ------------------------------------------------------------------------- *)
+
+fun short_term_of_stack stack =
+  let 
+    val _ = nocap_flag := true
+    val r = term_of_stack stack
+    val _ = nocap_flag := false
+  in
+    r
+  end
 
 fun path_of_len2 tm = 
   let 
@@ -474,8 +359,6 @@ fun fea_of_stack stack =
   let fun f x = String.concatWith "-" x in 
     map f (all_path3 (short_term_of_stack stack))
   end     
-
-
 
 local open Arbint in
   fun string_of_nat n =

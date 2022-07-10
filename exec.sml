@@ -1,7 +1,7 @@
 structure exec :> exec =
 struct
 
-open HolKernel boolLib aiLib kernel def bloom
+open HolKernel boolLib aiLib kernel bloom
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
 
@@ -170,10 +170,9 @@ fun create_ccache p =
   end
 
 fun mk_exec p = 
-  let 
-    val p' = undef_prog p
-    val ccache = create_ccache p'
-    val f = mk_exec_aux ccache p'
+  let
+    val ccache = create_ccache p
+    val f = mk_exec_aux ccache p
     fun g x = f (x, azero, azero)
   in 
     g

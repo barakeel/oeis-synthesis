@@ -117,9 +117,7 @@ fun test_move board move =
   end
 
 fun available_movel board =
-  if def_flag 
-  then filter (test_move board) movelg
-  else filter (fn move => isSome (apply_moveo move board)) movelg
+  filter (fn move => isSome (apply_moveo move board)) movelg
 
 (* -------------------------------------------------------------------------
    Random program for testing

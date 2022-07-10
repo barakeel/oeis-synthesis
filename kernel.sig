@@ -34,14 +34,6 @@ sig
   val depend_on_y : prog -> bool
   val depend_on_z : prog -> bool
 
-  (* definitons *)
-  val def_id : int
-  val def_flag : bool
-  val hole_id : int
-  val hole : prog
-  val inst_pat : prog -> prog list -> prog
-  val undef_prog : prog -> prog
-  
   (* I/O *)
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
