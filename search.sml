@@ -1,7 +1,7 @@
 structure search :> search =
 struct
 
-open HolKernel boolLib aiLib kernel bloom
+open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn
 val ERR = mk_HOL_ERR "search"
 type prog = kernel.prog
 type emb = real vector
@@ -24,31 +24,36 @@ fun available_move boarde move =
     length l1 = arity 
   end
   
-fun available_movel boarde = filter available_move boarde movelg
+fun available_movel boarde = filter (available_move boarde) movelg
 
 (* -------------------------------------------------------------------------
    Apply a move
    ------------------------------------------------------------------------- *)
 
+val tnn_glob = ref (dempty Term.compare)
 val empty_emb = Vector.fromList []
 
 fun exec_fun move l1 l2 =
   let 
+    val f = fp_emb_either (!tnn_glob)
     val p = (Ins (move, map #1 (rev l1)))
     (* val _ = test p *)
-    (* 
-    val emb0 = #3 (hd l2)
-    val emb1 = infer_emb opercap [infer_emb oper (map #2 (rev l1))]
-    val emb2 = infer_emb cat [emb1,emb0]
-    *) 
+    val oper = Vector.sub (operv,move)
+    val emb1 = 
+      if arity_of oper <= 0 
+      then f oper []
+      else f (cap_tm oper) [f oper (map #2 (rev l1))]
+    val emb2 = 
+      if null l2 then emb1 else
+      f (cap_tm stack_cat) [f stack_cat [emb1, #3 (hd l2)]]
   in
-    (p,empty_emb,empty_emb)
+    (p,emb1,emb2) :: l2
   end 
  
 fun apply_move move boarde =
   let 
     val arity = arity_of_oper move
-    val (l1,l2) = part_n arity board 
+    val (l1,l2) = part_n arity boarde
   in
     if length l1 <> arity 
     then raise ERR "apply_move" ""
@@ -59,30 +64,30 @@ fun apply_move move boarde =
    Search
    ------------------------------------------------------------------------- *)
 
-val threshold = 1.0 / 1000000.0
+val threshold_glob = ref (1.0 / 1000000.0)
+val i_glob = ref 0
 
-fun search_move branch (move,r) =
-  let 
-    val (boarde,oldr) = hd branch
-    val newr = oldr * r 
-  in
-    if newr < threshold then () else
-    let 
-      val newboard = apply_move move boarde 
-      val newbranch = (newboard :: branch, newr)
-    in
-      search newbranch
-    end
+fun search_move (boarde,oldr) (move,r) =
+  let val newr = oldr * r in
+    if newr < !threshold_glob then () 
+    else search (apply_move move boarde, newr)
   end
   
-and search branch = 
-  let 
-    val board = hd branch
-    val movel = available_movel board  
-    val n = length movel
-    val pol = map_assoc (fn _ => int_div 1 n) movel
+and search (boarde,oldr) = 
+  let
+    val _ = incr i_glob
+    val movel = available_movel boarde
+    val f = fp_emb_either (!tnn_glob) 
+    val preboarde = 
+      if null boarde then f stack_empty [] else #3 (hd boarde)
+    val prepolie = f prepoli [preboarde]
+    val ende = f head_poli [prepolie]
+    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
+    val amovel = available_movel boarde
+    val pol2 = normalize_distrib 
+      (map (fn x => (x, Vector.sub (pol1,x))) amovel)
   in
-    app (search_move branch) pol 
+    app (search_move (boarde,oldr)) pol2
   end
 
 
@@ -91,20 +96,10 @@ and search branch =
 end (* struct *)
 
 (* 
-load "exec"; open exec; 
-load "human"; open kernel human aiLib;
-val p =  parse_human "(loop ( * 2 x) (+ x 2) 1)";
-val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2val (l1,t) = add_time (penum p) 5;)) x) 2"; 
-humanf p;
-val (l1,t) = add_time (penum p) 30;
-val isol = read_iprogl "model/isol100"; length isol;
-val bbl = map_assoc verify isol;
-
-val lbad1 = filter (not o fst o snd) bbl; length lbad1;
-val lbad2 = filter (not o snd o snd) bbl; length lbad2;
-val lbad = map fst lbad1;
-write_iprogl "lbad" lbad;
-val lbad = read_iprogl "lbad";
-val lbad3 = map_assoc (verify_wtime 1.0) lbad;
+load "search"; open kernel aiLib search; 
+tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
+tnn.use_ob := false;
+time search ([],1.0);
+!i;
 
 *)

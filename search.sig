@@ -2,12 +2,10 @@ signature search =
 sig
 
   type prog = kernel.prog
+  type emb = real vector
+  val i_glob : int ref
+  val threshold_glob : real ref 
+  val search : (prog * emb * emb) list * real -> unit
+  val tnn_glob : mlTreeNeuralNetwork.tnn ref
   
-  val large_arb : Arbint.int -> bool
-  val coverp_oeis : prog -> int list * (int * real option) * int list
-  val coverp_target : prog -> Arbint.int list -> bool * int
-  val penum : prog -> int -> Arbint.int list
-  val penum_wtime : real -> prog -> int -> Arbint.int list
-  val verify_wtime : real -> int * prog -> bool * bool 
-    
 end
