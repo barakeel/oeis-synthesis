@@ -27,7 +27,6 @@ val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
 val loss_threshold = 0.8 (* ignore tnn with a loss above this threshold *)
-val cont_flag = ref false (* continous training/searching *)
 
 (* -------------------------------------------------------------------------
    Files
@@ -111,10 +110,7 @@ fun write_tnn_atomic ngen tnn =
 
 fun trainf_start () =
   let
-    val isol =
-      if !cont_flag 
-      then read_isol (find_last_isol ())
-      else read_isol (!ngen_glob) 
+    val isol = read_isol (find_last_isol ())
     val _ = print_endline ("reading isol " ^ (its (length isol)))
     val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
@@ -159,8 +155,7 @@ fun wrap_trainf ngen =
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
        "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
        "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
-       "tnn.use_ob := " ^ bts (!use_ob) ^ ";",
-       "rl.cont_flag := " ^ bts (!cont_flag) ^ ";"
+       "tnn.use_ob := " ^ bts (!use_ob) ^ ";"
        ]
   in
     writel makefile ["INCLUDES = " ^ selfdir]; 
@@ -381,17 +376,13 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
     val (b,tnn) = 
-      if !cont_flag 
-      then if can find_last_tnn () 
-           then (true, read_tnn (tnn_file (find_last_tnn ())))
-           else (false, random_tnn (get_tnndim ()))
-      else if exists_file (tnn_file (ngen - 1))
-           then (true, read_tnn (tnn_file (ngen - 1)))
-           else (false, random_tnn (get_tnndim ()))
+      if can find_last_tnn () 
+      then (true, read_tnn (tnn_file (find_last_tnn ())))
+      else (false, random_tnn (get_tnndim ()))
     val _ = cmd_in_dir tnndir "rm ob.so"
     val _ = if not (!use_ob andalso b) then () else
       let 
-        val tnngen = if !cont_flag then find_last_ob_notbad () else ngen - 1
+        val tnngen = find_last_ob_notbad ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
         val obc = tnndir ^ "/ob.c"
         val cpcmd = String.concatWith " " ["cp",obfile,obc]
@@ -432,7 +423,6 @@ fun rl_train_only ngen =
 
 fun rl_search ngen = 
   (
-  cont_flag := false;
   rl_search_only ngen; 
   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
   rl_train ngen
@@ -440,7 +430,6 @@ fun rl_search ngen =
 
 and rl_train ngen = 
   (
-  cont_flag := false; 
   rl_train_only ngen; 
   rl_search (ngen + 1)
   )
@@ -448,7 +437,6 @@ and rl_train ngen =
 
 fun rl_search_cont () = 
   (
-  cont_flag := true;
   ignore (mk_dirs ());
   rl_search_only ((find_last_isol () + 1) handle HOL_ERR _ => 0); 
   rl_search_cont ()
@@ -460,7 +448,6 @@ fun wait_isol () =
 
 fun rl_train_cont () = 
   (
-  cont_flag := true;
   ignore (mk_dirs ());
   wait_isol ();
   rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
