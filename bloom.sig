@@ -8,6 +8,7 @@ sig
   (* OEIS array *)
   val oseq : Arbint.int list option array
   val oseql : (int * Arbint.int list) list
+  val select_random_target : unit -> unit
 
   (* tree of OEIS sequences *)
   datatype otree = 

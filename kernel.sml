@@ -44,6 +44,8 @@ fun is_prefix seq1 seq2 = case (seq1,seq2) of
   | (_,[]) => false
   | (a1 :: m1, a2 :: m2) => if a1 = a2 then is_prefix m1 m2 else false
 
+val target_glob = ref []
+
 (* -------------------------------------------------------------------------
    Program
    ------------------------------------------------------------------------- *)
@@ -92,6 +94,9 @@ end
 fun write_iprogl file r = write_data enc_iprogl file r
 fun read_iprogl file = read_data dec_iprogl file
 
+
+
+
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
@@ -133,6 +138,42 @@ fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))  
 
 (* -------------------------------------------------------------------------
+   Compressed programs
+   ------------------------------------------------------------------------- *)
+
+fun suc x = x + 1
+fun pred x = x - 1
+
+local open Arbint in
+
+val arbmaxoper = fromInt (suc (Vector.length operv))
+
+fun zip_prog prog =
+  let
+    fun polish (Ins (id,pl)) = fromInt (suc id) :: List.concat (map polish pl)
+    fun loop r il = case il of 
+        [] => r 
+      | a :: m => loop (r * arbmaxoper + a) m 
+  in
+    loop zero (rev (polish prog))
+  end
+
+fun unzip_progl arbi =
+  let 
+    val (q,r) = Arbint.divmod (arbi, arbmaxoper)
+    val id = pred (toInt r)
+    val a = arity_of_oper id
+    val pl = if q = zero then [] else unzip_progl q
+    val (pla,plb) = part_n a pl
+  in
+    Ins (id,pla) :: plb
+  end
+
+fun unzip_prog arbi = singleton_of_list (unzip_progl arbi)
+
+end (* local *)
+
+(* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
@@ -157,8 +198,8 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
-val short_timeincr = 0.00001
-val long_timeincr = 0.01
+val short_timeincr = 0.000001
+val long_timeincr = 0.001
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val small_mem = 100

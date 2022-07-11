@@ -6,9 +6,7 @@ val ERR = mk_HOL_ERR "search"
 type prog = kernel.prog
 type emb = real vector
 
-type progf = Arbint.int * Arbint.int * Arbint.int -> Arbint.int
 type boarde = (prog * emb * emb) list
-type branch = (boarde * real) list
 
 (* -------------------------------------------------------------------------
    Noise
@@ -19,10 +17,7 @@ fun add_noise prepol =
     val noisel1 = List.tabulate (length prepol, fn _ => random_real ())
     val noisel2 = normalize_proba noisel1
     fun f ((move,polv),noise) =
-      let
-        val coeff = #noise_coeff param
-        val newpolv = (1.0 - coeff) * polv + coeff * noise
-      in
+      let val newpolv = 0.9 * polv + 0.1 * noise in
         (move,newpolv)
       end
   in
@@ -56,7 +51,6 @@ fun exec_fun move l1 l2 =
   let 
     val f = fp_emb_either (!tnn_glob)
     val p = (Ins (move, map #1 (rev l1)))
-    (* val _ = test p *)
     val oper = Vector.sub (operv,move)
     val emb1 = 
       if arity_of oper <= 0 
@@ -79,27 +73,46 @@ fun apply_move move boarde =
     else exec_fun move l1 l2
   end
 
+val i_alt = ref 0
+
+fun collect_child progd boarde move =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity boarde
+  in
+    if length l1 <> arity then () else 
+    let val p = Ins (move, map #1 (rev l1)) in 
+      if depend_on_y p orelse depend_on_z p then () else 
+      (incr i_alt ; eaddi (zip_prog p) progd)
+    end
+  end
+
+fun collect_children progd boarde = app (collect_child progd boarde) movelg
+
 (* -------------------------------------------------------------------------
    Search
    ------------------------------------------------------------------------- *)
 
-val threshold_glob = ref 0.001
+val threshold_glob = ref 0.000001
+val decay = 0.99
 val i_glob = ref 0
 val imax_glob = ref (Real.round (1.0 / !threshold_glob))
 
 fun equal_pol ((m1,r1),(m2,r2)) = 
   cpl_compare Int.compare Real.compare ((m1,r1),(m2,r2)) = EQUAL
   
-fun search_move targete (boarde,oldr) (move,r) =
-  let val newr = oldr * r in
+fun search_move progd targete (boarde,oldr) (move,r) =
+  let val newr = decay * oldr * r in
     if newr < !threshold_glob then () 
-    else search_aux targete (apply_move move boarde, newr)
+    else search_aux progd targete (apply_move move boarde, newr)
   end
 
-and search_aux targete (boarde,oldr) = 
-  if (!i_glob > !imax_glob) 
+and search_aux progd targete (boarde,oldr) = 
+  if (!i_glob > !imax_glob)
   then print_endline "search_aux: limit reached" else
   let
+    val _ = collect_children progd boarde 
+      handle NotFound => raise ERR "collect_children" ""
     val _ = incr i_glob          
     val movel = available_movel boarde
     val f = fp_emb_either (!tnn_glob) 
@@ -118,29 +131,52 @@ and search_aux targete (boarde,oldr) =
     val pol3 = normalize_distrib pol2
     val pol4 = if !game.noise_flag then add_noise pol3 else pol3
   in
-    app (search_move targete (boarde,oldr)) pol4
+    app (search_move progd targete (boarde,oldr)) pol4
   end
 
 fun search () = 
   let 
-    val _ = imax_glob := Real.round (1.0 / !threshold_glob);
+    val progd = ref (eempty Arbint.compare)
+    val _ = imax_glob := 10 * Real.round (1.0 / !threshold_glob);
     val _ = i_glob := 0
     val targete = get_targete (!tnn_glob)
+    val (_,t) = add_time (search_aux progd targete) ([],1.0)
   in
-    search_aux targete ([],1.0)
+    print_endline ("tree_size: " ^ its (!i_glob));
+    print_endline ("programs: " ^ its (elength (!progd)));
+    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
+    elist (!progd)
   end
 
 end (* struct *)
 
 (* 
+PolyML.print_depth 0;
 load "search"; open kernel aiLib search; 
 tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
-search.threshold_glob := 0.00001;
-game.target_glob := List.tabulate (16,Arbint.fromInt);
-tnn.use_ob := false;
-time search ();
-!i_glob;
+search.threshold_glob := 0.000001;
+target_glob := List.tabulate (16,Arbint.fromInt);
+tnn.update_fp_op ();
+bloom.select_random_target ();
+val il1 = search ();
+bloom.select_random_target ();
+val il2 = search ();
+val ili = mk_fast_set (il1 @ il2);
+PolyML.print_depth 40;
+length il1 + length il2;
+length ili;
+
+bloom.select_random_target ();
+PolyML.print_depth 0;
+val il3 = search ();
+PolyML.print_depth 40;
+val ili3 = mk_fast_set (ili @ il3);
+length il1 + length il2 + lenght il3;
+length ili3;
 
 
-todo check that the policy are equal on the first 1000 use player_wtnn_cache
+fun test () = let val x = game.random_prog 20 in 
+    kernel.prog_compare (x, unzip_prog (zip_prog x)) = EQUAL
+  end;
+all test (List.tabulate (1000,fn _ => ()));
 *)

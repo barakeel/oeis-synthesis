@@ -16,6 +16,7 @@ sig
 
   (* sequences *)
   type seq = Arbint.int list
+  val target_glob : seq ref
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
   val is_prefix : seq -> seq -> bool
@@ -33,8 +34,10 @@ sig
   val depend_on_x : prog -> bool
   val depend_on_y : prog -> bool
   val depend_on_z : prog -> bool
-
+  
   (* I/O *)
+  val zip_prog : prog -> Arbint.int
+  val unzip_prog : Arbint.int -> prog
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list

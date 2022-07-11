@@ -19,8 +19,7 @@ sig
   val time_opt : real option ref
   val mctsparam : unit -> mcts.mctsparam
    
-  (* game *) 
-  val target_glob : kernel.seq ref
+  (* game *)
   val game : (board,move) mcts.game
   
   (* conversion between a sequence of moves and a board *)

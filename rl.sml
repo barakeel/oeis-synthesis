@@ -178,8 +178,7 @@ fun wrap_trainf ngen =
    ------------------------------------------------------------------------- *)
 
 fun clean_dicts () = 
-  (progd := eempty prog_compare; 
-   embd := dempty Term.compare)
+  (progd := eempty prog_compare; embd := dempty Term.compare)
 
 val use_random = ref false
 
@@ -201,45 +200,46 @@ fun init_search coreid =
     val _ = noise_flag := false
     val _ = if !coreid_glob mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
-    fun loop () =
-      let val i = random_int (0,Array.length oseq - 1) in
-        case Array.sub (oseq, i) of NONE => loop () | SOME seq => (seq,i)
-      end
-    val (targetseq,seqname) = loop ()
-    val _ = target_glob := targetseq
-    val _ = print_endline 
-      ("target " ^ its seqname ^ ": " ^ string_of_seq (!target_glob));
+    val _ = select_random_target ()
   in
-    record_flag := true;
-    clean_dicts ()
-  end
-
-fun end_search () = 
-  let val r = elist (!progd) in
-    record_flag := false;
-    clean_dicts ();
-    r
+    ()
   end
 
 fun mctsobj tnn = 
   {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
 
+val newsearch_flag = ref true
+
+fun oldsearch tnn =
+   let 
+     val tree = starting_tree (mctsobj tnn) []
+     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree 
+  in
+    print_endline ("tree_size: " ^ its (tree_size newtree));
+    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
+  end
+
+
 fun search tnn coreid =
   let
     val _ = init_search coreid
     val _ = print_endline "search start"
-    val _ = 
-      let 
-         val tree = starting_tree (mctsobj tnn) []
-         val (newtree,t) = add_time (mcts (mctsobj tnn)) tree 
-      in
-        print_endline ("tree_size: " ^ its (tree_size newtree));
-        print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
+  in
+    if !newsearch_flag then 
+    let val progil = search.search () in
+      checki progil
+    end
+    else
+      let
+        val _ = (record_flag := true; clean_dicts ())
+        val _ = oldsearch tnn
+        val progl = elist (!progd)
+        val _ = (record_flag := false; clean_dicts ())
+      in 
+        check progl
       end
-    val progl = end_search ()
-  in 
-    check progl
   end
+
 
 fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
@@ -501,6 +501,7 @@ val tnn = random_tnn (tnn.get_tnndim ());
 (* use_random := true; *)
 game.time_opt := SOME 30.0;
 PolyML.print_depth 2;
+search.threshold_glob := 0.00001;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
 PolyML.print_depth 40;

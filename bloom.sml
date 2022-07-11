@@ -153,5 +153,23 @@ fun cover_target_aux2 f target =
 fun cover_target f target = catch_perror (cover_target_aux2 f) target 
   (fn () => (false, !ncoveri))
   
+(* -------------------------------------------------------------------------
+   Select a random OEIS sequence
+   ------------------------------------------------------------------------- *)
+
+fun select_random_target () =
+  let
+    fun loop () =
+      let val i = random_int (0, Array.length oseq - 1) in
+        case Array.sub (oseq, i) of NONE => loop () | SOME seq => (seq,i)
+      end
+    val (targetseq,seqname) = loop ()
+    val _ = target_glob := targetseq
+    val _ = print_endline 
+      ("target " ^ its seqname ^ ": " ^ string_of_seq (!target_glob))
+  in
+    ()
+  end
+
 
 end (* struct *)
