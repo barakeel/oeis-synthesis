@@ -7,6 +7,7 @@ else
    cp config_template config 
 fi
 
+echo 'Overwrite dir.sml'
 sed "s#directory_template#$PWD#g" dir_template > dir.sml
 DIM=$(grep '^dim_glob' config_template | sed -e 's/dim_glob *//')
 
@@ -15,20 +16,24 @@ sed "s#dimension_template#$DIM#g" tnn_in_c/tree_template > tnn_in_c/tree.c
 echo 'Overwrite tnn_in_c/ob_fst.c'
 sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
 
+echo "Creating Standard ML dependency files"
 Holmake cleanAll
 Holmake
 
-. /etc/lsb-release
+if [ -d $(dirname $PWD)/OpenBLAS ]; then
+  echo "OpenBLAS: $(dirname $PWD)/OpenBLAS"
+else
+  echo "Could not find OpenBLAS. Please install OpenBLAS in $(dirname $PWD)" 
+fi
 
 cd tnn_in_c
 
-if [ "$DISTRIB_RELEASE" = "18.04" ]; then
-  echo "Compiling MKL tree.c for Ubuntu 18.04"
+if [ -d "/usr/include/mkl" ]; then
+  echo "MKL: /usr/include/mkl"
+  sh compile_mkl20.sh
+elif [ -d "/opt/intel/mkl" ]; then
+  echo "MKL: /opt/intel/mkl"
   sh compile_mkl18.sh
-elif [ "$DISTRIB_RELEASE" = "20.04" ]; then
-  echo "Compiling MKL tree.c for Ubuntu 20.04"
-  sh compile_mkl20.sh
 else
-  echo "Compiling MKL tree.c for Ubuntu $DISTRIB_RELEASE: defaulting to Ubuntu 20.04"
-  sh compile_mkl20.sh
+  echo "Could not find MKL directory. Please install MKL."
 fi

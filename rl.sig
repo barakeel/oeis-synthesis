@@ -12,9 +12,6 @@ sig
   type eff = int * real option
   
   (* globals *)
-  val ncore : int ref
-  val coreid_glob : int ref
-  val ntarget : int ref
   val maxgen : int option ref
   val ngen_glob : int ref
   val expname : string ref

@@ -17,12 +17,10 @@ type eff = int * real option
 (* -------------------------------------------------------------------------
    Globals
    ------------------------------------------------------------------------- *)
-  
-val ncore = ref 
-  (string_to_int (dfind "ncore" configd) handle NotFound => 32)
-val coreid_glob = ref 0
-val ntarget = ref
-  (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
+
+val nvis = (string_to_int (dfind "nvis" configd) handle NotFound => 3000000) 
+val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
@@ -185,7 +183,6 @@ val use_random = ref false
 fun init_search coreid =
   let
     val _ = print_endline "initialization"
-    val _ = coreid_glob := coreid
     val _ = if !use_random 
             then player_glob := player_random
             else player_glob := player_wtnn_cache
@@ -193,12 +190,8 @@ fun init_search coreid =
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
             then use_ob := false else ()
     val _ = if !use_ob then update_fp_op () else ()
-    (* val _ = 
-      if can find_last_tnn () then () else 
-            (player_glob := player_random; time_opt := SOME 120.0)
-       *)
     val _ = noise_flag := false
-    val _ = if !coreid_glob mod 2 = 0 
+    val _ = if coreid mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) else ()
     val _ = select_random_target ()
   in
@@ -219,17 +212,12 @@ fun oldsearch tnn =
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
 
-
 fun search tnn coreid =
   let
     val _ = init_search coreid
     val _ = print_endline "search start"
   in
-    if !newsearch_flag then 
-    let val progil = search.search () in
-      checki progil
-    end
-    else
+    if !newsearch_flag then checki (search.search nvis) else
       let
         val _ = (record_flag := true; clean_dicts ())
         val _ = oldsearch tnn
@@ -265,7 +253,6 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "rl.coreid_glob := " ^ its (!coreid_glob),
      "tnn.dim_glob := " ^ its (!dim_glob),
      "tnn.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo ()] 
@@ -413,7 +400,7 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir "sh compile_ob.sh"
       end
     val (isoll,t) = add_time
-      (parmap_queue_extern (!ncore) parspec tnn) (List.tabulate (!ntarget,I))
+      (parmap_queue_extern ncore parspec tnn) (List.tabulate (ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length isoll)))
@@ -442,8 +429,6 @@ fun rl_train_only ngen =
   in
     ()
   end
-
-
 
 fun rl_search ngen = 
   (
@@ -498,6 +483,7 @@ rl_search_cont ();
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
+search.tnn_glob := tnn;
 (* use_random := true; *)
 game.time_opt := SOME 30.0;
 PolyML.print_depth 2;
