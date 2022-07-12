@@ -212,7 +212,9 @@ fun search tnn coreid =
     val _ = init_search coreid
     val _ = print_endline "search start"
   in
-    if !newsearch_flag then checki (search.search nvis) else
+    if !newsearch_flag 
+    then (search.search nvis; checkfinal ())
+    else
       let
         val _ = (record_flag := true; clean_dicts ())
         val _ = oldsearch tnn

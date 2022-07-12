@@ -130,7 +130,6 @@ fun cover_oeis_aux2 f =
 fun cover_oeis f = catch_perror cover_oeis_aux2 f 
   (fn () => (!anlref, (!ncoveri, NONE), !anlrefpart))
 
-
 (* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence
    ------------------------------------------------------------------------- *)

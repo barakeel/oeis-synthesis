@@ -9,4 +9,9 @@ sig
   val check : prog list -> (anum * prog) list
   val checki : Arbint.int list -> (anum * prog) list
 
+  (* alternative memory less way *)
+  val checkinit : unit -> unit
+  val checkonline : prog -> unit
+  val checkfinal : unit -> (int * kernel.prog) list
+
 end

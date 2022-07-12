@@ -138,5 +138,36 @@ fun checki progil =
     dlist (!wind)
   end    
   
+val wind = ref (dempty Int.compare)
+val partwind = ref (dempty Int.compare)  
+
+fun checkx p =
+  let
+    val (anuml,eff,anumlpart1) = coverp_oeis p
+    fun f anum = update_wind_one wind (anum,p)
+    fun g (anum,eff) = update_partwind_one partwind (anum,(eff,p))
+  in
+    app f anuml;
+    app g (create_anumlpart (anuml,eff,anumlpart1))
+  end
+
+fun checkinit () = (wind := dempty Int.compare; partwind := dempty Int.compare)
+fun checkonline p = (init_fast_test (); checkx p)
+fun checkfinal () = 
+  let
+    val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
+    fun checkb p = (init_slow_test (); checkx p; init_fast_test ())
+    val bestpl1 = mk_fast_set prog_compare 
+      (map snd (List.concat (map snd (dlist (!partwind)))))
+    val _ = partwind := dempty Int.compare
+    val _ = print_endline ("checkb: " ^ its (length bestpl1))
+    val bestpl2 = dict_sort prog_compare_size bestpl1
+    val (_,t) = add_time (app checkb) bestpl2
+    val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
+    val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))  
+    fun forget ((a,b),c) = (a,c)
+  in
+    dlist (!wind)
+  end    
   
 end (* struct *)

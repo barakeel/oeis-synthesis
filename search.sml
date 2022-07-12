@@ -1,7 +1,7 @@
 structure search :> search =
 struct
 
-open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn
+open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn check
 val ERR = mk_HOL_ERR "search"
 type prog = kernel.prog
 type emb = real vector
@@ -73,22 +73,25 @@ fun apply_move move boarde =
     else exec_fun move l1 l2
   end
 
-fun collect_child progd boarde move =
+val prog_counter = ref 0
+
+fun collect_child boarde move =
   let 
     val arity = arity_of_oper move
     val (l1,l2) = part_n arity boarde
   in
-    if length l1 <> arity then () else 
+    if not (null l2) orelse length l1 <> arity then () else 
     let val p = Ins (move, map #1 (rev l1)) in 
       if depend_on_y p orelse depend_on_z p then () else 
-      eaddi (zip_prog p) progd
+      incr prog_counter;
+      checkonline p 
     end
   end
 
-fun collect_children progd boarde = app (collect_child progd boarde) movelg
+fun collect_children boarde = app (collect_child boarde) movelg
 
 (* -------------------------------------------------------------------------
-   Distributing visit in advance according to policy part of MCTS formula
+   Distributing visits in advance according to policy part of MCTS formula
    ------------------------------------------------------------------------- *)
 
 fun best_move distop = 
@@ -128,13 +131,13 @@ fun split_vis nvis dis =
 fun equal_pol ((m1,r1),(m2,r2)) = 
   cpl_compare Int.compare Real.compare ((m1,r1),(m2,r2)) = EQUAL
   
-fun search_move progd targete boarde (move,vis) =
+fun search_move targete boarde (move,vis) =
   if vis <= 0 then () else
-  search_aux vis progd targete (apply_move move boarde)
+  search_aux vis targete (apply_move move boarde)
 
-and search_aux vis progd targete boarde =  
+and search_aux vis targete boarde =  
   let
-    val _ = collect_children progd boarde 
+    val _ = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
     val movel = available_movel boarde
     val f = fp_emb_either (!tnn_glob) 
@@ -150,51 +153,28 @@ and search_aux vis progd targete boarde =
     val newvis = vis - 1
   in
     if newvis <= 0 then () else
-    app (search_move progd targete boarde) (split_vis newvis pol4)
+    app (search_move targete boarde) (split_vis newvis pol4)
   end
 
 fun search vis = 
   let 
-    val progd = ref (eempty Arbint.compare)
+    val _ = prog_counter := 0
+    val _ = checkinit ()
     val targete = get_targete (!tnn_glob)
-    val (_,t) = add_time (search_aux vis progd targete) []
+    val (_,t) = add_time (search_aux vis targete) []
   in
-    print_endline ("programs: " ^ its (elength (!progd)));
-    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds");
-    elist (!progd)
+    print_endline ("programs: " ^ its (!prog_counter));
+    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
 
 end (* struct *)
 
 (* 
-PolyML.print_depth 0;
 load "search"; open kernel aiLib search; 
 tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
-search.vis_glob := 2000000;
 target_glob := List.tabulate (16,Arbint.fromInt);
 tnn.update_fp_op ();
 bloom.select_random_target ();
-val il1 = search ();
-
-
-bloom.select_random_target ();
-val il2 = search ();
-val ili = mk_fast_set (il1 @ il2);
-PolyML.print_depth 40;
-length il1 + length il2;
-length ili;
-
-bloom.select_random_target ();
-PolyML.print_depth 0;
-val il3 = search ();
-PolyML.print_depth 40;
-val ili3 = mk_fast_set (ili @ il3);
-length il1 + length il2 + lenght il3;
-length ili3;
-
-
-fun test () = let val x = game.random_prog 20 in 
-    kernel.prog_compare (x, unzip_prog (zip_prog x)) = EQUAL
-  end;
-all test (List.tabulate (1000,fn _ => ()));
+search 2000000;
+val r = check.checkfinal ();
 *)
