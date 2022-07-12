@@ -1,7 +1,7 @@
 dim_glob 96
 ncore 16
 ntarget 80
-nvis 3000000
+nvis 6000000
 time_opt 600.0
-search_memory 8000
+search_memory 4000
 train_memory 50000
