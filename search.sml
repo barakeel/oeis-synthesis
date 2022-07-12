@@ -117,7 +117,10 @@ fun inc_bestmove dis =
 fun split_vis nvis dis = 
   let 
     val dis1 = 
-      map_assoc (fn (a,b) => Real.floor (b * Real.fromInt nvis)) dis 
+      map_assoc (fn (a,b) => 
+        let val c = Real.floor (b * Real.fromInt nvis) in
+          if c < 0 then 0 else c
+         end) dis 
     val missing = nvis - sum_int (map snd dis1)
     val dis2 = funpow missing inc_bestmove dis1
   in
@@ -135,7 +138,7 @@ fun search_move targete boarde (move,vis) =
   if vis <= 0 then () else
   search_aux vis targete (apply_move move boarde)
 
-and search_aux vis targete boarde =  
+and search_aux vis targete boarde = 
   let
     val _ = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
