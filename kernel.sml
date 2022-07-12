@@ -198,8 +198,8 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 exception ProgTimeout;
 val rt_glob = ref (Timer.startRealTimer ())
-val short_timeincr = 0.000001
-val long_timeincr = 0.001
+val short_timeincr = 0.00001
+val long_timeincr = 0.01
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val small_mem = 100
