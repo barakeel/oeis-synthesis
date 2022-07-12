@@ -9,7 +9,7 @@ fi
 
 echo 'Overwrite dir.sml'
 sed "s#directory_template#$PWD#g" dir_template > dir.sml
-DIM=$(grep '^dim_glob' config_template | sed -e 's/dim_glob *//')
+DIM=$(grep '^dim_glob' config | sed -e 's/dim_glob *//')
 
 echo 'Overwrite tree.c'
 sed "s#dimension_template#$DIM#g" tnn_in_c/tree_template > tnn_in_c/tree.c
