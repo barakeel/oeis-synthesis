@@ -381,7 +381,6 @@ fun rl_search_only ngen =
       if can find_last_tnn () 
       then (true, read_tnn (tnn_file (find_last_tnn ())))
       else (false, random_tnn (get_tnndim ()))
-    val _ = cmd_in_dir tnndir "rm ob.so"
     val _ = if not (!use_ob andalso b) then () else
       let 
         val tnngen = find_last_ob_notbad ()
