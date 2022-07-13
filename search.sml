@@ -165,7 +165,7 @@ fun search vis =
     val _ = prog_counter := 0
     val _ = checkinit ()
     val targete = get_targete (!tnn_glob)
-    val (_,t) = add_time (search_aux depth vis targete) []
+    val (_,t) = add_time (search_aux 0 vis targete) []
   in
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
