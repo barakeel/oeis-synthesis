@@ -360,18 +360,21 @@ fun fea_of_stack stack =
     map f (all_path3 (short_term_of_stack stack))
   end     
 
+fun suc x = x + 1
 local open Arbint in
-  fun string_of_nat n =
-    if n < zero then "~" ^ string_of_nat (~n)
-    else if n > fromInt 1000000 then "big"
-    else toString n
+  val ten = fromInt 10
+  fun string_of_nat i n =
+    if n < zero then "~" :: string_of_nat i (~n)
+    else if n > fromInt 1000000 then ["big"]
+    else if n < ten then [toString n ^ "@" ^ its i]
+    else (toString (n mod ten) ^ "@" ^ its i) :: 
+         string_of_nat (suc i) (n div ten)
 end
 
 fun fea_of_seq seq = 
-  let fun f (a,b) = its a ^ "i-" ^ string_of_nat b in
-    map f (number_fst 0 (first_n 16 seq))
+  let fun f (a,b) = map (fn x => its a ^ "i-" ^ x) (string_of_nat 0 b) in
+    List.concat (map f (number_fst 0 (first_n 16 seq)))
   end
-
 
 fun export_fea file iprogl =
   let    
@@ -416,6 +419,5 @@ end (* struct *)
 
 (*
 load "tnn"; open kernel aiLib tnn;
-time (export_fea "oeis_fea") (read_iprogl "isol295");
-
+time (export_fea "oeis_fea_base10") (read_iprogl "isol295");
 *)
