@@ -217,7 +217,7 @@ int main()
   long tmpex,ex,nex,dim,ep,op,opi,nop;
   long offset,sub,di,npolihead,nvaluehead;
   long sum,maxsize;
-  double polierr, valueerr;
+  double polierr, polierr2, valueerr;
   long a1, argi;
   long max_threads;
   // main arguments
@@ -398,7 +398,7 @@ int main()
   if (ep == 50) {lr = 0.0002;}  
   if (ep == 75) {lr = 0.0001;}
   shuffle (nex,SHF);
-  polierr = 0; valueerr = 0;
+  polierr = 0; polierr2 = 0; valueerr = 0;
   for (tmpex = 0; tmpex < nex; ++tmpex) {
     if (FIXED) {ex = tmpex;} else {ex = SHF[tmpex];}
     dago = DO[ex];
@@ -455,7 +455,11 @@ int main()
       if (DBG) {print_vect ("diff",HEAD[op],GTYcur);}
       if (HEAD[op] == 1) 
         {valueerr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
-      else {polierr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
+      else  {
+           polierr += 
+             sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1) / HEAD[op]);
+           polierr2 += cblas_dasum (HEAD[op],GTYcur,1) / HEAD[op];
+           }
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
       tmv_head (HEAD[op], Acur, GYcur, GXcur);
       a1 = bY * D[opi+1];
@@ -518,7 +522,9 @@ int main()
   }//end example
   
   if (nvaluehead != 0) {printf("%li(v): %f\n", ep, valueerr / nvaluehead);}
-  if (npolihead != 0) {printf("%li: %f\n", ep, polierr / npolihead);}
+  if (npolihead != 0) 
+    {printf("%li: mse %f mae %f\n", ep, polierr / npolihead, 
+             polierr2 / npolihead);}
   
   
   fflush(stdout);

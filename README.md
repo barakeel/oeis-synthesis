@@ -9,13 +9,12 @@ http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
 ### Installations remarks
 The software installed (polyml,HOL,oeis-synthesis,OpenBLAS) except the mkl
-are assumed to be installed locally in the same directory.
-In the following, we will assume that this directory is /home/user.
-This file should be in the /home/user/oeis-synthesis directory.
+are assumed to be installed locally in the same directory (typically `/home/user` where `user` is your username).
+This `README.md` should be in the `/home/user/oeis-synthesis` directory.
 If not, some of the following instructions need to be adapted accordingly.
 
 ### Install polyml version 5.9 or higher from source
-In your /home/user directory:
+In `/home/user`:
 ```
 git clone https://github.com/polyml/polyml
 cd polyml
@@ -26,7 +25,7 @@ make install
 ```
 
 ### Install HOL (a modified version)
-In your /home/user directory:
+In `/home/user`:
 ```
 git clone https://github.com/HOL-Theorem-Prover/HOL
 cd HOL
@@ -41,43 +40,11 @@ Add to your .bashr the following line:
 PATH=/home/user/HOL/bin:$PATH
 ```
 
-### Install oeis-synthesis
-In the directory where this 
-
-Copy and modify values of the `config` file (optional):
-```
-cp config_template config
-```
-
-Run in this directory:
-```
-sh install.sh
-```
-
-### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
-In this directory run `rlwrap hol` (sudo apt install rlwrap) 
-then run in the interative shell:
-
-```
-load "qsynt"; open aiLib human exec rl qsynt;
-tnn.use_ob := false;
-game.time_opt := SOME 60.0;
-val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
-print_endline (humanf p);
-val seq = penum p 10;
-```
-
 ### Install MKL (Required for training)
 
 #### Ubuntu 20.04
 ```
 sudo apt install intel-mkl
-```
-
-In the `tnn_in_c` directory and compile `tree.c`: 
-```
-  gcc -o tree tree.c -DMKL_ILP64 -m64 -I/usr/include/mkl -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 ```
 
 #### Ubuntu 18.04
@@ -90,14 +57,38 @@ Initializing bash variables (put in your .bashrc)
   sh /opt/intel/mkl/bin/mklvars.sh intel64
 ```
 
-In the `tnn_in_c` directory and compile `tree.c`: 
+
+
+
+### Install oeis-synthesis
+In `/home/user/oeis-synthesis`,
+
+Copy and modify values of the `config` file (optional):
 ```
-  gcc -o tree tree.c -DMKL_ILP64 -m64 -I/opt/intel/mkl/include -L/opt/intel/lib/intel64 -L/opt/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
+cp config_template config
+```
+
+Run in this directory:
+```
+sh install.sh
+```
+
+### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
+In `/home/user/oeis-synthesis`, run `rlwrap hol` (sudo apt install rlwrap) 
+then run in the interative shell:
+
+```
+load "qsynt"; open aiLib human exec rl qsynt;
+tnn.use_ob := false;
+game.time_opt := SOME 60.0;
+val po = qsynt (map Arbint.fromInt [2,4,16,256]);
+val p = valOf po;
+print_endline (humanf p);
+val seq = penum p 10;
 ```
 
 ### Install OpenBLAS (Faster search using foreign function interface)
-In a sibling directory of oeis-synthesis (usually 
-home/user directory) run:
+In `/home/user`, run:
 ```
 git clone https://github.com/xianyi/OpenBLAS
 ```
@@ -108,13 +99,12 @@ Add to your `.bashrc`:
 export OPENBLAS_NUM_THREADS=1
 export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
 ```
-and replace user by your username.
 
 Make sure the file `/usr/lib/x86_64-linux-gnu/libm.a` exists or edit the file
 `compile_ob.sh` with the location of your `libm.a` after running `install.sh`.
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)
-In this directory run `rlwrap hol` then run in the interative shell:
+In `/home/user`, run `rlwrap hol` then run in the interative shell:
 ```
 load "rl"; open rl;
 expname := "your_experiment";

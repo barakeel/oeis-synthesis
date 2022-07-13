@@ -134,11 +134,12 @@ fun split_vis nvis dis =
 fun equal_pol ((m1,r1),(m2,r2)) = 
   cpl_compare Int.compare Real.compare ((m1,r1),(m2,r2)) = EQUAL
   
-fun search_move targete boarde (move,vis) =
+fun search_move depth targete boarde (move,vis) =
   if vis <= 0 then () else
-  search_aux vis targete (apply_move move boarde)
+  search_aux depth vis targete (apply_move move boarde)
 
-and search_aux vis targete boarde = 
+and search_aux depth vis targete boarde = 
+  if depth >= 10000 then () else
   let
     val _ = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
@@ -150,13 +151,13 @@ and search_aux vis targete boarde =
     val ende = f head_poli [prepolie]
     val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
     val amovel = available_movel boarde
-    val pol2 = (map (fn x => (x, Vector.sub (pol1,x))) amovel)
+    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
     val pol3 = normalize_distrib pol2
     val pol4 = if !game.noise_flag then add_noise pol3 else pol3
     val newvis = vis - 1
   in
     if newvis <= 0 then () else
-    app (search_move targete boarde) (split_vis newvis pol4)
+    app (search_move (depth+1) targete boarde) (split_vis newvis pol4)
   end
 
 fun search vis = 
@@ -164,7 +165,7 @@ fun search vis =
     val _ = prog_counter := 0
     val _ = checkinit ()
     val targete = get_targete (!tnn_glob)
-    val (_,t) = add_time (search_aux vis targete) []
+    val (_,t) = add_time (search_aux depth vis targete) []
   in
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
