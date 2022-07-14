@@ -51,6 +51,7 @@ sig
   
   (* timer *)
   exception ProgTimeout
+  val max_compr_number : int ref
   val timeincr : real ref
   val short_timeincr : real
   val init_fast_test : unit -> unit

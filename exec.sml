@@ -138,8 +138,6 @@ fun mk_exec_aux ccache (p as (Ins (id,pl))) =
           handle Subscript => raise ERR "mk_exec_aux" (its id))
   end
 
-val max_compr_number = 1000
-
 val azero = Arbint.zero
 val aone = Arbint.one
 
@@ -150,7 +148,7 @@ fun add_ccache ccache p =
     val f = mk_exec_aux (!ccache) p
     val l = ref []
     fun loop i x =
-      if i >= max_compr_number then () else
+      if i >= (!max_compr_number) then () else
       if Arbint.<= (f (x, azero, azero), azero)
       then (l := x :: !l; incr_timer (); loop (i+1) (Arbint.+ (x,aone))) 
       else  loop i (Arbint.+ (x,aone))
