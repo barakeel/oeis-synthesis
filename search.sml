@@ -82,9 +82,9 @@ fun collect_child boarde move =
   in
     if not (null l2) orelse length l1 <> arity then () else 
     let val p = Ins (move, map #1 (rev l1)) in 
-      if depend_on_y p orelse depend_on_z p then () else 
-      incr prog_counter;
-      checkonline p 
+      if depend_on_y p orelse (!z_flag andalso depend_on_z p) then () else 
+      (incr prog_counter;
+       checkonline p)
     end
   end
 
