@@ -200,9 +200,10 @@ fun web_result n target (po,t) =
    case newpo of
     NONE => 
       (
+      print_endline "";
       print_endline 
         ("Could not find a program in " ^ rts_round 2 t ^ "s");
-      app print_endline (List.tabulate (8,fn _ => ""))        
+      app print_endline (List.tabulate (20,fn _ => ""))        
       )
   | SOME p => 
     let val gseq = penum p n handle NotFound => [] in
@@ -229,7 +230,7 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "web"; open aiLib game human exec rl web;
-web 30.0 32 "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53";
+web 10.0 32 "2 3 5 7 11 14";
 *)
 
 
