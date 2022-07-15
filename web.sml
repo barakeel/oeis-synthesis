@@ -201,8 +201,10 @@ fun web_result n target (po,t) =
     NONE => 
       (
       print_endline 
+        ("This string is ignored");
+      print_endline 
         ("Could not find a program in " ^ rts_round 2 t ^ "s");
-      app print_endline (List.tabulate (8,fn _ => "Could not find a program in " ^ rts_round 2 t ^ "s"))        
+      app print_endline (List.tabulate (8,fn _ => ""))        
       )
   | SOME p => 
     let val gseq = penum p n handle NotFound => [] in
