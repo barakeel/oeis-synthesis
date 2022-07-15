@@ -10,5 +10,6 @@ sig
   val parse_sexp : string -> sexp
   val sexpr : prog -> string
   val parse_human : string -> prog
+  val parse_prog : string -> prog
   
 end

@@ -32,12 +32,14 @@ fun decrs s = s ^ " = " ^ s ^ " - 1";
 fun mk_def vn wn prog =
   let
     val fs = "f" ^ its wn
-      val fprev1 = if depend_on_y prog 
-        then fs ^ "(" ^ mk_xn wn ^ "," ^ mk_yn wn ^ ")"
-        else fs ^ "(" ^ mk_xn wn ^ ")"
-      val fprev2 = if depend_on_y prog 
-        then fs ^ "(" ^ mk_xn vn ^ "," ^ mk_yn vn ^ ")"
-        else fs ^ "(" ^ mk_xn vn ^ ")"
+    fun f an =  
+      if depend_on_z prog 
+        then fs ^ "(" ^ mk_xn an ^ "," ^ mk_yn an ^ "," ^ mk_zn an ^ ")"
+      else if depend_on_y prog 
+        then fs ^ "(" ^ mk_xn an ^ "," ^ mk_yn an ^ ")"
+      else fs ^ "(" ^ mk_xn an ^ ")"
+      val fprev1 = f wn
+      val fprev2 = f vn
       val fs_head = "def " ^ fprev1 ^ ":"
    in
      (fs_head, fprev2)
@@ -257,6 +259,15 @@ fun sexpr (Ins (id,pl)) =
   if null pl then its id else 
   "(" ^ String.concatWith " " (Vector.sub (tokenv,id) :: map sexpr pl) ^ ")";  
 
+fun parse_prog_aux sexp = case sexp of
+    Stoken token => Ins (string_to_int token, [])
+  | Sexp (Stoken token :: m)  => 
+    Ins (string_to_int token, map parse_prog_aux m)
+  | _ => raise ERR "parse_human" ""
+
+fun parse_prog s = parse_prog_aux (parse_sexp s)
+  handle HOL_ERR _ => raise ERR "parse_human" s
+
 (*
 load "rl"; open aiLib kernel human rl;
 val p = random_prog 20;
@@ -264,6 +275,74 @@ print_endline (humanf p ^ "\n");
 print_endline (human_python 32 p) ;
 val p = parse_human "( * 1 1)";
 print_endline (sexpr p);
+*)
+
+
+(* -------------------------------------------------------------------------
+   Export to SMTlib
+   ------------------------------------------------------------------------- *)
+
+(* 
+load "human"; open aiLib human;
+val sl = readl "full-data5/sexpr_full";
+val sl2 = map quadruple_of_list (mk_batch 4 sl);
+val sl3 = map (fn (a,b,c,d) => (a,b, parse_prog c, parse_prog d)) sl2;
+
+fun smt vn prog = 
+  let 
+    fun rsmt a p = rm_par (smt a p)
+    fun h p = smt vn p
+    fun rh p = rm_par (smt vn p)
+    fun hx p = smt (~1) p
+    fun rhx b = rm_par (smt (~1) b)
+    fun sbinop s (p1,p2) = "(" ^ s ^ " " ^ h p1 ^ " " ^ h p2 ^ ")"  
+    fun sunop s p1 = s ^ "(" ^ rh p1 ^ ")"
+    fun wrap_def f =
+      let
+        val wn = (!funn)
+        val _ = incr funn
+        val (fs_head, fprev2) = mk_def vn wn prog
+        val cs = fs_head :: f wn @ [""]
+      in
+        ctxt := !ctxt @ cs; fprev2
+      end
+  in
+  case prog of
+    Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
+  | Ins (4,[p1,p2]) => sbinop "-" (p1,p2) 
+  | Ins (5,[p1,p2]) => sbinop "*" (p1,p2)
+  | Ins (6,[p1,p2]) => sbinop (if !python_flag then  "//" else "div") (p1,p2)
+  | Ins (7,[p1,p2]) => sbinop (if !python_flag then  "%" else "mod") (p1,p2)
+  | Ins (8,[p1,p2,p3]) => 
+    if !python_flag
+    then "(" ^ h p2 ^ " if " ^ h p1 ^ " <= 0 else " ^ h p3 ^ ")"
+    else "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+  | Ins (9,[p1,p2,p3]) => 
+    if not (!python_flag) then
+      "loop(" ^ String.concatWith ", " [lrhx p1, rhx p2, rhx p3] ^ ")"
+    else let fun f wn =
+      let val (s1,s2,s3) = (rhx p1, smt wn p2 ^ " + 1", rsmt wn p3) in
+        ["  x = " ^ s3] @
+        (if depend_on_z p1 then ["  z = x"]  else []) @
+        ["  for y in range (1," ^ s2 ^ "):",
+         "    x = " ^ s1,
+         "  return x"]
+      end
+    in
+      wrap_def f
+    end
+  | Ins (10,[]) => mk_xn vn
+  | Ins (11,[]) => mk_yn vn
+  | Ins (12,[p1,p2]) => raise ERR "smt" "not supported"
+  | Ins (13,[p1,p2,p3,p4,p5]) => raise ERR "smt" "not supported"
+  | Ins (14,[]) => raise ERR "smt" "not supported"
+  | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => raise ERR "smt" "not supported"
+  | Ins (s,[]) => its s
+  | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
+  end
+
+
+
 *)
 
 end (* struct *)
