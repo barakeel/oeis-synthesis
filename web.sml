@@ -169,7 +169,7 @@ fun python_result gseq p =
   in
     print_endline ("Execute the equivalent Python program " ^
                    "<a href=\"" ^ address ^ "\">here</a>:");
-    print_endline "";
+    print_endline " ";
     print_iframe address
   end
 
@@ -200,10 +200,9 @@ fun web_result n target (po,t) =
    case newpo of
     NONE => 
       (
-      print_endline "";
       print_endline 
         ("Could not find a program in " ^ rts_round 2 t ^ "s");
-      app print_endline (List.tabulate (20,fn _ => ""))        
+      app print_endline (List.tabulate (8,fn _ => "Could not find a program in " ^ rts_round 2 t ^ "s"))        
       )
   | SOME p => 
     let val gseq = penum p n handle NotFound => [] in
@@ -230,7 +229,7 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "web"; open aiLib game human exec rl web;
-web 10.0 32 "2 3 5 7 11 14";
+web 0.0 32 "2 3 5 7 11 14";
 *)
 
 
