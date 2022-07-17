@@ -11,5 +11,6 @@ sig
   val sexpr : prog -> string
   val parse_human : string -> prog
   val parse_prog : string -> prog
+  val smttop : string -> prog -> string
   
 end

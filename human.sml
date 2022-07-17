@@ -282,67 +282,70 @@ print_endline (sexpr p);
    Export to SMTlib
    ------------------------------------------------------------------------- *)
 
+val defl = ref []
+fun smt prog = 
+  let fun sbinop s (p1,p2) = "(" ^ s ^ " " ^ smt p1 ^ " " ^ smt p2 ^ ")" in
+  case prog of
+    Ins (0,[]) => "0" 
+  | Ins (1,[]) => "1" 
+  | Ins (2,[]) => "2" 
+  | Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
+  | Ins (4,[p1,p2]) => sbinop "-" (p1,p2) 
+  | Ins (5,[p1,p2]) => sbinop "*" (p1,p2)
+  | Ins (6,[p1,p2]) => sbinop "div" (p1,p2)
+  | Ins (7,[p1,p2]) => sbinop "mod" (p1,p2)
+  | Ins (8,[p1,p2,p3]) => 
+    "(if " ^ smt p1 ^ " <= 0 then " ^ smt p2  ^ " else " ^ smt p3 ^ ")"
+  | Ins (9,[p1,p2,p3]) =>
+     if depend_on_x p3 orelse depend_on_y p3 orelse
+        depend_on_y p2 orelse depend_on_y p1
+     then raise ERR "smt" "not supported" 
+     else 
+       let val (r1,r2) = (smtdef "f1" p1, smtdef "f2" p2) in
+         defl := !defl @ 
+         ["f(0) = " ^ smt p3,
+          "f(n+1) = (f1(f(n))",
+          "g(x) = f(f2(x))"];
+         "g(x)"
+       end
+  | Ins (10,[]) => "x"
+  | Ins (11,[]) => raise ERR "smt" "not supported"
+  | Ins (12,[p1,p2]) => raise ERR "smt" "not supported"
+  | Ins (13,[p1,p2,p3,p4,p5]) => raise ERR "smt" "not supported"
+  | _ => raise ERR "smt" (humanf prog)
+  end
+  
+and smtdef s p = 
+  let val r = smt p in
+    defl := !defl @ [if depend_on_x p then "forall x." else "" 
+      ^ s ^ "(x) = " ^ r]
+  end
+
+
+fun smttop s p = 
+  let val _ = (defl := []; smtdef s p) in
+    String.concatWith "\n" (!defl)
+  end 
+
 (* 
 load "human"; open aiLib human;
 val sl = readl "full-data5/sexpr_full";
 val sl2 = map quadruple_of_list (mk_batch 4 sl);
 val sl3 = map (fn (a,b,c,d) => (a,b, parse_prog c, parse_prog d)) sl2;
-
-fun smt vn prog = 
-  let 
-    fun rsmt a p = rm_par (smt a p)
-    fun h p = smt vn p
-    fun rh p = rm_par (smt vn p)
-    fun hx p = smt (~1) p
-    fun rhx b = rm_par (smt (~1) b)
-    fun sbinop s (p1,p2) = "(" ^ s ^ " " ^ h p1 ^ " " ^ h p2 ^ ")"  
-    fun sunop s p1 = s ^ "(" ^ rh p1 ^ ")"
-    fun wrap_def f =
-      let
-        val wn = (!funn)
-        val _ = incr funn
-        val (fs_head, fprev2) = mk_def vn wn prog
-        val cs = fs_head :: f wn @ [""]
-      in
-        ctxt := !ctxt @ cs; fprev2
-      end
-  in
-  case prog of
-    Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
-  | Ins (4,[p1,p2]) => sbinop "-" (p1,p2) 
-  | Ins (5,[p1,p2]) => sbinop "*" (p1,p2)
-  | Ins (6,[p1,p2]) => sbinop (if !python_flag then  "//" else "div") (p1,p2)
-  | Ins (7,[p1,p2]) => sbinop (if !python_flag then  "%" else "mod") (p1,p2)
-  | Ins (8,[p1,p2,p3]) => 
-    if !python_flag
-    then "(" ^ h p2 ^ " if " ^ h p1 ^ " <= 0 else " ^ h p3 ^ ")"
-    else "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
-  | Ins (9,[p1,p2,p3]) => 
-    if not (!python_flag) then
-      "loop(" ^ String.concatWith ", " [lrhx p1, rhx p2, rhx p3] ^ ")"
-    else let fun f wn =
-      let val (s1,s2,s3) = (rhx p1, smt wn p2 ^ " + 1", rsmt wn p3) in
-        ["  x = " ^ s3] @
-        (if depend_on_z p1 then ["  z = x"]  else []) @
-        ["  for y in range (1," ^ s2 ^ "):",
-         "    x = " ^ s1,
-         "  return x"]
-      end
-    in
-      wrap_def f
-    end
-  | Ins (10,[]) => mk_xn vn
-  | Ins (11,[]) => mk_yn vn
-  | Ins (12,[p1,p2]) => raise ERR "smt" "not supported"
-  | Ins (13,[p1,p2,p3,p4,p5]) => raise ERR "smt" "not supported"
-  | Ins (14,[]) => raise ERR "smt" "not supported"
-  | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => raise ERR "smt" "not supported"
-  | Ins (s,[]) => its s
-  | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
-  end
-
+val p = #3 (hd sl3);
+smttop "h" p;
+val p2 = #4 (hd sl3);
+print_endline (smttop "h2" p2);
 
 
 *)
+
+
+
+
+
+
+
+
 
 end (* struct *)

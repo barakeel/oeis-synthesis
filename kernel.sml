@@ -197,43 +197,28 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
    ------------------------------------------------------------------------- *)
 
 exception ProgTimeout;
-val rt_glob = ref (Timer.startRealTimer ())
-val short_timeincr = 0.00001
-val long_timeincr = 0.01
+
+val short_timeincr = 1000
+val long_timeincr = 100000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
+val abstimer = ref 0
 val short_compr = 100
 val long_compr = 1000
-val max_compr_number = ref (short_compr)
-
-val small_mem = 100
-val big_mem = 10000 
-val memsize = ref small_mem
+val max_compr_number = ref short_compr
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
-val skip_counter = ref 0
-fun init_timer () =
-  (skip_counter := 0;
-   rt_glob := Timer.startRealTimer ();
-   timelimit := !timeincr)
-   
+fun init_timer () = (abstimer := 0; timelimit := !timeincr)
 fun init_fast_test () = 
   (
-  memsize := small_mem; 
   max_compr_number := short_compr; 
   timeincr := short_timeincr
   )
 fun init_slow_test () = 
   (
-  memsize := big_mem; 
   max_compr_number := long_compr;
   timeincr := long_timeincr
-  )  
- 
-fun check_timelimit () = 
-  let val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) in
-    if t > !timelimit then raise ProgTimeout else ()
-  end
+  )
 
 fun catch_perror f x g =
   f x handle Div => g () 

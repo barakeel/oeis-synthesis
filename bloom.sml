@@ -122,7 +122,7 @@ fun cover_oeis_aux2 f =
     val _ = (anlref := []; init_partial ())
     val _ = init_timer ();
     val _ = cover_oeis_aux f Arbint.zero otree;
-    val t = Time.toReal (Timer.checkRealTimer (!rt_glob)) 
+    val t = !abstimer
   in
     (!anlref, (!ncoveri, SOME t), !anlrefpart) 
   end

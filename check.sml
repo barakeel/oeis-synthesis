@@ -31,7 +31,7 @@ fun compare_to (t1,t2) = case (t1,t2) of
     (NONE,NONE) => EQUAL
   | (SOME _, NONE) => LESS
   | (NONE, SOME _) => GREATER
-  | (SOME x1, SOME x2) => Real.compare (x1,x2)
+  | (SOME x1, SOME x2) => Int.compare (x1,x2)
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
 val compare_eff = cpl_compare (inv_cmp Int.compare) compare_to

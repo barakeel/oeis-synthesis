@@ -51,18 +51,16 @@ sig
   
   (* timer *)
   exception ProgTimeout
+  val abstimer : int ref
   val max_compr_number : int ref
-  val timeincr : real ref
-  val short_timeincr : real
+  val timeincr : int ref
+  val timelimit : int ref
+  val short_timeincr : int
   val init_fast_test : unit -> unit
-  val long_timeincr : real
+  val long_timeincr : int
   val init_slow_test : unit -> unit
-  val check_timelimit : unit -> unit
-  val memsize : int ref
   val incr_timer : unit -> unit
-  val skip_counter : int ref
   val init_timer : unit -> unit
   val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b
-  val rt_glob : Timer.real_timer ref
   
 end
