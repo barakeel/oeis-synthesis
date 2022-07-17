@@ -5,3 +5,4 @@ nvis 2000000
 time_opt 600.0
 search_memory 4000
 train_memory 50000
+z_flag false

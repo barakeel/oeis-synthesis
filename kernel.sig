@@ -36,8 +36,6 @@ sig
   val depend_on_z : prog -> bool
   
   (* I/O *)
-  val zip_prog : prog -> Arbint.int
-  val unzip_prog : Arbint.int -> prog
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list

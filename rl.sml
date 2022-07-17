@@ -18,7 +18,8 @@ type eff = int * real option
    Globals
    ------------------------------------------------------------------------- *)
 
-val nvis = (string_to_int (dfind "nvis" configd) handle NotFound => 3000000) 
+val nvis = ref
+  (string_to_int (dfind "nvis" configd) handle NotFound => 3000000) 
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
 val maxgen = ref NONE
@@ -183,7 +184,7 @@ fun init_search coreid =
             else player_glob := player_wtnn_cache
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
     val _ = if not (exists_file (tnndir ^ "/ob.so")) 
-            then use_ob := false else ()
+            then use_ob := false else print_endline "using openblas"
     val _ = if !use_ob then update_fp_op () else ()
     val _ = noise_flag := false
     val _ = if coreid mod 2 = 0 
@@ -213,7 +214,7 @@ fun search tnn coreid =
     val _ = print_endline "search start"
   in
     if !newsearch_flag 
-    then (search.search nvis; checkfinal ())
+    then (search.search (!nvis); checkfinal ())
     else
       let
         val _ = (record_flag := true; clean_dicts ())
@@ -471,11 +472,9 @@ rl_search_cont ();
 (* standalone search *)
 load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
 val tnn = random_tnn (tnn.get_tnndim ());
-search.tnn_glob := tnn;
-(* use_random := true; *)
-game.time_opt := SOME 30.0;
+search.tnn_glob := tnn; (* uses ob.so instead *)
+nvis := 100000;
 PolyML.print_depth 2;
-search.threshold_glob := 0.00001;
 val isol = search tnn 0;
 val isolsort = dict_sort (snd_compare prog_compare_size) isol;
 PolyML.print_depth 40;

@@ -9,9 +9,9 @@ sig
   type 'a set = 'a Redblackset.set
   type ('a,'b) dict = ('a,'b) Redblackmap.dict
   type anum = bloom.anum
-  type eff = int * real option
   
   (* globals *)
+  val nvis : int ref
   val maxgen : int option ref
   val ngen_glob : int ref
   val expname : string ref

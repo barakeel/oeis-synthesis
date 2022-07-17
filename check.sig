@@ -7,7 +7,6 @@ sig
   
   val merge_isol : (anum * prog) list -> (anum * prog) list
   val check : prog list -> (anum * prog) list
-  val checki : Arbint.int list -> (anum * prog) list
 
   (* alternative memory less way *)
   val checkinit : unit -> unit

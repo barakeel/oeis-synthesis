@@ -117,7 +117,7 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
-val z_flag = ref false
+val z_flag = ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
 
 val base_operl = 
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
@@ -136,42 +136,6 @@ val operv = Vector.fromList base_operl
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))  
-
-(* -------------------------------------------------------------------------
-   Compressed programs
-   ------------------------------------------------------------------------- *)
-
-fun suc x = x + 1
-fun pred x = x - 1
-
-local open Arbint in
-
-val arbmaxoper = fromInt (suc (Vector.length operv))
-
-fun zip_prog prog =
-  let
-    fun polish (Ins (id,pl)) = fromInt (suc id) :: List.concat (map polish pl)
-    fun loop r il = case il of 
-        [] => r 
-      | a :: m => loop (r * arbmaxoper + a) m 
-  in
-    loop zero (rev (polish prog))
-  end
-
-fun unzip_progl arbi =
-  let 
-    val (q,r) = Arbint.divmod (arbi, arbmaxoper)
-    val id = pred (toInt r)
-    val a = arity_of_oper id
-    val pl = if q = zero then [] else unzip_progl q
-    val (pla,plb) = part_n a pl
-  in
-    Ins (id,pla) :: plb
-  end
-
-fun unzip_prog arbi = singleton_of_list (unzip_progl arbi)
-
-end (* local *)
 
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
@@ -199,12 +163,12 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 exception ProgTimeout;
 
 val short_timeincr = 1000
-val long_timeincr = 100000
+val long_timeincr = 20000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
-val short_compr = 100
-val long_compr = 1000
+val short_compr = 20
+val long_compr = 200
 val max_compr_number = ref short_compr
 
 fun incr_timer () = timelimit := !timelimit + !timeincr

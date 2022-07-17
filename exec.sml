@@ -9,8 +9,6 @@ type prog = kernel.prog
    Time limit
    ------------------------------------------------------------------------- *)
 
-
-
 local open Arbint in
   fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
   fun pow2 b = arb_pow two (fromInt b)
@@ -27,11 +25,11 @@ val costl = map_fst pow2 [(62,50),(128,100),(256,200),(512,400),
 
 local open Arbint in
   fun cost x = 
-    let fun loop cost l = case l of 
-        [] => cost
-      | (a,b) :: m => if x < a andalso x > ~a then cost else loop b m
+    let fun loop y l = case l of 
+        [] => y
+      | (a,b) :: m => if x < a andalso x > ~a then y else loop b m
     in
-      loop 1 costl 
+      loop 1 costl
     end
 end
 
@@ -238,13 +236,12 @@ val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2val (l1,
 humanf p;
 val (l1,t) = add_time (penum p) 30;
 val isol = read_iprogl "model/isol100"; length isol;
-val bbl = map_assoc verify isol;
+val bbl = map_assoc (verify_wtime 40000) isol;
 
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
 write_iprogl "lbad" lbad;
 val lbad = read_iprogl "lbad";
-val lbad3 = map_assoc (verify_wtime 1.0) lbad;
 
 *)
