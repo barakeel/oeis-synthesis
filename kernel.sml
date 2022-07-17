@@ -95,8 +95,6 @@ fun write_iprogl file r = write_data enc_iprogl file r
 fun read_iprogl file = read_data dec_iprogl file
 
 
-
-
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
@@ -162,7 +160,7 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 exception ProgTimeout;
 
-val short_timeincr = 1000
+val short_timeincr = 500
 val long_timeincr = 20000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)

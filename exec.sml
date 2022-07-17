@@ -24,19 +24,27 @@ val costl = map_fst pow2 [(62,50),(128,100),(256,200),(512,400),
   (1024,int_pow 2 40)]
 
 local open Arbint in
-  fun cost x = 
+  fun cost costn x = 
     let fun loop y l = case l of 
         [] => y
       | (a,b) :: m => if x < a andalso x > ~a then y else loop b m
     in
-      loop 1 costl
+      loop costn costl
     end
 end
+
+fun testn costn f x =
+  let 
+    val y = f x 
+    val _ = abstimer := !abstimer + cost costn y   
+  in
+    if !abstimer > !timelimit then raise ProgTimeout else y
+  end
 
 fun test f x =
   let 
     val y = f x 
-    val _ = abstimer := !abstimer + cost y   
+    val _ = abstimer := !abstimer + cost 1 y   
   in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
@@ -53,8 +61,8 @@ fun mk_unf opf fl = case fl of
    [f1] => (fn x => (test opf (f1 x)))
   | _ => raise ERR "mk_unf" ""
 
-fun mk_binf opf fl = case fl of
-   [f1,f2] => (fn x => (test opf (f1 x, f2 x)))
+fun mk_binf costn opf fl = case fl of
+   [f1,f2] => (fn x => (testn costn opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf" ""
 
 fun mk_ternf opf fl = case fl of
@@ -88,11 +96,11 @@ val two_f = mk_nullf (fn _ => two)
 val x_f = mk_nullf (fn (x,y,z) => x)
 val y_f = mk_nullf (fn (x,y,z) => y)
 val z_f = mk_nullf (fn (x,y,z) => z)
-val addi_f = mk_binf (op +)
-val diff_f = mk_binf (op -)
-val mult_f = mk_binf (op *)
-val divi_f = mk_binf (op div)
-val modu_f = mk_binf (op mod)
+val addi_f = mk_binf 1 (op +)
+val diff_f = mk_binf 1 (op -)
+val mult_f = mk_binf 1 (op *)
+val divi_f = mk_binf 5 (op div)
+val modu_f = mk_binf 5 (op mod)
 fun cond_f_aux (a,b,c) = if a <= zero then b else c
 val cond_f = mk_ternf cond_f_aux
 
