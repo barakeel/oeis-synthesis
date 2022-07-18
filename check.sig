@@ -6,11 +6,8 @@ sig
   type anum = bloom.anum
   
   val merge_isol : (anum * prog) list -> (anum * prog) list
-  val check : prog list -> (anum * prog) list
-
-  (* alternative memory less way *)
   val checkinit : unit -> unit
-  val checkonline : prog -> unit
-  val checkfinal : unit -> (int * kernel.prog) list
+  val checkonline : prog * exec.exec -> unit
+  val checkfinal : unit -> (int * prog) list
 
 end

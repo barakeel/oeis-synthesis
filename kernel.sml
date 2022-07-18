@@ -168,6 +168,8 @@ val abstimer = ref 0
 val short_compr = 20
 val long_compr = 200
 val max_compr_number = ref short_compr
+val graph = ref []
+val graphb = ref 0
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
 fun init_timer () = (abstimer := 0; timelimit := !timeincr)

@@ -4,6 +4,7 @@ struct
 open HolKernel boolLib aiLib kernel bloom
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
+type exec = Arbint.int * Arbint.int * Arbint.int -> Arbint.int
 
 (* -------------------------------------------------------------------------
    Time limit
@@ -18,6 +19,12 @@ local open Arbint in
   val minint = ~maxint
   fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
+  (* shortcuts *)
+  val azero = zero
+  val aone = one
+  fun aincr x = x + one
+  fun adecr x = x - one
+  fun aleq a b = a <= b
 end 
 
 val costl = map_fst pow2 [(62,50),(128,100),(256,200),(512,400),
@@ -61,7 +68,8 @@ fun mk_unf opf fl = case fl of
    [f1] => (fn x => (test opf (f1 x)))
   | _ => raise ERR "mk_unf" ""
 
-fun mk_binf costn opf fl = case fl of
+fun mk_binf costn opf fl = 
+  case fl of
    [f1,f2] => (fn x => (testn costn opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf" ""
 
@@ -87,115 +95,132 @@ fun mk_septf3 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3, f4 x, f5 x, f6 x, f7 x)))
   | _ => raise ERR "mk_septf3" ""
 
+(* functions *)
 local open Arbint in
+  val zero_f = mk_nullf (fn _ => zero)
+  val one_f = mk_nullf (fn _ => one)
+  val two_f = mk_nullf (fn _ => two)
+  val x_f = mk_nullf (fn (x,y,z) => x)
+  val y_f = mk_nullf (fn (x,y,z) => y)
+  val z_f = mk_nullf (fn (x,y,z) => z)
+  val addi_f = mk_binf 1 (op +)
+  val diff_f = mk_binf 1 (op -)
+  val mult_f = mk_binf 1 (op *)
+  val divi_f = mk_binf 5 (op div)
+  val modu_f = mk_binf 5 (op mod)
+  fun cond_f_aux (a,b,c) = if a <= zero then b else c
+  val cond_f = mk_ternf cond_f_aux
+end (* local *)
 
-(* first-order *)
-val zero_f = mk_nullf (fn _ => zero)
-val one_f = mk_nullf (fn _ => one)
-val two_f = mk_nullf (fn _ => two)
-val x_f = mk_nullf (fn (x,y,z) => x)
-val y_f = mk_nullf (fn (x,y,z) => y)
-val z_f = mk_nullf (fn (x,y,z) => z)
-val addi_f = mk_binf 1 (op +)
-val diff_f = mk_binf 1 (op -)
-val mult_f = mk_binf 1 (op *)
-val divi_f = mk_binf 5 (op div)
-val modu_f = mk_binf 5 (op mod)
-fun cond_f_aux (a,b,c) = if a <= zero then b else c
-val cond_f = mk_ternf cond_f_aux
 
-(* higher-order *)
+(* loops *)
 fun loop3_f_aux f1 f2 f3 n x1 x2 x3 = 
-  if n <= zero then x1 else 
-  loop3_f_aux f1 f2 f3 (n-one) (f1 (x1,x2,x3)) (f2 (x1,x2,x3)) (f3 (x1,x2,x3))
+  if aleq n azero then x1 else 
+  loop3_f_aux f1 f2 f3 (adecr n) 
+  (f1 (x1,x2,x3)) (f2 (x1,x2,x3)) (f3 (x1,x2,x3))
 fun loop3_f_aux2 (f1,f2,f3,n,x1,x2,x3) = loop3_f_aux f1 f2 f3 n x1 x2 x3
 val loop3_f = mk_septf3 loop3_f_aux2
 
 fun loop2_f_aux (f1,f2,n,x1,x2) = 
-  loop3_f_aux f1 f2 (fn (x1,x2,x3) => x3 + one) n x1 x2 one
+  loop3_f_aux f1 f2 (fn (x1,x2,x3) => aincr x3) n x1 x2 aone
 val loop2_f = mk_quintf2 loop2_f_aux
 
 fun loop_f_aux (f1,n,x1) = 
-  loop3_f_aux f1 (fn (x1,x2,x3) => x2 + one) (fn (x1,x2,x3) => x3) n x1 one x1
+  loop3_f_aux f1 (fn (x1,x2,x3) => aincr x2) (fn (x1,x2,x3) => x3) n x1 aone x1
 val loop_f = mk_ternf1 loop_f_aux
 
-(* compr *)
-fun compr_f_cache v f2 x = 
-  let val input = Arbint.toInt (f2 x) handle Overflow => raise Div in
-    if Int.< (input,0) orelse Int.>= (input, Vector.length v) 
-    then raise Div 
-    else test Vector.sub (v,input)
+(* comprehension *)
+fun create_compr f =
+  let
+    val _ = init_timer ()
+    val l = ref []
+    fun loop i x =
+      if i >= !max_compr_number then () else
+      if Arbint.<= (f (x, azero, azero), azero)
+      then (l := x :: !l; incr_timer (); loop (i+1) (aincr x)) 
+      else  loop i (aincr x)
+    val _ = catch_perror (loop 0) azero (fn () => ())
+    val v = Vector.fromList (rev (!l))
+    (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
+  in
+    (fn x => if x < 0 orelse x >= Vector.length v 
+             then raise Div 
+             else Vector.sub (v,x))
   end
 
+fun compr_f fl = case fl of
+  [f1,f2] =>
+  let val f1' = create_compr f1 in
+    (fn x =>
+     let val input = Arbint.toInt (f2 x) handle Overflow => raise Div in
+       test f1' input
+     end)
+  end
+  | _ => raise ERR "compr_f" ""
 
-end (* local *)
-
-val base_execl =
+val execv = Vector.fromList 
   [
   zero_f,one_f,two_f,
   addi_f,diff_f,mult_f,divi_f,modu_f,
   cond_f,loop_f,
   x_f,y_f,
-  x_f (* placeholder *), loop2_f,
+  compr_f, loop2_f,
   z_f, loop3_f
   ]
-   
-val execv = Vector.fromList base_execl
 
 (* -------------------------------------------------------------------------
-   Execute a program on some inputs with auto-initialization of compr
+   Execute a program
    ------------------------------------------------------------------------- *)
 
-fun mk_exec_aux ccache (p as (Ins (id,pl))) = 
-  let val fl = map (mk_exec_aux ccache) pl in
-    if id = 12 then
-      let val v = dfind (hd pl) ccache handle NotFound =>
-        raise ERR "mk_exec_aux" (raw_prog p)
-      in compr_f_cache v (hd (tl fl)) end 
-    else (Vector.sub (execv,id) fl
-          handle Subscript => raise ERR "mk_exec_aux" (its id))
-  end
+fun mk_exec_move id fl = Vector.sub (execv,id) fl
+  
+fun mk_exec (p as (Ins (id,pl))) = 
+  let val fl = map mk_exec pl in mk_exec_move id fl end
 
-val azero = Arbint.zero
-val aone = Arbint.one
-
-fun add_ccache ccache p =
-  if dmem p (!ccache) then () else
-  let
-    val _ = init_timer ()
-    val f = mk_exec_aux (!ccache) p
-    val l = ref []
-    fun loop i x =
-      if i >= (!max_compr_number) then () else
-      if Arbint.<= (f (x, azero, azero), azero)
-      then (l := x :: !l; incr_timer (); loop (i+1) (Arbint.+ (x,aone))) 
-      else  loop i (Arbint.+ (x,aone))
-    val _ = catch_perror (loop 0) azero (fn () => ())
-    val v = Vector.fromList (rev (!l))
-  in
-    ccache := dadd p v (!ccache)
-  end
-
-fun create_ccache p =
+fun cache_exec exec = 
   let 
-    val ccache = ref (dempty prog_compare)
-    val comprl = dict_sort prog_compare_size (all_subcompr p)
+    val v = Vector.fromList (rev (!graph))
+    val b = !graphb
   in
-    app (add_ccache ccache) comprl;
-    !ccache
+    fn x =>
+    let val no = SOME (Arbint.toInt (#1 x)) handle Overflow => NONE in
+      case no of NONE => exec x | SOME n => 
+      if n = Vector.length v andalso !abstimer + b > !timelimit
+        then raise ProgTimeout 
+      else 
+      if n >= 0 andalso n < Vector.length v 
+        then 
+          let val (r,tim) = Vector.sub (v,n) in
+            testn tim I r
+          end
+      else exec x    
+    end
   end
 
-fun mk_exec p = 
+fun coverf_oeis exec = 
   let
-    val ccache = create_ccache p
-    val f = mk_exec_aux ccache p
-    fun g x = f (x, azero, azero)
-  in 
-    g
+    val _ = graph := []
+    val _ = graphb := 0
+    val i = ref 0
+    fun g x = 
+      let
+        val r = exec (x, azero, azero)
+        val loctime = !abstimer - !i
+      in
+        i := !abstimer;
+        graph := (r,loctime) :: !graph; 
+        r
+      end
+    val r1 = cover_oeis g
+    val _ = graphb := !abstimer - !i;
+  in
+    r1
   end
 
-fun coverp_oeis p = cover_oeis (mk_exec p) 
-fun coverp_target p target = cover_target (mk_exec p) target
+fun mk_exec_onev p = 
+  let val f = mk_exec p in (fn x => f (x, azero, azero)) end
+  
+fun coverp_target p target = cover_target (mk_exec_onev p) target
 
 (* -------------------------------------------------------------------------
    Sequences generated by a program up to a number n.
@@ -203,16 +228,16 @@ fun coverp_target p target = cover_target (mk_exec p) target
 
 fun penum_aux p n = 
   let 
-    val f = mk_exec p
+    val f = mk_exec_onev p
     val _ = init_timer ()
     val l = ref []
     fun loop i x = if i >= n then () else
       (
       l := f x :: !l; 
       incr_timer ();
-      loop (i+1) (Arbint.+ (x,Arbint.one))
+      loop (i+1) (aincr x)
       )
-    val _ = catch_perror (loop 0) Arbint.zero (fn () => ())
+    val _ = catch_perror (loop 0) azero (fn () => ())
   in  
     rev (!l)
   end
@@ -232,16 +257,18 @@ fun verify_wtime r (anum,p) =
     (seq1 = seq2, is_prefix seq2 seq1)
   end
   
-   
+
 
 end (* struct *)
 
 (* 
 load "exec"; open exec; 
 load "human"; open kernel human aiLib;
-val p =  parse_human "(loop ( * 2 x) (+ x 2) 1)";
-val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2val (l1,t) = add_time (penum p) 5;)) x) 2"; 
+val p =  parse_human "(loop ( * 2 x) (+ x 1)";
+val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2)) x) 2)"; 
 humanf p;
+init_fast_test ();
+val exec = mk_exec_onev p;
 val (l1,t) = add_time (penum p) 30;
 val isol = read_iprogl "model/isol100"; length isol;
 val bbl = map_assoc (verify_wtime 40000) isol;

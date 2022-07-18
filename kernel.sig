@@ -49,6 +49,8 @@ sig
   
   (* timer *)
   exception ProgTimeout
+  val graph : (Arbint.int * int) list ref
+  val graphb : int ref
   val abstimer : int ref
   val max_compr_number : int ref
   val timeincr : int ref

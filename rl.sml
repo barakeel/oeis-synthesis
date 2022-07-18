@@ -27,7 +27,7 @@ val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
-val loss_threshold = 0.8 (* ignore tnn with a loss above this threshold *)
+val loss_threshold = 0.2 (* ignore tnn with a loss above this threshold *)
 
 (* -------------------------------------------------------------------------
    Files
@@ -131,8 +131,8 @@ fun trainf_end () =
     val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
     val obfile_temp = obfile ^ "_temp"
     val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
-    val loss = (valOf o Real.fromString) (last (String.tokens 
-        Char.isSpace (last (readl tnnlog_file))))
+    val loss = (valOf o Real.fromString) (List.nth (String.tokens 
+      Char.isSpace (last (readl tnnlog_file)), 2))
     val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
   in
     cmd_in_dir tnndir (catcmd ^ obfile_temp);
@@ -197,35 +197,13 @@ fun init_search coreid =
 fun mctsobj tnn = 
   {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
 
-val newsearch_flag = ref true
-
-fun oldsearch tnn =
-   let 
-     val tree = starting_tree (mctsobj tnn) []
-     val (newtree,t) = add_time (mcts (mctsobj tnn)) tree 
-  in
-    print_endline ("tree_size: " ^ its (tree_size newtree));
-    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
-  end
-
 fun search tnn coreid =
   let
     val _ = init_search coreid
     val _ = print_endline "search start"
   in
-    if !newsearch_flag 
-    then (search.search (!nvis); checkfinal ())
-    else
-      let
-        val _ = (record_flag := true; clean_dicts ())
-        val _ = oldsearch tnn
-        val progl = elist (!progd)
-        val _ = (record_flag := false; clean_dicts ())
-      in 
-        check progl
-      end
+    (search.search (!nvis); checkfinal ())
   end
-
 
 fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
