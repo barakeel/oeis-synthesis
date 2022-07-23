@@ -10,7 +10,9 @@ http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 ### Installations remarks
 The software installed (polyml,HOL,oeis-synthesis,OpenBLAS) except the mkl
 are assumed to be installed locally in the same directory (typically `/home/user` where `user` is your username).
-This `README.md` should be in the `/home/user/oeis-synthesis` directory.
+This `README.md` should be in the `/home/user/oeis-synthesis` directory
+after executing `git clone https://github.com/barakeel/oeis-synthesis`
+in your `/home/user` directory.
 If not, some of the following instructions need to be adapted accordingly.
 
 ### Install polyml version 5.9 or higher from source
@@ -35,7 +37,7 @@ cat tools/sequences/kernel tools/sequences/core-theories > shortseq
 bin/build --seq=shortseq
 ```
 
-Add to your .bashr the following line:
+Add to or create `/home/user/.bash_aliases` with the following line:
 ```
 PATH=/home/user/HOL/bin:$PATH
 ```
@@ -50,15 +52,12 @@ sudo apt install intel-mkl
 #### Ubuntu 18.04
 See https://github.com/eddelbuettel/mkl4deb
 
-Initializing bash variables (put in your .bashrc)
+Add to or create `/home/user/.bash_aliases` with the following lines:
 ```
   export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH
   export LD_LIBRARY_PATH=/opt/intel/lib/intel64:$LD_LIBRARY_PATH
   sh /opt/intel/mkl/bin/mklvars.sh intel64
 ```
-
-
-
 
 ### Install oeis-synthesis
 In `/home/user/oeis-synthesis`,
@@ -94,14 +93,13 @@ git clone https://github.com/xianyi/OpenBLAS
 ```
 and follow the install instructions.
 
-Add to your `.bashrc`:
-```
-export OPENBLAS_NUM_THREADS=1
-export LD_LIBRARY_PATH=/home/user/OpenBLAS:$LD_LIBRARY_PATH
-```
-
 Make sure the file `/usr/lib/x86_64-linux-gnu/libm.a` exists or edit the file
 `compile_ob.sh` with the location of your `libm.a` after running `install.sh`.
+
+Add to or create `/home/user/.bash_aliases` with the following lines:
+```
+export OPENBLAS_NUM_THREADS=1
+```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)
 In `/home/user`, run `rlwrap hol` then run in the interative shell:

@@ -295,7 +295,7 @@ fun smt prog =
   | Ins (6,[p1,p2]) => sbinop "div" (p1,p2)
   | Ins (7,[p1,p2]) => sbinop "mod" (p1,p2)
   | Ins (8,[p1,p2,p3]) => 
-    "(if " ^ smt p1 ^ " <= 0 then " ^ smt p2  ^ " else " ^ smt p3 ^ ")"
+    "(ite (<= 0 " ^ smt p1 ^ ") " ^ smt p2 ^ " " ^ smt p3 ^ ")"
   | Ins (9,[p1,p2,p3]) =>
      if depend_on_x p3 orelse depend_on_y p3 orelse
         depend_on_y p2 orelse depend_on_y p1
@@ -303,10 +303,10 @@ fun smt prog =
      else 
        let val (r1,r2) = (smtdef "f1" p1, smtdef "f2" p2) in
          defl := !defl @ 
-         ["f(0) = " ^ smt p3,
-          "f(n+1) = (f1(f(n))",
-          "g(x) = f(f2(x))"];
-         "g(x)"
+         ["(= (f 0) " ^ smt p3,
+          "(= (f (+ n 1)) (f1 (f n)))",
+          "(= (g x) (f (f2 x)))"];
+         "(g x)"
        end
   | Ins (10,[]) => "x"
   | Ins (11,[]) => raise ERR "smt" "not supported"
@@ -317,8 +317,8 @@ fun smt prog =
   
 and smtdef s p = 
   let val r = smt p in
-    defl := !defl @ [if depend_on_x p then "forall x." else "" 
-      ^ s ^ "(x) = " ^ r]
+    defl := !defl @ 
+      ["(forall ((x Int)) " ^ "(= " ^ "(" ^ s ^ " x) " ^ r ^ "))"]
   end
 
 

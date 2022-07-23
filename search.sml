@@ -181,6 +181,6 @@ load "search"; open kernel aiLib search;
 tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
 tnn.update_fp_op ();
 bloom.select_random_target ();
-search 10000;
+search 100000;
 val _ = check.checkfinal ();
 *)
