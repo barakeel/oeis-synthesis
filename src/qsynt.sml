@@ -28,7 +28,6 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "qsynt"; open aiLib human exec rl qsynt;
-tnn.use_ob := false;
 game.time_opt := SOME 60.0;
 val po = qsynt (map Arbint.fromInt [2,4,16,256]);
 val p = valOf po;
