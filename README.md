@@ -6,8 +6,9 @@ can be inspected in the file `results/solutions`.
 
 The following installation instructions are for the Ubuntu OS.
 
-### Try the Web interface
-http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
+### Web interface
+If you want to try the system before installing it, have a look
+at our web interface http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
 ```
@@ -39,7 +40,7 @@ val seq = penum p 10;
 val po = qsynt (map Arbint.fromInt [2,5,16,256]);
 ```
 
-### Train oeis-syntheis (requires 200GB of ram and 20 cores)
+### Train oeis-syntheis (requires 4GB of ram per core)
 To change training options, edit the `src/config` file and 
 run `sh install.sh` again.
 In `src`, run `sh hol.sh` then run in the interative shell:
@@ -48,7 +49,6 @@ load "rl"; open rl;
 expname := "your_experiment";
 rl_search 0;
 ```
-
 
 ### How do I install MKL for older versions of Ubuntu?
 See https://github.com/eddelbuettel/mkl4deb
