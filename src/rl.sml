@@ -368,7 +368,7 @@ fun rl_search_only ngen =
         val cpcmd = String.concatWith " " ["cp",obfile,obc]
       in
         cmd_in_dir tnndir cpcmd;
-        cmd_in_dir tnndir "sh compile_ob.sh"
+        cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
     val (isoll,t) = add_time
       (parmap_queue_extern ncore parspec tnn) (List.tabulate (ntarget,I))

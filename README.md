@@ -28,11 +28,15 @@ sh install.sh
 In `src`, run `sh hol.sh` then run in the interative shell:
 ```
 load "qsynt"; open aiLib human exec rl qsynt;
-game.time_opt := SOME 60.0;
-val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
+val tnndir = kernel.selfdir ^ "/tnn_in_c";
+cmd_in_dir tnndir "sh compile_ob.sh ob131.c";
+game.time_opt := SOME 10.0;
+
+val p = valOf (qsynt (map Arbint.fromInt [2,4,16,256]));
 print_endline (humanf p);
 val seq = penum p 10;
+
+val po = qsynt (map Arbint.fromInt [2,5,16,256]);
 ```
 
 ### Train oeis-syntheis (requires 200GB of ram and 20 cores)

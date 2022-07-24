@@ -12,14 +12,17 @@ fun test_cache_one target (i,prog) =
 
 fun test_cache target = List.find (test_cache_one target) main_iprogl
 
-fun qsynt target = 
+fun qsynt target = case search_target main_tnn target of
+    NONE =>
   let val l = filter (test_cache_one target) main_iprogl in
-    if null l then search_target main_tnn target else
+    if null l then NONE else
     (
     print_endline "Found in cache"; 
     SOME (hd (dict_sort prog_compare_size (map snd l))) 
     )
   end
+  | x => x
+
 
 end (* struct *)
 
@@ -28,11 +31,16 @@ end (* struct *)
    ------------------------------------------------------------------------- 
 
 load "qsynt"; open aiLib human exec rl qsynt;
-game.time_opt := SOME 60.0;
-val po = qsynt (map Arbint.fromInt [2,4,16,256]);
-val p = valOf po;
+val tnndir = kernel.selfdir ^ "/tnn_in_c";
+cmd_in_dir tnndir "sh compile_ob.sh ob131.c";
+game.time_opt := SOME 10.0;
+
+val p = valOf (qsynt (map Arbint.fromInt [2,4,16,256]));
 print_endline (humanf p);
 val seq = penum p 10;
+
+val po = qsynt (map Arbint.fromInt [2,5,16,256]);
+
 
 *)
 

@@ -17,8 +17,8 @@ echo 'Overwrite tnn_in_c/ob_fst.c'
 sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
 
 echo "Creating Standard ML dependency files"
-Holmake cleanAll
-Holmake
+../hol/bin/Holmake cleanAll
+../hol/bin/Holmake
 
 if [ -d $(dirname $PWD)/OpenBLAS ]; then
   echo "OpenBLAS: $(dirname $PWD)/OpenBLAS"

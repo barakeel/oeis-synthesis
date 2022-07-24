@@ -4,7 +4,7 @@ if [ -f $OBFILE ]
 then
   export LD_LIBRARY_PATH=$OBDIR:$LD_LIBRARY_PATH
   export OPENBLAS_NUM_THREADS=1
-  gcc -fPIC -O2 -c ob.c -o ob.o -I$OBDIR
+  gcc -fPIC -O2 -c $1 -o ob.o -I$OBDIR
   gcc -shared -o ob_temp.so ob.o /usr/lib/x86_64-linux-gnu/libm.a $OBFILE
   mv ob_temp.so ob.so
 else
