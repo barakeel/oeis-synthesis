@@ -179,16 +179,19 @@ val use_random = ref false
 fun init_search coreid =
   let
     val _ = print_endline "initialization"
+    val fileso = tnndir ^ "/ob.so"
     val _ = if !use_random 
             then player_glob := player_random
             else player_glob := player_wtnn_cache
     val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
-    val _ = if not (exists_file (tnndir ^ "/ob.so")) 
-            then use_ob := false else print_endline "using openblas"
-    val _ = if !use_ob then update_fp_op () else ()
+    val _ = if not (exists_file fileso) 
+            then use_ob := false 
+            else print_endline "using openblas"
+    val _ = if !use_ob then update_fp_op fileso else ()
     val _ = noise_flag := false
     val _ = if coreid mod 2 = 0 
-            then (noise_flag := true; noise_coeff_glob := 0.1) else ()
+            then (noise_flag := true; noise_coeff_glob := 0.1) 
+            else ()
     val _ = select_random_target ()
   in
     ()
@@ -251,7 +254,11 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
 fun search_target tnn target =
   let
     val _ = clean_dicts ()
-    val _ = if !use_ob then update_fp_op () else ()
+    val fileso = tnndir ^ "/ob131.so"
+    val _ = if not (exists_file fileso) 
+            then use_ob := false 
+            else ()
+    val _ = if !use_ob then update_fp_op fileso else ()
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := true
     val _ = target_glob := target

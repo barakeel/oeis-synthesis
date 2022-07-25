@@ -30,14 +30,12 @@ end (* struct *)
    Test oeis-synthesis
    ------------------------------------------------------------------------- 
 
-load "qsynt"; open aiLib human exec rl qsynt;
-val tnndir = kernel.selfdir ^ "/tnn_in_c";
-cmd_in_dir tnndir "sh compile_ob.sh ob131.c";
+load "qsynt"; open qsynt;
 game.time_opt := SOME 10.0;
 
 val p = valOf (qsynt (map Arbint.fromInt [2,4,16,256]));
-print_endline (humanf p);
-val seq = penum p 10;
+print_endline (human.humanf p);
+val seq = exec.penum p 10;
 
 val po = qsynt (map Arbint.fromInt [2,5,16,256]);
 

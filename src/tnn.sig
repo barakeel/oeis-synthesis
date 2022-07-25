@@ -36,7 +36,7 @@ sig
 
   (* openblas *)
   val fp_op_glob : (term -> real vector list -> real vector) ref
-  val update_fp_op : unit -> unit
+  val update_fp_op : string -> unit
 
   (* export features *)
   val export_fea : string -> (int * kernel.prog) list -> unit
