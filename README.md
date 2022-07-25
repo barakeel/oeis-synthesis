@@ -7,8 +7,7 @@ can be inspected in the file `results/solutions`.
 The following installation instructions are for the Ubuntu OS.
 
 ### Web interface
-If you want to try the system before installing it, have a look
-at our web interface http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
+Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
 ```
