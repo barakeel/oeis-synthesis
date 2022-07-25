@@ -1,6 +1,6 @@
 signature qsynt =
 sig
 
-val qsynt : kernel.seq -> kernel.prog option
+val qsynt : string -> kernel.prog option
 
 end

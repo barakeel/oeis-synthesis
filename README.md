@@ -26,13 +26,20 @@ sh install.sh
 In `src`, run `sh hol.sh` then run in the interative shell:
 ```
 load "qsynt"; open qsynt;
-game.time_opt := SOME 10.0;
 
-val p = valOf (qsynt (map Arbint.fromInt [2,4,16,256]));
-print_endline (human.humanf p);
+(* make search times out after 10 seconds *)
+game.time_opt := SOME 10.0;
+(* launch the search *)
+val p = valOf (qsynt "2 4 16 256");
+(* result in native programming language *)
+aiLib.print_endline (human.humanf p);
+(* result in Python *)
+aiLib.print_endline (human.human_python 10 p);
+(* first n generated terms *)
 val seq = exec.penum p 10;
 
-val po = qsynt (map Arbint.fromInt [2,5,16,256]);
+(* an example where the search fails *)
+val po = qsynt "2 5 16 256";
 ```
 
 ### Train oeis-syntheis (requires 4GB of ram per core)
