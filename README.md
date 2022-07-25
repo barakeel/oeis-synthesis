@@ -12,8 +12,7 @@ at our web interface http://grid01.ciirc.cvut.cz/~thibault/qsynt.html
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
 ```
-sudo apt install rlwrap
-sudo apt install intel-mkl
+sudo apt install rlwrap intel-mkl
 sh install_dep.sh
 ```
 
