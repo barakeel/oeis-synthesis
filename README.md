@@ -18,6 +18,8 @@ sh install_dep.sh
 ### Install oeis-synthesis
 ```
 cd src
+wget http://grid01.ciirc.cvut.cz/~thibault/model.tar.gz
+tar -xvf model.tar.gz
 sh install.sh
 ```
 

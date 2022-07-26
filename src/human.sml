@@ -295,7 +295,7 @@ fun smt prog =
   | Ins (6,[p1,p2]) => sbinop "div" (p1,p2)
   | Ins (7,[p1,p2]) => sbinop "mod" (p1,p2)
   | Ins (8,[p1,p2,p3]) => 
-    "(ite (<= 0 " ^ smt p1 ^ ") " ^ smt p2 ^ " " ^ smt p3 ^ ")"
+    "(ite (<= " ^ smt p1 ^ " 0) " ^ smt p2 ^ " " ^ smt p3 ^ ")"
   | Ins (9,[p1,p2,p3]) =>
      if depend_on_x p3 orelse depend_on_y p3 orelse
         depend_on_y p2 orelse depend_on_y p1
@@ -303,9 +303,9 @@ fun smt prog =
      else 
        let val (r1,r2) = (smtdef "f1" p1, smtdef "f2" p2) in
          defl := !defl @ 
-         ["(= (f 0) " ^ smt p3,
-          "(= (f (+ n 1)) (f1 (f n)))",
-          "(= (g x) (f (f2 x)))"];
+         ["(forall ((n Int)) (= (f n) (ite (<= n 0) " ^ smt p3 ^ 
+          " (f1 (f (- n 1))))))",
+          "(forall ((x Int)) (= (g x) (f (f2 x))))"];
          "(g x)"
        end
   | Ins (10,[]) => "x"
@@ -318,26 +318,64 @@ fun smt prog =
 and smtdef s p = 
   let val r = smt p in
     defl := !defl @ 
-      ["(forall ((x Int)) " ^ "(= " ^ "(" ^ s ^ " x) " ^ r ^ "))"]
+      ["(declare-fun " ^ s ^ " (Int) Int)",
+      "(forall ((x Int)) " ^ "(= " ^ "(" ^ s ^ " x) " ^ r ^ "))"]
   end
 
 
 fun smttop s p = 
   let val _ = (defl := []; smtdef s p) in
-    String.concatWith "\n" (!defl)
+    map (fn x => if String.isPrefix "(declare-fun" x
+                 then x else "(assert " ^ x ^ ")") (!defl)
   end 
 
+
+
 (* 
-load "human"; open aiLib human;
+load "human"; open kernel aiLib human;
 val sl = readl "full-data5/sexpr_full";
 val sl2 = map quadruple_of_list (mk_batch 4 sl);
 val sl3 = map (fn (a,b,c,d) => (a,b, parse_prog c, parse_prog d)) sl2;
-val p = #3 (hd sl3);
-smttop "h" p;
-val p2 = #4 (hd sl3);
-print_endline (smttop "h2" p2);
 
+fun num_loops (Ins (id,pl)) = 
+  (if id = 9 then 1 else 0) + sum_int (map num_loops pl);
 
+fun export_smt2 (a,b,p1,p2) =
+  let val file = "smt-data/" ^ a ^ ".smt2" in
+    if num_loops p1 + num_loops p2 <= 1    
+    then
+      writel file
+      (
+      ["(set-logic UFNIA)",
+       "(declare-fun f (Int) Int)",
+       "(declare-fun g (Int) Int)"]  @
+       smttop "h1" p1 @ smttop "h2" p2 @ 
+      ["(assert (exists ((c Int)) (and (> c 0) (not (= (h1 c) (h2 c))))))",
+       "(check-sat)"]
+      )
+    else ()
+  end
+  handle HOL_ERR _ => ();
+  
+  fun export_smt2_cy (a,b,p1,p2) =
+  let val file = "smt-data-cy/" ^ a ^ ".smt2" in
+    if num_loops p1 + num_loops p2 <= 1    
+    then
+      writel file
+      (
+      ["(set-logic UFNIA)",
+       "(declare-fun f (Int) Int)",
+       "(declare-fun g (Int) Int)"]  @
+       smttop "h1" p1 @ smttop "h2" p2 @ 
+      ["(check-sat)"]
+      )
+    else ()
+  end
+  handle HOL_ERR _ => ();
+  
+mkDir_err "smt-data-cy";
+app export_smt2_cy sl3;
+ 
 *)
 
 

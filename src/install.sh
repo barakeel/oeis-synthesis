@@ -41,8 +41,6 @@ else
   echo "Could not find a MKL directory. Please install MKL."
 fi
 
-
-
 cd ..
 if [ -d $(dirname $PWD)/OpenBLAS ]; then
   echo "OpenBLAS: $(dirname $PWD)/OpenBLAS"
@@ -51,10 +49,10 @@ else
 fi
 cd tnn_in_c
 
-sh compile_ob.sh ob131.c
-if [ -f "ob131.so" ]; then
-  echo "ob131.so produced by compile_ob.sh"
+sh compile_ob.sh ../model/ob_online.c
+if [ -f "ob_online.so" ]; then
+  echo "ob_online.so produced by compile_ob.sh"
 else
-  echo "Failure when compiling ob131.c with 
+  echo "Failure when compiling ob_online.c with 
         tnn_in_c/compile_ob.sh: see known issues in README.md"
 fi

@@ -254,7 +254,7 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
 fun search_target tnn target =
   let
     val _ = clean_dicts ()
-    val fileso = tnndir ^ "/ob131.so"
+    val fileso = tnndir ^ "/ob_online.so"
     val _ = if not (exists_file fileso) 
             then use_ob := false 
             else ()

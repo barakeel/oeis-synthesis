@@ -6,15 +6,15 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
 val ERR = mk_HOL_ERR "web";
 
 val modeldir = selfdir ^ "/model"
-val main_tnn = read_tnn (modeldir ^ "/tnn17")
-(* ob.so is required to be in tnn_in_c directory *)
-val main_iprogl = read_iprogl (modeldir ^ "/isol274")
+val main_tnn = read_tnn (modeldir ^ "/tnn_online")
+val main_iprogl = read_iprogl (modeldir ^ "/isol_online")
 
 (* -------------------------------------------------------------------------
    Escape uri
    ------------------------------------------------------------------------- *)
 
-(* Copyright from https://github.com/kni/sml-uri/blob/master/uri-escape.sml *)
+(* Copyright for this section 
+   to https://github.com/kni/sml-uri/blob/master/uri-escape.sml *)
 fun toHex1 i =
   if i >=  0 andalso i <=  9 then SOME (chr (i + 48)) else
   if i >= 10 andalso i <= 15 then SOME (chr (i + 55)) else
