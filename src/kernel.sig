@@ -15,7 +15,7 @@ sig
   val dmemi : 'a -> ('a, 'b) dict ref -> bool
 
   (* sequences *)
-  type seq = Arbint.int list
+  type seq = IntInf.int list
   val target_glob : seq ref
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
@@ -49,7 +49,7 @@ sig
   
   (* timer *)
   exception ProgTimeout
-  val graph : (Arbint.int * int) list ref
+  val graph : (IntInf.int * int) list ref
   val graphb : int ref
   val abstimer : int ref
   val max_compr_number : int ref

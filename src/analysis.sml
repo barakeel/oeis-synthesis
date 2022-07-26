@@ -86,10 +86,10 @@ app print_endline (map humanif constl);
 load "exec"; open exec;
 rt_glob := Timer.startRealTimer (); 
 timelimit := 100.0;
-val constel = map_assoc (fn (p,i) => mk_exec p (Arbint.zero,Arbint.zero)) constl; 
+val constel = map_assoc (fn (p,i) => mk_exec p (IntInf.zero,IntInf.zero)) constl; 
 
-val largel = first_n 3 (rev (dict_sort (snd_compare Arbint.compare) constel));
-fun humanrif ((p,i),r) = Arbint.toString r ^ ": " ^ its i ^ ": " ^ humanf p;
+val largel = first_n 3 (rev (dict_sort (snd_compare IntInf.compare) constel));
+fun humanrif ((p,i),r) = IntInf.toString r ^ ": " ^ its i ^ ": " ^ humanf p;
 app print_endline (map humanrif largel);
 (*
 8916100448256i: 1: loop(\(x,y).loop(\(x,y).(loop(\(x,y).((x * 2) + x) - 2, 2, 2) + 2) * x, x, 1), 2, 1)
@@ -135,7 +135,7 @@ app print_endline (first_n 100 (map humanif xpolyl));
 load "bloom"; open bloom aiLib kernel;
 val l = List.mapPartial I (array_to_list oseq);
 
-local open Arbint in
+local open IntInf in
   fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
   val maxarb = arb_pow (fromInt 10) (fromInt 6)
   val minarb = ~maxarb

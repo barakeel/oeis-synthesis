@@ -4,33 +4,33 @@ struct
 open HolKernel boolLib aiLib kernel bloom
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
-type exec = Arbint.int * Arbint.int * Arbint.int -> Arbint.int
+type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
 
 (* -------------------------------------------------------------------------
    Time limit
    ------------------------------------------------------------------------- *)
 
-local open Arbint in
-  fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
-  fun pow2 b = arb_pow two (fromInt b)
+local open IntInf in
+  val azero = fromInt 0
+  val aone = fromInt 1
+  val atwo = fromInt 2
+  fun aincr x = x + aone
+  fun adecr x = x - aone
+  fun aleq a b = a <= b
+  fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
+  fun pow2 b = arb_pow atwo (fromInt b)
   val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
   val minarb = ~maxarb
   val maxint = arb_pow (fromInt 2) (fromInt 64)
   val minint = ~maxint
   fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
-  (* shortcuts *)
-  val azero = zero
-  val aone = one
-  fun aincr x = x + one
-  fun adecr x = x - one
-  fun aleq a b = a <= b
 end 
 
-val costl = map_fst pow2 [(62,50),(128,100),(256,200),(512,400),
-  (1024,int_pow 2 40)]
+val costl = map_fst pow2 
+  [(62,50),(128,100),(256,200),(512,400),(1024,int_pow 2 40)]
 
-local open Arbint in
+local open IntInf in
   fun cost costn x = 
     let fun loop y l = case l of 
         [] => y
@@ -96,10 +96,10 @@ fun mk_septf3 opf fl = case fl of
   | _ => raise ERR "mk_septf3" ""
 
 (* functions *)
-local open Arbint in
-  val zero_f = mk_nullf (fn _ => zero)
-  val one_f = mk_nullf (fn _ => one)
-  val two_f = mk_nullf (fn _ => two)
+local open IntInf in
+  val zero_f = mk_nullf (fn _ => azero)
+  val one_f = mk_nullf (fn _ => aone)
+  val two_f = mk_nullf (fn _ => atwo)
   val x_f = mk_nullf (fn (x,y,z) => x)
   val y_f = mk_nullf (fn (x,y,z) => y)
   val z_f = mk_nullf (fn (x,y,z) => z)
@@ -108,7 +108,7 @@ local open Arbint in
   val mult_f = mk_binf 1 (op *)
   val divi_f = mk_binf 5 (op div)
   val modu_f = mk_binf 5 (op mod)
-  fun cond_f_aux (a,b,c) = if a <= zero then b else c
+  fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
 end (* local *)
 
@@ -136,7 +136,7 @@ fun create_compr f =
     val l = ref []
     fun loop i x =
       if i >= !max_compr_number then () else
-      if Arbint.<= (f (x, azero, azero), azero)
+      if aleq (f (x, azero, azero)) azero
       then (l := x :: !l; incr_timer (); loop (i+1) (aincr x)) 
       else  loop i (aincr x)
     val _ = catch_perror (loop 0) azero (fn () => ())
@@ -152,7 +152,7 @@ fun compr_f fl = case fl of
   [f1,f2] =>
   let val f1' = create_compr f1 in
     (fn x =>
-     let val input = Arbint.toInt (f2 x) handle Overflow => raise Div in
+     let val input = IntInf.toInt (f2 x) handle Overflow => raise Div in
        test f1' input
      end)
   end
@@ -183,7 +183,7 @@ fun cache_exec exec =
     val b = !graphb
   in
     fn x =>
-    let val no = SOME (Arbint.toInt (#1 x)) handle Overflow => NONE in
+    let val no = SOME (IntInf.toInt (#1 x)) handle Overflow => NONE in
       case no of NONE => exec x | SOME n => 
       if n = Vector.length v andalso !abstimer + b > !timelimit
         then raise ProgTimeout 

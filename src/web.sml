@@ -178,7 +178,7 @@ fun python_result gseq p =
    ------------------------------------------------------------------------- *)
 
 fun afs s = 
-  if String.size s > 285 then NONE else SOME (Arbint.fromString s)  
+  if String.size s > 285 then NONE else IntInf.fromString s  
 
 fun parse_seq s = List.mapPartial afs 
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)

@@ -38,7 +38,7 @@ sig
   val string_of_iprog : (anum * prog) -> string
   
   (* interactive search *)
-  val search_target : mlTreeNeuralNetwork.tnn -> Arbint.int list -> 
+  val search_target : mlTreeNeuralNetwork.tnn -> IntInf.int list -> 
     kernel.prog option
  
   

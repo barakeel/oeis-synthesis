@@ -13,7 +13,7 @@ fun test_cache_one target (i,prog) =
 fun test_cache target = List.find (test_cache_one target) main_iprogl
 
 fun afs s = 
-  if String.size s > 285 then NONE else SOME (Arbint.fromString s)  
+  if String.size s > 285 then NONE else IntInf.fromString s
 
 fun parse_seq s = List.mapPartial afs 
   (String.tokens (fn x => mem x [#",",#"\n",#" ",#"\t",#"\r"]) s)
@@ -53,7 +53,7 @@ aiLib.print_endline (human.human_python 10 p);
 val seq = exec.penum p 10;
 
 (* an example where the search fails *)
-val po = qsynt "2 5 16 256";
+val po = time qsynt "2 5 16 256";
 
 
 *)

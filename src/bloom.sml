@@ -5,13 +5,21 @@ open HolKernel Abbrev boolLib aiLib kernel smlTimeout;
 val ERR = mk_HOL_ERR "bloom";
 type anum = int
 
+local open IntInf in
+  val azero = fromInt 0
+  val aone = fromInt 1
+  fun aincr x = x + aone
+  fun adecr x = x - aone
+end 
+
 (* -------------------------------------------------------------------------
    OEIS array read from disk
    ------------------------------------------------------------------------- *)
 
 val oraw = readl (selfdir ^ "/data/oeis");
 val _ = print_endline ("oeis: " ^ its (length oraw));
-
+(* val solved = enew Int.compare 
+  (map fst (read_iprogl (selfdir ^ "/model/isol_online"))); *)
 val oseq = Array.tabulate (400000, fn _ => NONE);  
 
 fun update_oseq s = 
@@ -19,8 +27,10 @@ fun update_oseq s =
     val aseq = String.tokens (fn x => x = #",") s
     val anum = (hd o String.tokens Char.isSpace o hd) aseq
     val an = string_to_int (tl_string anum) 
-    val seq = map Arbint.fromString (tl aseq)
+    val seq = map (valOf o IntInf.fromString) (tl aseq)
   in 
+    (*  if an > 1 then () else
+        if emem an solved then () else *)
     Array.update (oseq, an, SOME seq)
   end 
 
@@ -36,16 +46,16 @@ val oseql =
    ------------------------------------------------------------------------- *)
 
 datatype otree = 
-  Oleaf of anum * Arbint.int list |
-  Odict of anum list * (Arbint.int, otree) Redblackmap.dict
+  Oleaf of anum * IntInf.int list |
+  Odict of anum list * (IntInf.int, otree) Redblackmap.dict
 
-val oempty = Odict ([], dempty Arbint.compare)
+val oempty = Odict ([], dempty IntInf.compare)
 
 fun oadd (seq,an) ot = case (ot,seq) of
     (Oleaf (an2,[]),_) => 
-    oadd (seq,an) (Odict ([an2],dempty Arbint.compare))
+    oadd (seq,an) (Odict ([an2],dempty IntInf.compare))
   | (Oleaf (an2,a2 :: m2),_) => 
-    oadd (seq,an) (Odict ([], dnew Arbint.compare [(a2,(Oleaf (an2,m2)))]))
+    oadd (seq,an) (Odict ([], dnew IntInf.compare [(a2,(Oleaf (an2,m2)))]))
   | (Odict (anl,d), []) => Odict (an :: anl, d)
   | (Odict (anl,d), a1 :: m1) =>
     let val oto = SOME (dfind a1 d) handle NotFound => NONE in
@@ -89,8 +99,6 @@ fun collect_partseq ot =
 
 val anlref = ref []
 
-local open Arbint in
-
 fun cover_oeis_aux f i ot = case ot of
     Oleaf (an2,[]) => anlref := an2 :: !anlref
   | Oleaf (an2,a2 :: m2) => 
@@ -98,7 +106,7 @@ fun cover_oeis_aux f i ot = case ot of
     case SOME (f i = a2) handle ProgTimeout => NONE of
       SOME true =>  
       (incr_timer (); incr ncoveri;
-       cover_oeis_aux f (i + one) (Oleaf (an2,m2))) 
+       cover_oeis_aux f (aincr i) (Oleaf (an2,m2))) 
     | SOME false => ()
     | NONE => anlrefpart := [an2]
     )
@@ -110,18 +118,16 @@ fun cover_oeis_aux f i ot = case ot of
         case SOME (dfind a1 d) handle NotFound => NONE of 
           NONE => ()
         | SOME newot => (incr_timer (); incr ncoveri; 
-                         cover_oeis_aux f (i + one) newot)
+                         cover_oeis_aux f (aincr i) newot)
         )
       | NONE => app collect_partseq (map snd (dlist d))
     end
-
-end (* local *)
 
 fun cover_oeis_aux2 f = 
   let 
     val _ = (anlref := []; init_partial ())
     val _ = init_timer ();
-    val _ = cover_oeis_aux f Arbint.zero otree;
+    val _ = cover_oeis_aux f azero otree;
     val t = !abstimer
   in
     (!anlref, (!ncoveri, SOME t), !anlrefpart) 
@@ -134,19 +140,18 @@ fun cover_oeis f = catch_perror cover_oeis_aux2 f
    Checking if a program covers a user-given sequence
    ------------------------------------------------------------------------- *)
 
-local open Arbint in
 fun cover_target_aux f i target = case target of 
     [] => (true, !ncoveri)
-  | a :: m => if f i = a 
-              then (incr_timer (); incr ncoveri; cover_target_aux f (i+one) m)
-              else (false, !ncoveri)
-end
+  | a :: m => 
+    if f i = a 
+    then (incr_timer (); incr ncoveri; cover_target_aux f (aincr i) m)
+    else (false, !ncoveri)
 
 fun cover_target_aux2 f target = 
   (
     ncoveri := 0;
     init_timer ();
-    cover_target_aux f Arbint.zero target
+    cover_target_aux f azero target
   )
 
 fun cover_target f target = catch_perror (cover_target_aux2 f) target 

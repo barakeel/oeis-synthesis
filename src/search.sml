@@ -179,7 +179,7 @@ end (* struct *)
 (* 
 load "search"; open kernel aiLib search; 
 tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
-tnn.update_fp_op (selfdir ^ "/tnn_in_c/ob131.so");
+tnn.update_fp_op (selfdir ^ "/tnn_in_c/ob_online.so");
 bloom.select_random_target ();
 search 100000;
 val _ = check.checkfinal ();

@@ -40,11 +40,14 @@ fun term_of_nat_aux n =
   else list_mk_comb (nat_cat,
     [embv_nat (n mod natbase), term_of_nat_aux (n div natbase)])
 
-local open Arbint in
+val azero = IntInf.fromInt 0
+val amillion = IntInf.fromInt 1000000
+
+local open IntInf in
 
 fun term_of_nat n =
-  if n < zero then mk_comb (nat_neg, term_of_nat (~ n))
-  else if n > fromInt 1000000 then nat_big
+  if n < azero then mk_comb (nat_neg, term_of_nat (~ n))
+  else if n > amillion then nat_big
   else term_of_nat_aux (toInt n)
 
 end
@@ -358,11 +361,11 @@ fun fea_of_stack stack =
   end     
 
 fun suc x = x + 1
-local open Arbint in
+local open IntInf in
   val ten = fromInt 10
   fun string_of_nat i n =
-    if n < zero then "~" :: string_of_nat i (~n)
-    else if n > fromInt 1000000 then ["big"]
+    if n < azero then "~" :: string_of_nat i (~n)
+    else if n > amillion then ["big"]
     else if n < ten then [toString n ^ "@" ^ its i]
     else (toString (n mod ten) ^ "@" ^ its i) :: 
          string_of_nat (suc i) (n div ten)

@@ -6,22 +6,22 @@ sig
   type anum = int
   
   (* OEIS array *)
-  val oseq : Arbint.int list option array
-  val oseql : (int * Arbint.int list) list
+  val oseq : IntInf.int list option array
+  val oseql : (int * IntInf.int list) list
   val select_random_target : unit -> unit
 
   (* tree of OEIS sequences *)
   datatype otree = 
-    Oleaf of anum * Arbint.int list |
-    Odict of anum list * (Arbint.int, otree) Redblackmap.dict
+    Oleaf of anum * IntInf.int list |
+    Odict of anum list * (IntInf.int, otree) Redblackmap.dict
   val oempty : otree
-  val oadd : Arbint.int list * int -> otree -> otree
-  val cover_oeis : (Arbint.int -> Arbint.int) -> 
+  val oadd : IntInf.int list * int -> otree -> otree
+  val cover_oeis : (IntInf.int -> IntInf.int) -> 
                    (anum list * (int * int option) * anum list)
   val otree : otree
 
   (* user-given sequence *)
-  val cover_target : (Arbint.int -> Arbint.int) -> 
+  val cover_target : (IntInf.int -> IntInf.int) -> 
     seq -> bool * int
 
 end

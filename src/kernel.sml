@@ -30,14 +30,14 @@ fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
    Sequences
    ------------------------------------------------------------------------- *)
 
-type seq = Arbint.int list
-val seq_compare = list_compare Arbint.compare
+type seq = IntInf.int list
+val seq_compare = list_compare IntInf.compare
 fun rm_i s = 
   if String.size s = 0 then s else
   if String.sub (s,String.size s - 1) =  #"i" 
   then String.substring (s,0,String.size s - 1)
   else s;
-fun string_of_seq il = String.concatWith " " (map (rm_i o Arbint.toString) il)
+fun string_of_seq il = String.concatWith " " (map (rm_i o IntInf.toString) il)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
@@ -115,7 +115,8 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
-val z_flag = ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
+val z_flag = 
+  ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
 
 val base_operl = 
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
