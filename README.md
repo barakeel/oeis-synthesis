@@ -23,6 +23,10 @@ tar -xvf model.tar.gz
 sh install.sh
 ```
 
+After updating the repository (git pull), 
+the command `sh install.sh` needs to be run again.
+
+
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
 In `src`, run `sh hol.sh` then run in the interative shell:
 ```
@@ -66,7 +70,12 @@ sh /opt/intel/mkl/bin/mklvars.sh intel64
 ```
 
 #### Problem when compiling FFI (sh compile_ob.sh)
-Please install in this directory https://github.com/JuliaMath/openlibm.
+Please install in the `oeis-synthesis` directory: 
+```
+git clone https://github.com/JuliaMath/openlibm
+cd openlibm
+make
+```
 
 
 
