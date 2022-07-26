@@ -161,7 +161,7 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 
 exception ProgTimeout;
 
-val short_timeincr = 1000
+val short_timeincr = 500
 val long_timeincr = 50000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
