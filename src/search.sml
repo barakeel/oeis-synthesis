@@ -184,6 +184,6 @@ bloom.select_random_target ();
 search 100000;
 val _ = check.checkfinal ();
 
-500: 10sec, 10, 11
-5000: 73sec, 34sec
+500: 10sec, 10, 11, 4,5
+5000: 73sec, 34sec, 
 *)

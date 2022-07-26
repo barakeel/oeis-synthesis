@@ -10,6 +10,8 @@ type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
    Time limit
    ------------------------------------------------------------------------- *)
 
+val maxint1 = valOf (Int.maxInt)
+
 local open IntInf in
   val azero = fromInt 0
   val aone = fromInt 1
@@ -21,24 +23,21 @@ local open IntInf in
   fun pow2 b = arb_pow atwo (fromInt b)
   val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
   val minarb = ~maxarb
-  val maxint = arb_pow (fromInt 2) (fromInt 64)
+  val maxint = fromInt maxint1
   val minint = ~maxint
   fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
 end 
 
-val costl = map_fst pow2 
-  [(62,50),(128,100),(256,200),(512,400),(1024,int_pow 2 40)]
+val verylargeint = int_pow 2 40
 
-local open IntInf in
-  fun cost costn x = 
-    let fun loop y l = case l of 
-        [] => y
-      | (a,b) :: m => if x < a andalso x > ~a then y else loop b m
-    in
-      loop costn costl
+fun cost costn x = 
+  if large_int x 
+  then 
+    let val cost1 = IntInf.log2 (IntInf.abs x) in
+      if cost1 > 1024 then verylargeint else cost1
     end
-end
+  else costn
 
 fun testn costn f x =
   let 
