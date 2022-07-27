@@ -6,6 +6,7 @@ val ERR = mk_HOL_ERR "search"
 type emb = real vector
 
 type boarde = (kernel.prog * exec.exec * emb * emb) list
+val randsearch_flag = ref false
 
 (* -------------------------------------------------------------------------
    Noise
@@ -50,18 +51,22 @@ fun exec_fun (move,exec) l1 l2 =
   let 
     val f = fp_emb_either (!tnn_glob)
     val p = (Ins (move, map #1 (rev l1)))
-    val oper = Vector.sub (operv,move)
-    val emb1 = 
-      if arity_of oper <= 0 
-      then f oper []
-      else f (cap_tm oper) [f oper (map #3 (rev l1))]
-    val emb2 = 
-      if null l2 then emb1 else
-      f (cap_tm stack_cat) [f stack_cat [emb1, #4 (hd l2)]]
   in
-    (p,exec,emb1,emb2) :: l2
-  end 
- 
+    if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
+    let
+      val oper = Vector.sub (operv,move)
+      val emb1 = 
+        if arity_of oper <= 0 
+        then f oper []
+        else f (cap_tm oper) [f oper (map #3 (rev l1))]
+      val emb2 = 
+        if null l2 then emb1 else
+        f (cap_tm stack_cat) [f stack_cat [emb1, #4 (hd l2)]]
+    in
+      (p,exec,emb1,emb2) :: l2
+    end
+  end
+
 fun apply_move (move,exec) boarde =
   let 
     val arity = arity_of_oper move
@@ -148,19 +153,32 @@ and search_aux depth vis targete boarde =
     val mfl = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
     val movel = available_movel boarde
-    val f = fp_emb_either (!tnn_glob) 
-    val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
-    val preboarde = f pair_progseq [progle,targete]
-    val prepolie = f prepoli [preboarde]
-    val ende = f head_poli [prepolie]
-    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
-    val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
-    val pol3 = normalize_distrib pol2
-    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
-    val newvis = vis - 1
   in
-    if newvis <= 0 then () else
-    app (search_move (depth+1) targete boarde) (split_vis newvis pol4)
+    if !randsearch_flag then
+    let  
+      val pol2 = map (fn x => (x, random_real ())) mfl
+      val pol3 = normalize_distrib pol2
+      val newvis = vis - 1
+    in
+      if newvis <= 0 then () else
+      app (search_move (depth+1) targete boarde) (split_vis newvis pol3)
+    end
+    else
+    let  
+      val f = fp_emb_either (!tnn_glob) 
+      val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
+      val preboarde = f pair_progseq [progle,targete]
+      val prepolie = f prepoli [preboarde]
+      val ende = f head_poli [prepolie]
+      val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
+      val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
+      val pol3 = normalize_distrib pol2
+      val pol4 = if !game.noise_flag then add_noise pol3 else pol3
+      val newvis = vis - 1
+    in
+      if newvis <= 0 then () else
+      app (search_move (depth+1) targete boarde) (split_vis newvis pol4)
+    end
   end
 
 fun search vis = 

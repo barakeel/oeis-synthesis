@@ -180,13 +180,13 @@ fun init_search coreid =
     val _ = print_endline "initialization"
     val fileso = tnndir ^ "/ob.so"
     val _ = if !ngen_glob <= 0
-            then player_glob := player_random
-            else player_glob := player_wtnn_cache
+            then search.randsearch_flag := true
+            else search.randsearch_flag := false
     val itsol = if !ngen_glob <= 0 then [] else read_itsol (!ngen_glob - 1)
-    val _ = if not (exists_file fileso) 
-            then use_ob := false 
-            else (use_ob := true; print_endline "using openblas")
-    val _ = if !use_ob then update_fp_op fileso else ()
+    val _ = if not (!search.randsearch_flag) andalso not (exists_file fileso) 
+            then raise ERR "init_search" "missing .so file"
+            else use_ob := true
+    val _ = if !search.randsearch_flag then () else update_fp_op fileso
     val _ = noise_flag := false
     val _ = if coreid mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) 
@@ -430,7 +430,7 @@ end (* struct *)
 (*
 (* alternate between search phase and training phase *)
 load "rl"; open rl;
-expname := "fast";
+expname := "test2";
 rl_search 0;
 
 (* continuous training *)

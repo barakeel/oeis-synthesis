@@ -85,7 +85,7 @@ fun human vn prog =
     else "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
   | Ins (9,[p1,p2,p3]) => 
     if not (!python_flag) then
-      "loop(" ^ String.concatWith ", " [lrhx p1, rhx p2, rhx p3] ^ ")"
+      "loop(" ^ String.concatWith ", " [rhx p1, rhx p2, rhx p3] ^ ")"
     else let fun f wn =
       let val (s1,s2,s3) = (rhx p1, human wn p2 ^ " + 1", rhuman wn p3) in
         ["  x = " ^ s3] @
@@ -118,7 +118,7 @@ fun human vn prog =
   | Ins (13,[p1,p2,p3,p4,p5]) => 
     if not (!python_flag) 
       then "loop2(" ^ String.concatWith ", "
-            [lrhx p1, lrhx p2, rhx p3, rhx p4, rhx p5] ^ ")"
+            [rhx p1, rhx p2, rhx p3, rhx p4, rhx p5] ^ ")"
     else let fun f wn =
       let
         val (s1,s2) = (hx p1, hx p2)
@@ -137,7 +137,7 @@ fun human vn prog =
   | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => 
     if not (!python_flag) 
       then "loop3(" ^ String.concatWith ", "
-            [lrhx p1, lrhx p2, lrhx p3, rhx p4, rhx p5, rhx p6, rhx p7] ^ ")"
+            [rhx p1, rhx p2, rhx p3, rhx p4, rhx p5, rhx p6, rhx p7] ^ ")"
     else let fun f wn =
       let
         val (s1,s2,s3) = (hx p1, hx p2, hx p3)
