@@ -15,8 +15,7 @@ sig
   val maxgen : int option ref
   val ngen_glob : int ref
   val expname : string ref
-  val use_random : bool ref
-  
+
   (* functions *)
   val search : tnn -> int -> (anum * (int * prog)) list
   val trainf_start : unit -> unit

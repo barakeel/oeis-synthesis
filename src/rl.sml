@@ -175,8 +175,6 @@ fun wrap_trainf ngen =
 fun clean_dicts () = 
   (progd := eempty prog_compare; embd := dempty Term.compare)
 
-val use_random = ref false
-
 fun init_search coreid =
   let
     val _ = print_endline "initialization"
