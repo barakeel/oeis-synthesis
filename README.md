@@ -60,7 +60,9 @@ with ctrl+c.
 - You can restart the training from the last generation
 by running the same command `sh rl.sh experimentname`.
 
-Resulting programs can be inspected in the directory `src/exp/expname/search/number/full_prog` where `number` is the generation number.
+A summary of the number of programs found at different generation is located at
+`src/exp/expname/log`.
+Resulting programs can be inspected in the directory `src/exp/expname/search/gen/full_prog` where `gen` is a generation number.
 
 ### Known issues:
 
