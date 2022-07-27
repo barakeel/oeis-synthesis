@@ -185,7 +185,7 @@ fun init_search coreid =
     val itsol = if !ngen_glob <= 0 then [] else read_itsol (!ngen_glob - 1)
     val _ = if not (exists_file fileso) 
             then use_ob := false 
-            else print_endline "using openblas"
+            else (use_ob := true; print_endline "using openblas")
     val _ = if !use_ob then update_fp_op fileso else ()
     val _ = noise_flag := false
     val _ = if coreid mod 2 = 0 
