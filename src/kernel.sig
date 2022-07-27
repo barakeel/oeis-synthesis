@@ -5,7 +5,9 @@ sig
   (* directory *)
   val selfdir : string 
   val configd : (string ,string) Redblackmap.dict
-  
+  val t_flag : bool ref (* optimize for time instead of size *)
+  val z_flag : bool ref (* functions of arity 3 *)
+   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
@@ -16,6 +18,7 @@ sig
 
   (* sequences *)
   type seq = IntInf.int list
+  type anum = int
   val target_glob : seq ref
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
@@ -40,9 +43,11 @@ sig
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
+  val read_itprogl : string -> (anum * (int * prog)) list
+  val write_itprogl : string -> (anum * (int * prog)) list -> unit
   
   (* operators *)
-  val z_flag : bool ref (* functions of arity 3 *)
+ 
   val operv : term vector
   val arity_of_oper : int -> int
   val name_of_oper : int -> string

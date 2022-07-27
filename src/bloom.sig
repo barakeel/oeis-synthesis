@@ -17,7 +17,7 @@ sig
   val oempty : otree
   val oadd : IntInf.int list * int -> otree -> otree
   val cover_oeis : (IntInf.int -> IntInf.int) -> 
-                   (anum list * (int * int option) * anum list)
+                   ((anum * int) list * int * anum list)
   val otree : otree
 
   (* user-given sequence *)

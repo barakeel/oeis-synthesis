@@ -100,7 +100,7 @@ fun collect_partseq ot =
 val anlref = ref []
 
 fun cover_oeis_aux f i ot = case ot of
-    Oleaf (an2,[]) => anlref := an2 :: !anlref
+    Oleaf (an2,[]) => anlref := (an2,!abstimer) :: !anlref
   | Oleaf (an2,a2 :: m2) => 
     (
     case SOME (f i = a2) handle ProgTimeout => NONE of
@@ -111,7 +111,7 @@ fun cover_oeis_aux f i ot = case ot of
     | NONE => anlrefpart := [an2]
     )
   | Odict (anl,d) =>
-    let val _ = anlref := anl @ !anlref in
+    let val _ = anlref := map (fn x => (x,!abstimer)) anl @ !anlref in
       case SOME (f i) handle ProgTimeout => NONE of
         SOME a1 =>
         (
@@ -130,11 +130,11 @@ fun cover_oeis_aux2 f =
     val _ = cover_oeis_aux f azero otree;
     val t = !abstimer
   in
-    (!anlref, (!ncoveri, SOME t), !anlrefpart) 
+    (!anlref, !ncoveri, !anlrefpart) 
   end
 
 fun cover_oeis f = catch_perror cover_oeis_aux2 f 
-  (fn () => (!anlref, (!ncoveri, NONE), !anlrefpart))
+  (fn () => (!anlref, !ncoveri, !anlrefpart))
 
 (* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence
@@ -149,9 +149,9 @@ fun cover_target_aux f i target = case target of
 
 fun cover_target_aux2 f target = 
   (
-    ncoveri := 0;
-    init_timer ();
-    cover_target_aux f azero target
+  ncoveri := 0;
+  init_timer ();
+  cover_target_aux f azero target
   )
 
 fun cover_target f target = catch_perror (cover_target_aux2 f) target 

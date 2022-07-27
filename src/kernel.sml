@@ -15,6 +15,11 @@ val configd =
     dnew String.compare (List.mapPartial f sl)
   end
 
+val z_flag = 
+  ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
+val t_flag = 
+  ref (string_to_bool (dfind "t_flag" configd) handle NotFound => false) 
+  
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
    ------------------------------------------------------------------------- *)
@@ -31,6 +36,7 @@ fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
    ------------------------------------------------------------------------- *)
 
 type seq = IntInf.int list
+type anum = int
 val seq_compare = list_compare IntInf.compare
 fun rm_i s = 
   if String.size s = 0 then s else
@@ -85,15 +91,21 @@ fun write_progl file r = write_data enc_progl file r
 fun read_progl file = read_data dec_progl file
 
 local open HOLsexp in
-val enc_iprog = pair_encode (Integer, enc_prog)
-val enc_iprogl = list_encode enc_iprog
-val dec_iprog = pair_decode (int_decode, dec_prog)
-val dec_iprogl = list_decode dec_iprog
+  val enc_iprog = pair_encode (Integer, enc_prog)
+  val enc_iprogl = list_encode enc_iprog
+  val dec_iprog = pair_decode (int_decode, dec_prog)
+  val dec_iprogl = list_decode dec_iprog
+  val enc_itprog = pair_encode (Integer, pair_encode (Integer, enc_prog))
+  val enc_itprogl = list_encode enc_itprog
+  val dec_itprog = pair_decode (int_decode, pair_decode (int_decode, dec_prog))
+  val dec_itprogl = list_decode dec_itprog
 end
 
 fun write_iprogl file r = write_data enc_iprogl file r
 fun read_iprogl file = read_data dec_iprogl file
 
+fun write_itprogl file r = write_data enc_itprogl file r
+fun read_itprogl file = read_data dec_itprogl file
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -115,8 +127,6 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
-val z_flag = 
-  ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
 
 val base_operl = 
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 

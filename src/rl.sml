@@ -40,7 +40,7 @@ fun traindir () = expdir () ^ "/train"
 fun searchdir () = expdir () ^ "/search"
 fun histdir () = expdir () ^ "/hist"
 fun tnn_file ngen = histdir () ^ "/tnn" ^ its ngen
-fun isol_file ngen = histdir () ^ "/isol" ^ its ngen
+fun itsol_file ngen = histdir () ^ "/itsol" ^ its ngen
 
 fun mk_dirs () = 
   ( 
@@ -50,16 +50,16 @@ fun mk_dirs () =
   app mkDir_err [traindir (),searchdir (), histdir ()]
   ) 
 
-fun write_isol_atomic ngen iprogl = 
+fun write_itsol_atomic ngen itprogl = 
   let
-    val newfile = isol_file ngen
+    val newfile = itsol_file ngen
     val oldfile = newfile ^ "_temp"
   in
-    write_iprogl oldfile iprogl;
+    write_itprogl oldfile itprogl;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
   
-fun read_isol ngen = read_iprogl (isol_file ngen)
+fun read_itsol ngen = read_itprogl (itsol_file ngen)
 
 fun is_number s = all Char.isDigit (explode s)
 
@@ -76,7 +76,7 @@ fun find_last s =
     else list_imax il
   end
 
-fun find_last_isol () = find_last "isol"
+fun find_last_itsol () = find_last "itsol"
 fun find_last_tnn () = find_last "tnn"
 
 fun find_last_notbad s =
@@ -111,8 +111,9 @@ fun write_tnn_atomic ngen tnn =
 
 fun trainf_start () =
   let
-    val isol = read_isol (find_last_isol ())
-    val _ = print_endline ("reading isol " ^ (its (length isol)))
+    val itsol = read_itsol (find_last_itsol ())
+    val _ = print_endline ("reading itsol " ^ (its (length itsol)))
+    val isol = map (fn (a,(_,b)) => (a,b)) itsol
     val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
   in
@@ -180,10 +181,10 @@ fun init_search coreid =
   let
     val _ = print_endline "initialization"
     val fileso = tnndir ^ "/ob.so"
-    val _ = if !use_random 
+    val _ = if !ngen_glob <= 0
             then player_glob := player_random
             else player_glob := player_wtnn_cache
-    val isol = if !ngen_glob <= 0 then [] else read_isol (!ngen_glob - 1)
+    val itsol = if !ngen_glob <= 0 then [] else read_itsol (!ngen_glob - 1)
     val _ = if not (exists_file fileso) 
             then use_ob := false 
             else print_endline "using openblas"
@@ -222,7 +223,7 @@ fun catch_fread msg f file =
        (print_endline ("rl: " ^ msg ^ ": " ^ file); 
          raise ERR msg file)
 
-val parspec : (tnn, int, (anum * prog) list) extspec =
+val parspec : (tnn, int, (anum * (int * prog)) list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -243,8 +244,8 @@ val parspec : (tnn, int, (anum * prog) list) extspec =
        in catch_fwrite "write_arg" f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) 
        in catch_fread "read_arg" f end,
-  write_result = catch_fwrite "write_iprogl" write_iprogl,
-  read_result = catch_fread "read_iprogl" read_iprogl
+  write_result = catch_fwrite "write_itprogl" write_itprogl,
+  read_result = catch_fread "read_itprogl" read_itprogl
   }
 
 (* -------------------------------------------------------------------------
@@ -283,40 +284,27 @@ fun compute_freq f sol1 =
 
 fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
 
-fun string_of_iprog (i,p) = 
-  "A" ^ its i ^ ": " ^ 
+fun string_of_itprog (i,(t,p)) = 
+  "A" ^ its i ^ ": speed " ^ its t ^ ": " ^
   string_of_seq (valOf (Array.sub (oseq,i))) ^ 
   "\n" ^ humanf p
 
-fun inv_cmp cmp (a,b) = cmp (b,a)
-
-fun string_of_partiprog (i,npl) =
-  let 
-    val npl' = dict_sort (inv_cmp (fst_compare (fst_compare Int.compare))) npl
-    fun f ((n,to),p) = its n ^ (if isSome to then (", " ^ rts (valOf to)) else
-      "") ^ ": " ^ humanf p
-  in
-    "A" ^ its i ^ ": " ^ 
-    string_of_seq (valOf (Array.sub (oseq,i))) ^ 
-    "\n" ^ String.concatWith " | " (map f npl')
-  end
-
-fun stats_sol prefix isol =
+fun stats_sol prefix itsol =
   let
-    val isolsort = dict_sort (snd_compare prog_compare_size) isol
-    val freql1 = compute_freq all_subprog (map snd isol)
+    val itsolsort = dict_sort 
+      (snd_compare (snd_compare prog_compare_size)) itsol
+    val freql1 = compute_freq all_subprog (map (snd o snd) itsol)
   in
-    writel (prefix ^ "prog") (map string_of_iprog isolsort);
+    writel (prefix ^ "prog") (map string_of_itprog itsolsort);
     writel (prefix ^ "freq") (map human_progfreq freql1)
   end
 
 fun stats_ngen dir ngen =
   let 
-    val solprev =
-      if ngen = 0 then [] else read_iprogl (isol_file (ngen - 1))
-    val solnew = read_iprogl (isol_file ngen)
+    val solprev = if ngen = 0 then [] else read_itsol (ngen - 1)
+    val solnew = read_itprogl (itsol_file ngen)
     val prevd = dnew Int.compare solprev
-    val soldiff = filter (fn (i,_) => not (dmem i prevd)) solnew
+    val soldiff = filter (fn (anum,_) => not (dmem anum prevd)) solnew
   in
     stats_sol (dir ^ "/full_") solnew;
     stats_sol (dir ^ "/diff_") soldiff
@@ -331,9 +319,9 @@ fun mk_partial (anum,p) =
     (anum,[(f anum,p)])
   end
   
-fun count_newsol oldisol isoll =
+fun count_newsol olditsol itsoll =
   let 
-    val d = ref (enew Int.compare (map fst oldisol))
+    val d = ref (enew Int.compare (map fst olditsol))
     val orgn = elength (!d)
     fun loop acc l = case l of
         [] => rev acc
@@ -344,13 +332,11 @@ fun count_newsol oldisol isoll =
                d := eaddl l3 (!d);
                loop (elength (!d) - orgn :: acc) l2
              end
-    val il = loop [] isoll
+    val il = loop [] itsoll
   in
     log ("new solutions (after 8 more searches each time): " ^
          String.concatWith " " (map its il)) 
   end
-
-
 
 fun rl_search_only ngen =
   let 
@@ -377,16 +363,16 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir cpcmd;
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
-    val (isoll,t) = add_time
+    val (itsoll,t) = add_time
       (parmap_queue_extern ncore parspec tnn) (List.tabulate (ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
-                  rts_round 2 (average_int (map length isoll)))
-    val oldisol = if ngen = 0 then [] else read_isol (ngen - 1)
-    val newisol = merge_isol (List.concat (oldisol :: isoll))
-    val _ = log ("solutions: " ^ (its (length newisol)))
-    val _ = count_newsol oldisol isoll
-    val _ = write_isol_atomic ngen newisol
+                  rts_round 2 (average_int (map length itsoll)))
+    val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
+    val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
+    val _ = log ("solutions: " ^ (its (length newitsol)))
+    val _ = count_newsol olditsol itsoll
+    val _ = write_itsol_atomic ngen newitsol
   in
     stats_ngen (!buildheap_dir) ngen
   end
@@ -425,18 +411,18 @@ and rl_train ngen =
 fun rl_search_cont () = 
   (
   ignore (mk_dirs ());
-  rl_search_only ((find_last_isol () + 1) handle HOL_ERR _ => 0); 
+  rl_search_only ((find_last_itsol () + 1) handle HOL_ERR _ => 0); 
   rl_search_cont ()
   )
 
-fun wait_isol () = 
-  if can find_last_isol () then () else 
-     (OS.Process.sleep (Time.fromReal 1.0); wait_isol ())
+fun wait_itsol () = 
+  if can find_last_itsol () then () else 
+     (OS.Process.sleep (Time.fromReal 1.0); wait_itsol ())
 
 fun rl_train_cont () = 
   (
   ignore (mk_dirs ());
-  wait_isol ();
+  wait_itsol ();
   rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ()
   )
@@ -444,25 +430,18 @@ fun rl_train_cont () =
 end (* struct *)
 
 (*
+(* alternate between search phase and training phase *)
+load "rl"; open rl;
+expname := "fast";
+rl_search 0;
+
 (* continuous training *)
 load "rl"; open rl;
-expname := "604";
+expname := "fast";
 rl_train_cont ();
 
 (* continous searching *)
 load "rl"; open rl;
-expname := "604";
+expname := "fast";
 rl_search_cont ();
-
-(* standalone search *)
-load "rl"; open mlTreeNeuralNetwork kernel rl human aiLib;
-val tnn = random_tnn (tnn.get_tnndim ());
-search.tnn_glob := tnn; (* uses ob.so instead *)
-nvis := 100000;
-PolyML.print_depth 2;
-val isol = search tnn 0;
-val isolsort = dict_sort (snd_compare prog_compare_size) isol;
-PolyML.print_depth 40;
-writel "aaa_prog" (map string_of_iprog isolsort);
-
 *)
