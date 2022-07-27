@@ -27,7 +27,10 @@ val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
-val loss_threshold = 0.2 (* ignore tnn with a loss above this threshold *)
+val loss_threshold = 
+  (valOf (Real.fromString (dfind "loss_threshold" configd)) 
+   handle NotFound => 0.2)
+  (* ignore tnn with a loss above this threshold *)
 
 (* -------------------------------------------------------------------------
    Files
@@ -348,7 +351,7 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
     val (b,tnn) = 
-      if can find_last_tnn () 
+      if can find_last_ob_notbad ()
       then (true, read_tnn (tnn_file (find_last_tnn ())))
       else (false, random_tnn (get_tnndim ()))
     val _ = if not (!use_ob andalso b) then () else
@@ -405,41 +408,34 @@ and rl_train ngen =
   rl_search (ngen + 1)
   )
 
+fun wait_tnn () = 
+  if can find_last_ob_notbad () then () else 
+  (OS.Process.sleep (Time.fromReal 1.0); wait_tnn ())
 
 fun rl_search_cont () = 
   (
   ignore (mk_dirs ());
-  rl_search_only ((find_last_itsol () + 1) handle HOL_ERR _ => 0); 
+  let val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0) in
+    if n = 1 then (print_endline "waiting for tnn"; wait_tnn ()) else ();
+    rl_search_only n
+  end;
   rl_search_cont ()
   )
 
 fun wait_itsol () = 
   if can find_last_itsol () then () else 
-     (OS.Process.sleep (Time.fromReal 1.0); wait_itsol ())
+  (OS.Process.sleep (Time.fromReal 1.0); wait_itsol ())
 
 fun rl_train_cont () = 
   (
   ignore (mk_dirs ());
-  wait_itsol ();
+  if can find_last_itsol () 
+  then () 
+  else (print_endline "waiting for itsol"; wait_itsol ())
+  ;
   rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ()
   )
 
 end (* struct *)
 
-(*
-(* alternate between search phase and training phase *)
-load "rl"; open rl;
-expname := "test2";
-rl_search 0;
-
-(* continuous training *)
-load "rl"; open rl;
-expname := "fast";
-rl_train_cont ();
-
-(* continous searching *)
-load "rl"; open rl;
-expname := "fast";
-rl_search_cont ();
-*)

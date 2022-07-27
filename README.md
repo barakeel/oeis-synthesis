@@ -28,7 +28,8 @@ the command `sh install.sh` needs to be run again.
 
 
 ### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
-In `src`, run `sh hol.sh` then run in the interative shell:
+Go to the `src` directory.
+Run `sh hol.sh` then run in the interative shell:
 ```
 load "qsynt"; open qsynt;
 
@@ -48,14 +49,18 @@ val po = qsynt "2 5 16 256";
 ```
 
 ### Train oeis-syntheis (requires 4GB of ram per core)
-To change training options, edit the `src/config` file and 
-run `sh install.sh` again.
-In `src`, run `sh hol.sh` then run in the interative shell:
-```
-load "rl"; open rl;
-expname := "your_experiment";
-rl_search 0;
-```
+Go to the `src` director.
+
+- To change training options, 
+  edit the `config` file and run `sh install.sh` again.
+- To start the training,
+run `sh rl.sh expname` where `expname` is a string of your choice.
+- You can stop the training at any point by interrupting the process 
+with ctrl+c. 
+- You can restart the training from the last generation
+by running the same command `sh rl.sh experimentname`.
+
+Resulting programs can be inspected in the directory `src/exp/expname/search/number/full_prog` where `number` is the generation number.
 
 ### Known issues:
 

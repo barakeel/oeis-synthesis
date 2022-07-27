@@ -1,0 +1,3 @@
+load "rl";
+rl.expname := "expname_template";
+rl.rl_search_cont ();

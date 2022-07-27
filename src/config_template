@@ -1,9 +1,10 @@
 dim_glob 96
-ncore 16
-ntarget 80
+ncore 8
+ntarget 64
 nvis 2000000
 time_opt 600.0
 search_memory 4000
 train_memory 50000
 z_flag false
 t_flag false
+loss_threshold 0.2

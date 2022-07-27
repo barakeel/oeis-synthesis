@@ -155,7 +155,8 @@ fun create_compr f =
 
 fun compr_f fl = case fl of
   [f1,f2] =>
-  let val f1' = create_compr f1 in
+  let 
+    val f1' = create_compr f1 in
     (fn x =>
      let 
        val input = IntInf.toInt (f2 x) handle Overflow => raise Div 

@@ -1,4 +1,3 @@
-
 if [ -f "config" ]
 then
 echo 'Keep config'
@@ -28,6 +27,7 @@ if [ -d "/usr/include/mkl" ]; then
   echo "Binary file tree produced by compile_mkl20.sh"
   else
   echo "Failure when compiling tree.c: unknown issue"
+  exit 1
   fi 
 elif [ -d "/opt/intel/mkl" ]; then
   echo "MKL: /opt/intel/mkl"
@@ -36,6 +36,7 @@ elif [ -d "/opt/intel/mkl" ]; then
   echo "Binary file tree produced by compile_mkl18.sh"
   else
     echo "Failure when compiling tree.c: see known issues in README.md"
+    exit 1
   fi 
 else
   echo "Could not find a MKL directory. Please install MKL."
@@ -55,4 +56,5 @@ if [ -f "ob_online.so" ]; then
 else
   echo "Failure when compiling ob_online.c with 
         tnn_in_c/compile_ob.sh: see known issues in README.md"
+  exit 1
 fi
