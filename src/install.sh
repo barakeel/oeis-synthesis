@@ -16,8 +16,8 @@ echo 'Overwrite tnn_in_c/ob_fst.c'
 sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
 
 echo "Creating Standard ML dependency files"
-../HOL/bin/Holmake cleanAll
-../HOL/bin/Holmake
+../HOL/bin/Holmake --nolmbc cleanAll
+../HOL/bin/Holmake --nolmbc
 
 cd tnn_in_c
 if [ -d "/usr/include/mkl" ]; then

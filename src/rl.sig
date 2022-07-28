@@ -12,6 +12,7 @@ sig
   
   (* globals *)
   val nvis : int ref
+  val rtim : real ref
   val maxgen : int option ref
   val ngen_glob : int ref
   val expname : string ref

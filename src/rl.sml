@@ -19,7 +19,11 @@ type eff = int * real option
    ------------------------------------------------------------------------- *)
 
 val nvis = ref
-  (string_to_int (dfind "nvis" configd) handle NotFound => 3000000) 
+  (string_to_int (dfind "nvis" configd) handle NotFound => 0)
+val rtim = ref
+  (valOf (Real.fromString (dfind "rtim" configd)) 
+   handle NotFound => 600.0)  
+   
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
 val maxgen = ref NONE
@@ -207,7 +211,7 @@ fun search tnn coreid =
     val _ = init_search coreid
     val _ = print_endline "search start"
   in
-    (search.search (!nvis); checkfinal ())
+    (search.search (!nvis,!rtim); checkfinal ())
   end
 
 fun string_of_timeo () = (case !time_opt of
