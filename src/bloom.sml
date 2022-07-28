@@ -127,8 +127,7 @@ fun cover_oeis_aux2 f =
   let 
     val _ = (anlref := []; init_partial ())
     val _ = init_timer ();
-    val _ = cover_oeis_aux f azero otree;
-    val t = !abstimer
+    val _ = cover_oeis_aux f azero otree
   in
     (!anlref, !ncoveri, !anlrefpart) 
   end

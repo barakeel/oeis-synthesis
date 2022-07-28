@@ -85,13 +85,12 @@ fun checkf (p,exec) =
   end
 
 fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
-fun checkp p = checkf (p, mk_exec p)
 fun checkinit () = (wind := dempty Int.compare; partwind := dempty Int.compare)
 
 fun checkfinal () = 
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
-    fun checkb p = (init_slow_test (); checkp p; init_fast_test ())
+    fun checkb p = (init_slow_test (); checkf (p, mk_exec p))
     val bestpl0 = filter (fn x => not (dmem (fst x) (!wind))) 
       (dlist (!partwind))
     val bestpl1 = mk_fast_set prog_compare_size 
@@ -104,6 +103,6 @@ fun checkfinal () =
     fun forget ((a,b),c) = (a,c)
   in
     dlist (!wind)
-  end    
+  end
 
 end (* struct *)

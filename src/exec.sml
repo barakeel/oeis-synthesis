@@ -46,12 +46,17 @@ fun testn costn f x =
   in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
-
+  
 fun test f x =
   let 
     val y = f x 
     val _ = abstimer := !abstimer + cost 1 y   
   in
+    if !abstimer > !timelimit then raise ProgTimeout else y
+  end
+
+fun testcache costn y = 
+  let val _ = abstimer := !abstimer + costn in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
 
@@ -162,7 +167,7 @@ fun compr_f fl = case fl of
        val input = IntInf.toInt (f2 x) handle Overflow => raise Div 
        val (y,cost) = f1' input
      in
-       testn cost I y
+       testcache cost y
      end)
   end
   | _ => raise ERR "compr_f" ""
@@ -200,7 +205,7 @@ fun cache_exec exec =
       if n >= 0 andalso n < Vector.length v 
         then 
           let val (r,tim) = Vector.sub (v,n) in
-            testn tim I r
+            testcache tim r
           end
       else exec x    
     end
@@ -275,17 +280,21 @@ load "exec"; open exec;
 load "human"; open kernel human aiLib;
 val p =  parse_human "(loop ( * 2 x) (+ x 1)";
 val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2)) x) 2)"; 
+
+val p = parse_human "(loop ( * x x) x  2)";
 humanf p;
-init_slow_test ();
-val exec = mk_exec_onev p;
-val (l1,t) = add_time (penum p) 1000;
+val (l1,t) = add_time (penum p) 7;
+!abstimer;
+
 val isol = read_iprogl "model-old/isol100"; length isol;
+init_slow_test ();
 val bbl = map_assoc (verify_wtime 1000000) isol;
 
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
 fun f (i,p) = its i ^ ": " ^ humanf p;
+map f lbad;
 
 write_iprogl "lbad" lbad;
 val lbad = read_iprogl "lbad";
