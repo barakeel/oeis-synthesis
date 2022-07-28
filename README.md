@@ -10,8 +10,8 @@ The following installation instructions are for the Ubuntu OS.
 Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
-```
-sudo apt install rlwrap intel-mkl
+``` 
+sudo apt install -y libgmp-dev rlwrap intel-mkl
 sh install_dep.sh
 ```
 
@@ -53,12 +53,12 @@ Go to the `src` director.
 
 - To change training options, 
   edit the `config` file and run `sh install.sh` again.
-- To start the training,
-run `sh rl.sh expname` where `expname` is a string of your choice.
+- To start the training, run `sh rl.sh expname` where `expname`. 
+  You may change `expname` to reflect the aim of your experiment.
 - You can stop the training at any point by interrupting the process 
-with ctrl+c. 
+  with ctrl+c. 
 - You can restart the training from the last generation
-by running the same command `sh rl.sh experimentname`.
+by running the same command `sh rl.sh expname`.
 
 A summary of the number of programs found at different generation is located at
 `src/exp/expname/log`.

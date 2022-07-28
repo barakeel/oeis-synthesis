@@ -276,15 +276,17 @@ load "human"; open kernel human aiLib;
 val p =  parse_human "(loop ( * 2 x) (+ x 1)";
 val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2)) x) 2)"; 
 humanf p;
-init_fast_test ();
+init_slow_test ();
 val exec = mk_exec_onev p;
-val (l1,t) = add_time (penum p) 30;
-val isol = read_iprogl "model/isol100"; length isol;
-val bbl = map_assoc (verify_wtime 40000) isol;
+val (l1,t) = add_time (penum p) 1000;
+val isol = read_iprogl "model-old/isol100"; length isol;
+val bbl = map_assoc (verify_wtime 1000000) isol;
 
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
+fun f (i,p) = its i ^ ": " ^ humanf p;
+
 write_iprogl "lbad" lbad;
 val lbad = read_iprogl "lbad";
 

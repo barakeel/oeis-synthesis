@@ -100,7 +100,7 @@ fun human vn prog =
   | Ins (10,[]) => mk_xn vn
   | Ins (11,[]) => mk_yn vn
   | Ins (12,[p1,p2]) => 
-    if not (!python_flag) then "compr(" ^ lrhx p1 ^ ", " ^ rhx p2 ^ ")" else 
+    if not (!python_flag) then "compr(" ^ rhx p1 ^ ", " ^ rhx p2 ^ ")" else 
     let fun f wn = 
       let val (s1,s2) = (hx p1, rhuman wn p2) in
         ["  x,i = 0,0"] @
