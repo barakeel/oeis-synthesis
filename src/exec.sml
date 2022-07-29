@@ -257,6 +257,25 @@ fun penum_aux p n =
   end
   
 fun penum p n = (init_slow_test (); penum_aux p n)
+
+fun penum_limit_aux m p n = 
+  let 
+    val f = mk_exec_onev p
+    val _ = init_timer ()
+    val l = ref []
+    fun loop i x = if aleq m x orelse i >= n then () else
+      (
+      l := f x :: !l; 
+      incr_timer ();
+      loop (i+1) (aincr x)
+      )
+    val _ = catch_perror (loop 0) azero (fn () => ())
+  in  
+    rev (!l)
+  end
+ 
+fun penum_limit m p n = (init_slow_test (); penum_limit_aux m p n)
+
 fun penum_wtime r p n = (timeincr := r; penum_aux p n)
 
 (* -------------------------------------------------------------------------

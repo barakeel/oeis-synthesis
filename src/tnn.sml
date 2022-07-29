@@ -371,13 +371,46 @@ local open IntInf in
          string_of_nat (suc i) (n div ten)
 end
 
+val progfead = ref (dempty IntInf.compare)
+
 fun fea_of_seq seq = 
-  let fun f (a,b) = map (fn x => its a ^ "i-" ^ x) (string_of_nat 0 b) in
+  let 
+    fun pfea x = map (fn y => "p" ^ its y) 
+       (dfind x (!progfead) handle NotFound => [])
+    fun f (a,b) = map (fn x => its a ^ "i-" ^ x) 
+      ((string_of_nat 0 b) @ pfea b)
+  in
     List.concat (map f (number_fst 0 (first_n 16 seq)))
   end
 
+fun init_progfead iprogl =
+  let 
+    fun compute_freq sol =
+      let val freql = dlist 
+        (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)))
+      in
+        dict_sort compare_imax freql
+      end
+    val l1 = compute_freq (map snd iprogl)
+    val l2 = map fst (first_n 100 l1)
+    fun f ((p,seq),(n:int)) = 
+      let fun g i = if IntInf.<= (amillion, i) then () 
+      else progfead := dappend (i,n) (!progfead) in
+        app g seq
+      end
+    val l3 = map_assoc (fn x => exec.penum_limit amillion x 10000) l2;
+    val l4 = number_snd 0 l3
+  in
+    progfead := dempty IntInf.compare;
+    app f l4
+  end
+  
 fun export_fea file iprogl =
   let    
+    val _ = print_endline "initalizing program features"
+    val _ = init_progfead iprogl
+    val _ = print_endline (its (dlength (!progfead)) ^ 
+      " numbers with program features")
     val feand = ref (dempty String.compare)
     fun daddf s = if dmem s (!feand) then () else
       feand := dadd s (dlength (!feand)) (!feand)
@@ -396,8 +429,7 @@ fun export_fea file iprogl =
              val feac1 = count_dict (dempty String.compare) feal
              val _ = app daddf (dkeys feac1)
              val feac2 = map (fn (a,b) => its (dfind a (!feand)) ^ ":" ^ 
-               its b) (dlist feac1)
-             
+               its b) (dlist feac1) 
              val feac3 = String.concatWith " " feac2 
              fun g m = (if m = move then "1.0" else "0.0") ^ " " ^ 
                its (dfind (its m) (!feand)) ^ ":1 " ^ feac3 
@@ -419,5 +451,6 @@ end (* struct *)
 
 (*
 load "tnn"; open kernel aiLib tnn;
-time (export_fea "oeis_fea_base10") (read_iprogl "isol295");
+time (export_fea "oeis_fea_base10_pfea100") (read_iprogl "model/isol295");
 *)
+

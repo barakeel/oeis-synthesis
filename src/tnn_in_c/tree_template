@@ -391,7 +391,7 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 200; //nex=20;
+  long EP = 100; //nex=20;
   double lr = 0.0008;
   for (ep = 0; ep < EP; ++ep) {
   if (ep == 25) {lr = 0.0004;}

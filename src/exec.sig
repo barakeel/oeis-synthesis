@@ -12,6 +12,7 @@ sig
   val coverf_oeis : exec -> (int * int) list * int * int list
   val coverp_target : prog -> kernel.seq -> bool * int
   val penum : prog -> int -> kernel.seq
+  val penum_limit : IntInf.int -> prog -> int -> kernel.seq
   val penum_wtime : int -> prog -> int -> kernel.seq
   val verify_wtime : int -> int * prog -> bool * bool 
     
