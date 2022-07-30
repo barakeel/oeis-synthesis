@@ -370,6 +370,12 @@ fun rl_search_only ngen =
     val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
     val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
     val _ = log ("solutions: " ^ (its (length newitsol)))
+    val allprog = List.concat (map (map snd o snd) newitsol)
+    val allsize = List.concat (map (map fst o snd) newitsol)
+    val _ = log ("programs: " ^ (its (length allprog)))
+    val _ = log ("average size: " ^ rts_round 2 
+      (average_int (map prog_size allprog)))
+    val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
     val _ = count_newsol olditsol itsoll
     val _ = write_itsol_atomic ngen newitsol
   in
