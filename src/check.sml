@@ -12,20 +12,53 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
 (* -------------------------------------------------------------------------
    Update set of solutions
    ------------------------------------------------------------------------- *)
+
+fun is_faster (t1,p1) (t2,p2) =   
+  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
+ 
+fun is_smaller (t1,p1) (t2,p2) = 
+  prog_compare_size (p1,p2) = LESS
+
+fun find_min_loop cmpf a m = case m of
+    [] => a
+  | a' :: m' => find_min_loop cmpf (if cmpf a' a then a' else a)  m'
+
+fun find_min cmpf l = case l of 
+    [] => raise ERR "find_min" ""
+  | a :: m => find_min_loop cmpf a m
+
+
+fun update_ifnew d anum (tpl,newtpl) = 
+  if list_compare (snd_compare prog_compare) (tpl,newtpl) = EQUAL 
+  then () 
+  else d := dadd anum newtpl (!d)
+
+fun update_smallest d anum tpl =
+  let val newtpl = [find_min is_smaller tpl] in
+    update_ifnew d anum (tpl,newtpl)
+  end
+  
+fun update_fastest d anum tpl =
+  let val newtpl = [find_min is_faster tpl] in
+    update_ifnew d anum (tpl,newtpl)
+  end  
    
-fun update_wind d (anum,(t,p)) =
+fun update_sol2 d anum tpl =
+  let val newtpl = mk_fast_set (snd_compare prog_compare) 
+    [find_min is_smaller tpl, find_min is_faster tpl]
+  in
+    update_ifnew d anum (tpl,newtpl)
+  end
+
+fun update_wind d (anum,toptpl) =
   case dfindo anum (!d) of 
-    NONE => d := dadd anum (t,p) (!d)
-  | SOME (oldt,oldp) =>
-    if !t_flag 
-    then 
-      if cpl_compare Int.compare prog_compare_size ((t,p),(oldt,oldp)) = LESS
-      then d := dadd anum (t,p) (!d)
-      else ()
-    else
-      if prog_compare_size (p,oldp) = LESS
-      then d := dadd anum (t,p) (!d)
-      else ()
+    NONE => d := dadd anum toptpl (!d)
+  | SOME oldtpl =>
+    let val tpl = toptpl @ oldtpl in
+      if !sol2_flag then update_sol2 d anum tpl
+      else if !t_flag then update_fastest d anum tpl
+      else update_smallest d anum tpl
+    end
 
 fun merge_itsol itsol = 
   let val d = ref (dempty Int.compare) in
@@ -77,7 +110,7 @@ val partwind = ref (dempty Int.compare)
 fun checkf (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
-    fun f (anum,t) = update_wind wind (anum,(t,p))
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
     fun g (anum,n) = update_partwind partwind (anum,(n,p))
   in
     app f anumtl;

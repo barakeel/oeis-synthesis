@@ -7,7 +7,8 @@ sig
   val configd : (string ,string) Redblackmap.dict
   val t_flag : bool ref (* optimize for time instead of size *)
   val z_flag : bool ref (* functions of arity 3 *)
-   
+  val sol2_flag : bool ref (* train on smallest and fastest solutions *)
+  
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
@@ -38,16 +39,18 @@ sig
   val depend_on_y : prog -> bool
   val depend_on_z : prog -> bool
   
+  (* solutions *)
+  type sol = anum * (int * prog) list
+   
   (* I/O *)
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
-  val read_itprogl : string -> (anum * (int * prog)) list
-  val write_itprogl : string -> (anum * (int * prog)) list -> unit
+  val read_itprogl : string -> sol list
+  val write_itprogl : string -> sol list -> unit
   
   (* operators *)
- 
   val operv : term vector
   val arity_of_oper : int -> int
   val name_of_oper : int -> string

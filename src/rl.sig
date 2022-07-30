@@ -5,6 +5,7 @@ sig
 
   type seq = kernel.seq
   type prog = kernel.prog
+  type sol = kernel.sol
   type tnn = mlTreeNeuralNetwork.tnn
   type 'a set = 'a Redblackset.set
   type ('a,'b) dict = ('a,'b) Redblackmap.dict
@@ -18,7 +19,7 @@ sig
   val expname : string ref
 
   (* functions *)
-  val search : tnn -> int -> (anum * (int * prog)) list
+  val search : tnn -> int -> sol list
   val trainf_start : unit -> unit
   val trainf_end : unit -> unit
   
@@ -27,7 +28,7 @@ sig
   val rl_train_only : int -> unit
   val rl_search : int -> unit
   val rl_train : int -> unit
-  val parspec : (tnn, int, (anum * (int * prog)) list) smlParallel.extspec
+  val parspec : (tnn, int, sol list) smlParallel.extspec
 
   (* continuous training and searching *)
   val rl_search_cont : unit -> unit

@@ -373,16 +373,6 @@ end
 
 val progfead = ref (dempty IntInf.compare)
 
-fun fea_of_seq seq = 
-  let 
-    fun pfea x = map (fn y => "p" ^ its y) 
-       (dfind x (!progfead) handle NotFound => [])
-    fun f (a,b) = map (fn x => its a ^ "i-" ^ x) 
-      ((string_of_nat 0 b) @ pfea b)
-  in
-    List.concat (map f (number_fst 0 (first_n 16 seq)))
-  end
-
 fun init_progfead iprogl =
   let 
     fun compute_freq sol =
@@ -391,24 +381,45 @@ fun init_progfead iprogl =
       in
         dict_sort compare_imax freql
       end
-    val l1 = compute_freq (map snd iprogl)
-    val l2 = map fst (first_n 100 l1)
+    val l1 = map fst (compute_freq (map snd iprogl))
+    val l2 = first_n 5000 (filter (not o depend_on_y) l1) 
+    val _ = print_endline 
+      ("start evaluation of " ^ its (length l2) ^ " programs")
+    val l3 = map_assoc (fn x => exec.penum_limit amillion x 1000) l2
+    val _ = print_endline "end evaluation"
+    val l4 = number_snd 0 l3
+    fun g ((p,seq),n) =
+      "p" ^ its n ^ ": " ^ humanf p ^ "\n" ^ 
+      string_of_seq (first_n 20 seq) ^ (if length seq > 20 then "..." else "")
+    val _ = writel "progfea" (map g l4)
     fun f ((p,seq),(n:int)) = 
-      let fun g i = if IntInf.<= (amillion, i) then () 
-      else progfead := dappend (i,n) (!progfead) in
+      let 
+        fun g i = 
+          if IntInf.<= (amillion, i) then () else 
+          let 
+            val oldset = dfind i (!progfead) 
+              handle NotFound => eempty Int.compare
+            val newset = eadd n oldset
+          in
+            progfead := dadd i newset (!progfead) 
+          end
+      in
         app g seq
       end
-    val l3 = map_assoc (fn x => exec.penum_limit amillion x 10000) l2;
-    val l4 = number_snd 0 l3
   in
     progfead := dempty IntInf.compare;
     app f l4
   end
-  
+
+fun fea_of_seq seq = 
+  let fun f (a,b) = map (fn x => its a ^ "i-" ^ x) (string_of_nat 0 b) in
+    List.concat (map f (number_fst 0 (first_n 16 seq)))
+  end
+
 fun export_fea file iprogl =
   let    
     val _ = print_endline "initalizing program features"
-    val _ = init_progfead iprogl
+    (* val _ = init_progfead iprogl *)
     val _ = print_endline (its (dlength (!progfead)) ^ 
       " numbers with program features")
     val feand = ref (dempty String.compare)
@@ -446,11 +457,37 @@ fun export_fea file iprogl =
   in
     writel file sl
   end
+ 
+(* -------------------------------------------------------------------------
+   Program features for sequences
+   ------------------------------------------------------------------------- *)
+  
+fun pfea_of_seq seq = 
+  let 
+    fun pfea x = IntInf.toString x ^ " " ^ 
+      String.concatWith " " (map (fn y => "p" ^ its y) 
+        (elist (dfind x (!progfead)) handle NotFound => []))
+  in
+    String.concatWith " " (map pfea (first_n 16 seq))
+  end  
+  
+fun export_seqfea file iprogl =  
+  let
+    val _ = init_progfead iprogl
+    val _ = print_endline "printing program features for each sequence"
+    fun create_ex (i,p) = "A" ^ its i ^ ": " ^ 
+      pfea_of_seq (valOf (Array.sub (oseq,i)))
+  in
+    app (fn x => append_endline file 
+                 (String.concatWith "\n" (map create_ex x))) 
+    (mk_batch_full 100 iprogl)
+  end  
   
 end (* struct *)
 
 (*
 load "tnn"; open kernel aiLib tnn;
+time (export_seqfea "seq_with_progfea") (read_iprogl "model/isol295");
 time (export_fea "oeis_fea_base10_pfea100") (read_iprogl "model/isol295");
 *)
 

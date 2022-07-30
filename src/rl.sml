@@ -8,6 +8,7 @@ open HolKernel Abbrev boolLib aiLib smlParallel smlExecScripts
 val ERR = mk_HOL_ERR "rl"
 type seq = kernel.seq
 type prog = kernel.prog
+type sol = kernel.sol
 type tnn = mlTreeNeuralNetwork.tnn
 type 'a set = 'a Redblackset.set
 type ('a,'b) dict = ('a,'b) Redblackmap.dict
@@ -120,7 +121,8 @@ fun trainf_start () =
   let
     val itsol = read_itsol (find_last_itsol ())
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
-    val isol = map (fn (a,(_,b)) => (a,b)) itsol
+    val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
+    val isol = distrib isolaux
     val ex = create_exl (shuffle isol)
     val _ = print_endline (its (length ex) ^ " examples created")
   in
@@ -218,17 +220,8 @@ fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
 
-fun catch_fwrite msg f file x =
-  f file x handle Interrupt => raise Interrupt | _ => 
-       (print_endline ("rl: " ^ msg ^ ": " ^ file); 
-         raise ERR msg file)
 
-fun catch_fread msg f file =
-  f file handle Interrupt => raise Interrupt | _ => 
-       (print_endline ("rl: " ^ msg ^ ": " ^ file); 
-         raise ERR msg file)
-
-val parspec : (tnn, int, (anum * (int * prog)) list) extspec =
+val parspec : (tnn, int, sol list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -243,14 +236,12 @@ val parspec : (tnn, int, (anum * (int * prog)) list) extspec =
      "game.time_opt := " ^ string_of_timeo ()] 
     ^ ")"),
   function = search,
-  write_param = catch_fwrite "write_tnn" write_tnn,
-  read_param = catch_fread "read_tnn" read_tnn,
-  write_arg = let fun f file arg = writel file [its arg] 
-       in catch_fwrite "write_arg" f end,
-  read_arg = let fun f file = string_to_int (hd (readl file)) 
-       in catch_fread "read_arg" f end,
-  write_result = catch_fwrite "write_itprogl" write_itprogl,
-  read_result = catch_fread "read_itprogl" read_itprogl
+  write_param = write_tnn,
+  read_param = read_tnn,
+  write_arg = let fun f file arg = writel file [its arg] in f end,
+  read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
+  write_result = write_itprogl,
+  read_result = read_itprogl
   }
 
 (* -------------------------------------------------------------------------
@@ -289,16 +280,19 @@ fun compute_freq f sol1 =
 
 fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
 
-fun string_of_itprog (i,(t,p)) = 
-  "A" ^ its i ^ ": speed " ^ its t ^ ": " ^
-  string_of_seq (valOf (Array.sub (oseq,i))) ^ 
-  "\n" ^ humanf p
+fun string_of_tp (t,p) =
+  "size " ^ its (prog_size p) ^ ", time " ^ its t ^ ": " ^ humanf p
+
+fun string_of_itprog (i,tpl) = 
+  "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
+   String.concatWith "\n" (map string_of_tp tpl)
 
 fun stats_sol prefix itsol =
   let
     val itsolsort = dict_sort 
-      (snd_compare (snd_compare prog_compare_size)) itsol
-    val freql1 = compute_freq all_subprog (map (snd o snd) itsol)
+      (snd_compare (list_compare (snd_compare prog_compare_size))) itsol
+    val allprog = List.concat (map (map snd o snd) itsol) 
+    val freql1 = compute_freq all_subprog allprog
   in
     writel (prefix ^ "prog") (map string_of_itprog itsolsort);
     writel (prefix ^ "freq") (map human_progfreq freql1)

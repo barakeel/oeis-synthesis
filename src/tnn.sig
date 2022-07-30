@@ -38,7 +38,8 @@ sig
   val fp_op_glob : (term -> real vector list -> real vector) ref
   val update_fp_op : string -> unit
 
-  (* export features *)
+  (* export features for feature-based machine learners *)
+  val export_seqfea : string -> (int * kernel.prog) list -> unit
   val export_fea : string -> (int * kernel.prog) list -> unit
   
 end

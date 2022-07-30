@@ -8,4 +8,5 @@ search_memory 4000
 train_memory 50000
 z_flag false
 t_flag false
+sol2_flag false
 loss_threshold 0.2

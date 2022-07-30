@@ -19,7 +19,10 @@ val z_flag =
   ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
 val t_flag = 
   ref (string_to_bool (dfind "t_flag" configd) handle NotFound => false) 
-  
+val sol2_flag = 
+  ref (string_to_bool (dfind "sol2_flag" configd) handle NotFound => false) 
+
+
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
    ------------------------------------------------------------------------- *)
@@ -58,6 +61,7 @@ val target_glob = ref []
 
 type id = int
 datatype prog = Ins of (id * prog list);
+type sol = anum * (int * prog) list
 
 fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
   cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
@@ -95,9 +99,11 @@ local open HOLsexp in
   val enc_iprogl = list_encode enc_iprog
   val dec_iprog = pair_decode (int_decode, dec_prog)
   val dec_iprogl = list_decode dec_iprog
-  val enc_itprog = pair_encode (Integer, pair_encode (Integer, enc_prog))
+  val enc_itprog = pair_encode (Integer, 
+    list_encode (pair_encode (Integer, enc_prog)))
   val enc_itprogl = list_encode enc_itprog
-  val dec_itprog = pair_decode (int_decode, pair_decode (int_decode, dec_prog))
+  val dec_itprog = pair_decode (int_decode,
+    list_decode (pair_decode (int_decode, dec_prog)))
   val dec_itprogl = list_decode dec_itprog
 end
 
