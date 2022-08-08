@@ -3,6 +3,15 @@
 (* "Learning Program Synthesis for Integer Sequences from Scratch"            *)
 (* ========================================================================== *)
 
+(* 
+ Not that this file assumes by default that the commit used is
+ the top of the anonymous repository corresponding to commit
+ f227c2f746327e9910df6f64d802aadc7752984f in our main de-anonymized repository.
+ Some of the experiments requires commits from our main repository. 
+ The address of the main repository will be included in the final version 
+ before publication. 
+ *)
+
 (* --------------------------------------------------------------------------
    Number y of OEIS sequences with length x
    -------------------------------------------------------------------------- *)
@@ -16,10 +25,8 @@ fun f (i,j) = its i ^ " " ^ its j;
 writel "length-distrib" (map f (dlist lend));
 
 (* --------------------------------------------------------------------------
-   Side experiments. 
-   The de-anonymized repository containing the required commits will be made 
-   available in the final version before publication.
-   Table created by grepping respective exp/expname/log files.
+   Side experiments.
+   Table created by grepping respective exp/expname/log files for "solutions:"
    -------------------------------------------------------------------------- *)
 
 (* noise experiment: switch to commit 
@@ -43,7 +50,7 @@ rl_search "_main" 0;
 
 (* --------------------------------------------------------------------------
    Full-scale self-learning run.
-   Table and figure created by grepping exp/full-scale/log for "solutions:".
+   Table and figure created by grepping exp/full-scale/log for "solutions:".  
    -------------------------------------------------------------------------- *)
 
 load "rl"; open rl;
@@ -65,14 +72,14 @@ writel "size-distrib" (map (fn (a,b) => its a ^ " " ^ its b) sizel2);
 
 (* --------------------------------------------------------------------------
    Generalization to larger inputs
-   Switch to commit 
+   Switch to commit 3e67eda98b11275a94ea7e7f9ecde3cf25fbb85b
+   Requires to have downloaded b-files in home/user/oeis-bfile
    -------------------------------------------------------------------------- *)
 
-load "kernel"; open kernel;
-load "aiLib" ; open aiLib;
+load "kernel"; open aiLib kernel;
 
 val ERR = mk_HOL_ERR "test";
-val dir = "/home/thibault/big/datasets/oeis-bfile";
+val dir = "/home/user/oeis-bfile";
 
 fun readln ntop path =
   let
@@ -90,9 +97,7 @@ fun readln ntop path =
     (TextIO.closeIn file; l3)
   end;
 
-val isol25 = read_iprogl 
-  "/home/thibault/big/save/oeis-dev.old/exp/run312/isol25";
-length isol25;
+val isol25 = read_iprogl "model/isol25"; length isol25;
 
 fun get_seq_sl sl =
   let fun f s = 
@@ -118,9 +123,9 @@ fun get_seq (i,p) =
     then SOME ((i,p), get_seq_sl (readln 300 file))
     else NONE
   end;
-  
-val isol25e = List.mapPartial get_seq isol25;
-length isol25e;
+
+(* Reads the first 300 lines of each b-file *)  
+val isol25e = List.mapPartial get_seq isol25; length isol25e;
 
 fun in_order l = seq_compare
     (map fst l, List.tabulate (length l, IntInf.fromInt)) = EQUAL
@@ -184,57 +189,51 @@ PolyML.print_depth 1;
 val l0 = filter is_prefix_alt isol25e; length l0;
 val l1 = filter is_continuous l0; length l1;
 val l2 = List.mapPartial keep_ext l1; length l2;
-
 val l3 = filter is_correct l2; length l3;
 val l4 = filter (not o is_timeout) l2; length l4;
 val l5 = map correct_bl l2; length l5;
 val l6 = list_combine (map snd l5);
 val l7 = map (fn l => sum_int (map (fn x => if x then 1 else 0) l)) l6;
 val l8 = map (fn x => int_div x (length l5)) l7;
-fun f (i,x) = print_endline (its i ^ " " ^ rts x); 
+length l2; length l2 - length l4; length l3;
 
-app f (number_fst 0 (1.0 :: l8));   
-length l2;
-length l2 - length l4;
-length l3;
+fun f (i,x) = (its i ^ " " ^ rts x); 
+writel "largeinput" (map f (number_fst 0 (1.0 :: l8)));
 
 
+(* --------------------------------------------------------------------------
+   Analysis of the solutions. 
+   Many of the solutions were chosen just by looking at the file 
+   "result/solutions" produced from isol25.
+   -------------------------------------------------------------------------- *)
 
-(* 
 load "kernel"; open kernel aiLib;
 load "human"; open human;
 
-(* identifiers *)
-val zero_id = 0
-val one_id = 1
-val two_id = 2
-val addi_id = 3
-val diff_id = 4
-val mult_id = 5
-val divi_id = 6
-val modu_id = 7
-val cond_id = 8
-val loop_id = 9
-val x_id = 10
-val y_id = 11
-val compr_id = 12
-val loop2_id = 13
+(* reading solutions from the last generation *)
+val iprogl = read_iprogl "model/isol25";
+val progl = map snd iprogl;
 
-(* reading solutions from the corresponding generation *)
+(* reprint solutions in readable form *)
+load "bloom"; open bloom;
+fun string_of_iprog (i,p) = 
+  "A" ^ its i ^ ": " ^ 
+  string_of_seq (valOf (Array.sub (oseq,i))) ^ 
+  "\n" ^ humanf p;
+writel "results/solutions" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) iprogl));
 
+(* frequency of subprograms in solutions *)
+val progll = map (mk_fast_set prog_compare o all_subprog) progl;
+val prognl = dlist (count_dict (dempty prog_compare) (List.concat progll));
+val prognl2 = dict_sort compare_imax prognl;
+fun humanif (p,i) = its i ^ ": " ^ humanf p;
+writel "results/occurences" (map humanif prognl2);
 
-
-
-(* distribution of sizes *)
-
-
-(* diff *)
-val predd = enew prog_compare (map snd (read_iprogl "isol17"));
-val diffl = filter (fn x => not (emem (snd x) predd)) iprogl;
-(* writel "diff" (map string_of_iprog (dict_sort (snd_compare prog_compare_size) diffl)); *)
-val diffl2 = dict_sort (snd_compare prog_compare_size) diffl;
-val (an,p) = hd diffl;
-humanf p; prog_size p;
+(* longest program *)
+val l1 = map_assoc (prog_size o snd) iprogl;
+val l2 = dict_sort compare_imax l1;
+val ((an,p),i) = hd l2;
+humanf p; an; i;
 
 (* nested levels *)
 fun nested_level (Ins (id,pl)) =
@@ -249,86 +248,18 @@ val l3 = map fst (filter (fn x => snd x = 6) l2);
 val (i,p) = hd l3;
 humanf p; i;
 
-(* longest program *)
-val l1 = map_assoc (prog_size o snd) iprogl;
-val l2 = dict_sort compare_imax l1;
-val ((an,p),i) = hd l2;
-humanf p; an; i;
-
-val test =
-((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
-0 + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1);
-324
-
-
-
+(* largest constant (switch to  3e67eda98b11275a94ea7e7f9ecde3cf25fbb85b) *)
 fun is_constant p = not (depend_on_x p) andalso not (depend_on_y p);
 val constl = filter (is_constant o fst) prognl2;
 app print_endline (map humanif constl);
-
 load "exec"; open exec;
 rt_glob := Timer.startRealTimer (); 
 timelimit := 100.0;
 val constel = map_assoc (fn (p,i) => mk_exec p (IntInf.zero,IntInf.zero)) constl; 
-
 val largel = first_n 3 (rev (dict_sort (snd_compare IntInf.compare) constel));
 fun humanrif ((p,i),r) = IntInf.toString r ^ ": " ^ its i ^ ": " ^ humanf p;
 app print_endline (map humanrif largel);
-(*
-8916100448256i: 1: loop(\(x,y).loop(\(x,y).(loop(\(x,y).((x * 2) + x) - 2, 2, 2) + 2) * x, x, 1), 2, 1)
-285311670611i: 1: loop(\(x,y).loop(\(x,y).(((1 + 2) + 2) * (x * 2)) + x, x, 1), 2, 1)
-10000000000i: 1: loop(\(x,y).loop(\(x,y).((2 * (2 + 2)) + 2) * x, x, 1), 2, 1)
-*)
-
-fun is_xpoly (Ins (id,progl)) =
-  if mem id [zero_id,one_id,two_id,x_id,y_id,addi_id,mult_id,diff_id] 
-  then all is_xpoly progl 
-  else false
-
-val xpolyl = filter (fn (p,_) => is_xpoly p andalso not (is_constant p)) prognl2;
-app print_endline (first_n 100 (map humanif xpolyl));
 
 
-fun is_loop (Ins (id,progl)) = id = loop_id;
-val xpolyl = filter (is_loop o fst) prognl2;
-app print_endline (first_n 100 (map humanif xpolyl));
 
-fun is_loop (Ins (id,progl)) = id = loop2_id;
-val xpolyl = filter (is_loop o fst) prognl2;
-app print_endline (first_n 10 (map humanif xpolyl));
-
-
-val p1 = fst (List.nth (prognl2, 14));
-val p2 = fst (List.nth (prognl2, 27));
-prog_compare_size (p1,p2);
-
-fun is_test (Ins (id,progl)) = id = cond_id;
-val l1 = filter (is_test o fst) prognl2;
-val l2 = map (fn (Ins (_,l),i) => (hd l,i)) l1;
-val l3 = dlist (dsum prog_compare l2);
-val l4 = dict_sort compare_imax l3;
-
-app print_endline (first_n 10 (map humanif l4));
-
-fun is_loop (Ins (id,progl)) = id = compr_id;
-val xpolyl = filter (is_loop o fst) prognl2;
-app print_endline (first_n 100 (map humanif xpolyl));
-
-(* the number of unique sequence after restrictions *)
-load "bloom"; open bloom aiLib kernel;
-val l = List.mapPartial I (array_to_list oseq);
-
-local open IntInf in
-  fun arb_pow a b = if b <= zero then one else a * arb_pow a (b-one)
-  val maxarb = arb_pow (fromInt 10) (fromInt 6)
-  val minarb = ~maxarb
-  fun reduce x = if x > maxarb then maxarb + one else 
-                 if x < minarb then minarb - one else x
-end ;
-
-val l1 = map (map reduce o (first_n 16)) l;
-val d = count_dict (dempty seq_compare) l1;
-
-val l2 = filter (fn x => snd x = 1) (dlist d);
-length l2;
 
