@@ -15,5 +15,6 @@ sig
   val penum_limit : IntInf.int -> prog -> int -> kernel.seq
   val penum_wtime : int -> prog -> int -> kernel.seq
   val verify_wtime : int -> int * prog -> bool * bool 
-    
+  val verify_eq : int * int -> prog * prog -> bool
+  
 end

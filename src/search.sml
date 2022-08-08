@@ -5,7 +5,10 @@ open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn exec check
 val ERR = mk_HOL_ERR "search"
 type emb = real vector
 
+(* first embedding is prog embedding, second is stack *)
 type boarde = (kernel.prog * exec.exec * emb * emb) list
+
+
 val randsearch_flag = ref false
 
 (* -------------------------------------------------------------------------
@@ -44,12 +47,11 @@ fun available_movel boarde = filter (available_move boarde) movelg
    Apply a move
    ------------------------------------------------------------------------- *)
 
-val tnn_glob = ref (dempty Term.compare)
 val empty_emb = Vector.fromList []
 
 fun exec_fun (move,exec) l1 l2 =
   let 
-    val f = fp_emb_either (!tnn_glob)
+    val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
   in
     if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
@@ -167,7 +169,7 @@ fun create_pol targete boarde mfl =
     then normalize_distrib (map (fn x => (x, random_real ())) mfl)
   else
   let  
-    val f = fp_emb_either (!tnn_glob) 
+    val f = fp_emb_either
     val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
     val preboarde = f pair_progseq [progle,targete]
     val prepolie = f prepoli [preboarde]
@@ -179,7 +181,6 @@ fun create_pol targete boarde mfl =
   in
     pol4
   end
-
 
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout
@@ -218,9 +219,45 @@ fun search (vis,tinc) =
     val _ = search_time_flag := (vis <= 0)
     val _ = prog_counter := 0
     val _ = checkinit ()
-    val targete = get_targete (!tnn_glob)
+    val targete = get_targete ()
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
+  in
+    print_endline ("programs: " ^ its (!prog_counter));
+    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
+  end
+  
+(* -------------------------------------------------------------------------
+   Search starting from a particular goal
+   ------------------------------------------------------------------------- *) 
+ 
+fun get_boarde board =
+  let 
+    val bmltop = game.linearize_board board
+    fun f bml boarde = case bml of [] => boarde | (_,move) :: m =>
+      let 
+        val (_,exec) = valOf (collect_child boarde move)
+        val newboarde = apply_move (move,exec) boarde
+      in
+        f m newboarde
+      end
+    val r = f bmltop [] 
+    val _ = if #board_compare (game.game) (map #1 r, board) <> EQUAL 
+            then raise ERR "get_boarde" ""
+            else ()
+  in
+    r
+  end
+
+fun search_board (vis,tinc) board =
+  let 
+    val _ = search_time_flag := (vis <= 0)
+    val _ = prog_counter := 0
+    val _ = checkinit ()
+    val targete = get_targete ()
+    val boarde = get_boarde board
+    val rt = Timer.startRealTimer ()
+    val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) boarde
   in
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
@@ -230,14 +267,22 @@ fun search (vis,tinc) =
 end (* struct *)
 
 (* 
-load "search"; open kernel aiLib search; 
-tnn_glob := mlTreeNeuralNetwork.random_tnn (tnn.get_tnndim ());
+load "search"; open kernel aiLib search;
 tnn.update_fp_op (selfdir ^ "/tnn_in_c/ob_online.so");
-bloom.select_random_target ();
+target_glob := List.tabulate (16,IntInf.fromInt);
+(* bloom.select_random_target (); *)
 
-check_init ();
-search (0, SOME 10.0);
+check.checkinit ();
+search (0, 60.0);
 val _ = check.checkfinal ();
+
+(*
+solutions: 3373
+checkb: 5381
+checkb time: 93.18 seconds
+more solutions: 3689
+> val it = 55: int
+*)
 
 check_init ();
 search (200000, NONE);

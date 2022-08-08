@@ -4,7 +4,6 @@ struct
 open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork kernel mcts exec rl;
 val ERR = mk_HOL_ERR "qsynt";
 
-val main_tnn = read_tnn (selfdir ^ "/model/tnn_online")
 val main_iprogl = read_iprogl (selfdir ^ "/model/isol_online")
 
 fun test_cache_one target (i,prog) = 
@@ -20,7 +19,7 @@ fun parse_seq s = List.mapPartial afs
 
 fun qsynt targets = 
   let val target = parse_seq targets in
-  case search_target main_tnn target of
+  case search_target target of
     NONE =>
     let val l = filter (test_cache_one target) main_iprogl in
       if null l then NONE else

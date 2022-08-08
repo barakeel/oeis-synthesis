@@ -12,6 +12,7 @@ type player = (board,move) player
    Globals
    ------------------------------------------------------------------------- *)
 
+val tnn_glob = ref (dempty Term.compare)
 val use_ob = ref true
 val dim_glob = ref  
   (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
@@ -203,33 +204,33 @@ end (* local *)
 
 val maxembn = 100000
 
-fun fp_emb_either tnn oper newembl = 
+fun fp_emb_either oper newembl = 
   if !use_ob
   then (!fp_op_glob) oper newembl
-  else fp_emb tnn oper newembl 
+  else fp_emb (!tnn_glob) oper newembl 
 
-fun infer_emb_nocache tnn tm =
+fun infer_emb_nocache tm =
   let
     val (oper,argl) = strip_comb tm
-    val embl = map (infer_emb_nocache tnn) argl
-    val emb = fp_emb_either tnn oper embl
+    val embl = map infer_emb_nocache argl
+    val emb = fp_emb_either oper embl
   in
     emb
   end
 
-fun get_targete tnn = infer_emb_nocache tnn 
+fun get_targete () = infer_emb_nocache
   (cap (term_of_seq (first_n 16 (!target_glob))))
 
-fun infer_emb_cache tnn tm =
+fun infer_emb_cache tm =
   if is_capped tm
   then
     (
     Redblackmap.findKey (!embd,tm) handle NotFound =>
     let
       val (oper,argl) = strip_comb tm
-      val embl = map (infer_emb_cache tnn) argl
+      val embl = map infer_emb_cache argl
       val (newargl,newembl) = split embl
-      val emb = fp_emb_either tnn oper newembl
+      val emb = fp_emb_either oper newembl
       val newtm = list_mk_comb (oper,newargl)
     in
       embd := dadd newtm emb (!embd); 
@@ -239,9 +240,9 @@ fun infer_emb_cache tnn tm =
   else
     let
       val (oper,argl) = strip_comb tm
-      val embl = map (infer_emb_cache tnn) argl
+      val embl = map infer_emb_cache argl
       val (newargl,newembl) = split embl
-      val emb = fp_emb_either tnn oper newembl
+      val emb = fp_emb_either oper newembl
     in
       (tm,emb)
     end
@@ -250,25 +251,25 @@ fun infer_emb_cache tnn tm =
    Players
    ------------------------------------------------------------------------- *)
 
-fun rewardf tnn e0 = 0.0
+fun rewardf e0 = 0.0
 
-fun player_uniform tnn board = 
+fun player_uniform board = 
   (0.0, map (fn x => (x,1.0)) (#available_movel game board))
 
-fun player_random tnn board = 
+fun player_random board = 
   (0.0, map (fn x => (x,random_real ())) (#available_movel game board))
 
-fun player_wtnn_cache tnn board =
+fun player_wtnn_cache board =
   let
     val tm = term_of_join board
-    val (_,preboarde) = infer_emb_cache tnn tm
-    val prepolie = fp_emb_either tnn prepoli [preboarde]
-    val ende = fp_emb_either tnn head_poli [prepolie]
+    val (_,preboarde) = infer_emb_cache tm
+    val prepolie = fp_emb_either prepoli [preboarde]
+    val ende = fp_emb_either head_poli [prepolie]
     val pol1 = Vector.fromList (descale_out ende)
     val amovel = #available_movel game board
     val pol2 = map (fn x => (x, Vector.sub (pol1,x))) amovel
   in
-    (rewardf tnn preboarde, pol2)
+    (rewardf preboarde, pol2)
   end
 
 val player_glob = ref player_wtnn_cache

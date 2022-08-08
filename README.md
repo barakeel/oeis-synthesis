@@ -49,12 +49,15 @@ val po = qsynt "2 5 16 256";
 ```
 
 ### Train oeis-syntheis (requires 4GB of ram per core)
-Go to the `src` director.
+Go to the `src` director and run:
+```
+sh rl.sh expname
+```
 
 - To change training options, 
   edit the `config` file and run `sh install.sh` again.
-- To start the training, run `sh rl.sh expname` where `expname`. 
-  You may change `expname` to reflect the aim of your experiment.
+- To start the training, and run:
+- You may change `expname` to reflect the aim of your experiment.
 - You can stop the training at any point by interrupting the process 
   with ctrl+c. 
 - You can restart the training from the last generation
@@ -63,6 +66,7 @@ by running the same command `sh rl.sh expname`.
 A summary of the number of programs found at different generation is located at
 `src/exp/expname/log`.
 Resulting programs can be inspected in the directory `src/exp/expname/search/gen/full_prog` where `gen` is a generation number.
+Running multiple instances of ``rl.sh`` on the same machine may fail.
 
 ### Known issues:
 

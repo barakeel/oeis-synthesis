@@ -19,7 +19,8 @@ sig
   val expname : string ref
 
   (* functions *)
-  val search : tnn -> int -> sol list
+  val search : unit -> int -> sol list
+  val parspec : (unit, int, sol list) smlParallel.extspec
   val trainf_start : unit -> unit
   val trainf_end : unit -> unit
   
@@ -28,14 +29,19 @@ sig
   val rl_train_only : int -> unit
   val rl_search : int -> unit
   val rl_train : int -> unit
-  val parspec : (tnn, int, sol list) smlParallel.extspec
-
+ 
   (* continuous training and searching *)
   val rl_search_cont : unit -> unit
   val rl_train_cont : unit -> unit
 
   (* interactive search *)
-  val search_target : mlTreeNeuralNetwork.tnn -> IntInf.int list -> 
-    kernel.prog option
-
+  val search_target : IntInf.int list -> kernel.prog option
+ 
+  (* cube and conquer *)
+  val start_cube : int -> seq -> (prog list, int) mcts.tree * prog list
+  val search_cube : unit -> (prog list * real) -> sol list
+  val cubespec : (unit, (prog list * real), sol list) smlParallel.extspec
+  val init_cube : unit -> unit
+  val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
+  
 end

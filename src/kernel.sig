@@ -45,6 +45,8 @@ sig
   (* I/O *)
   val read_progl : string -> prog list
   val write_progl : string -> prog list -> unit
+  val read_proglr : string -> (prog list * real)
+  val write_proglr : string -> (prog list * real) -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
   val read_itprogl : string -> sol list

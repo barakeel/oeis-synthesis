@@ -43,5 +43,7 @@ sig
   val most_visited_path : ('a,'b) tree -> ('a node * 'b option) list
   val tree_size : ('a,'b) tree -> int
 
+  val all_leaf : ('a,'b) tree -> 
+    ('a node * ('b * real * ('a, 'b) tree) list * real) list
 
 end

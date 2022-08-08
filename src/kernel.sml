@@ -84,16 +84,20 @@ fun all_subcompr (Ins (id,pl)) =
    ------------------------------------------------------------------------- *)
 
 local open HOLsexp in
-fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
-val enc_progl = list_encode enc_prog
-fun dec_prog t = 
-  Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
-val dec_progl = list_decode dec_prog
+  fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
+  val enc_progl = list_encode enc_prog
+  val enc_proglr = pair_encode (enc_progl, enc_real)  
+  fun dec_prog t = 
+    Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
+  val dec_progl = list_decode dec_prog
+  val dec_proglr = pair_decode (dec_progl, dec_real)
 end
 
 fun write_progl file r = write_data enc_progl file r
 fun read_progl file = read_data dec_progl file
-
+fun write_proglr file r = write_data enc_proglr file r
+fun read_proglr file = read_data dec_proglr file
+  
 local open HOLsexp in
   val enc_iprog = pair_encode (Integer, enc_prog)
   val enc_iprogl = list_encode enc_iprog

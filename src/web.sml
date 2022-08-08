@@ -6,7 +6,6 @@ open HolKernel Abbrev boolLib aiLib mlTreeNeuralNetwork
 val ERR = mk_HOL_ERR "web";
 
 val modeldir = selfdir ^ "/model"
-val main_tnn = read_tnn (modeldir ^ "/tnn_online")
 val main_iprogl = read_iprogl (modeldir ^ "/isol_online")
 
 (* -------------------------------------------------------------------------
@@ -217,7 +216,7 @@ fun web tim n targets =
   let 
     val _ = game.time_opt := SOME tim
     val target = parse_seq targets
-    val (po,t) = add_time (search_target main_tnn) target 
+    val (po,t) = add_time search_target target 
   in
     web_result n target (po,t)
   end

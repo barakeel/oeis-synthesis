@@ -10,5 +10,6 @@ sig
   val checkinit : unit -> unit
   val checkonline : prog * exec.exec -> unit
   val checkfinal : unit -> (anum * (int * prog) list) list
+  val checkpl : prog list -> (anum * (int * prog) list) list
 
 end

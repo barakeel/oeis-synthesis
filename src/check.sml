@@ -137,5 +137,12 @@ fun checkfinal () =
   in
     dlist (!wind)
   end
-
+  
+fun checkpl pl =
+  (
+  checkinit ();
+  app (fn p => (init_fast_test (); checkf (p, mk_exec p))) pl;
+  checkfinal ()
+  )
+  
 end (* struct *)

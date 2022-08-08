@@ -85,7 +85,6 @@ fun find_last s =
   end
 
 fun find_last_itsol () = find_last "itsol"
-fun find_last_tnn () = find_last "tnn"
 
 fun find_last_notbad s =
   let 
@@ -184,7 +183,7 @@ fun wrap_trainf ngen =
 fun clean_dicts () = 
   (progd := eempty prog_compare; embd := dempty Term.compare)
 
-fun init_search coreid =
+fun init_search targetn =
   let
     val _ = print_endline "initialization"
     val fileso = tnndir ^ "/ob.so"
@@ -197,7 +196,7 @@ fun init_search coreid =
             else use_ob := true
     val _ = if !search.randsearch_flag then () else update_fp_op fileso
     val _ = noise_flag := false
-    val _ = if coreid mod 2 = 0 
+    val _ = if targetn mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) 
             else ()
     val _ = select_random_target ()
@@ -205,12 +204,9 @@ fun init_search coreid =
     ()
   end
 
-fun mctsobj tnn = 
-  {game = game, mctsparam = mctsparam (), player = !player_glob tnn};
-
-fun search tnn coreid =
+fun search () targetn =
   let
-    val _ = init_search coreid
+    val _ = init_search targetn
     val _ = print_endline "search start"
   in
     (search.search (!nvis,!rtim); checkfinal ())
@@ -221,7 +217,7 @@ fun string_of_timeo () = (case !time_opt of
   | SOME s => "Option.SOME " ^ rts s)
 
 
-val parspec : (tnn, int, sol list) extspec =
+val parspec : (unit, int, sol list) extspec =
   {
   self_dir = selfdir,
   self = "rl.parspec",
@@ -236,8 +232,8 @@ val parspec : (tnn, int, sol list) extspec =
      "game.time_opt := " ^ string_of_timeo ()] 
     ^ ")"),
   function = search,
-  write_param = write_tnn,
-  read_param = read_tnn,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
   write_arg = let fun f file arg = writel file [its arg] in f end,
   read_arg = let fun f file = string_to_int (hd (readl file)) in f end,
   write_result = write_itprogl,
@@ -247,26 +243,143 @@ val parspec : (tnn, int, sol list) extspec =
 (* -------------------------------------------------------------------------
    Variant of the search function for interactive calls
    ------------------------------------------------------------------------- *)
+ 
+fun mctsobj () = 
+  {game = game, mctsparam = mctsparam (), player = !player_glob}; 
    
-fun search_target tnn target =
+fun search_target target =
   let
     val _ = clean_dicts ()
     val fileso = tnndir ^ "/ob_online.so"
     val _ = if not (exists_file fileso) 
-            then use_ob := false 
+            then raise ERR "search_target" ""
             else ()
     val _ = if !use_ob then update_fp_op fileso else ()
     val _ = player_glob := player_wtnn_cache
     val _ = noise_flag := true
     val _ = target_glob := target
     val _ = online_flag := true
-    val tree = starting_tree (mctsobj tnn) []
-    val (newtree,t) = add_time (mcts (mctsobj tnn)) tree
+    val tree = starting_tree (mctsobj ()) []
+    val (newtree,t) = add_time (mcts (mctsobj ())) tree
   in
     online_flag := false; clean_dicts (); NONE
   end
   handle ResultP p => SOME p
 
+(* -------------------------------------------------------------------------
+   Variant of the search function for cube and conquer
+   ------------------------------------------------------------------------- *)
+
+fun get_boardsc tree = 
+  let 
+    val leafl = all_leaf tree
+    fun f (node,cl,prob) = 
+      let fun g (move,r,_) = 
+        ((#apply_move game.game) move (#board node), !rtim * prob * r) 
+      in
+        map g cl
+      end
+  in
+    List.concat (map f leafl)
+  end
+
+fun start_cube n target =
+  let
+    val _ = clean_dicts ()
+    val fileso = tnndir ^ "/ob_online.so" (* to do change to ob.so *)
+    val _ = if not (exists_file fileso) 
+            then raise ERR "search_cube" ""
+            else ()
+    val _ = update_fp_op fileso
+    val _ = player_glob := player_wtnn_cache
+    val _ = noise_flag := false 
+    val _ = target_glob := target
+    val _ = game.nsim_opt := SOME n
+    val _ = game.time_opt := NONE
+    val _ = record_flag := true
+    val tree = starting_tree (mctsobj ()) []
+    val (newtree,t) = add_time (mcts (mctsobj ())) tree
+    val r = (newtree, elist (!progd))
+  in
+    clean_dicts (); record_flag := false; r
+  end
+
+fun init_cube () =
+  let
+    val _ = print_endline "initialization"
+    val _ = noise_flag := false
+    val _ = target_glob := List.tabulate (16,IntInf.fromInt)
+    val _ = tnn.update_fp_op (tnndir ^ "/ob_online.so")
+  in
+    ()
+  end
+
+fun search_cube () (board, tim) =
+  (
+  search.search_board (0, tim) board;
+  checkfinal ()
+  )
+  
+val cubespec : (unit, (kernel.prog list * real), sol list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.cubespec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "rl.expname := " ^ mlquote (!expname),
+     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "tnn.dim_glob := " ^ its (!dim_glob),
+     "tnn.use_ob := " ^ bts (!use_ob),
+     "game.time_opt := " ^ string_of_timeo (),
+     "rl.init_cube ()"
+     ] 
+    ^ ")"),
+  function = search_cube,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_proglr,
+  read_arg = read_proglr,
+  write_result = write_itprogl,
+  read_result = read_itprogl
+  }
+
+
+
+(* 
+load "rl"; open rl mcts aiLib kernel;
+
+fun test_cube ncore = 
+  let 
+    val _ =  smlExecScripts.buildheap_dir := selfdir ^ "/cube_test";
+    val _ = mkDir_err (!smlExecScripts.buildheap_dir)
+    val _ = smlExecScripts.buildheap_options := 
+      "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) 
+         handle NotFound => 8000) 
+    val (tree,_) = start_cube 1 (List.tabulate (16,IntInf.fromInt))
+    val l1 = get_boardsc tree
+    val l2 = rev (dict_sort (snd_compare Real.compare) l1)
+    val _ = print_endline ("time division: " ^ its (length l2) ^ " " ^  
+      rts (snd (hd l2)) ^ " - " ^ rts (snd (last l2)))  
+    val (itsoll,t) = add_time
+      (smlParallel.parmap_queue_extern ncore cubespec ()) l2
+    val _ = print_endline ("search time: " ^ rts_round 6 t)
+    val _ = print_endline ("average number of solutions per search: " ^
+                  rts_round 2 (average_int (map length itsoll)))
+    val newitsol = check.merge_itsol (List.concat itsoll)
+  in
+    newitsol
+  end;
+
+rtim := 60.0;
+PolyML.print_depth 0;
+val (l,t) = add_time test_cube 1;
+PolyML.print_depth 40;
+length l;
+(* need to replicate exactly by caching intermediate steps too *)
+*)
 (* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
@@ -348,11 +461,7 @@ fun rl_search_only ngen =
       "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
-    val (b,tnn) = 
-      if can find_last_ob_notbad ()
-      then (true, read_tnn (tnn_file (find_last_tnn ())))
-      else (false, random_tnn (get_tnndim ()))
-    val _ = if not (!use_ob andalso b) then () else
+    val _ =
       let 
         val tnngen = find_last_ob_notbad ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
@@ -363,7 +472,7 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
     val (itsoll,t) = add_time
-      (parmap_queue_extern ncore parspec tnn) (List.tabulate (ntarget,I))
+      (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length itsoll)))
@@ -437,7 +546,7 @@ fun rl_train_cont () =
   then () 
   else (print_endline "waiting for itsol"; wait_itsol ())
   ;
-  rl_train_only ((find_last_tnn () + 1) handle HOL_ERR _ => 0); 
+  rl_train_only ((find_last_ob_notbad () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ()
   )
 

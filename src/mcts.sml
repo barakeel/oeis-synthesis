@@ -193,5 +193,16 @@ fun most_visited_path tree = case tree of
       (node, SOME cmove) :: most_visited_path ctree
     end
 
+fun all_leaf_aux proba tree = case tree of
+    Leaf => []
+  | Node (node,cv) => 
+    let val cl = vector_to_list cv in
+      (if exists (is_leaf o #3) cl then 
+       [(node, filter (is_leaf o #3) cl, proba)] else []) @
+      List.concat (map (fn (a,b,c) => all_leaf_aux (proba * b) c) cl)
+    end
+    
+fun all_leaf tree = all_leaf_aux 1.0 tree   
+    
 
 end (* struct *)

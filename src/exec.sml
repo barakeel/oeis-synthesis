@@ -290,7 +290,13 @@ fun verify_wtime r (anum,p) =
     (seq1 = seq2, is_prefix seq2 seq1)
   end
   
-
+fun verify_eq (r,n) (p1,p2) =
+  let 
+    val seq1 = penum_wtime r p1 n
+    val seq2 = penum_wtime r p2 n
+  in
+    is_prefix seq2 seq1 orelse is_prefix seq1 seq2
+  end
 
 end (* struct *)
 
