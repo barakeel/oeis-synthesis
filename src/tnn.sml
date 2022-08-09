@@ -136,7 +136,9 @@ fun term_of_stack stack = case stack of
 val pair_progseq = mk_var ("pair_progseq", alpha3);
 
 fun term_of_join board = 
-  list_mk_comb (pair_progseq, 
+  if !notarget_flag 
+  then term_of_stack board
+  else list_mk_comb (pair_progseq, 
     [term_of_stack board, cap (term_of_seq (first_n 16 (!target_glob)))])
 
 (* policy head *)
@@ -308,14 +310,27 @@ fun create_exl iprogl =
     val _ = use_cache := false
   in
     r
-  end
+  end  
 
+fun merge_distrib disl = 
+  map average_real (list_combine disl)
+
+fun revamp ex = 
+  let 
+    val exin = List.concat ex
+    val d1 = dappendl exin (dempty Term.compare) 
+    val d2 = dmap (fn (k,disl) => merge_distrib disl) d1  
+    fun f (tm,dis) = (tm, dfind tm d2)
+  in
+    map (map f) ex
+  end
 (* -------------------------------------------------------------------------
    MKL I/O
    ------------------------------------------------------------------------- *)
 
 fun export_traindata ex = 
-  mkl.export_traindata (maxmove,!dim_glob,opernd,operlext) ex
+  mkl.export_traindata (maxmove,!dim_glob,opernd,operlext) 
+  (if !notarget_flag then revamp ex else ex)
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
 

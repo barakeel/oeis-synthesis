@@ -8,6 +8,7 @@ sig
   val t_flag : bool ref (* optimize for time instead of size *)
   val z_flag : bool ref (* functions of arity 3 *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
+  val notarget_flag : bool ref (* train without looking at the target *)
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -47,6 +48,8 @@ sig
   val write_progl : string -> prog list -> unit
   val read_proglr : string -> (prog list * real)
   val write_proglr : string -> (prog list * real) -> unit
+  val read_proglrl : string -> (prog list * real) list
+  val write_proglrl : string -> (prog list * real) list -> unit
   val read_iprogl : string -> (int * prog) list
   val write_iprogl : string -> (int * prog) list -> unit
   val read_itprogl : string -> sol list

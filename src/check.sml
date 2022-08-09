@@ -124,8 +124,7 @@ fun checkfinal () =
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); checkf (p, mk_exec p))
-    val bestpl0 = filter (fn x => not (dmem (fst x) (!wind))) 
-      (dlist (!partwind))
+    val bestpl0 = dlist (!partwind)
     val bestpl1 = mk_fast_set prog_compare_size 
       (map snd (List.concat (map snd bestpl0)))
     val _ = partwind := dempty Int.compare
@@ -137,6 +136,14 @@ fun checkfinal () =
   in
     dlist (!wind)
   end
+
+fun collect_candidate () = 
+  let 
+    val pl1 = List.concat (map (map snd o snd) (dlist (!wind)))
+    val pl2 = List.concat (map (map snd o snd) (dlist (!partwind)))
+  in
+    mk_fast_set prog_compare_size (pl1 @ pl2)
+  end
   
 fun checkpl pl =
   (
@@ -144,5 +151,12 @@ fun checkpl pl =
   app (fn p => (init_fast_test (); checkf (p, mk_exec p))) pl;
   checkfinal ()
   )
+  
+fun checkpl_slow pl =
+  (
+  checkinit ();
+  app (fn p => (init_slow_test (); checkf (p, mk_exec p))) pl;
+  checkfinal ()
+  )  
   
 end (* struct *)

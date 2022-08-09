@@ -314,13 +314,14 @@ fun init_cube () =
     ()
   end
 
-fun search_cube () (board, tim) =
+fun search_cube () btiml =
   (
-  search.search_board (0, tim) board;
+  checkinit ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
   checkfinal ()
   )
   
-val cubespec : (unit, (kernel.prog list * real), sol list) extspec =
+val cubespec : (unit, (prog list * real) list, sol list) extspec =
   {
   self_dir = selfdir,
   self = "rl.cubespec",
@@ -333,52 +334,49 @@ val cubespec : (unit, (kernel.prog list * real), sol list) extspec =
      "tnn.dim_glob := " ^ its (!dim_glob),
      "tnn.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"
-     ] 
+     "rl.init_cube ()"] 
     ^ ")"),
   function = search_cube,
   write_param = let fun f _ () = () in f end,
   read_param = let fun f _ = () in f end,
-  write_arg = write_proglr,
-  read_arg = read_proglr,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
   write_result = write_itprogl,
   read_result = read_itprogl
   }
 
+val minlim = 10.0
+
+fun regroup_cube buf tot l = case l of
+    [] => if null buf then [] else [rev buf]
+  | (a,sc) :: m => 
+    if tot + sc > minlim 
+    then (rev buf) :: regroup_cube [(a,sc)] sc m
+    else regroup_cube ((a,sc) :: buf) (tot + sc) m
+
+fun sort_cube l1 =
+  let val l2 = map_assoc (fn l => sum_real (map snd l)) l1 in
+    map fst (dict_sort compare_rmax l2)
+  end;
+  
+fun cube () = 
+  let
+    val (tree,_) = start_cube (ncore * 2) []
+    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore cubespec () l1
+  end;
 
 
 (* 
 load "rl"; open rl mcts aiLib kernel;
-
-fun test_cube ncore = 
-  let 
-    val _ =  smlExecScripts.buildheap_dir := selfdir ^ "/cube_test";
-    val _ = mkDir_err (!smlExecScripts.buildheap_dir)
-    val _ = smlExecScripts.buildheap_options := 
-      "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) 
-         handle NotFound => 8000) 
-    val (tree,_) = start_cube 1 (List.tabulate (16,IntInf.fromInt))
-    val l1 = get_boardsc tree
-    val l2 = rev (dict_sort (snd_compare Real.compare) l1)
-    val _ = print_endline ("time division: " ^ its (length l2) ^ " " ^  
-      rts (snd (hd l2)) ^ " - " ^ rts (snd (last l2)))  
-    val (itsoll,t) = add_time
-      (smlParallel.parmap_queue_extern ncore cubespec ()) l2
-    val _ = print_endline ("search time: " ^ rts_round 6 t)
-    val _ = print_endline ("average number of solutions per search: " ^
-                  rts_round 2 (average_int (map length itsoll)))
-    val newitsol = check.merge_itsol (List.concat itsoll)
-  in
-    newitsol
-  end;
-
-rtim := 60.0;
+rtim := 200.0;
 PolyML.print_depth 0;
-val (l,t) = add_time test_cube 1;
+val (_,t1) = add_time test_cube 1;
+val (_,t2) = add_time test_cube 2;
+val (_,t3) = add_time test_cube 3;
 PolyML.print_depth 40;
-length l;
-(* need to replicate exactly by caching intermediate steps too *)
+t1; t2; t3;
 *)
 (* -------------------------------------------------------------------------
    Statistics
@@ -471,8 +469,11 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir cpcmd;
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
-    val (itsoll,t) = add_time
-      (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
+    val (itsoll,t) = 
+      if !notarget_flag 
+      then add_time cube ()
+      else add_time
+        (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length itsoll)))

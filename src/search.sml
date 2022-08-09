@@ -171,7 +171,9 @@ fun create_pol targete boarde mfl =
   let  
     val f = fp_emb_either
     val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
-    val preboarde = f pair_progseq [progle,targete]
+    val preboarde = 
+       if !notarget_flag then progle else
+       f pair_progseq [progle,targete]
     val prepolie = f prepoli [preboarde]
     val ende = f head_poli [prepolie]
     val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
@@ -253,7 +255,6 @@ fun search_board (vis,tinc) board =
   let 
     val _ = search_time_flag := (vis <= 0)
     val _ = prog_counter := 0
-    val _ = checkinit ()
     val targete = get_targete ()
     val boarde = get_boarde board
     val rt = Timer.startRealTimer ()

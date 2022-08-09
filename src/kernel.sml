@@ -21,8 +21,9 @@ val t_flag =
   ref (string_to_bool (dfind "t_flag" configd) handle NotFound => false) 
 val sol2_flag = 
   ref (string_to_bool (dfind "sol2_flag" configd) handle NotFound => false) 
-
-
+val notarget_flag = 
+  ref (string_to_bool (dfind "notarget_flag" configd) handle NotFound => false) 
+  
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
    ------------------------------------------------------------------------- *)
@@ -97,6 +98,9 @@ fun write_progl file r = write_data enc_progl file r
 fun read_progl file = read_data dec_progl file
 fun write_proglr file r = write_data enc_proglr file r
 fun read_proglr file = read_data dec_proglr file
+ 
+fun write_proglrl file r = write_data (HOLsexp.list_encode enc_proglr) file r
+fun read_proglrl file = read_data (HOLsexp.list_decode dec_proglr) file
   
 local open HOLsexp in
   val enc_iprog = pair_encode (Integer, enc_prog)
@@ -182,7 +186,7 @@ fun is_constant p = not (depend_on_x p orelse depend_on_y p)
 exception ProgTimeout;
 
 val short_timeincr = 1000
-val long_timeincr = 1000000
+val long_timeincr = 100000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
