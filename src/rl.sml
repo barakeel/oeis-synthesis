@@ -288,7 +288,8 @@ fun start_cube n target =
     val _ = clean_dicts ()
     val _ = if !ngen_glob = 0 
             then player_glob := player_random
-            else player_glob := player_wtnn_cache
+            else (update_fp_op (tnndir ^ "/ob.so"); 
+                  player_glob := player_wtnn_cache)
     val _ = noise_flag := false 
     val _ = target_glob := target
     val _ = game.nsim_opt := SOME n
