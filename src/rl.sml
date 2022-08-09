@@ -343,7 +343,7 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
   read_result = read_itprogl
   }
 
-val minlim = 10.0
+val minlim = Real.fromInt ncore / ((!rtim) * 10.0)
 
 fun regroup_cube buf tot l = case l of
     [] => if null buf then [] else [rev buf]
