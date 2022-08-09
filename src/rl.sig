@@ -38,7 +38,7 @@ sig
   val search_target : IntInf.int list -> kernel.prog option
  
   (* cube and conquer *)
-  val start_cube : int -> seq -> (prog list, int) mcts.tree * prog list
+  val start_cube : int -> seq -> (prog list, int) mcts.tree
   val search_cube : unit -> (prog list * real) list -> sol list
   val cubespec : (unit, (prog list * real) list, sol list) smlParallel.extspec
   val init_cube : unit -> unit

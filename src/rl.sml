@@ -286,22 +286,18 @@ fun get_boardsc tree =
 fun start_cube n target =
   let
     val _ = clean_dicts ()
-    val fileso = tnndir ^ "/ob_online.so" (* to do change to ob.so *)
-    val _ = if not (exists_file fileso) 
-            then raise ERR "search_cube" ""
-            else ()
-    val _ = update_fp_op fileso
-    val _ = player_glob := player_wtnn_cache
+    val _ = if !ngen_glob = 0 
+            then player_glob := player_random
+            else player_glob := player_wtnn_cache
     val _ = noise_flag := false 
     val _ = target_glob := target
     val _ = game.nsim_opt := SOME n
     val _ = game.time_opt := NONE
-    val _ = record_flag := true
+    val _ = record_flag := false
     val tree = starting_tree (mctsobj ()) []
     val (newtree,t) = add_time (mcts (mctsobj ())) tree
-    val r = (newtree, elist (!progd))
   in
-    clean_dicts (); record_flag := false; r
+    clean_dicts (); record_flag := false; newtree
   end
 
 fun init_cube () =
@@ -309,7 +305,7 @@ fun init_cube () =
     val _ = print_endline "initialization"
     val _ = noise_flag := false
     val _ = target_glob := List.tabulate (16,IntInf.fromInt)
-    val _ = tnn.update_fp_op (tnndir ^ "/ob_online.so")
+    val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
   in
     ()
   end
@@ -362,7 +358,8 @@ fun sort_cube l1 =
   
 fun cube () = 
   let
-    val (tree,_) = start_cube (ncore * 2) []
+    val fakeseq = List.tabulate (16,IntInf.fromInt)
+    val tree = start_cube (ncore * 2) fakeseq
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1
