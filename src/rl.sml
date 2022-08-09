@@ -458,6 +458,7 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
     val _ =
+      if !ngen_glob = 0 then () else
       let 
         val tnngen = find_last_ob_notbad ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
