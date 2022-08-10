@@ -9,6 +9,7 @@ sig
   val z_flag : bool ref (* functions of arity 3 *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val notarget_flag : bool ref (* train without looking at the target *)
+  val prime_flag : bool ref (* train targeting only prime approximations *)
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -54,6 +55,8 @@ sig
   val write_iprogl : string -> (int * prog) list -> unit
   val read_itprogl : string -> sol list
   val write_itprogl : string -> sol list -> unit
+  val read_primel : string -> (bool list * (int * prog) list) list
+  val write_primel : string -> (bool list * (int * prog) list) list -> unit
   
   (* operators *)
   val operv : term vector

@@ -287,9 +287,7 @@ fun random_nstep board =
   if random_real () < 0.5 then board else random_nstep (random_step board)
   
 fun create_exl iprogl =
-  let    
-    val vect1 = [1.0]
-    val vect0 = [0.0]
+  let
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
     fun create_ex (i,p) = 
       let
@@ -310,7 +308,31 @@ fun create_exl iprogl =
     val _ = use_cache := false
   in
     r
-  end  
+  end
+
+fun create_exl_prime progl =
+  let
+    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
+    fun create_ex p = 
+      let
+        val bml = linearize_safe p
+        fun f (board,move) =
+           let 
+             val newv = Vector.update (zerov, move, 1.0)
+             val newl = vector_to_list newv
+           in
+             (poli_of_board board, newl)
+           end
+      in
+        map f bml
+      end
+    val _ = use_cache := true
+    val r = map create_ex progl
+    val _ = use_cache := false
+  in
+    r
+  end
+
 
 fun merge_distrib disl = 
   map average_real (list_combine disl)
@@ -442,8 +464,6 @@ fun export_fea file iprogl =
     fun daddf s = if dmem s (!feand) then () else
       feand := dadd s (dlength (!feand)) (!feand)
     val _ = app daddf (map its (#movel game))
-    val vect1 = [1.0]
-    val vect0 = [0.0]
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
     fun create_ex (i,p) = 
       let

@@ -22,7 +22,9 @@ val t_flag =
 val sol2_flag = 
   ref (string_to_bool (dfind "sol2_flag" configd) handle NotFound => false) 
 val notarget_flag = 
-  ref (string_to_bool (dfind "notarget_flag" configd) handle NotFound => false) 
+  ref (string_to_bool (dfind "notarget_flag" configd) handle NotFound => false)
+val prime_flag = 
+  ref (string_to_bool (dfind "prime_flag" configd) handle NotFound => false) 
   
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -113,6 +115,16 @@ local open HOLsexp in
   val dec_itprog = pair_decode (int_decode,
     list_decode (pair_decode (int_decode, dec_prog)))
   val dec_itprogl = list_decode dec_itprog
+  val enc_bool = String o bts
+  val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
+                 o string_decode
+  val enc_prime = pair_encode (
+    list_encode enc_bool, 
+    list_encode (pair_encode (Integer, enc_prog))) 
+  val dec_prime = pair_decode (
+    list_decode dec_bool,
+    list_decode (pair_decode (int_decode, dec_prog))) 
+  
 end
 
 fun write_iprogl file r = write_data enc_iprogl file r
@@ -120,6 +132,9 @@ fun read_iprogl file = read_data dec_iprogl file
 
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
+
+fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
+fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
 
 (* -------------------------------------------------------------------------
    Instructions

@@ -191,6 +191,7 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
 
+(* make cache_exec version for prime *)
 fun cache_exec exec = 
   let 
     val v = Vector.fromList (rev (!graph))
@@ -210,7 +211,7 @@ fun cache_exec exec =
       else exec x    
     end
   end
-
+  
 fun coverf_oeis exec = 
   let
     val _ = graph := []
@@ -298,30 +299,81 @@ fun verify_eq (r,n) (p1,p2) =
     is_prefix seq2 seq1 orelse is_prefix seq1 seq2
   end
 
+(* -------------------------------------------------------------------------
+   Prime approximations enumerations
+   ------------------------------------------------------------------------- *)  
+
+fun is_prime x = not
+  (exists (fn i => x mod i = 0) (List.tabulate (x-2, (fn x => x + 2))));
+
+val primel = map_assoc is_prime (List.tabulate (1000 - 3, fn x => x + 3));
+val primev = Vector.fromList ([false,false,true] @ map snd primel);
+
+fun mk_exec_prime p x = 
+  (mk_exec_onev p (IntInf.fromInt x) <= azero) = Vector.sub (primev,x)
+
+fun penum_prime p = 
+  let 
+    val _ = timeincr := 10000
+    val f = mk_exec_prime p
+    val _ = init_timer ()
+    val ngood = ref 1
+    val ntot = ref 1
+    val l = ref []
+    fun loop i = 
+      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.9 then () else
+      let val x = f i in
+        l := x :: !l;
+        if x then incr ngood else ();
+        incr ntot;
+        incr_timer ();
+        loop (i+1)
+      end
+    val _ = catch_perror loop 3 (fn () => ())
+  in  
+    rev (!l)
+  end
+
 end (* struct *)
 
-(* 
-load "exec"; open exec; 
-load "human"; open kernel human aiLib;
-val p =  parse_human "(loop ( * 2 x) (+ x 1)";
-val p = parse_human "(+ (compr (% (- (loop ( * 2 x) (+ x 1) 1) 1) (+ x 2)) x) 2)"; 
+(* -------------------------------------------------------------------------
+   Verifying that new code accept old solutions
+   ------------------------------------------------------------------------- *)
 
-val p = parse_human "(loop ( * x x) x  2)";
-humanf p;
-val (l1,t) = add_time (penum p) 7;
-!abstimer;
-
+(*
 val isol = read_iprogl "model-old/isol100"; length isol;
 init_slow_test ();
 val bbl = map_assoc (verify_wtime 1000000) isol;
-
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
 fun f (i,p) = its i ^ ": " ^ humanf p;
 map f lbad;
-
 write_iprogl "lbad" lbad;
 val lbad = read_iprogl "lbad";
+*)
+
+(* -------------------------------------------------------------------------
+   Testing
+   ------------------------------------------------------------------------- *) 
+    
+
+(* 
+load "exec"; open exec; 
+load "human"; open kernel human aiLib;
+val p =  parse_human "(loop ( * 2 x) (+ x 1)";
+val p = parse_human "(loop ( * x x) x  2)";
+val p = parse_human "(% x 2)";
+val p = parse_human "(% (- (loop ( * 2 x) x 1) 2) x) "; 
+humanf p;
+val f = mk_exec_prime p;
+List.tabulate (10, fn x => f (x + 3));
+val f = mk_exec_onev p;
+List.tabulate (10, fn x => f (IntInf.fromInt (x + 3)));
+
+val (l1,t) = add_time (penum p) 7;
+!abstimer;
+val l = penum_prime p;
+!abstimer;
 
 *)

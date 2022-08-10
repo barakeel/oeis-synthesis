@@ -15,4 +15,9 @@ sig
   
   val collect_candidate : unit -> prog list
   
+  val checkinit_prime : unit -> unit
+  val checkonline_prime : prog * exec.exec -> unit
+  val checkfinal_prime : unit -> (bool list * (int * prog) list) list
+  val merge_primesol : (bool list * (int * prog) list) list -> 
+                       (bool list * (int * prog) list) list
 end

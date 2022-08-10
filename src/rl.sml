@@ -66,8 +66,18 @@ fun write_itsol_atomic ngen itprogl =
     write_itprogl oldfile itprogl;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
-  
+
+fun write_primesol_atomic ngen primesol = 
+  let
+    val newfile = itsol_file ngen
+    val oldfile = newfile ^ "_temp"
+  in
+    write_primel oldfile primesol;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end
+
 fun read_itsol ngen = read_itprogl (itsol_file ngen)
+fun read_primesol ngen = read_primel (itsol_file ngen)
 
 fun is_number s = all Char.isDigit (explode s)
 
@@ -117,6 +127,21 @@ fun write_tnn_atomic ngen tnn =
   end
 
 fun trainf_start () =
+  if !prime_flag then
+  let
+    val primesol = read_primesol (find_last_itsol ())
+    val _ = print_endline ("reading primesol " ^ its (length primesol))
+    val progl = List.concat (map (fn (_,bl) => map snd bl) primesol)
+    val progset = shuffle (mk_fast_set prog_compare progl)
+    val _ = print_endline ("programs " ^ its (length progset))
+    val ex = create_exl_prime progset
+    val _ = print_endline (its (length ex) ^ " examples created")
+  in
+    (print_endline "exporting training data";
+     export_traindata ex;
+     print_endline "exporting end")
+  end
+  else
   let
     val itsol = read_itsol (find_last_itsol ())
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
@@ -343,7 +368,7 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
   read_result = read_itprogl
   }
 
-val minlim = Real.fromInt ncore / ((!rtim) * 10.0)
+val minlim = (!rtim) / (Real.fromInt ncore * 10.0)
 
 fun regroup_cube buf tot l = case l of
     [] => if null buf then [] else [rev buf]
@@ -377,6 +402,54 @@ val (_,t3) = add_time test_cube 3;
 PolyML.print_depth 40;
 t1; t2; t3;
 *)
+
+(* -------------------------------------------------------------------------
+   Searching for prime approximations
+   ------------------------------------------------------------------------- *)
+
+type primesol = bool list * (int * prog) list
+
+fun search_prime () btiml =
+  (
+  search.randsearch_flag := (!ngen_glob = 0); 
+  checkinit_prime ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  checkfinal_prime ()
+  )
+
+val primespec : (unit, (prog list * real) list, primesol list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.primespec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "rl.expname := " ^ mlquote (!expname),
+     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "tnn.dim_glob := " ^ its (!dim_glob),
+     "tnn.use_ob := " ^ bts (!use_ob),
+     "game.time_opt := " ^ string_of_timeo (),
+     "rl.init_cube ()"] 
+    ^ ")"),
+  function = search_prime,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
+  write_result = write_primel,
+  read_result = read_primel
+  }
+
+fun prime () = 
+  let
+    val fakeseq = List.tabulate (16,IntInf.fromInt)
+    val tree = start_cube (ncore * 2) fakeseq
+    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore primespec () l1
+  end
+
 (* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
@@ -469,9 +542,26 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir cpcmd;
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
+   in
+   if !prime_flag then 
+    let 
+      val (primesoll,t) = add_time prime ()
+      val _ = log ("search time: " ^ rts_round 6 t)
+      val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
+      val newprimesol = merge_primesol (List.concat (oldprimesol :: primesoll))
+      val _ = log ("sequences: " ^ its (length newprimesol))
+      val allprog = List.concat (map (map snd o snd) newprimesol)
+      val allsize = List.concat (map (map fst o snd) newprimesol)
+      val _ = log ("programs: " ^ (its (length allprog)))
+      val _ = log ("average size: " ^ rts_round 2 
+        (average_int (map prog_size allprog)))  
+    in  
+      write_primesol_atomic ngen newprimesol
+    end  
+  else 
+  let
     val (itsoll,t) = 
-      if !notarget_flag 
-      then add_time cube ()
+      if !notarget_flag then add_time cube ()
       else add_time
         (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
@@ -491,7 +581,9 @@ fun rl_search_only ngen =
   in
     stats_ngen (!buildheap_dir) ngen
   end
-
+  end
+  
+  
 fun rl_train_only ngen =
   let
     val _ = mk_dirs ()

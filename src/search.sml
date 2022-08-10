@@ -95,7 +95,10 @@ fun collect_child boarde move =
          (!z_flag andalso depend_on_z p) 
       then SOME (move,exec)
       else (incr prog_counter; 
-            SOME (move,(checkonline (p,exec); cache_exec exec)))
+            SOME (move,
+              if !prime_flag
+              then (checkonline_prime (p,exec); exec)
+              else (checkonline (p,exec); cache_exec exec)))
     end
   end
 
@@ -230,7 +233,7 @@ fun search (vis,tinc) =
   end
   
 (* -------------------------------------------------------------------------
-   Search starting from a particular goal
+   Search starting from a particular goal (use in cube)
    ------------------------------------------------------------------------- *) 
  
 fun get_boarde board =
@@ -263,8 +266,8 @@ fun search_board (vis,tinc) board =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
-  
 
+ 
 end (* struct *)
 
 (* 
