@@ -497,9 +497,14 @@ fun stats_ngen dir ngen =
    ------------------------------------------------------------------------- *)
 
 fun string_of_primeseq bl = 
-  "sequence with length " ^ its (length bl) ^ ": " ^
-  String.concatWith " " 
-  (map (fn (b,i) => (if b then "" else its i)) (number_snd 3 bl))
+  let 
+    fun f (b,i) = if b then NONE else SOME i
+    val blbad = List.mapPartial f (number_snd 3 bl)
+  in
+    "sequence with length " ^ its (length bl) ^ ": " ^
+    String.concatWith " " (map its blbad)
+  end
+  
 fun string_of_np (n,p) = 
   "time " ^ its n ^ "- size " ^ its (prog_size p) ^ ": " ^ humanf p 
   
