@@ -220,10 +220,9 @@ fun init_search targetn =
             then raise ERR "init_search" "missing .so file"
             else use_ob := true
     val _ = if !search.randsearch_flag then () else update_fp_op fileso
-    val _ = noise_flag := false
     val _ = if targetn mod 2 = 0 
             then (noise_flag := true; noise_coeff_glob := 0.1) 
-            else ()
+            else noise_flag := false
     val _ = select_random_target ()
   in
     ()
@@ -308,15 +307,16 @@ fun get_boardsc tree =
     List.concat (map f leafl)
   end
 
-fun start_cube n target =
+fun start_cube n =
   let
     val _ = clean_dicts ()
     val _ = if !ngen_glob = 0 
             then player_glob := player_random
             else (update_fp_op (tnndir ^ "/ob.so"); 
                   player_glob := player_wtnn_cache)
-    val _ = noise_flag := false 
-    val _ = target_glob := target
+    val _ = if !ngen_glob mod 2 = 0
+            then noise_flag := false
+            else (noise_flag := true; noise_coeff_glob := 0.1)
     val _ = game.nsim_opt := SOME n
     val _ = game.time_opt := NONE
     val _ = record_flag := false
@@ -329,8 +329,9 @@ fun start_cube n target =
 fun init_cube () =
   let
     val _ = print_endline "initialization"
-    val _ = noise_flag := false
-    val _ = target_glob := List.tabulate (16,IntInf.fromInt)
+    val _ = if !ngen_glob mod 2 = 0
+            then noise_flag := false
+            else (noise_flag := true; noise_coeff_glob := 0.1)
     val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
   in
     ()
@@ -384,8 +385,7 @@ fun sort_cube l1 =
   
 fun cube () = 
   let
-    val fakeseq = List.tabulate (16,IntInf.fromInt)
-    val tree = start_cube (ncore * 2) fakeseq
+    val tree = start_cube (ncore * 2)
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1
@@ -443,8 +443,7 @@ val primespec : (unit, (prog list * real) list, primesol list) extspec =
 
 fun prime () = 
   let
-    val fakeseq = List.tabulate (16,IntInf.fromInt)
-    val tree = start_cube (ncore * 2) fakeseq
+    val tree = start_cube (ncore * 2)
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore primespec () l1
