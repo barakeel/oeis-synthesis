@@ -506,14 +506,14 @@ fun string_of_primesol_one (bl,npl) =
   String.concatWith "\n  " 
     (map string_of_np (dict_sort (fst_compare Int.compare) npl))
 
+fun score_bl bl = sum_int (map (fn x => if x then 1 else 0) bl)
+fun compare_bl (bl1,bl2) =
+  cpl_compare Int.compare (list_compare bool_compare)
+  ((score_bl1,bl1),(score_bl2,bl2))
+  
 fun stats_prime dir primesol =
-  let
-    val primesol1 = map_assoc 
-      (fn (bl,_) => sum_int (map (fn x => if x then 1 else 0) bl))
-      primesol
-    val primesol2 = map fst (dict_sort compare_imax primesol1)
-  in
-    writel (dir ^ "/best") (map string_of_primesol_one primesol2)  
+  let val primesol1 = rev (dict_sort (fst_compare compare_bl) primesol) in
+    writel (dir ^ "/best") (map string_of_primesol_one primesol1)  
   end
 
 (* -------------------------------------------------------------------------
@@ -544,6 +544,7 @@ fun count_newsol olditsol itsoll =
          String.concatWith " " (map its il)) 
   end
 
+
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -572,8 +573,10 @@ fun rl_search_only ngen =
         val (primesoll,t) = add_time prime ()
         val _ = log ("search time: " ^ rts_round 6 t)
         val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
-        val newprimesol = 
+        val mprimesol = 
           merge_primesol (List.concat (oldprimesol :: primesoll))
+        val newprimesol = first_n 10000
+          (rev (dict_sort (fst_compare compare_bl) mprimesol))
         val _ = log ("sequences: " ^ its (length newprimesol))
         val allprog = List.concat (map (map snd o snd) newprimesol)
         val allsize = List.concat (map (map fst o snd) newprimesol)
