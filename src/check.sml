@@ -169,22 +169,40 @@ fun checkpl_slow pl =
    Check if a program generates an approximation of the primes
    ------------------------------------------------------------------------- *)
 
-val primed = ref (dempty (list_compare bool_compare))
+fun score_bl bl = sum_int (map (fn x => if x then 1 else 0) bl)
+fun compare_bl (bl1,bl2) =
+  cpl_compare Int.compare (list_compare bool_compare)
+  ((score_bl bl1,bl1),(score_bl bl2,bl2))
+
+val primed = ref (dempty compare_bl)
+val primee = ref (eempty compare_bl)
 
 fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
 fun is_bothbetter rp1 rp2 = 
   is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
 
-fun update_primed (bl,rp) =
-  if length bl < 16 then () else
-  let val rpl = dfind bl (!primed) handle NotFound => [] in
+fun update_primed (bl,rp) = if length bl < 16 then () else
+  case dfindo bl (!primed) of
+    SOME rpl =>
     if all (is_better rp) rpl 
-    then primed := dadd bl (rp :: (filter (not o is_bothbetter rp) rpl)) 
+    then primed := dadd bl (rp :: (filter (not o is_bothbetter rp) rpl))
       (!primed) 
     else ()
-  end
+  | NONE =>
+    if dlength (!primed) < 10000
+      then (primed := dadd bl [rp] (!primed); primee := eadd bl (!primee))
+    else
+      let val worstbl = emin (!primee) in
+        if compare_bl (bl, worstbl) = LESS then () else
+        (primed := drem worstbl (!primed); 
+         primee := erem worstbl (!primee);
+         primed := dadd bl [rp] (!primed); 
+         primee := eadd bl (!primee))
+      end
 
-fun checkinit_prime () = (primed := dempty (list_compare bool_compare))
+fun checkinit_prime () = 
+  (primed := dempty compare_bl; primee := eempty compare_bl)
+  
 fun checkonline_prime (p,exec) =
   let 
     val (bl,newexec) = penum_prime_exec exec
@@ -196,7 +214,7 @@ fun checkfinal_prime () = dlist (!primed)
 
 fun merge_primesol primesol = 
   let 
-    val _ = primed := dempty (list_compare bool_compare)
+    val _ = checkinit_prime ()
     val l = distrib primesol
   in
     app update_primed l;
