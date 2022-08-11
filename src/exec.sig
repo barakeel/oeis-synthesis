@@ -4,6 +4,7 @@ sig
   type prog = kernel.prog
   type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
   
+  
   val large_arb : IntInf.int -> bool
   val mk_exec_move : int -> exec list -> exec
   val mk_exec : prog -> exec
@@ -17,6 +18,7 @@ sig
   val verify_wtime : int -> int * prog -> bool * bool 
   val verify_eq : int * int -> prog * prog -> bool
   
+  val worst_proba : real ref
   val mk_exec_prime : prog -> (int -> bool)
   val penum_prime : prog -> bool list
   val penum_prime_exec : exec -> (bool list * exec)

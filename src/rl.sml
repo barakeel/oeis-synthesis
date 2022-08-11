@@ -497,7 +497,7 @@ fun stats_ngen dir ngen =
    ------------------------------------------------------------------------- *)
 
 fun string_of_primeseq bl = 
-  "sequence with length " ^ its (length bl) ^ ": "
+  "sequence with length " ^ its (length bl) ^ ": " ^
   String.concatWith " " 
   (map (fn (b,i) => (if b then "" else its i)) (number_snd 3 bl))
 fun string_of_np (n,p) = 
@@ -546,6 +546,19 @@ fun count_newsol olditsol itsoll =
          String.concatWith " " (map its il)) 
   end
 
+fun worst_prime bl = 
+  let
+    val (good,tot) = (ref 1, ref 1) 
+    val worst = ref 1.0
+    fun f b = 
+      (if b then incr good else (); 
+       incr tot;
+       let val proba = int_div (!good) (!tot) in 
+         if proba < !worst then worst := proba else () end)
+  in
+    app f bl;
+    !worst
+  end
 
 fun rl_search_only ngen =
   let 
@@ -579,6 +592,11 @@ fun rl_search_only ngen =
           merge_primesol (List.concat (oldprimesol :: primesoll))
         val newprimesol = first_n 10000
           (rev (dict_sort (fst_compare compare_bl) mprimesol))
+        val _ = if length newprimesol = 10000 
+           then worst_proba := 
+           hd (dict_sort Real.compare (map (worst_prime o fst) newprimesol))   
+           else ()
+        val _ = log ("giveup threshold: " ^ rts_round 4 (!worst_proba))  
         val _ = log ("sequences: " ^ its (length newprimesol))
         val allprog = List.concat (map (map snd o snd) newprimesol)
         val allsize = List.concat (map (map fst o snd) newprimesol)

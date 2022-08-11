@@ -353,6 +353,8 @@ fun cache_exec_prime exec bonus l =
     end
   end
 
+val worst_proba = ref 0.5
+
 fun penum_prime_exec exec = 
   let 
     val _ = timeincr := 20000
@@ -371,7 +373,8 @@ fun penum_prime_exec exec =
     val lb = ref []
     val l = ref []
     fun loop i = 
-      if i >= 1000 orelse int_div (!ngood) (!ntot) < 0.5 then () else
+      if i >= 1000 orelse int_div (!ngood) (!ntot) < 
+        Real.max (0.5, !worst_proba) then () else
       let 
         val x = f i 
         val b = mk_b i x  
