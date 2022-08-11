@@ -496,20 +496,22 @@ fun stats_ngen dir ngen =
    Statistics (prime)
    ------------------------------------------------------------------------- *)
 
-fun string_of_primeseq bl = String.concatWith " " 
-  (map (fn (b,i) => (its i ^ (if b then "T" else "F"))) (number_snd 3 bl))
+fun string_of_primeseq bl = 
+  "sequence with length " ^ its (length bl) ^ ": "
+  String.concatWith " " 
+  (map (fn (b,i) => (if b then "" else its i)) (number_snd 3 bl))
 fun string_of_np (n,p) = 
-  its n ^ "-" ^ its (prog_size p) ^ ": " ^ humanf p 
+  "time " ^ its n ^ "- size " ^ its (prog_size p) ^ ": " ^ humanf p 
   
 fun string_of_primesol_one (bl,npl) =
   string_of_primeseq bl ^ "\n" ^
-  String.concatWith "\n  " 
+  String.concatWith "\n" 
     (map string_of_np (dict_sort (fst_compare Int.compare) npl))
 
 fun score_bl bl = sum_int (map (fn x => if x then 1 else 0) bl)
 fun compare_bl (bl1,bl2) =
   cpl_compare Int.compare (list_compare bool_compare)
-  ((score_bl1,bl1),(score_bl2,bl2))
+  ((score_bl bl1,bl1),(score_bl bl2,bl2))
   
 fun stats_prime dir primesol =
   let val primesol1 = rev (dict_sort (fst_compare compare_bl) primesol) in
