@@ -355,7 +355,7 @@ fun cache_exec_prime exec bonus l =
 
 fun penum_prime_exec exec = 
   let 
-    val _ = timeincr := 10000
+    val _ = timeincr := 20000
     val starttim = ref 0
     fun f x = 
       let 
@@ -371,7 +371,7 @@ fun penum_prime_exec exec =
     val lb = ref []
     val l = ref []
     fun loop i = 
-      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.5 then () else
+      if i >= 1000 orelse int_div (!ngood) (!ntot) < 0.5 then () else
       let 
         val x = f i 
         val b = mk_b i x  
