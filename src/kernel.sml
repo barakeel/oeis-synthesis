@@ -59,6 +59,16 @@ fun is_prefix seq1 seq2 = case (seq1,seq2) of
 val target_glob = ref []
 
 (* -------------------------------------------------------------------------
+   Prime sequence
+   ------------------------------------------------------------------------- *)
+  
+type bl = int * int list
+fun score_bl bl = fst bl - length (snd bl)
+fun compare_bl (bl1,bl2) =
+  cpl_compare Int.compare (cpl_compare Int.compare (list_compare Int.compare))
+  ((score_bl bl1,bl1),(score_bl bl2,bl2))
+
+(* -------------------------------------------------------------------------
    Program
    ------------------------------------------------------------------------- *)
 
@@ -119,10 +129,10 @@ local open HOLsexp in
   val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
                  o string_decode
   val enc_prime = pair_encode (
-    list_encode enc_bool, 
+    pair_encode (Integer, list_encode Integer), 
     list_encode (pair_encode (Integer, enc_prog))) 
   val dec_prime = pair_decode (
-    list_decode dec_bool,
+    pair_decode (int_decode, list_decode int_decode),
     list_decode (pair_decode (int_decode, dec_prog))) 
   
 end
@@ -228,6 +238,6 @@ fun catch_perror f x g =
   f x handle Div => g () 
            | ProgTimeout => g () 
            | Overflow => g ()
-   
+  
   
 end (* struct *)

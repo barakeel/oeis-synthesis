@@ -355,6 +355,12 @@ fun cache_exec_prime exec bonus l =
 
 val maxerror = ref 997
 
+fun convert_bl bl = 
+  (
+  length bl, 
+  map fst (filter (not o snd) (number_fst 3 bl))
+  )
+
 fun penum_prime_exec exec = 
   let 
     val _ = timeincr := 20000
@@ -390,7 +396,8 @@ fun penum_prime_exec exec =
       end
     val _ = catch_perror loop offset_prime (fn () => ())
   in  
-    (rev (!lb), cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
+    (convert_bl (rev (!lb)), 
+     cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
   end
   
   

@@ -169,11 +169,6 @@ fun checkpl_slow pl =
    Check if a program generates an approximation of the primes
    ------------------------------------------------------------------------- *)
 
-fun score_bl bl = sum_int (map (fn x => if x then 1 else 0) bl)
-fun compare_bl (bl1,bl2) =
-  cpl_compare Int.compare (list_compare bool_compare)
-  ((score_bl bl1,bl1),(score_bl bl2,bl2))
-
 val primed = ref (dempty compare_bl)
 val primee = ref (eempty compare_bl)
 
@@ -181,7 +176,7 @@ fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
 fun is_bothbetter rp1 rp2 = 
   is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
 
-fun update_primed (bl,rp) = if length bl < 16 then () else
+fun update_primed (bl,rp) = if fst bl < 16 then () else
   case dfindo bl (!primed) of
     SOME rpl =>
     if all (is_better rp) rpl 
@@ -210,6 +205,7 @@ fun checkonline_prime (p,exec) =
   in 
     update_primed (bl,rp); newexec
   end
+
 fun checkfinal_prime () = dlist (!primed)
 
 fun merge_primesol primesol = 

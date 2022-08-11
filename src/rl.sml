@@ -407,7 +407,7 @@ t1; t2; t3;
    Searching for prime approximations
    ------------------------------------------------------------------------- *)
 
-type primesol = bool list * (int * prog) list
+type primesol = kernel.bl * (int * prog) list
 
 fun search_prime () btiml =
   (
@@ -496,28 +496,18 @@ fun stats_ngen dir ngen =
    Statistics (prime)
    ------------------------------------------------------------------------- *)
 
-fun string_of_primeseq bl = 
-  let 
-    fun f (b,i) = if b then NONE else SOME i
-    val blbad = List.mapPartial f (number_snd 3 bl)
-  in
-    "sequence with length " ^ its (length bl) ^ ": " ^
-    String.concatWith " " (map its blbad)
-  end
+fun string_of_primeseq (bn,badl) = 
+  "sequence with length " ^ its bn ^ ": " ^
+  String.concatWith " " (map its badl)
   
 fun string_of_np (n,p) = 
-  "time " ^ its n ^ "- size " ^ its (prog_size p) ^ ": " ^ humanf p 
+  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p 
   
 fun string_of_primesol_one (bl,npl) =
   string_of_primeseq bl ^ "\n" ^
   String.concatWith "\n" 
     (map string_of_np (dict_sort (fst_compare Int.compare) npl))
 
-fun score_bl bl = sum_int (map (fn x => if x then 1 else 0) bl)
-fun compare_bl (bl1,bl2) =
-  cpl_compare Int.compare (list_compare bool_compare)
-  ((score_bl bl1,bl1),(score_bl bl2,bl2))
-  
 fun stats_prime dir primesol =
   let val primesol1 = rev (dict_sort (fst_compare compare_bl) primesol) in
     writel (dir ^ "/best") (map string_of_primesol_one primesol1)  
@@ -565,8 +555,7 @@ fun worst_prime bl =
     !worst
   end
 
-fun number_of_errors bl = 
-  (997 - length bl) + sum_int (map (fn b => if b then 0 else 1) bl)
+fun number_of_errors (bn,badl) = (997 - bn) + length badl
 
 fun rl_search_only ngen =
   let 
