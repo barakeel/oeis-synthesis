@@ -565,6 +565,9 @@ fun worst_prime bl =
     !worst
   end
 
+fun number_of_errors bl = 
+  (997 - length bl) + sum_int (map (fn b => if b then 0 else 1) bl)
+
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -597,17 +600,28 @@ fun rl_search_only ngen =
           merge_primesol (List.concat (oldprimesol :: primesoll))
         val newprimesol = first_n 10000
           (rev (dict_sort (fst_compare compare_bl) mprimesol))
-        val _ = if length newprimesol = 10000 
-           then worst_proba := 
-           hd (dict_sort Real.compare (map (worst_prime o fst) newprimesol))   
-           else ()
-        val _ = log ("giveup threshold: " ^ rts_round 4 (!worst_proba))  
         val _ = log ("sequences: " ^ its (length newprimesol))
         val allprog = List.concat (map (map snd o snd) newprimesol)
-        val allsize = List.concat (map (map fst o snd) newprimesol)
         val _ = log ("programs: " ^ (its (length allprog)))
-        val _ = log ("average size: " ^ rts_round 2 
-          (average_int (map prog_size allprog)))  
+        val errorl = map (number_of_errors o fst) newprimesol
+        val _ = if length newprimesol = 10000 
+                then maxerror := list_imax errorl
+                else ()
+        val _ = log ("maximum errors: " ^ its (!maxerror))
+        val _ = log ("average errors:" ^ String.concatWith " "
+          (map (rts_round 2 o average_int) 
+           [errorl, first_n 1000 errorl,  
+            first_n 100 errorl,  first_n 10 errorl]))
+        val bestsize = map (list_imin o map (prog_size o snd) o snd) newprimesol
+        val _ = log ("average best size: " ^ String.concatWith " "
+          (map (rts_round 2 o average_int) 
+           [bestsize, first_n 1000 bestsize,  
+            first_n 100 bestsize,  first_n 10 bestsize]))
+        val bestspeed = map (list_imin o map fst o snd) newprimesol  
+        val _ = log ("average best speed: " ^  String.concatWith " "
+          (map (rts_round 2 o average_int) 
+           [bestspeed, first_n 1000 bestspeed,  
+            first_n 100 bestspeed, first_n 10 bestspeed]))
       in  
         write_primesol_atomic ngen newprimesol;
         stats_prime (!buildheap_dir) newprimesol

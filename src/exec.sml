@@ -353,7 +353,7 @@ fun cache_exec_prime exec bonus l =
     end
   end
 
-val worst_proba = ref 0.5
+val maxerror = ref 997
 
 fun penum_prime_exec exec = 
   let 
@@ -369,19 +369,21 @@ fun penum_prime_exec exec =
     fun mk_b i (r,_) = (r <= azero) = Vector.sub (primev,i)
     val _ = init_timer ()
     val ngood = ref 1
+    val nbad = ref 0
     val ntot = ref 1
     val lb = ref []
     val l = ref []
     fun loop i = 
-      if i >= 1000 orelse int_div (!ngood) (!ntot) < 
-        Real.max (0.5, !worst_proba) then () else
+      if i >= 1000 then () else
+      if int_div (!ngood) (!ntot) < 0.5 orelse !nbad > !maxerror
+        then lb := [] else
       let 
         val x = f i 
         val b = mk_b i x  
       in
         l := x :: !l;
         lb := b :: !lb;
-        if b then incr ngood else ();
+        if b then incr ngood else incr nbad;
         incr ntot;
         incr_timer ();
         loop (i+1)
