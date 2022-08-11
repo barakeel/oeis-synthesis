@@ -493,6 +493,30 @@ fun stats_ngen dir ngen =
   end
 
 (* -------------------------------------------------------------------------
+   Statistics (prime)
+   ------------------------------------------------------------------------- *)
+
+fun string_of_primeseq bl = String.concatWith " " 
+  (map (fn (b,i) => (its i ^ (if b then "T" else "F"))) (number_snd 3 bl))
+fun string_of_np (n,p) = 
+  its n ^ "-" ^ its (prog_size p) ^ ": " ^ humanf p 
+  
+fun string_of_primesol_one (bl,npl) =
+  string_of_primeseq bl ^ "\n" ^
+  String.concatWith "\n  " 
+    (map string_of_np (dict_sort (fst_compare Int.compare) npl))
+
+fun stats_prime dir primesol =
+  let
+    val primesol1 = map_assoc 
+      (fn (bl,_) => sum_int (map (fn x => if x then 1 else 0) bl))
+      primesol
+    val primesol2 = map fst (dict_sort compare_imax primesol1)
+  in
+    writel (dir ^ "/best") (map string_of_primesol_one primesol2)  
+  end
+
+(* -------------------------------------------------------------------------
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
 
@@ -542,45 +566,47 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir cpcmd;
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
-   in
-   if !prime_flag then 
-    let 
-      val (primesoll,t) = add_time prime ()
-      val _ = log ("search time: " ^ rts_round 6 t)
-      val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
-      val newprimesol = merge_primesol (List.concat (oldprimesol :: primesoll))
-      val _ = log ("sequences: " ^ its (length newprimesol))
-      val allprog = List.concat (map (map snd o snd) newprimesol)
-      val allsize = List.concat (map (map fst o snd) newprimesol)
-      val _ = log ("programs: " ^ (its (length allprog)))
-      val _ = log ("average size: " ^ rts_round 2 
-        (average_int (map prog_size allprog)))  
-    in  
-      write_primesol_atomic ngen newprimesol
-    end  
-  else 
-  let
-    val (itsoll,t) = 
-      if !notarget_flag then add_time cube ()
-      else add_time
-        (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
-    val _ = log ("search time: " ^ rts_round 6 t)
-    val _ = log ("average number of solutions per search: " ^
-                  rts_round 2 (average_int (map length itsoll)))
-    val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
-    val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
-    val _ = log ("solutions: " ^ (its (length newitsol)))
-    val allprog = List.concat (map (map snd o snd) newitsol)
-    val allsize = List.concat (map (map fst o snd) newitsol)
-    val _ = log ("programs: " ^ (its (length allprog)))
-    val _ = log ("average size: " ^ rts_round 2 
-      (average_int (map prog_size allprog)))
-    val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
-    val _ = count_newsol olditsol itsoll
-    val _ = write_itsol_atomic ngen newitsol
-  in
-    stats_ngen (!buildheap_dir) ngen
-  end
+    in
+      if !prime_flag then 
+      let 
+        val (primesoll,t) = add_time prime ()
+        val _ = log ("search time: " ^ rts_round 6 t)
+        val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
+        val newprimesol = 
+          merge_primesol (List.concat (oldprimesol :: primesoll))
+        val _ = log ("sequences: " ^ its (length newprimesol))
+        val allprog = List.concat (map (map snd o snd) newprimesol)
+        val allsize = List.concat (map (map fst o snd) newprimesol)
+        val _ = log ("programs: " ^ (its (length allprog)))
+        val _ = log ("average size: " ^ rts_round 2 
+          (average_int (map prog_size allprog)))  
+      in  
+        write_primesol_atomic ngen newprimesol;
+        stats_prime (!buildheap_dir) newprimesol
+      end  
+      else 
+      let
+        val (itsoll,t) = 
+          if !notarget_flag then add_time cube ()
+          else add_time
+            (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
+        val _ = log ("search time: " ^ rts_round 6 t)
+        val _ = log ("average number of solutions per search: " ^
+                      rts_round 2 (average_int (map length itsoll)))
+        val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
+        val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
+        val _ = log ("solutions: " ^ (its (length newitsol)))
+        val allprog = List.concat (map (map snd o snd) newitsol)
+        val allsize = List.concat (map (map fst o snd) newitsol)
+        val _ = log ("programs: " ^ (its (length allprog)))
+        val _ = log ("average size: " ^ rts_round 2 
+          (average_int (map prog_size allprog)))
+        val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
+        val _ = count_newsol olditsol itsoll
+        val _ = write_itsol_atomic ngen newitsol
+      in
+        stats_ngen (!buildheap_dir) ngen
+      end
   end
   
   
