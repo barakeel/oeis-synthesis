@@ -15,9 +15,15 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
 
 fun is_faster (t1,p1) (t2,p2) =   
   cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
+
+fun is_faster_orequal (t1,p1) (t2,p2) =   
+  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) <> GREATER
  
 fun is_smaller (t1,p1) (t2,p2) = 
   prog_compare_size (p1,p2) = LESS
+  
+fun is_smaller_orequal (t1,p1) (t2,p2) =   
+  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) <> GREATER 
 
 fun find_min_loop cmpf a m = case m of
     [] => a
@@ -166,12 +172,15 @@ fun checkpl_slow pl =
 val primed = ref (dempty (list_compare bool_compare))
 
 fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
+fun is_bothbetter rp1 rp2 = 
+  is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
 
 fun update_primed (bl,rp) =
   if length bl < 16 then () else
   let val rpl = dfind bl (!primed) handle NotFound => [] in
     if all (is_better rp) rpl 
-    then primed := dadd bl (rp :: rpl) (!primed) 
+    then primed := dadd bl (rp :: (filter (not o is_bothbetter rp) rpl)) 
+      (!primed) 
     else ()
   end
 
