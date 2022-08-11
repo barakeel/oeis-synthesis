@@ -191,7 +191,7 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
 
-(* make cache_exec version for prime *)
+(* only caching ones that do not depend on y or z *)
 fun cache_exec exec = 
   let 
     val v = Vector.fromList (rev (!graph))
@@ -321,7 +321,7 @@ fun penum_prime p =
     val ntot = ref 1
     val l = ref []
     fun loop i = 
-      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.9 then () else
+      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.5 then () else
       let val x = f i in
         l := x :: !l;
         if x then incr ngood else ();
@@ -333,6 +333,62 @@ fun penum_prime p =
   in  
     rev (!l)
   end
+  
+val offset_prime = 3  
+val offset_list = List.tabulate (offset_prime, fn _ => (azero,0))  
+  
+fun cache_exec_prime exec bonus l = 
+  let val v = Vector.fromList (offset_list @ l) in
+    fn x =>
+    let val no = SOME (IntInf.toInt (#1 x)) handle Overflow => NONE in
+      case no of NONE => exec x | SOME n => 
+      if n = Vector.length v andalso !abstimer + bonus > !timelimit
+        then raise ProgTimeout 
+      else
+      if n >= offset_prime andalso n < Vector.length v then 
+        let val (r,tim) = Vector.sub (v,n) in
+          testcache tim r
+        end
+      else exec x    
+    end
+  end
+
+fun penum_prime_exec exec = 
+  let 
+    val _ = timeincr := 10000
+    val starttim = ref 0
+    fun f x = 
+      let 
+        val _ = starttim := !abstimer 
+        val r = exec (IntInf.fromInt x, azero, azero)
+      in
+        (r, !abstimer - !starttim)
+      end 
+    fun mk_b i (r,_) = (r <= azero) = Vector.sub (primev,i)
+    val _ = init_timer ()
+    val ngood = ref 1
+    val ntot = ref 1
+    val lb = ref []
+    val l = ref []
+    fun loop i = 
+      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.5 then () else
+      let 
+        val x = f i 
+        val b = mk_b i x  
+      in
+        l := x :: !l;
+        lb := b :: !lb;
+        if b then incr ngood else ();
+        incr ntot;
+        incr_timer ();
+        loop (i+1)
+      end
+    val _ = catch_perror loop offset_prime (fn () => ())
+  in  
+    (rev (!lb), cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
+  end
+  
+  
 
 end (* struct *)
 

@@ -97,7 +97,7 @@ fun collect_child boarde move =
       else (incr prog_counter; 
             SOME (move,
               if !prime_flag
-              then (checkonline_prime (p,exec); exec)
+              then checkonline_prime (p,exec)
               else (checkonline (p,exec); cache_exec exec)))
     end
   end

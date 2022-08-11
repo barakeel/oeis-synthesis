@@ -168,7 +168,7 @@ val primed = ref (dempty (list_compare bool_compare))
 fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
 
 fun update_primed (bl,rp) =
-  if length bl < 5 then () else
+  if length bl < 16 then () else
   let val rpl = dfind bl (!primed) handle NotFound => [] in
     if all (is_better rp) rpl 
     then primed := dadd bl (rp :: rpl) (!primed) 
@@ -178,10 +178,10 @@ fun update_primed (bl,rp) =
 fun checkinit_prime () = (primed := dempty (list_compare bool_compare))
 fun checkonline_prime (p,exec) =
   let 
-    val bl = penum_prime p
+    val (bl,newexec) = penum_prime_exec exec
     val rp = (!abstimer,p)
   in 
-    update_primed (bl,rp)
+    update_primed (bl,rp); newexec
   end
 fun checkfinal_prime () = dlist (!primed)
 

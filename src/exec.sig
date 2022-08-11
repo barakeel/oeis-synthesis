@@ -19,5 +19,6 @@ sig
   
   val mk_exec_prime : prog -> (int -> bool)
   val penum_prime : prog -> bool list
+  val penum_prime_exec : exec -> (bool list * exec)
   
 end
