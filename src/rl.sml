@@ -131,8 +131,10 @@ fun trainf_start () =
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
-    val progl = List.concat (map (fn (_,bl) => map snd bl) primesol)
-    val progset = shuffle (mk_fast_set prog_compare progl)
+    val progl = List.concat (map (fn (_,x) => map snd x) primesol)
+    val extrasol = read_itprogl (selfdir ^ "/exp/paper-small/itsol20")
+    val extraprogl = List.concat (map (fn (_,x) => map snd x) extrasol)
+    val progset = shuffle (mk_fast_set prog_compare (progl @ extraprogl))
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_prime progset
     val _ = print_endline (its (length ex) ^ " examples created")
@@ -596,7 +598,7 @@ fun rl_search_only ngen =
                 then maxerror := list_imax errorl
                 else ()
         val _ = log ("maximum errors: " ^ its (!maxerror))
-        val _ = log ("average errors:" ^ String.concatWith " "
+        val _ = log ("average errors: " ^ String.concatWith " "
           (map (rts_round 2 o average_int) 
            [errorl, first_n 1000 errorl,  
             first_n 100 errorl,  first_n 10 errorl]))
