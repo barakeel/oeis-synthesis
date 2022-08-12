@@ -132,7 +132,7 @@ fun trainf_start () =
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
     val progl = List.concat (map (fn (_,x) => map snd x) primesol)
-    val extrasol = read_itprogl (selfdir ^ "/exp/paper-small/itsol20")
+    val extrasol = read_itprogl (selfdir ^ "/exp/paper-small/hist/itsol20")
     val extraprogl = List.concat (map (fn (_,x) => map snd x) extrasol)
     val progset = shuffle (mk_fast_set prog_compare (progl @ extraprogl))
     val _ = print_endline ("programs " ^ its (length progset))
