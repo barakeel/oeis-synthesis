@@ -2,7 +2,7 @@ structure check :> check =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel 
-  mcts kernel bloom human exec game
+  mcts kernel bloom human exec game poly
 
 val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum
@@ -180,25 +180,27 @@ val compare_rp = inv_cmp (snd_compare prog_compare_size)
 
 fun update_primed (bl,rp) = if fst bl < 16 then () else
   case dfindo bl (!primed) of
-    SOME rpl =>
-    if elength rpl < 1000 then
-      primed := dadd bl (eadd rp rpl) (!primed)
-    else
-      let val worstrp = emin rpl in
-        primed := dadd bl
-        (if compare_rp (rp, worstrp) = LESS then rpl else
-          eadd rp (erem worstrp rpl)) (!primed)
-      end
+    SOME rpd =>
+    if dlength rpd > 1000 then () else (* todo *)
+    let val norm = normalize (snd rp) in
+      case dfindo norm rpd of
+        NONE => primed := dadd bl (dadd norm rp rpd) (!primed) 
+      | SOME rpold => if compare_rp (rp,rpold) = LESS then ()
+                      else primed := dadd bl (dadd norm rp rpd) (!primed)
+    end
   | NONE =>
     if dlength (!primed) < 100
       then (primed := dadd bl 
-             (enew compare_rp [rp]) (!primed); primee := eadd bl (!primee))
+             (dnew poly_compare [(normalize (snd rp), rp)])
+             (!primed); 
+            primee := eadd bl (!primee))
     else
       let val worstbl = emin (!primee) in
         if compare_bl (bl, worstbl) = LESS then () else
         (primed := drem worstbl (!primed); 
          primee := erem worstbl (!primee);
-         primed := dadd bl (enew compare_rp [rp]) (!primed); 
+         primed := dadd bl 
+           (dnew poly_compare [(normalize (snd rp), rp)]) (!primed); 
          primee := eadd bl (!primee))
       end
 
@@ -215,7 +217,7 @@ fun checkonline_prime (p,exec) =
 
 fun checkfinal_prime () = 
   let val l = dlist (!primed) in
-    map_snd (fn rpl => rev (elist rpl)) l
+    map_snd (fn rpd => map snd (dlist rpd)) l
   end
 
 fun merge_primesol primesol = 
@@ -224,9 +226,7 @@ fun merge_primesol primesol =
     val l = distrib primesol
   in
     app update_primed l;
-      let val l = dlist (!primed) in
-    map_snd (fn rpl => rev (elist rpl)) l
-  end
+    checkfinal_prime ()
   end  
   
   

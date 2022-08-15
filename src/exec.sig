@@ -6,6 +6,7 @@ sig
   
   
   val large_arb : IntInf.int -> bool
+  val large_int : IntInf.int -> bool
   val mk_exec_move : int -> exec list -> exec
   val mk_exec : prog -> exec
   val mk_exec_onev : prog -> (IntInf.int -> IntInf.int)
