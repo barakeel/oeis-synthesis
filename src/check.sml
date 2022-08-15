@@ -176,15 +176,18 @@ fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
 fun is_bothbetter rp1 rp2 = 
   is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
 
+
 fun update_primed (bl,rp) = if fst bl < 16 then () else
   case dfindo bl (!primed) of
     SOME rpl =>
-    if all (is_better rp) rpl 
-    then primed := dadd bl (rp :: (filter (not o is_bothbetter rp) rpl))
-      (!primed) 
-    else ()
+    if length rpl < 1000 then
+      primed := dadd bl (rp :: rpl) (!primed)
+    else
+    let val rplsort = dict_sort (snd_compare prog_compare_size) rpl in
+      primed := dadd bl (rp :: butlast rplsort) (!primed)
+    end
   | NONE =>
-    if dlength (!primed) < 10000
+    if dlength (!primed) < 100
       then (primed := dadd bl [rp] (!primed); primee := eadd bl (!primee))
     else
       let val worstbl = emin (!primee) in

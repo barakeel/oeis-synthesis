@@ -126,15 +126,20 @@ fun write_tnn_atomic ngen tnn =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
+val extra_flag = ref false
+fun add_extra () =
+  if not (!extra_flag) then [] else 
+  let val sol = read_itprogl (selfdir ^ "/exp/paper-small/hist/itsol20") in 
+    List.concat (map (fn (_,x) => map snd x) sol) 
+  end
+
 fun trainf_start () =
   if !prime_flag then
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
     val progl = List.concat (map (fn (_,x) => map snd x) primesol)
-    val extrasol = read_itprogl (selfdir ^ "/exp/paper-small/hist/itsol20")
-    val extraprogl = List.concat (map (fn (_,x) => map snd x) extrasol)
-    val progset = shuffle (mk_fast_set prog_compare (progl @ extraprogl))
+    val progset = shuffle (mk_fast_set prog_compare (progl @ add_extra ()))
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_prime progset
     val _ = print_endline (its (length ex) ^ " examples created")
