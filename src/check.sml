@@ -176,25 +176,29 @@ fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
 fun is_bothbetter rp1 rp2 = 
   is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
 
+val compare_rp = inv_cmp (snd_compare prog_compare_size)
 
 fun update_primed (bl,rp) = if fst bl < 16 then () else
   case dfindo bl (!primed) of
     SOME rpl =>
-    if length rpl < 1000 then
-      primed := dadd bl (rp :: rpl) (!primed)
+    if elength rpl < 1000 then
+      primed := dadd bl (eadd rp rpl) (!primed)
     else
-    let val rplsort = dict_sort (snd_compare prog_compare_size) rpl in
-      primed := dadd bl (rp :: butlast rplsort) (!primed)
-    end
+      let val worstrp = emin rpl in
+        primed := dadd bl
+        (if compare_rp (rp, worstrp) = LESS then rpl else
+          eadd rp (erem worstrp rpl)) (!primed)
+      end
   | NONE =>
     if dlength (!primed) < 100
-      then (primed := dadd bl [rp] (!primed); primee := eadd bl (!primee))
+      then (primed := dadd bl 
+             (enew compare_rp [rp]) (!primed); primee := eadd bl (!primee))
     else
       let val worstbl = emin (!primee) in
         if compare_bl (bl, worstbl) = LESS then () else
         (primed := drem worstbl (!primed); 
          primee := erem worstbl (!primee);
-         primed := dadd bl [rp] (!primed); 
+         primed := dadd bl (enew compare_rp [rp]) (!primed); 
          primee := eadd bl (!primee))
       end
 
@@ -209,7 +213,10 @@ fun checkonline_prime (p,exec) =
     update_primed (bl,rp); newexec
   end
 
-fun checkfinal_prime () = dlist (!primed)
+fun checkfinal_prime () = 
+  let val l = dlist (!primed) in
+    map_snd (fn rpl => rev (elist rpl)) l
+  end
 
 fun merge_primesol primesol = 
   let 
@@ -217,7 +224,9 @@ fun merge_primesol primesol =
     val l = distrib primesol
   in
     app update_primed l;
-    dlist (!primed)
+      let val l = dlist (!primed) in
+    map_snd (fn rpl => rev (elist rpl)) l
+  end
   end  
   
   
