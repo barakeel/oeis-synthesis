@@ -349,6 +349,7 @@ fun search_cube () btiml =
   search.randsearch_flag := (!ngen_glob = 0); 
   checkinit ();
   app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  print_endline ("solutions: " ^ dlength (!primed));
   checkfinal ()
   )
   
