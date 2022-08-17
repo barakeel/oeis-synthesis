@@ -227,9 +227,9 @@ fun init_search targetn =
             then raise ERR "init_search" "missing .so file"
             else use_ob := true
     val _ = if !search.randsearch_flag then () else update_fp_op fileso
-    val _ = if targetn mod 2 = 0 
-            then (noise_flag := true; noise_coeff_glob := 0.1) 
-            else noise_flag := false
+    val _ = if !ngen_glob mod 2 = 0 
+            then noise_flag := false
+            else (noise_flag := true; noise_coeff_glob := 0.1)
     val _ = select_random_target ()
   in
     ()
