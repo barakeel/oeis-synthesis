@@ -372,7 +372,7 @@ fun penum_prime_exec exec =
     val bgood = ref false
     fun loop i = 
       if i >= 100 then (bgood := true; starttim := !abstimer) else
-      if int_div (!ngood) (!ntot) < 0.8 then starttim := !abstimer else
+      if int_div (!ngood) (!ntot) < 0.9 then starttim := !abstimer else
       let 
         val x = f i 
         val b = mk_b i x  

@@ -164,6 +164,39 @@ fun checkpl_slow pl =
   app (fn p => (init_slow_test (); checkf (p, mk_exec p))) pl;
   checkfinal ()
   )  
+ 
+ 
+(* -------------------------------------------------------------------------
+   Levenstein
+   ------------------------------------------------------------------------- *) 
+  
+fun min3 (a,b,c) = Int.min (Int.min (a,b),c) 
+
+fun lev cache (al,an) (bl,bn) = 
+  let val v = Array2.sub (cache,an,bn) in 
+    if v >= 0 then v else
+    (
+    case (al,bl) of
+      ([],_) => bn
+    | (_,[]) => an
+    | (a :: am, b :: bm) => 
+      let val r =
+        if a = b then lev cache (am,an-1) (bm,bn-1) else 
+        1 + min3 (lev cache (al,an) (bm,bn-1), lev cache (am,an-1) (bl,bn), 
+                  lev cache (am,an-1) (bm,bn-1))
+      in
+        Array2.update (cache,an,bn,r); r
+      end
+    )
+  end;
+
+fun levenstein al bl =
+  let 
+    val (an,bn) = (length al, length bl)
+    val cache = Array2.array (an+1,bn+1,~1) 
+  in
+    lev cache (al,length al) (bl,length bl)
+  end;
   
 (* -------------------------------------------------------------------------
    Check if a program generates an approximation of the primes
@@ -171,13 +204,15 @@ fun checkpl_slow pl =
 
 val primed = ref (dempty prog_compare)
 
-fun is_similar feae fea =
+fun is_similar p1 p2 =
   let 
-    val feainter = filter (fn x => emem x feae) fea 
-    val feaunion = eaddl fea feae
-    val fean = length feainter
+    val (l1,l2) = (map snd (linearize p1), map snd (linearize p2)) 
+    val levn = levenstein l1 l2
+    val (n1,n2) = (length l1, length l2)
+    val diffn = Int.abs (n1 - n2)
+    val minn = Int.min (n1,n2)
   in
-    int_div fean (elength feaunion) > 0.8
+    int_div (levn - diffn) (minn) > 0.8
   end
 
 val error_flag = ref false
@@ -186,17 +221,15 @@ fun update_primed (r,p) =
   if dlength (!primed) > 20000 then 
     if !error_flag then () else (error_flag := true; print_endline "toobig") 
   else let
-    val fea = fea_of_prog p
-    val feae = enew String.compare fea
     val b = ref true
-    fun f (p',(r',fea')) =
-      if equal_prog (p',p) orelse not (is_similar feae fea') then () else 
+    fun f (p',r') =
+      if equal_prog (p,p') orelse not (is_similar p p') then () else 
         if prog_compare_size (p,p') = LESS 
         then primed := drem p' (!primed)
         else b := false
   in
     app f (dlist (!primed));
-    if !b then primed := dadd p (r,fea) (!primed) else ()
+    if !b then primed := dadd p r (!primed) else ()
   end 
 
 fun checkinit_prime () = (error_flag := false; primed := dempty prog_compare)
@@ -206,8 +239,7 @@ fun checkonline_prime (p,exec) =
     (if not b then () else update_primed (!abstimer,p); newexec)
   end
 
-fun checkfinal_prime () = 
-  map (fn (a,(b,_)) => (b,a)) (dlist (!primed))
+fun checkfinal_prime () = map swap (dlist (!primed))
 
 fun merge_primesol primesol = 
   let val _ = checkinit_prime () in
