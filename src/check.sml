@@ -177,7 +177,7 @@ fun is_similar feae fea =
     val feaunion = eaddl fea feae
     val fean = length feainter
   in
-    fean > 1000 orelse int_div fean (elength feaunion) > 0.8
+    int_div fean (elength feaunion) > 0.8
   end
 
 val error_flag = ref false
@@ -190,10 +190,10 @@ fun update_primed (r,p) =
     val feae = enew String.compare fea
     val b = ref true
     fun f (p',(r',fea')) =
-      if equal_prog (p',p) orelse is_similar feae fea' then () else
-      if prog_compare_size (p,p') = LESS 
-      then primed := drem p' (!primed)
-      else b := false
+      if equal_prog (p',p) orelse not (is_similar feae fea') then () else 
+        if prog_compare_size (p,p') = LESS 
+        then primed := drem p' (!primed)
+        else b := false
   in
     app f (dlist (!primed));
     if !b then primed := dadd p (r,fea) (!primed) else ()
