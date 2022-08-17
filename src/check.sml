@@ -177,8 +177,7 @@ fun is_similar feae fea =
     val feaunion = eaddl fea feae
     val fean = length feainter
   in
-    fean > 30 orelse 
-    int_div fean (elength feaunion) > 0.8
+    fean > 1000 orelse int_div fean (elength feaunion) > 0.8
   end
 
 val error_flag = ref false

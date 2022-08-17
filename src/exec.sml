@@ -301,7 +301,7 @@ fun verify_eq (r,n) (p1,p2) =
 
 (* -------------------------------------------------------------------------
    Prime approximations enumerations
-   ------------------------------------------------------------------------- *)  
+   ------------------------------------------------------------------------- *)
 
 fun is_prime x = not
   (exists (fn i => x mod i = 0) (List.tabulate (x-2, (fn x => x + 2))));
@@ -357,6 +357,7 @@ fun cache_exec_prime exec bonus l =
 fun penum_prime_exec exec = 
   let 
     val _ = timeincr := 20000
+    val _ = init_timer ()
     val starttim = ref 0
     fun f x = 
       let 
@@ -366,15 +367,12 @@ fun penum_prime_exec exec =
         (r, !abstimer - !starttim)
       end 
     fun mk_b i (r,_) = (r <= azero) = Vector.sub (primev,i)
-    val _ = init_timer ()
-    val ngood = ref 10
-    val nbad = ref 0
-    val ntot = ref 10
+    val (ngood,nbad,ntot) = (ref 10, ref 0, ref 10)
     val lb = ref []
     val l = ref []
     fun loop i = 
       if i >= 100 then starttim := !abstimer else
-      if int_div (!ngood) (!ntot) < 0.9
+      if int_div (!ngood) (!ntot) < 0.8
         then (starttim := !abstimer; lb := []) else
       let 
         val x = f i 
@@ -389,7 +387,7 @@ fun penum_prime_exec exec =
       end
     val _ = catch_perror loop offset_prime (fn () => ())
   in  
-    (length (!lb) >= 16,
+    (length (!lb) >= (100 - offset_prime),
      cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
   end
   
