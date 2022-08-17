@@ -218,18 +218,22 @@ fun is_similar p1 p2 =
 val error_flag = ref false
 
 fun update_primed (r,p) =
-  if dlength (!primed) > 20000 then 
+  if dlength (!primed) > 10000 then 
     if !error_flag then () else (error_flag := true; print_endline "toobig") 
-  else let
-    val b = ref true
+  else 
+  if dmem p (!primed) then () else
+  let
+    fun test (p',r') = 
+      if prog_compare_size (p,p') = LESS then true else 
+      if is_similar p p' then false else true
+    val b = all test (dlist (!primed))
     fun f (p',r') =
-      if equal_prog (p,p') orelse not (is_similar p p') then () else 
-        if prog_compare_size (p,p') = LESS 
-        then primed := drem p' (!primed)
-        else b := false
+      if prog_compare_size (p,p') = LESS andalso is_similar p p'  
+      then primed := drem p' (!primed)
+      else ()    
   in
-    app f (dlist (!primed));
-    if !b then primed := dadd p r (!primed) else ()
+    if b then app f (dlist (!primed)) else ();
+    if b then primed := dadd p r (!primed) else ()
   end 
 
 fun checkinit_prime () = (error_flag := false; primed := dempty prog_compare)
