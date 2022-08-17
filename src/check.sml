@@ -212,7 +212,7 @@ fun is_similar p1 p2 =
     val diffn = Int.abs (n1 - n2)
     val minn = Int.min (n1,n2)
   in
-    int_div (levn - diffn) (minn) > 0.8
+    int_div (levn - diffn) (minn) <= 0.2
   end
 
 val error_flag = ref false
