@@ -171,9 +171,14 @@ fun checkpl_slow pl =
 
 val primed = ref (dempty prog_compare)
 
-fun similarity feae fea =
-  let val feainter = filter (fn x => emem x feae) fea in
-    length feainter
+fun is_similar feae fea =
+  let 
+    val feainter = filter (fn x => emem x feae) fea 
+    val feaunion = eaddl fea feae
+    val fean = length feainter
+  in
+    fean > 30 orelse 
+    int_div fean (elength feaunion) > 0.8
   end
 
 val error_flag = ref false
@@ -186,7 +191,7 @@ fun update_primed (r,p) =
     val feae = enew String.compare fea
     val b = ref true
     fun f (p',(r',fea')) =
-      if equal_prog (p',p) orelse similarity feae fea' < 10 then () else
+      if equal_prog (p',p) orelse is_similar feae fea' then () else
       if prog_compare_size (p,p') = LESS 
       then primed := drem p' (!primed)
       else b := false

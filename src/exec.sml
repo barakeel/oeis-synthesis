@@ -353,7 +353,6 @@ fun cache_exec_prime exec bonus l =
     end
   end
 
-val maxerror = ref 10000
 
 fun penum_prime_exec exec = 
   let 
@@ -375,7 +374,7 @@ fun penum_prime_exec exec =
     val l = ref []
     fun loop i = 
       if i >= 100 then starttim := !abstimer else
-      if int_div (!ngood) (!ntot) < 0.9 orelse !nbad > !maxerror
+      if int_div (!ngood) (!ntot) < 0.9
         then (starttim := !abstimer; lb := []) else
       let 
         val x = f i 
