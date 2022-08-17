@@ -396,7 +396,9 @@ fun all_path3 tm =
 fun fea_of_stack stack = 
   let fun f x = String.concatWith "-" x in 
     map f (all_path3 (short_term_of_stack stack))
-  end     
+  end
+  
+fun fea_of_prog p = mk_fast_set String.compare (fea_of_stack [p])
 
 fun suc x = x + 1
 local open IntInf in

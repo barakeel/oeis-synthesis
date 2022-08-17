@@ -59,16 +59,6 @@ fun is_prefix seq1 seq2 = case (seq1,seq2) of
 val target_glob = ref []
 
 (* -------------------------------------------------------------------------
-   Prime sequence
-   ------------------------------------------------------------------------- *)
-  
-type bl = int * int list
-fun score_bl bl = fst bl - length (snd bl)
-fun compare_bl (bl1,bl2) =
-  cpl_compare Int.compare (cpl_compare Int.compare (list_compare Int.compare))
-  ((score_bl bl1,bl1),(score_bl bl2,bl2))
-
-(* -------------------------------------------------------------------------
    Program
    ------------------------------------------------------------------------- *)
 
@@ -143,8 +133,8 @@ fun read_iprogl file = read_data dec_iprogl file
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
 
-fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
-fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
+val write_primel = write_iprogl
+val read_primel = read_iprogl
 
 (* -------------------------------------------------------------------------
    Instructions

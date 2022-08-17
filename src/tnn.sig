@@ -45,4 +45,7 @@ sig
   val export_seqfea : string -> (int * kernel.prog) list -> unit
   val export_fea : string -> (int * kernel.prog) list -> unit
   
+  (* used for determining similarity between two programs *)
+  val fea_of_prog : kernel.prog -> string list
+  
 end

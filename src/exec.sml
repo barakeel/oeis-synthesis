@@ -355,12 +355,6 @@ fun cache_exec_prime exec bonus l =
 
 val maxerror = ref 10000
 
-fun convert_bl bl = 
-  (
-  length bl, 
-  map fst (filter (not o snd) (number_fst 3 bl))
-  )
-
 fun penum_prime_exec exec = 
   let 
     val _ = timeincr := 20000
@@ -374,14 +368,14 @@ fun penum_prime_exec exec =
       end 
     fun mk_b i (r,_) = (r <= azero) = Vector.sub (primev,i)
     val _ = init_timer ()
-    val ngood = ref 2
+    val ngood = ref 10
     val nbad = ref 0
-    val ntot = ref 2
+    val ntot = ref 10
     val lb = ref []
     val l = ref []
     fun loop i = 
-      if i >= 200 then starttim := !abstimer else
-      if int_div (!ngood) (!ntot) < 0.5 orelse !nbad > !maxerror
+      if i >= 100 then starttim := !abstimer else
+      if int_div (!ngood) (!ntot) < 0.9 orelse !nbad > !maxerror
         then (starttim := !abstimer; lb := []) else
       let 
         val x = f i 
@@ -396,7 +390,7 @@ fun penum_prime_exec exec =
       end
     val _ = catch_perror loop offset_prime (fn () => ())
   in  
-    (convert_bl (rev (!lb)), 
+    (length (!lb) >= 16,
      cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
   end
   

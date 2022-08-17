@@ -138,7 +138,7 @@ fun trainf_start () =
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
-    val progl = List.concat (map (fn (_,x) => map snd x) primesol)
+    val progl = map snd primesol
     val progset = shuffle (mk_fast_set prog_compare (progl @ add_extra ()))
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_prime progset
@@ -414,7 +414,7 @@ t1; t2; t3;
    Searching for prime approximations
    ------------------------------------------------------------------------- *)
 
-type primesol = kernel.bl * (int * prog) list
+type primesol = int * prog
 
 fun search_prime () btiml =
   (
@@ -502,21 +502,16 @@ fun stats_ngen dir ngen =
    Statistics (prime)
    ------------------------------------------------------------------------- *)
 
-fun string_of_primeseq (bn,badl) = 
-  "sequence with length " ^ its bn ^ ": " ^
-  String.concatWith " " (map its badl)
-  
 fun string_of_np (n,p) = 
   "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p 
-  
-fun string_of_primesol_one (bl,npl) =
-  string_of_primeseq bl ^ "\n" ^
-  String.concatWith "\n" 
-    (map string_of_np (dict_sort (fst_compare Int.compare) npl))
 
 fun stats_prime dir primesol =
-  let val primesol1 = rev (dict_sort (fst_compare compare_bl) primesol) in
-    writel (dir ^ "/best") (map string_of_primesol_one primesol1)  
+  let 
+    val primesol_small = dict_sort (snd_compare prog_compare_size) primesol 
+    val primesol_fast = dict_sort (fst_compare Int.compare) primesol 
+  in
+    writel (dir ^ "/best_small") (map string_of_np primesol_small);
+    writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
   end
 
 (* -------------------------------------------------------------------------
@@ -591,32 +586,18 @@ fun rl_search_only ngen =
         val (primesoll,t) = add_time prime ()
         val _ = log ("search time: " ^ rts_round 6 t)
         val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
-        val mprimesol = 
+        val newprimesol = 
           merge_primesol (List.concat (oldprimesol :: primesoll))
-        val newprimesol = first_n 10000
-          (rev (dict_sort (fst_compare compare_bl) mprimesol))
-        val _ = log ("sequences: " ^ its (length newprimesol))
-        val allprog = List.concat (map (map snd o snd) newprimesol)
+        val allprog = map snd newprimesol
         val _ = log ("programs: " ^ (its (length allprog)))
-        val errorl = map (number_of_errors o fst) newprimesol
-        val _ = if length newprimesol = 10000 
-                then maxerror := list_imax errorl
-                else ()
-        val _ = log ("maximum errors: " ^ its (!maxerror))
-        val _ = log ("average errors: " ^ String.concatWith " "
-          (map (rts_round 2 o average_int) 
-           [errorl, first_n 1000 errorl,  
-            first_n 100 errorl,  first_n 10 errorl]))
-        val bestsize = map (list_imin o map (prog_size o snd) o snd) newprimesol
+        val sizel = dict_sort Int.compare (map prog_size allprog)
         val _ = log ("average best size: " ^ String.concatWith " "
           (map (rts_round 2 o average_int) 
-           [bestsize, first_n 1000 bestsize,  
-            first_n 100 bestsize,  first_n 10 bestsize]))
-        val bestspeed = map (list_imin o map fst o snd) newprimesol  
+           [sizel, first_n 1000 sizel, first_n 100 sizel, first_n 10 sizel]))
+        val speedl = dict_sort Int.compare (map fst newprimesol)  
         val _ = log ("average best speed: " ^  String.concatWith " "
           (map (rts_round 2 o average_int) 
-           [bestspeed, first_n 1000 bestspeed,  
-            first_n 100 bestspeed, first_n 10 bestspeed]))
+          [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
       in  
         write_primesol_atomic ngen newprimesol;
         stats_prime (!buildheap_dir) newprimesol

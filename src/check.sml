@@ -2,7 +2,7 @@ structure check :> check =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel 
-  mcts kernel bloom human exec game poly
+  mcts kernel bloom human exec game poly tnn
 
 val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum
@@ -169,63 +169,45 @@ fun checkpl_slow pl =
    Check if a program generates an approximation of the primes
    ------------------------------------------------------------------------- *)
 
-val primed = ref (dempty compare_bl)
-val primee = ref (eempty compare_bl)
+val primed = ref (dempty prog_compare)
 
-fun is_better rp1 rp2 = is_faster rp1 rp2 orelse is_smaller rp1 rp2
-fun is_bothbetter rp1 rp2 = 
-  is_faster_orequal rp1 rp2 andalso is_smaller_orequal rp1 rp2
+fun similarity feae fea =
+  let val feainter = filter (fn x => emem x feae) fea in
+    length feainter
+  end
 
-val compare_rp = inv_cmp (snd_compare prog_compare_size)
+val error_flag = ref false
 
-fun update_primed (bl,rp) = if fst bl < 16 then () else
-  case dfindo bl (!primed) of
-    SOME rpd =>
-    if dlength rpd > 1000 then () else (* todo *)
-    let val norm = normalize (snd rp) in
-      case dfindo norm rpd of
-        NONE => primed := dadd bl (dadd norm rp rpd) (!primed) 
-      | SOME rpold => if compare_rp (rp,rpold) = LESS then ()
-                      else primed := dadd bl (dadd norm rp rpd) (!primed)
-    end
-  | NONE =>
-    if dlength (!primed) < 100
-      then (primed := dadd bl 
-             (dnew poly_compare [(normalize (snd rp), rp)])
-             (!primed); 
-            primee := eadd bl (!primee))
-    else
-      let val worstbl = emin (!primee) in
-        if compare_bl (bl, worstbl) = LESS then () else
-        (primed := drem worstbl (!primed); 
-         primee := erem worstbl (!primee);
-         primed := dadd bl 
-           (dnew poly_compare [(normalize (snd rp), rp)]) (!primed); 
-         primee := eadd bl (!primee))
-      end
+fun update_primed (r,p) =
+  if dlength (!primed) > 20000 then 
+    if !error_flag then () else (error_flag := true; print_endline "toobig") 
+  else let
+    val fea = fea_of_prog p
+    val feae = enew String.compare fea
+    val b = ref true
+    fun f (p',(r',fea')) =
+      if equal_prog (p',p) orelse similarity feae fea' < 10 then () else
+      if prog_compare_size (p,p') = LESS 
+      then primed := drem p' (!primed)
+      else b := false
+  in
+    app f (dlist (!primed));
+    if !b then primed := dadd p (r,fea) (!primed) else ()
+  end 
 
-fun checkinit_prime () = 
-  (primed := dempty compare_bl; primee := eempty compare_bl)
+fun checkinit_prime () = (error_flag := false; primed := dempty prog_compare)
   
 fun checkonline_prime (p,exec) =
-  let 
-    val (bl,newexec) = penum_prime_exec exec
-    val rp = (!abstimer,p)
-  in 
-    update_primed (bl,rp); newexec
+  let val (b,newexec) = penum_prime_exec exec in 
+    (if not b then () else update_primed (!abstimer,p); newexec)
   end
 
 fun checkfinal_prime () = 
-  let val l = dlist (!primed) in
-    map_snd (fn rpd => map snd (dlist rpd)) l
-  end
+  map (fn (a,(b,_)) => (b,a)) (dlist (!primed))
 
 fun merge_primesol primesol = 
-  let 
-    val _ = checkinit_prime ()
-    val l = distrib primesol
-  in
-    app update_primed l;
+  let val _ = checkinit_prime () in
+    app update_primed primesol;
     checkfinal_prime ()
   end  
   

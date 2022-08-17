@@ -17,7 +17,6 @@ sig
   
   val checkinit_prime : unit -> unit
   val checkonline_prime : prog * exec.exec -> exec.exec
-  val checkfinal_prime : unit -> (kernel.bl * (int * prog) list) list
-  val merge_primesol : (kernel.bl * (int * prog) list) list -> 
-                       (kernel.bl * (int * prog) list) list
+  val checkfinal_prime : unit -> (int * prog) list
+  val merge_primesol : (int * prog) list -> (int * prog) list
 end

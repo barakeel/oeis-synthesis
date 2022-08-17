@@ -22,6 +22,6 @@ sig
   val maxerror : int ref
   val mk_exec_prime : prog -> (int -> bool)
   val penum_prime : prog -> bool list
-  val penum_prime_exec : exec -> ((int * int list) * exec)
+  val penum_prime_exec : exec -> (bool * exec)
   
 end
