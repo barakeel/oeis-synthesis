@@ -126,7 +126,7 @@ fun write_tnn_atomic ngen tnn =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
-val extra_flag = ref false
+val extra_flag = ref true
 fun add_extra () =
   if not (!extra_flag) then [] else 
   let val sol = read_itprogl (selfdir ^ "/exp/paper-small/hist/itsol20") in 
