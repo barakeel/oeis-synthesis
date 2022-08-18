@@ -19,8 +19,10 @@ sig
   val verify_wtime : int -> int * prog -> bool * bool 
   val verify_eq : int * int -> prog * prog -> bool
   
+   
+  val prime_found : bool ref
   val mk_exec_prime : prog -> (int -> bool)
   val penum_prime : prog -> bool list
-  val penum_prime_exec : exec -> (bool * exec)
+  val penum_prime_exec : exec -> (IntInf.int list * exec)
   
 end

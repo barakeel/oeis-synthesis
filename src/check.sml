@@ -198,12 +198,6 @@ fun levenstein al bl =
     lev cache (al,length al) (bl,length bl)
   end;
   
-(* -------------------------------------------------------------------------
-   Check if a program generates an approximation of the primes
-   ------------------------------------------------------------------------- *)
-
-val primed = ref (dempty prog_compare)
-
 fun is_similar p1 p2 =
   let 
     val (l1,l2) = (map snd (linearize p1), map snd (linearize p2)) 
@@ -215,35 +209,33 @@ fun is_similar p1 p2 =
     int_div (levn - diffn) (minn) <= 0.2
   end
 
+(* -------------------------------------------------------------------------
+   Check if a program generates an approximation of the primes
+   ------------------------------------------------------------------------- *)
+
+val primed = ref (dempty seq_compare)
+
 val error_flag = ref false
 
-fun update_primed (r,p) =
+fun update_primed (il,(r,p)) =
   if dlength (!primed) > 10000 then 
     if !error_flag then () else (error_flag := true; print_endline "toobig") 
   else 
-  if dmem p (!primed) then () else
-  let
-    fun test (p',r') = 
-      if prog_compare_size (p,p') = LESS then true else 
-      if is_similar p p' then false else true
-    val b = all test (dlist (!primed))
-    fun f (p',r') =
-      if prog_compare_size (p,p') = LESS andalso is_similar p p'  
-      then primed := drem p' (!primed)
-      else ()    
-  in
-    if b then app f (dlist (!primed)) else ();
-    if b then primed := dadd p r (!primed) else ()
-  end 
-
-fun checkinit_prime () = (error_flag := false; primed := dempty prog_compare)
+  case dfindo il (!primed) of 
+    NONE => primed := dadd il (r,p) (!primed) 
+  | SOME (_,pold) => 
+    if prog_compare_size (p,pold) = LESS
+    then primed := dadd il (r,p) (!primed)
+    else ()
+    
+fun checkinit_prime () = (error_flag := false; primed := dempty seq_compare)
   
 fun checkonline_prime (p,exec) =
-  let val (b,newexec) = penum_prime_exec exec in 
-    (if not b then () else update_primed (!abstimer,p); newexec)
+  let val (il,newexec) = penum_prime_exec exec in 
+    (if null il then () else update_primed (il,(!abstimer,p)); newexec)
   end
 
-fun checkfinal_prime () = map swap (dlist (!primed))
+fun checkfinal_prime () = dlist (!primed)
 
 fun merge_primesol primesol = 
   let val _ = checkinit_prime () in

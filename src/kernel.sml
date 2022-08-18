@@ -118,12 +118,11 @@ local open HOLsexp in
   val enc_bool = String o bts
   val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
                  o string_decode
-  val enc_prime = pair_encode (
-    pair_encode (Integer, list_encode Integer), 
-    list_encode (pair_encode (Integer, enc_prog))) 
-  val dec_prime = pair_decode (
-    pair_decode (int_decode, list_decode int_decode),
-    list_decode (pair_decode (int_decode, dec_prog))) 
+  val enc_aint = String o IntInf.toString               
+  val dec_aint = Option.mapPartial IntInf.fromString 
+                 o string_decode              
+  val enc_prime = pair_encode (list_encode enc_aint, enc_iprog) 
+  val dec_prime = pair_decode (list_decode dec_aint, dec_iprog)
   
 end
 
@@ -133,8 +132,8 @@ fun read_iprogl file = read_data dec_iprogl file
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
 
-val write_primel = write_iprogl
-val read_primel = read_iprogl
+fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
+fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
 
 (* -------------------------------------------------------------------------
    Instructions

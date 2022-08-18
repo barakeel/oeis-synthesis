@@ -353,9 +353,11 @@ fun cache_exec_prime exec bonus l =
     end
   end
 
+val prime_found = ref false
 
 fun penum_prime_exec exec = 
   let 
+    val _ = prime_found := false
     val _ = timeincr := 20000
     val _ = init_timer ()
     val starttim = ref 0
@@ -367,13 +369,13 @@ fun penum_prime_exec exec =
         (r, !abstimer - !starttim)
       end 
     fun mk_b i (r,_) = (r <= azero) = Vector.sub (primev,i)
-    val (ngood,nbad,ntot) = (ref 10, ref 0, ref 10)
+    val (ngood,nbad,ntot) = (ref 0, ref 0, ref 0)
     val l = ref []
     val bgood = ref false
     fun loop i = 
-      if i >= 100 then (bgood := true; starttim := !abstimer) else
-      if int_div (!ngood) (!ntot) < 0.9 then starttim := !abstimer else
-      let 
+      if i >= 64 then (bgood := true; starttim := !abstimer) else
+      if (!ngood) <> (!ntot) then starttim := !abstimer else
+      let
         val x = f i 
         val b = mk_b i x  
       in
@@ -385,7 +387,8 @@ fun penum_prime_exec exec =
       end
     val _ = catch_perror loop offset_prime (fn () => ())
   in  
-    (!bgood, cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
+    (if !bgood then (prime_found := true; map fst (rev (!l))) else [],
+     cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
   end
   
   

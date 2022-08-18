@@ -45,7 +45,7 @@ sig
   val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
   
   (* searching for primes *)
-  type primesol = int * prog
+  type primesol = seq * (int * prog)
   val search_prime : unit -> (prog list * real) list -> primesol list
   val primespec : 
     (unit, (prog list * real) list, primesol list) smlParallel.extspec

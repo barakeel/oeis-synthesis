@@ -138,7 +138,7 @@ fun trainf_start () =
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
-    val progl = map snd primesol
+    val progl = map (snd o snd) primesol
     val progset = shuffle (mk_fast_set prog_compare (progl @ add_extra ()))
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_prime progset
@@ -416,7 +416,7 @@ t1; t2; t3;
    Searching for prime approximations
    ------------------------------------------------------------------------- *)
 
-type primesol = int * prog
+type primesol = seq * (int * prog)
 
 fun search_prime () btiml =
   (
@@ -590,19 +590,19 @@ fun rl_search_only ngen =
         val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
         val newprimesol = 
           merge_primesol (List.concat (oldprimesol :: primesoll))
-        val allprog = map snd newprimesol
+        val allprog = map (snd o snd) newprimesol
         val _ = log ("programs: " ^ (its (length allprog)))
         val sizel = dict_sort Int.compare (map prog_size allprog)
         val _ = log ("average best size: " ^ String.concatWith " "
           (map (rts_round 2 o average_int) 
            [sizel, first_n 1000 sizel, first_n 100 sizel, first_n 10 sizel]))
-        val speedl = dict_sort Int.compare (map fst newprimesol)  
+        val speedl = dict_sort Int.compare (map (fst o snd) newprimesol)  
         val _ = log ("average best speed: " ^  String.concatWith " "
           (map (rts_round 2 o average_int) 
           [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
       in  
         write_primesol_atomic ngen newprimesol;
-        stats_prime (!buildheap_dir) newprimesol
+        stats_prime (!buildheap_dir) (map snd newprimesol)
       end  
       else 
       let

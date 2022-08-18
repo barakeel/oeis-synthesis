@@ -57,8 +57,8 @@ sig
   val write_itprogl : string -> sol list -> unit
   
   (* errors in prime sequence *)
-  val read_primel : string -> (int * prog) list
-  val write_primel : string -> (int * prog) list -> unit
+  val read_primel : string -> (seq * (int * prog)) list
+  val write_primel : string -> (seq * (int * prog)) list -> unit
   
   (* operators *)
   val operv : term vector
