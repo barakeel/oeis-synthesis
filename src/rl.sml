@@ -129,7 +129,7 @@ fun write_tnn_atomic ngen tnn =
 val extra_flag = ref true
 fun add_extra () =
   if not (!extra_flag) then [] else 
-  let val sol = read_itprogl (selfdir ^ "/exp/paper-small/hist/itsol20") in 
+  let val sol = read_itprogl (selfdir ^ "/exp/paper-fast/hist/itsol20") in 
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
