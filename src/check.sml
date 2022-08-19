@@ -217,17 +217,30 @@ val primed = ref (dempty seq_compare)
 
 val error_flag = ref false
 
+fun better_small (r1,p1) (r2,p2) = prog_compare_size (p1,p2) = LESS
+val better_small_cmp = snd_compare prog_compare_size
+
+fun better_fast (r1,p1) (r2,p2) = Int.compare (r1,r2) = LESS
+val better_fast_cmp = fst_compare Int.compare
+
+fun filter_primed () =
+  let val newl = first_n 10000 
+    (dict_sort (snd_compare better_fast_cmp) (dlist (!primed)))
+  in
+    primed := dnew seq_compare newl
+  end
+
 fun update_primed (il,(r,p)) =
-  if dlength (!primed) > 10000 then 
-    if !error_flag then () else (error_flag := true; print_endline "toobig") 
-  else 
+  (
+  if dlength (!primed) > 11000 then filter_primed () else ();
   case dfindo il (!primed) of 
     NONE => primed := dadd il (r,p) (!primed) 
-  | SOME (_,pold) => 
-    if prog_compare_size (p,pold) = LESS
+  | SOME (rold,pold) => 
+    if better_fast (r,p) (rold,pold)
     then primed := dadd il (r,p) (!primed)
     else ()
-    
+  )
+
 fun checkinit_prime () = (error_flag := false; primed := dempty seq_compare)
   
 fun checkonline_prime (p,exec) =
@@ -235,7 +248,7 @@ fun checkonline_prime (p,exec) =
     (if null il then () else update_primed (il,(!abstimer,p)); newexec)
   end
 
-fun checkfinal_prime () = dlist (!primed)
+fun checkfinal_prime () = (filter_primed (); dlist (!primed))
 
 fun merge_primesol primesol = 
   let val _ = checkinit_prime () in

@@ -30,14 +30,23 @@ local open IntInf in
 end 
 
 val verylargeint = int_pow 2 40
+val smallcost_flag = ref true
 
 fun cost costn x = 
-  if large_int x 
-  then 
-    let val cost1 = IntInf.log2 (IntInf.abs x) in
-      if cost1 > 1024 then verylargeint else cost1
-    end
-  else costn
+  if !smallcost_flag then
+    if x > aone orelse x < ~aone
+    then 
+      let val size = IntInf.log2 (IntInf.abs x) in
+        if size > 1024 then verylargeint else costn * size
+      end
+    else costn
+  else 
+    if large_int x 
+    then 
+      let val cost1 = IntInf.log2 (IntInf.abs x) in
+        if cost1 > 1024 then verylargeint else cost1
+      end
+    else costn
 
 fun testn costn f x =
   let 
@@ -46,14 +55,8 @@ fun testn costn f x =
   in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
-  
-fun test f x =
-  let 
-    val y = f x 
-    val _ = abstimer := !abstimer + cost 1 y   
-  in
-    if !abstimer > !timelimit then raise ProgTimeout else y
-  end
+    
+fun test f x = testn 1 f x
 
 fun testcache costn y = 
   let val _ = abstimer := !abstimer + costn in
