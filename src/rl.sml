@@ -38,6 +38,22 @@ val loss_threshold =
   (* ignore tnn with a loss above this threshold *)
 
 (* -------------------------------------------------------------------------
+   Statistics (prime)
+   ------------------------------------------------------------------------- *)
+
+fun string_of_np (n,p) = 
+  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p 
+
+fun stats_prime dir primesol =
+  let 
+    val primesol_small = dict_sort (snd_compare prog_compare_size) primesol 
+    val primesol_fast = dict_sort (fst_compare Int.compare) primesol 
+  in
+    writel (dir ^ "/best_small") (map string_of_np primesol_small);
+    writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
+  end
+
+(* -------------------------------------------------------------------------
    Files
    ------------------------------------------------------------------------- *)
 
@@ -114,6 +130,45 @@ fun find_last_notbad s =
 fun find_last_ob_notbad () = find_last_notbad "ob"
 
 (* -------------------------------------------------------------------------
+   Another syntactic check based on the existence of loops
+   ------------------------------------------------------------------------- *) 
+  
+fun is_bounded (p as Ins (id,argl)) = 
+  is_constant p orelse
+  (id = 7 andalso is_constant (last argl))
+ 
+fun is_uloop p = case p of
+    Ins (9,[p1,p2,p3]) => not (is_bounded p2)
+  | Ins (12,[p1,p2]) => not (is_bounded p2)
+  | Ins (13,[p1,p2,p3,p4,p5]) => not (is_bounded p3)
+  | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => not (is_bounded p4)
+  | _ => false
+
+fun collect_uloop ptop = 
+  let 
+    val l = ref []
+    fun loop (p as Ins (id,argl)) =
+      if is_uloop p then l := p :: (!l) else app loop argl
+  in
+    loop ptop;
+    dict_sort prog_compare (!l)
+  end
+
+fun merge_sameloop rpl = 
+  let 
+    val d = ref (dempty (list_compare prog_compare)) 
+    fun f (r,p) = 
+      let val uloopl = collect_uloop p in
+        case dfindo uloopl (!d) of
+          SOME (r',p') => if r < r' then d := dadd uloopl (r,p) (!d) else ()
+        | NONE => d := dadd uloopl (r,p) (!d) 
+      end
+  in
+    app f rpl;
+    map snd (dlist (!d))
+  end
+
+(* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
 
@@ -133,12 +188,19 @@ fun add_extra () =
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
+val merge_flag = ref true
+
 fun trainf_start () =
   if !prime_flag then
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
-    val progl = map (snd o snd) primesol
+    val rprogl = map snd primesol
+    val rprogl' = if !merge_flag then merge_sameloop rprogl else rprogl
+    val _ = if !merge_flag 
+      then stats_prime (traindir () ^ "/" ^ its (!ngen_glob)) rprogl'
+      else ()
+    val progl = map snd rprogl'
     val progset = shuffle (mk_fast_set prog_compare (progl @ add_extra ()))
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_prime progset
@@ -500,21 +562,7 @@ fun stats_ngen dir ngen =
     stats_sol (dir ^ "/diff_") soldiff
   end
 
-(* -------------------------------------------------------------------------
-   Statistics (prime)
-   ------------------------------------------------------------------------- *)
 
-fun string_of_np (n,p) = 
-  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p 
-
-fun stats_prime dir primesol =
-  let 
-    val primesol_small = dict_sort (snd_compare prog_compare_size) primesol 
-    val primesol_fast = dict_sort (fst_compare Int.compare) primesol 
-  in
-    writel (dir ^ "/best_small") (map string_of_np primesol_small);
-    writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
-  end
 
 (* -------------------------------------------------------------------------
    Reinforcement learning loop

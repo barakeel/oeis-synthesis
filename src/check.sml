@@ -215,8 +215,6 @@ fun is_similar p1 p2 =
 
 val primed = ref (dempty seq_compare)
 
-val error_flag = ref false
-
 fun better_small (r1,p1) (r2,p2) = prog_compare_size (p1,p2) = LESS
 val better_small_cmp = snd_compare prog_compare_size
 
@@ -224,7 +222,7 @@ fun better_fast (r1,p1) (r2,p2) = Int.compare (r1,r2) = LESS
 val better_fast_cmp = fst_compare Int.compare
 
 fun filter_primed () =
-  let val newl = first_n 10000 
+  let val newl = first_n 100000
     (dict_sort (snd_compare better_fast_cmp) (dlist (!primed)))
   in
     primed := dnew seq_compare newl
@@ -232,7 +230,7 @@ fun filter_primed () =
 
 fun update_primed (il,(r,p)) =
   (
-  if dlength (!primed) > 11000 then filter_primed () else ();
+  if dlength (!primed) > 110000 then filter_primed () else ();
   case dfindo il (!primed) of 
     NONE => primed := dadd il (r,p) (!primed) 
   | SOME (rold,pold) => 
@@ -241,7 +239,7 @@ fun update_primed (il,(r,p)) =
     else ()
   )
 
-fun checkinit_prime () = (error_flag := false; primed := dempty seq_compare)
+fun checkinit_prime () = primed := dempty seq_compare
   
 fun checkonline_prime (p,exec) =
   let val (il,newexec) = penum_prime_exec exec in 

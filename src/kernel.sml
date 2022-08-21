@@ -191,7 +191,8 @@ fun depend_on v (Ins (id,pl)) =
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun depend_on_z p = depend_on z_id p
-fun is_constant p = not (depend_on_x p orelse depend_on_y p)
+fun is_constant p = 
+  not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
 
 (* -------------------------------------------------------------------------
    Timer

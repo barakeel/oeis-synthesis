@@ -308,36 +308,10 @@ fun verify_eq (r,n) (p1,p2) =
 
 fun is_prime x = not
   (exists (fn i => x mod i = 0) (List.tabulate (x-2, (fn x => x + 2))));
-
 val primel = map_assoc is_prime (List.tabulate (1000 - 3, fn x => x + 3));
 val primev = Vector.fromList ([false,false,true] @ map snd primel);
 
-fun mk_exec_prime p x = 
-  (mk_exec_onev p (IntInf.fromInt x) <= azero) = Vector.sub (primev,x)
-
-fun penum_prime p = 
-  let 
-    val _ = timeincr := 10000
-    val f = mk_exec_prime p
-    val _ = init_timer ()
-    val ngood = ref 1
-    val ntot = ref 1
-    val l = ref []
-    fun loop i = 
-      if i >= 100 orelse int_div (!ngood) (!ntot) < 0.5 then () else
-      let val x = f i in
-        l := x :: !l;
-        if x then incr ngood else ();
-        incr ntot;
-        incr_timer ();
-        loop (i+1)
-      end
-    val _ = catch_perror loop 3 (fn () => ())
-  in  
-    rev (!l)
-  end
-  
-val offset_prime = 3  
+val offset_prime = 3 
 val offset_list = List.tabulate (offset_prime, fn _ => (azero,0))  
   
 fun cache_exec_prime exec bonus l = 
@@ -377,7 +351,7 @@ fun penum_prime_exec exec =
     val bgood = ref false
     fun loop i = 
       if i >= 64 then (bgood := true; starttim := !abstimer) else
-      if (!ngood) <> (!ntot) then starttim := !abstimer else
+      if (!ngood) < (!ntot) - 1 then starttim := !abstimer else
       let
         val x = f i 
         val b = mk_b i x  
