@@ -32,10 +32,6 @@ val ngen_glob = ref 0
 val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
-val loss_threshold = 
-  (valOf (Real.fromString (dfind "loss_threshold" configd)) 
-   handle NotFound => 0.2)
-  (* ignore tnn with a loss above this threshold *)
 
 (* -------------------------------------------------------------------------
    Statistics (prime)
@@ -111,23 +107,7 @@ fun find_last s =
   end
 
 fun find_last_itsol () = find_last "itsol"
-
-fun find_last_notbad s =
-  let 
-    val sl1 = listDir (histdir ())
-    val sl2 = filter (String.isPrefix s) sl1
-    val sl3 = mapfilter (snd o split_string s) sl2
-    val sl4 = filter is_number sl3
-    val il = mapfilter string_to_int sl4
-    fun test i = not (exists_file (histdir () ^ "/" ^ s ^ its i ^ "_bad"))
-    val il2 = filter test il
-  in
-    if null il2 
-    then raise ERR "find_last_notbad" ("no " ^ s)
-    else list_imax il2
-  end
-
-fun find_last_ob_notbad () = find_last_notbad "ob"
+fun find_last_ob () = find_last "ob"
 
 (* -------------------------------------------------------------------------
    Another syntactic check based on the existence of loops
@@ -233,15 +213,10 @@ fun trainf_end () =
     (* openblas *)
     val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
     val obfile_temp = obfile ^ "_temp"
-    val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
-    val loss = (valOf o Real.fromString) (List.nth (String.tokens 
-      Char.isSpace (last (readl tnnlog_file)), 2))
     val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
   in
     cmd_in_dir tnndir (catcmd ^ obfile_temp);
-    OS.FileSys.rename {old = obfile_temp, new = obfile};
-    if loss < loss_threshold then () else 
-      writel_atomic (obfile ^ "_bad") ["Empty file"]
+    OS.FileSys.rename {old = obfile_temp, new = obfile}
   end
 
 
@@ -622,7 +597,7 @@ fun rl_search_only ngen =
     val _ =
       if !ngen_glob = 0 then () else
       let 
-        val tnngen = find_last_ob_notbad ()
+        val tnngen = find_last_ob ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
         val obc = tnndir ^ "/ob.c"
         val cpcmd = String.concatWith " " ["cp",obfile,obc]
@@ -676,8 +651,7 @@ fun rl_search_only ngen =
         stats_ngen (!buildheap_dir) ngen
       end
   end
-  
-  
+
 fun rl_train_only ngen =
   let
     val _ = mk_dirs ()
@@ -709,7 +683,7 @@ and rl_train ngen =
   )
 
 fun wait_tnn () = 
-  if can find_last_ob_notbad () then () else 
+  if can find_last_ob () then () else 
   (OS.Process.sleep (Time.fromReal 1.0); wait_tnn ())
 
 fun rl_search_cont () = 
@@ -733,7 +707,7 @@ fun rl_train_cont () =
   then () 
   else (print_endline "waiting for itsol"; wait_itsol ())
   ;
-  rl_train_only ((find_last_ob_notbad () + 1) handle HOL_ERR _ => 0); 
+  rl_train_only ((find_last_ob () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ()
   )
 
