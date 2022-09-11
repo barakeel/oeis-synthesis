@@ -25,6 +25,11 @@ val notarget_flag =
   ref (string_to_bool (dfind "notarget_flag" configd) handle NotFound => false)
 val prime_flag = 
   ref (string_to_bool (dfind "prime_flag" configd) handle NotFound => false) 
+val hadamard_flag = 
+  ref (string_to_bool (dfind "hadamard_flag" configd) handle NotFound => false) 
+val local_flag = 
+  ref (string_to_bool (dfind "local_flag" configd) handle NotFound => 
+    false)  
   
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -160,8 +165,7 @@ val base_operl =
   map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
   ([("zero",0),("one",0),("two",0),
    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-   ("cond",3),("loop",3),
-   ("x",0),("y",0),
+   ("cond",3),("loop",3),("x",0),("y",0),
    ("compr",2),("loop2",5)] @
    (if (!z_flag) then [("z",0),("loop3",7)] else []))
 

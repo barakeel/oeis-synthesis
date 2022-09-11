@@ -1,7 +1,7 @@
 structure smt :> smt =
 struct
 
-open HolKernel Abbrev boolLib aiLib dir kernel human
+open HolKernel Abbrev boolLib aiLib dir kernel human exec
 val ERR = mk_HOL_ERR "smt"
 
 
@@ -110,15 +110,18 @@ and smtdefspec s n r =
   
 and smtdef (s,p) = smtdefspec s (nvar p) (smt p)
 
-fun export_smt2_one flag dir (a,(p1,p2)) =
+fun export_smt2_one flag dir ((p1,p2),anumltop) =
   let 
-    val anums = "A" ^ its a
-    val file = dir ^ "/" ^ anums ^ ".smt2" 
-    val seq = valOf (Array.sub (bloom.oseq,a))
+    val _ = if null anumltop then raise ERR "export_smt2_one" "" else ()
+    val anuml = dict_sort Int.compare anumltop
+    val anums = String.concatWith "-" (map (fn a => "A" ^ its a) anuml)
+    val file = dir ^ "/" ^ "A" ^ its (hd anuml) ^ ".smt2" 
+    val seq = valOf (Array.sub (bloom.oseq,hd anuml))
     val _ = (index := 0; decl := []; defl := [])
     val _ = (smtdef ("small",p1), smtdef ("fast",p2))
     val header =  
-      [";; sequence " ^ anums ^ ": " ^ string_of_seq (first_n 20 seq),
+      [";; sequence(s): " ^ anums,
+       ";; terms: " ^ string_of_seq (first_n 20 seq),
        ";; small program: " ^ humanf p1,
        ";; fast program: " ^ humanf p2,
        "(set-logic UFNIA)"]
@@ -131,25 +134,28 @@ fun export_smt2_one flag dir (a,(p1,p2)) =
     writel file (header @ !decl @ !defl @ footer)
   end
   
-fun export_smt2 b dir l =
-  let val _ = mkDir_err dir in
-    app (export_smt2_one b dir) l
+fun export_smt2 flag dir file =
+  let
+    val l1 = read_itprogl file
+    val _ = print_endline ("sequences: " ^ its (length l1))
+    val l2 = List.mapPartial (fn (x,l) => 
+      if length l <> 2 then NONE else SOME (x, pair_of_list 
+      (dict_sort prog_compare_size (map snd l)))) l1
+    val _ = print_endline ("with at least 2 programs: " ^ its (length l2))
+    val l3 = map swap l2
+    val l4 = dlist (dregroup (cpl_compare prog_compare prog_compare) l3)
+    val _ = print_endline ("unique program pairs: " ^ its (length l4))
+    val l5 = filter (fn (pp,_) => verify_eq (1000000,100) pp) l4
+    val _ = print_endline ("further verification: " ^ its (length l5))
+  in
+    clean_dir dir;
+    app (export_smt2_one flag dir) l5
   end
 
 
 (*
 load "smt"; open kernel aiLib human smt;
-val l1 = read_itprogl "model/itsol94";
-val l2 = List.mapPartial (fn (x,l) => 
-  if length l <> 2 then NONE else SOME (x, pair_of_list 
-    (dict_sort prog_compare_size (map snd l)))) l1;
-length l2;
-val l3 = time (filter (fn (_,pp) => verify_eq (1000000,100) pp)) l2; 
-length l3;
-
-mkDir_err "pb";
-
-export_smt2 true "oeis-smt/pb" l3;
+export_smt2 true "oeis-smt/pb" "model/itsol209";
 *)
 
 

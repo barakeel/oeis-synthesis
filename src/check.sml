@@ -252,7 +252,46 @@ fun merge_primesol primesol =
   let val _ = checkinit_prime () in
     app update_primed primesol;
     checkfinal_prime ()
-  end  
+  end 
+  
+(* -------------------------------------------------------------------------
+   Check if a program generates hadamard matrices
+   ------------------------------------------------------------------------- *)
+
+val hdmd = ref (dempty seq_compare)
+fun compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
+  cpl_compare Int.compare prog_compare_size ((length l1,p1),(length l2, p2))
+
+fun filter_hdmd () =
+  let val newl = first_n 30000 (dict_sort compare_length (dlist (!hdmd))) in
+    hdmd := dnew seq_compare newl
+  end
+
+fun update_hdmd (il,(r,p)) =
+  (
+  if dlength (!hdmd) > 33000 then filter_hdmd () else ();
+  case dfindo il (!hdmd) of 
+    NONE => hdmd := dadd il (r,p) (!hdmd) 
+  | SOME (rold,pold) => 
+    if better_small (r,p) (rold,pold)
+    then hdmd := dadd il (r,p) (!hdmd)
+    else ()
+  )
+
+fun checkinit_hdm () = hdmd := dempty seq_compare
+  
+fun checkonline_hdm (p,exec) =
+  let val (il,newexec) = penum_hadamard exec in 
+    (if null il then () else update_hdmd (il,(!abstimer,p)); newexec)
+  end
+
+fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
+
+fun merge_hdmsol hdmsol = 
+  let val _ = checkinit_hdm () in
+    app update_hdmd hdmsol;
+    checkfinal_hdm ()
+  end
   
   
 end (* struct *)

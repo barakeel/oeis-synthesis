@@ -50,5 +50,10 @@ sig
   val primespec : 
     (unit, (prog list * real) list, primesol list) smlParallel.extspec
   
+  (* searching for hadamard matrices *)
+  val search_hdm : unit -> (prog list * real) list -> primesol list
+  val hdmspec : 
+    (unit, (prog list * real) list, primesol list) smlParallel.extspec
+  
   
 end

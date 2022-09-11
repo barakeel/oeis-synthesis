@@ -367,8 +367,74 @@ fun penum_prime_exec exec =
     (if !bgood then (prime_found := true; map fst (rev (!l))) else [],
      cache_exec_prime exec (!abstimer - !starttim) (rev (!l)))
   end
-  
-  
+
+(* -------------------------------------------------------------------------
+   Hadamard (maybe use hash function)
+   ------------------------------------------------------------------------- *)
+
+fun cache_exec_hdm exec bonus l = 
+  let val v = Vector.fromList l in
+    fn x =>
+    let val no = SOME (IntInf.toInt (#1 x)) handle Overflow => NONE in
+      case no of NONE => exec x | SOME n => 
+      if n = Vector.length v andalso !abstimer + bonus > !timelimit
+        then raise ProgTimeout 
+      else
+      if n >= 0 andalso n < Vector.length v then 
+        let val (r,tim) = Vector.sub (v,n) in
+          testcache tim r
+        end
+      else exec x    
+    end
+  end
+
+fun scalar_product l1 l2 =
+  sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
+
+fun orthogonal l1 l2 = scalar_product l1 l2 = 0
+
+val hdm_dim = 28
+
+fun penum_hadamard exec = 
+  let
+    (* timers *)
+    val _ = timeincr := 20000
+    val _ = init_timer ()
+    val starttim = ref 0
+    (* results *)
+    val result = ref []
+    val cresult = ref []
+    val table = ref []
+    fun f x =
+      let 
+        val _ = starttim := !abstimer 
+        val r = exec (IntInf.fromInt x, azero, azero)
+      in
+        (r, !abstimer - !starttim)
+      end
+    fun loop i =
+      let 
+        val _ = 
+          if i <> 0 andalso i mod hdm_dim = 0 
+          then if not (all (orthogonal (rev (!cresult))) (!table)) 
+               then raise Div
+               else (table := rev (!cresult) :: !table; cresult := [])
+          else ()
+        val (x,t) = f i 
+        val _ = result := (x,t) :: !result 
+        val _ = cresult := (if x <= 0 then ~1 else 1) :: !cresult
+      in
+        incr_timer (); loop (i+1)
+      end
+    val _ = catch_perror loop 0 (fn () => ())
+  in  
+    (if length (!table) <= 1 then [] else 
+     map IntInf.fromInt (List.concat (rev (!table))),
+     cache_exec_hdm exec (!abstimer - !starttim) (rev (!result)))
+  end
+
+
+
 
 end (* struct *)
 

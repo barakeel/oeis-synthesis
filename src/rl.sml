@@ -49,6 +49,35 @@ fun stats_prime dir primesol =
     writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
   end
 
+fun string_of_modseq n seq = 
+  let 
+    val seq1 = number_snd 0 seq 
+    fun f (x,i) = (if i mod n = 0 then "\n" else "") ^ IntInf.toString x
+  in
+    String.concatWith " " (map f seq1)
+   end
+
+fun string_of_snp (seq,(n,p)) = 
+  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ 
+  string_of_modseq hdm_dim seq
+  
+fun compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
+  cpl_compare Int.compare prog_compare_size ((length l1,p1),(length l2, p2))
+
+fun stats_hdm dir primesol =
+  let 
+    val primesol_small = 
+     dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
+    val primesol_fast = 
+      dict_sort (snd_compare (fst_compare Int.compare)) primesol
+    val primesol_correct =
+      dict_sort compare_length primesol
+  in
+    writel (dir ^ "/best_correct") (map string_of_snp primesol_correct);
+    writel (dir ^ "/best_small") (map string_of_snp primesol_small);
+    writel (dir ^ "/best_fast") (map string_of_snp primesol_fast)  
+  end
+
 (* -------------------------------------------------------------------------
    Files
    ------------------------------------------------------------------------- *)
@@ -162,16 +191,20 @@ fun write_tnn_atomic ngen tnn =
   end
 
 val extra_flag = ref true
+val extra_file = 
+  if !local_flag then selfdir ^ "/model/itsol209" else 
+  selfdir ^ "/exp/paper-small/hist/itsol20"
+
 fun add_extra () =
   if not (!extra_flag) then [] else 
-  let val sol = read_itprogl (selfdir ^ "/exp/paper-fast/hist/itsol20") in 
+  let val sol = read_itprogl extra_file in 
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
-val merge_flag = ref true
+val merge_flag = ref false
 
 fun trainf_start () =
-  if !prime_flag then
+  if !prime_flag orelse !hadamard_flag then
   let
     val primesol = read_primesol (find_last_itsol ())
     val _ = print_endline ("reading primesol " ^ its (length primesol))
@@ -495,6 +528,54 @@ fun prime () =
     smlParallel.parmap_queue_extern ncore primespec () l1
   end
 
+
+(* -------------------------------------------------------------------------
+   Searching for hadamard matrices
+   ------------------------------------------------------------------------- *)
+
+type primesol = seq * (int * prog)
+
+fun search_hdm () btiml =
+  (
+  search.randsearch_flag := (!ngen_glob = 0); 
+  checkinit_hdm ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  checkfinal_hdm ()
+  )
+
+val hdmspec : (unit, (prog list * real) list, primesol list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.hdmspec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "rl.expname := " ^ mlquote (!expname),
+     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "tnn.dim_glob := " ^ its (!dim_glob),
+     "tnn.use_ob := " ^ bts (!use_ob),
+     "game.time_opt := " ^ string_of_timeo (),
+     "rl.init_cube ()"] 
+    ^ ")"),
+  function = search_hdm,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
+  write_result = write_primel,
+  read_result = read_primel
+  }
+
+fun hdm () = 
+  let
+    val tree = start_cube (ncore * 2)
+    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore hdmspec () l1
+  end
+
+
 (* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
@@ -626,8 +707,28 @@ fun rl_search_only ngen =
       in  
         write_primesol_atomic ngen newprimesol;
         stats_prime (!buildheap_dir) (map snd newprimesol)
-      end  
-      else 
+      end
+      else if !hadamard_flag then 
+      let 
+        val (primesoll,t) = add_time hdm ()
+        val _ = log ("search time: " ^ rts_round 6 t)
+        val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
+        val newprimesol = merge_hdmsol (List.concat (oldprimesol :: primesoll))
+        val allprog = map (snd o snd) newprimesol
+        val _ = log ("programs: " ^ (its (length allprog)))
+        val sizel = dict_sort Int.compare (map prog_size allprog)
+        val _ = log ("average best size: " ^ String.concatWith " "
+          (map (rts_round 2 o average_int) 
+           [sizel, first_n 1000 sizel, first_n 100 sizel, first_n 10 sizel]))
+        val speedl = dict_sort Int.compare (map (fst o snd) newprimesol)  
+        val _ = log ("average best speed: " ^  String.concatWith " "
+          (map (rts_round 2 o average_int) 
+          [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
+      in  
+        write_primesol_atomic ngen newprimesol;
+        stats_hdm (!buildheap_dir) newprimesol
+      end
+      else
       let
         val (itsoll,t) = 
           if !notarget_flag then add_time cube ()

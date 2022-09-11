@@ -10,6 +10,8 @@ sig
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val notarget_flag : bool ref (* train without looking at the target *)
   val prime_flag : bool ref (* train targeting only prime approximations *)
+  val hadamard_flag : bool ref
+  val local_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

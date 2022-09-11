@@ -15,10 +15,18 @@ sig
   
   val collect_candidate : unit -> prog list
   
+  (* primes *)
   val checkinit_prime : unit -> unit
   val checkonline_prime : prog * exec.exec -> exec.exec
   val checkfinal_prime : unit -> (kernel.seq * (int * prog)) list
   val merge_primesol : (kernel.seq  * (int * prog)) list -> 
     (kernel.seq * (int * prog)) list
 
+  (* hadamard *)
+  val checkinit_hdm : unit -> unit
+  val checkonline_hdm : prog * exec.exec -> exec.exec
+  val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
+  val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
+    (kernel.seq * (int * prog)) list
+  
 end

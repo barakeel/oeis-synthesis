@@ -22,4 +22,7 @@ sig
   val prime_found : bool ref
   val penum_prime_exec : exec -> (IntInf.int list * exec)
   
+  val hdm_dim : int
+  val penum_hadamard : exec -> (IntInf.int list * exec)
+  
 end

@@ -100,7 +100,11 @@ fun collect_child boarde move =
         if !prime_flag 
         then let val newexec = checkonline_prime (p,exec) in
             if !prime_found then NONE else SOME (move, newexec)
-          end  
+          end
+        else if !hadamard_flag
+        then let val newexec = checkonline_hdm (p,exec) in
+            SOME (move, newexec)
+          end
         else (checkonline (p,exec); SOME (move, cache_exec exec))
         )
     end
