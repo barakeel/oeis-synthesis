@@ -259,8 +259,10 @@ fun merge_primesol primesol =
    ------------------------------------------------------------------------- *)
 
 val hdmd = ref (dempty seq_compare)
+
+fun inv_cmp cmp (a,b) = cmp (b,a)
 fun compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
-  cpl_compare Int.compare prog_compare_size ((length l1,p1),(length l2, p2))
+  cpl_compare (inv_cmp Int.compare) prog_compare_size ((length l1,p1),(length l2, p2))
 
 fun filter_hdmd () =
   let val newl = first_n 30000 (dict_sort compare_length (dlist (!hdmd))) in
