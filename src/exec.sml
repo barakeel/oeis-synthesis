@@ -392,9 +392,15 @@ fun scalar_product l1 l2 =
   sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
 
 fun orthogonal l1 l2 = scalar_product l1 l2 = 0
-
 val hdm_dim = 28
+val hash_modulo = 79260655 * 10000000 + 5396977
 
+fun hash acc l = case l of
+    [] => acc
+  | 1 :: m => hash ((2 * acc + 1) mod hash_modulo) m
+  | ~1 :: m => hash ((2 * acc) mod hash_modulo) m
+  | _ :: m => raise ERR "hash_hdmseq" ""
+  
 fun penum_hadamard exec = 
   let
     (* timers *)
@@ -405,6 +411,7 @@ fun penum_hadamard exec =
     val result = ref []
     val cresult = ref []
     val table = ref []
+    val b = ref false
     fun f x =
       let 
         val _ = starttim := !abstimer 
@@ -417,7 +424,7 @@ fun penum_hadamard exec =
         val _ = 
           if i <> 0 andalso i mod hdm_dim = 0 
           then if not (all (orthogonal (rev (!cresult))) (!table)) 
-               then raise Div
+               then (b := true; raise Div)
                else (table := rev (!cresult) :: !table; cresult := [])
           else ()
         val (x,t) = f i 
@@ -427,9 +434,12 @@ fun penum_hadamard exec =
         incr_timer (); loop (i+1)
       end
     val _ = catch_perror loop 0 (fn () => ())
+    val len = length (!table)
   in  
-    (if length (!table) <= 1 then [] else 
-     map IntInf.fromInt (List.concat (rev (!table))),
+    (if len <= 1 then [] else  
+     let val h = hash 0 (List.concat (rev (!table))) in
+       map IntInf.fromInt [len, if !b then 1 else 0, h]
+     end,
      cache_exec_hdm exec (!abstimer - !starttim) (rev (!result)))
   end
 
