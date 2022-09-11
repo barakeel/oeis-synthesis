@@ -437,7 +437,7 @@ fun penum_hadamard exec =
     val len = length (!table)
   in  
     (if len <= 1 then [] else  
-     let val h = hash 0 (List.concat (rev (!table))) in
+     let val h = hash 1 (List.concat (rev (!table))) in
        map IntInf.fromInt [len, if !b then 1 else 0, h]
      end,
      cache_exec_hdm exec (!abstimer - !starttim) (rev (!result)))
