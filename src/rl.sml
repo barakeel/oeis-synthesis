@@ -63,7 +63,7 @@ fun string_of_snp (seq,(n,p)) =
   
 fun inv_cmp cmp (a,b) = cmp (b,a)
 fun compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
-  cpl_compare (inv_cmp Int.compare) prog_compare_size ((length l1,p1),(length l2, p2))
+  cpl_compare (inv_cmp Int.compare) prog_compare_size ((hd l1,p1),(hd l2, p2))
 fun stats_hdm dir primesol =
   let 
     val primesol_small = 
