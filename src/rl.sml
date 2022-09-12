@@ -61,9 +61,6 @@ fun string_of_snp (seq,(n,p)) =
   "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ 
   string_of_modseq hdm_dim seq
   
-fun inv_cmp cmp (a,b) = cmp (b,a)
-fun compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
-  cpl_compare (inv_cmp Int.compare) prog_compare_size ((hd l1,p1),(hd l2, p2))
 fun stats_hdm dir primesol =
   let 
     val primesol_small = 
@@ -71,7 +68,7 @@ fun stats_hdm dir primesol =
     val primesol_fast = 
       dict_sort (snd_compare (fst_compare Int.compare)) primesol
     val primesol_correct =
-      dict_sort compare_length primesol
+      dict_sort hdm_compare_length primesol
   in
     writel (dir ^ "/best_correct") (map string_of_snp primesol_correct);
     writel (dir ^ "/best_small") (map string_of_snp primesol_small);
