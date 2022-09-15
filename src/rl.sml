@@ -49,20 +49,13 @@ fun stats_prime dir primesol =
     writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
   end
 
-fun string_of_modseq n seq = 
-  let 
-    val seq1 = number_snd 0 seq 
-    fun f (x,i) = (if i mod n = 0 then "\n" else "") ^ IntInf.toString x
-  in
-    String.concatWith " " (map f seq1)
-   end
-
 fun string_of_snp (seq,(n,p)) = 
   "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ 
-  string_of_modseq hdm_dim seq
+  string_of_seq seq
   
 fun stats_hdm dir primesol =
-  let 
+  let
+    val is = IntInf.toString (List.nth (fst (hd primesol),2))
     val primesol_small = 
      dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
     val primesol_fast = 
@@ -70,9 +63,9 @@ fun stats_hdm dir primesol =
     val primesol_correct =
       dict_sort hdm_compare_length primesol
   in
-    writel (dir ^ "/best_correct") (map string_of_snp primesol_correct);
-    writel (dir ^ "/best_small") (map string_of_snp primesol_small);
-    writel (dir ^ "/best_fast") (map string_of_snp primesol_fast)  
+    writel (dir ^ "/best_correct" ^ is) (map string_of_snp primesol_correct);
+    writel (dir ^ "/best_small" ^ is) (map string_of_snp primesol_small);
+    writel (dir ^ "/best_fast" ^ is) (map string_of_snp primesol_fast)  
   end
 
 (* -------------------------------------------------------------------------
@@ -661,6 +654,16 @@ fun worst_prime bl =
 
 fun number_of_errors (bn,badl) = (997 - bn) + length badl
 
+fun secondel l = List.nth (l,1)
+fun split_hdm l1 = 
+ let 
+   val l2 = map (fn x => (secondel (fst x),x)) l1
+   val d = dregroup IntInf.compare l2
+   val l3 = dlist d
+ in
+   map snd l3
+ end
+
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -721,9 +724,10 @@ fun rl_search_only ngen =
         val _ = log ("average best speed: " ^  String.concatWith " "
           (map (rts_round 2 o average_int) 
           [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
+      
       in  
         write_primesol_atomic ngen newprimesol;
-        stats_hdm (!buildheap_dir) newprimesol
+        app (stats_hdm (!buildheap_dir)) (split_hdm newprimesol)
       end
       else
       let

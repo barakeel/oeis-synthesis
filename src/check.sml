@@ -261,17 +261,27 @@ fun merge_primesol primesol =
 val hdmd = ref (dempty seq_compare)
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
+fun thirdel l = List.nth (l,2)
+fun secondel l = List.nth (l,1)
+
 fun hdm_compare_length ((l1,(_,p1)),(l2,(_,p2))) = 
-  cpl_compare (inv_cmp IntInf.compare) prog_compare_size ((hd l1,p1),(hd l2,p2))
+  cpl_compare (inv_cmp IntInf.compare) prog_compare_size 
+    ((thirdel l1,p1),(thirdel l2,p2))
 
 fun filter_hdmd () =
-  let val newl = first_n 30000 (dict_sort hdm_compare_length (dlist (!hdmd))) in
-    hdmd := dnew seq_compare newl
+  let 
+    val l1 = dlist (!hdmd)
+    val l2 = map (fn x => (secondel (fst x),x)) l1
+    val d = dregroup IntInf.compare l2
+    val l3 = dlist d
+    val l4 = map (first_n 5000 o dict_sort hdm_compare_length o snd) l3
+  in
+    hdmd := dnew seq_compare (List.concat l4)
   end
 
 fun update_hdmd (il,(r,p)) =
   (
-  if dlength (!hdmd) > 33000 then filter_hdmd () else ();
+  if dlength (!hdmd) > 50000 then filter_hdmd () else ();
   case dfindo il (!hdmd) of 
     NONE => hdmd := dadd il (r,p) (!hdmd) 
   | SOME (rold,pold) => 
@@ -282,10 +292,13 @@ fun update_hdmd (il,(r,p)) =
 
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
-fun checkonline_hdm (p,exec) =
-  let val (il,newexec) = penum_hadamard exec in 
-    (if null il then () else update_hdmd (il,(!abstimer,p)); newexec)
+fun checkonline_hdm_z (p,exec) z =
+  let val il = penum_hadamard exec z in 
+    if null il then () else update_hdmd (il,(!abstimer,p))
   end
+  
+fun checkonline_hdm (p,exec) =
+  app (checkonline_hdm_z (p,exec)) (List.tabulate (5, fn i => 4 * (i+2))) 
 
 fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
 

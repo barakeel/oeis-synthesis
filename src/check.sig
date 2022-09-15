@@ -24,7 +24,7 @@ sig
 
   (* hadamard *)
   val checkinit_hdm : unit -> unit
-  val checkonline_hdm : prog * exec.exec -> exec.exec
+  val checkonline_hdm : prog * exec.exec -> unit
   val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
   val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
     (kernel.seq * (int * prog)) list

@@ -81,6 +81,9 @@ sig
   val init_slow_test : unit -> unit
   val incr_timer : unit -> unit
   val init_timer : unit -> unit
-  val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b
+  val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b 
   
+  (* gpt *)
+  val gpt_seq : seq -> string  
+  val gpt_prog : prog -> string
 end

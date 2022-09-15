@@ -372,22 +372,6 @@ fun penum_prime_exec exec =
    Hadamard (maybe use hash function)
    ------------------------------------------------------------------------- *)
 
-fun cache_exec_hdm exec bonus l = 
-  let val v = Vector.fromList l in
-    fn x =>
-    let val no = SOME (IntInf.toInt (#1 x)) handle Overflow => NONE in
-      case no of NONE => exec x | SOME n => 
-      if n = Vector.length v andalso !abstimer + bonus > !timelimit
-        then raise ProgTimeout 
-      else
-      if n >= 0 andalso n < Vector.length v then 
-        let val (r,tim) = Vector.sub (v,n) in
-          testcache tim r
-        end
-      else exec x    
-    end
-  end
-
 fun scalar_product l1 l2 =
   sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
 
@@ -400,8 +384,16 @@ fun hash acc l = case l of
   | 1 :: m => hash ((2 * acc + 1) mod hash_modulo) m
   | ~1 :: m => hash ((2 * acc) mod hash_modulo) m
   | _ :: m => raise ERR "hash_hdmseq" ""
-  
-fun penum_hadamard exec = 
+
+fun score_table table = 
+  let 
+    val l1 = map (uncurry scalar_product) (all_pairs table)
+    val l2 = map (fn x => if x = 0 then 1 else 0) l1
+  in
+    sum_int l2
+  end
+
+fun penum_hadamard exec ztop = 
   let
     (* timers *)
     val _ = timeincr := 20000
@@ -412,37 +404,23 @@ fun penum_hadamard exec =
     val cresult = ref []
     val table = ref []
     val b = ref false
-    fun f x =
+    fun f (x,y,z) =
       let 
         val _ = starttim := !abstimer 
-        val r = exec (IntInf.fromInt x, azero, azero)
+        val r = exec (IntInf.fromInt x, IntInf.fromInt y, IntInf.fromInt z)
       in
-        (r, !abstimer - !starttim)
+        if r <= 0 then 1 else ~1
       end
-    fun loop i =
-      let 
-        val _ = 
-          if i <> 0 andalso i mod hdm_dim = 0 
-          then if not (all (orthogonal (rev (!cresult))) (!table)) 
-               then (b := true; raise Div)
-               else (table := rev (!cresult) :: !table; cresult := [])
-          else ()
-        val (x,t) = f i 
-        val _ = result := (x,t) :: !result 
-        val _ = cresult := (if x <= 0 then ~1 else 1) :: !cresult
-      in
-        incr_timer (); loop (i+1)
-      end
-    val _ = catch_perror loop 0 (fn () => ())
-    val len = length (!table)
-  in  
-    (if len <= 1 then [] else  
-     let val h = hash 1 (List.concat (rev (!table))) in
-       map IntInf.fromInt [len, if !b then 1 else 0, h]
-     end,
-     cache_exec_hdm exec (!abstimer - !starttim) (rev (!result)))
+    val table = List.tabulate (ztop, 
+      fn y => (List.tabulate (ztop, fn x => f(x,y,ztop))))
+    val sc = score_table table
+    val h = hash 1 (List.concat table)
+  in   
+    map IntInf.fromInt [h,ztop,sc]
   end
-
+  handle Div => [] 
+       | ProgTimeout => [] 
+       | Overflow => []
 
 
 

@@ -49,12 +49,9 @@ fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
 type seq = IntInf.int list
 type anum = int
 val seq_compare = list_compare IntInf.compare
-fun rm_i s = 
-  if String.size s = 0 then s else
-  if String.sub (s,String.size s - 1) =  #"i" 
-  then String.substring (s,0,String.size s - 1)
-  else s;
-fun string_of_seq il = String.concatWith " " (map (rm_i o IntInf.toString) il)
+
+fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
+fun gpt_seq il = String.concatWith "|" (map IntInf.toString il)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
@@ -76,6 +73,11 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
 
 fun raw_prog (Ins (id,pl)) =
   "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
+
+fun gpt_id id =
+  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
+  
+fun gpt_prog (Ins (id,pl)) = (String.concat (map gpt_prog pl)) ^ gpt_id id
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)

@@ -174,5 +174,23 @@ fun select_random_target () =
     ()
   end
 
+(* -------------------------------------------------------------------------
+   Convert to GPT
+   ------------------------------------------------------------------------- *)
+
+fun to_gpt file =
+  let 
+    val itsol = read_itprogl file 
+    fun f (i,tpl) =
+      let 
+        val seqs = gpt_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
+        fun g (t,p) = seqs ^ ">" ^ gpt_prog p ^ "."
+      in
+        map g tpl
+      end
+  in
+    writel (file ^ "-gpt") (shuffle (List.concat (map f itsol)))
+  end
+
 
 end (* struct *)
