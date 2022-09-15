@@ -50,12 +50,12 @@ fun stats_prime dir primesol =
   end
 
 fun string_of_snp (seq,(n,p)) = 
-  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ 
+  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ ".   " ^ 
   string_of_seq seq
   
 fun stats_hdm dir primesol =
   let
-    val is = IntInf.toString (List.nth (fst (hd primesol),2))
+    val is = IntInf.toString (List.nth (fst (hd primesol),1))
     val primesol_small = 
      dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
     val primesol_fast = 
