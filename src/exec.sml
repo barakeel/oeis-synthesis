@@ -411,7 +411,8 @@ fun penum_hadamard exec ztop =
         if r <= 0 then 1 else ~1
       end
     val table = List.tabulate (ztop, 
-      fn y => (List.tabulate (ztop, fn x => f(x,y,ztop))))
+      fn y => (List.tabulate (ztop, fn x => 
+        let val r = f(x,y,ztop) in incr_timer (); r end)))
     val sc = score_table table
     val h = hash 1 (List.concat table)
   in   
