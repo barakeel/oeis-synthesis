@@ -117,6 +117,27 @@ local open IntInf in
   val modu_f = mk_binf 5 (op mod)
   fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
+  fun pow_mod_f_aux (c,b,a) = 
+    if c <= azero orelse c > amaxmod then raise Div else
+    let 
+      val c' = IntInf.toInt c
+      val b' = IntInf.toInt (b mod c)
+      val a' = IntInf.toInt (a mod c)
+    in   
+      IntInf.fromInt 
+      (Vector.sub (Vector.sub (Vector.sub (powerv,c'), b'), a'))
+    end
+  val pow_mod_f = mk_ternf pow_mod_f_aux
+  fun is_square_f_aux (c,a) =
+    if c <= azero orelse c > amaxmod then raise Div else
+     let 
+      val c' = IntInf.toInt c
+      val a' = IntInf.toInt (a mod c)
+    in   
+      IntInf.fromInt
+      (Vector.sub (Vector.sub (squarev,c'), a'))
+    end
+  val is_square_f = mk_binf 1 is_square_f_aux
 end (* local *)
 
 
@@ -182,7 +203,8 @@ val execv = Vector.fromList
   cond_f,loop_f,
   x_f,y_f,
   compr_f, loop2_f,
-  z_f, loop3_f
+  z_f, loop3_f,
+  pow_mod_f, is_square_f
   ]
 
 (* -------------------------------------------------------------------------

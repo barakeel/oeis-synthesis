@@ -143,6 +143,27 @@ fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
 fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
 
 (* -------------------------------------------------------------------------
+   Extra pre-computed instructions
+   ------------------------------------------------------------------------- *)
+
+val maxmod = 28
+val amaxmod = IntInf.fromInt maxmod
+fun power (c,b,a) =
+  if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
+
+val powerv = 
+  Vector.tabulate (maxmod + 1, fn c => 
+  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => power (c,b,a))))
+  
+fun is_square (c,a) =
+  exists (fn x => x*x mod c = a) (List.tabulate (c,I))
+  
+val squarev = 
+  Vector.tabulate (maxmod + 1, fn c => 
+     Vector.tabulate (c, fn a => if is_square (c,a) then 1 else 0))
+  
+
+(* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
 
@@ -162,15 +183,19 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
+val pow_mod = 16
+val is_square = 17
 
-val base_operl = 
-  map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
-  ([("zero",0),("one",0),("two",0),
+
+val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
+  (
+  [("zero",0),("one",0),("two",0),
    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
    ("cond",3),("loop",3),("x",0),("y",0),
    ("compr",2),("loop2",5)] @
-   (if (!z_flag) then [("z",0),("loop3",7)] else []))
-
+   (if (!z_flag) then [("z",0),("loop3",7)] else []) @
+   (if (!hadamard_flag) then [("pow_mod",3),("is_square",2)] else [])
+  )
 (* -------------------------------------------------------------------------
    All operators
    ------------------------------------------------------------------------- *)
@@ -184,8 +209,12 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
-val ho_ariv = Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2,0,3])
-
+val ho_ariv = Vector.fromList (
+  List.tabulate (9,fn _ => 0) @ 
+  [1,0,0,1,2,0,3] @
+  [0,0]
+  )
+  
 fun depend_on v (Ins (id,pl)) = 
   (id = v) orelse 
   let val hari = Vector.sub (ho_ariv,id) in

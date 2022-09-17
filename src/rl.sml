@@ -180,7 +180,7 @@ fun write_tnn_atomic ngen tnn =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
-val extra_flag = ref true
+val extra_flag = ref false
 val extra_file = 
   if !local_flag then selfdir ^ "/model/itsol209" else 
   selfdir ^ "/exp/paper-small/hist/itsol20"

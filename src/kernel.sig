@@ -86,4 +86,12 @@ sig
   (* gpt *)
   val gpt_seq : seq -> string  
   val gpt_prog : prog -> string
+  
+  (* hadamard matrices *)
+  val amaxmod : IntInf.int
+  val powerv : int vector vector vector
+  val squarev : int vector vector
+  
+  
+  
 end
