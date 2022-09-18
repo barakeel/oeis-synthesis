@@ -30,7 +30,7 @@ local open IntInf in
 end 
 
 val verylargeint = int_pow 2 40
-val smallcost_flag = ref true
+val smallcost_flag = ref false
 
 fun cost costn x = 
   if !smallcost_flag then
@@ -419,7 +419,7 @@ fun score_table table =
 fun penum_hadamard exec ztop = 
   let
     (* timers *)
-    val _ = timeincr := 20000
+    val _ = timeincr := 1000
     val _ = init_timer ()
     val starttim = ref 0
     val b = ref false
@@ -449,7 +449,7 @@ val orderv = Vector.tabulate (IntInf.toInt amaxmod,
 fun penum_hadamard_fast exec ztop = 
   let
     (* timers *)
-    val _ = timeincr := 2000
+    val _ = timeincr := 1000
     val _ = init_timer ()
     val fi = IntInf.fromInt
     (* results *)
