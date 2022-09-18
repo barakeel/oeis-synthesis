@@ -146,7 +146,7 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
-val maxmod = 50
+val maxmod = 76
 val amaxmod = IntInf.fromInt maxmod
 fun power (c,b,a) =
   if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c

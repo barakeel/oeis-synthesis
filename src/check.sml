@@ -298,7 +298,7 @@ fun checkonline_hdm_z (p,exec) z =
   end
   
 fun checkonline_hdm (p,exec) =
-  app (checkonline_hdm_z (p,exec)) [28,32,36,40,44,48] 
+  app (checkonline_hdm_z (p,exec)) [28,36,40,52,56,64,76] 
 
 fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
 
