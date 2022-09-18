@@ -153,7 +153,9 @@ fun human vn prog =
       wrap_def f
     end
   | Ins (s,[]) => its s
-  | Ins (s,l) => "(" ^ its s ^ " " ^ String.concatWith " " (map h l) ^ ")"
+  | Ins (s,l) => "(" ^ 
+     (if s = 16 then "pow" else if s = 17 then "ispow" else its s) ^ " " ^ 
+      String.concatWith " " (map h l) ^ ")"
   end
 
 fun humanf p =

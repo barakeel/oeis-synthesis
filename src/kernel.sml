@@ -146,7 +146,7 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
-val maxmod = 28
+val maxmod = 50
 val amaxmod = IntInf.fromInt maxmod
 fun power (c,b,a) =
   if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
@@ -155,12 +155,12 @@ val powerv =
   Vector.tabulate (maxmod + 1, fn c => 
   Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => power (c,b,a))))
   
-fun is_square (c,a) =
-  exists (fn x => x*x mod c = a) (List.tabulate (c,I))
-  
-val squarev = 
+fun ispower (c,b,a) =
+  if exists (fn x => power(c,b,x) = a) (List.tabulate (c,I)) then 1 else 0
+
+val ispowerv = 
   Vector.tabulate (maxmod + 1, fn c => 
-     Vector.tabulate (c, fn a => if is_square (c,a) then 1 else 0))
+  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => ispower (c,b,a))))
   
 
 (* -------------------------------------------------------------------------
@@ -183,9 +183,6 @@ val compr_id = 12
 val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
-val pow_mod = 16
-val is_square = 17
-
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
   (
@@ -194,7 +191,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
    ("cond",3),("loop",3),("x",0),("y",0),
    ("compr",2),("loop2",5)] @
    (if (!z_flag) then [("z",0),("loop3",7)] else []) @
-   (if (!hadamard_flag) then [("pow_mod",3),("is_square",2)] else [])
+   (if (!hadamard_flag) then [("power",3),("ispower",3)] else [])
   )
 (* -------------------------------------------------------------------------
    All operators

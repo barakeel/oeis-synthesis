@@ -117,7 +117,7 @@ local open IntInf in
   val modu_f = mk_binf 5 (op mod)
   fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
-  fun pow_mod_f_aux (c,b,a) = 
+  fun power_f_aux (c,b,a) = 
     if c <= azero orelse c > amaxmod then raise Div else
     let 
       val c' = IntInf.toInt c
@@ -127,17 +127,18 @@ local open IntInf in
       IntInf.fromInt 
       (Vector.sub (Vector.sub (Vector.sub (powerv,c'), b'), a'))
     end
-  val pow_mod_f = mk_ternf pow_mod_f_aux
-  fun is_square_f_aux (c,a) =
+  val power_f = mk_ternf power_f_aux
+  fun ispower_f_aux (c,b,a) =
     if c <= azero orelse c > amaxmod then raise Div else
-     let 
+    let 
       val c' = IntInf.toInt c
+      val b' = IntInf.toInt (b mod c)
       val a' = IntInf.toInt (a mod c)
     in   
-      IntInf.fromInt
-      (Vector.sub (Vector.sub (squarev,c'), a'))
+      IntInf.fromInt 
+      (Vector.sub (Vector.sub (Vector.sub (ispowerv,c'), b'), a'))
     end
-  val is_square_f = mk_binf 1 is_square_f_aux
+  val ispower_f = mk_ternf ispower_f_aux
 end (* local *)
 
 
@@ -204,7 +205,7 @@ val execv = Vector.fromList
   x_f,y_f,
   compr_f, loop2_f,
   z_f, loop3_f,
-  pow_mod_f, is_square_f
+  power_f, ispower_f
   ]
 
 (* -------------------------------------------------------------------------
@@ -414,16 +415,13 @@ fun score_table table =
     sum_int l2
   end
 
+
 fun penum_hadamard exec ztop = 
   let
     (* timers *)
     val _ = timeincr := 20000
     val _ = init_timer ()
     val starttim = ref 0
-    (* results *)
-    val result = ref []
-    val cresult = ref []
-    val table = ref []
     val b = ref false
     fun f (x,y,z) =
       let 
@@ -444,6 +442,38 @@ fun penum_hadamard exec ztop =
        | ProgTimeout => [] 
        | Overflow => []
 
+
+val orderv = Vector.tabulate (IntInf.toInt amaxmod, 
+  fn x => shuffle (List.tabulate (x,I)))
+
+fun penum_hadamard_fast exec ztop = 
+  let
+    (* timers *)
+    val _ = timeincr := 2000
+    val _ = init_timer ()
+    val fi = IntInf.fromInt
+    (* results *)
+    fun f (x,y,z) = if exec (fi x, fi y, fi z) <= 0 then 1 else ~1
+    fun genline (z,y) = List.tabulate (z, fn x => 
+      let val r = f(x,y,ztop) in incr_timer (); r end)
+    fun next table err ntot ordl = 
+      if int_div err ntot > 0.5 then (ntot-err,table) else
+      case ordl of [] => (ntot-err,table) | y :: m =>
+      let 
+        val cline = genline (ztop,y) 
+        val bl = map (orthogonal cline) table
+        val errn = sum_int (map (fn b => if b then 0 else 1) bl)
+      in
+        next (cline :: table) (err + errn) (ntot + length bl) m
+      end
+    val (sc,table) = next [] 0 4 (Vector.sub (orderv,ztop))
+    val h = hash 1 (List.concat table)
+  in   
+    map IntInf.fromInt [h,ztop,sc]
+  end
+  handle Div => []
+       | ProgTimeout => [] 
+       | Overflow => []
 
 
 end (* struct *)

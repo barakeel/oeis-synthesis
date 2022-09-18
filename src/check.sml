@@ -293,12 +293,12 @@ fun update_hdmd (il,(r,p)) =
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm_z (p,exec) z =
-  let val il = penum_hadamard exec z in 
+  let val il = penum_hadamard_fast exec z in 
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
   
 fun checkonline_hdm (p,exec) =
-  app (checkonline_hdm_z (p,exec)) (List.tabulate (5, fn i => 4 * (i+2))) 
+  app (checkonline_hdm_z (p,exec)) [28,32,36,40,44,48] 
 
 fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
 

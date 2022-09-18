@@ -90,7 +90,7 @@ sig
   (* hadamard matrices *)
   val amaxmod : IntInf.int
   val powerv : int vector vector vector
-  val squarev : int vector vector
+  val ispowerv : int vector vector vector
   
   
   
