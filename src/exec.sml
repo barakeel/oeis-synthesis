@@ -443,9 +443,6 @@ fun penum_hadamard exec ztop =
        | Overflow => []
 
 
-val orderv = Vector.tabulate (IntInf.toInt amaxmod, 
-  fn x => shuffle (List.tabulate (x,I)))
-
 fun penum_hadamard_fast exec ztop = 
   let
     (* timers *)
@@ -466,7 +463,7 @@ fun penum_hadamard_fast exec ztop =
       in
         next (cline :: table) (err + errn) (ntot + length bl) m
       end
-    val (sc,table) = next [] 0 4 (Vector.sub (orderv,ztop))
+    val (sc,table) = next [] 0 4 (List.tabulate (ztop,I))
     val h = hash 1 (List.concat table)
   in   
     map IntInf.fromInt [h,ztop,sc]
