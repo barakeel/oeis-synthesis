@@ -91,7 +91,8 @@ sig
   val amaxmod : IntInf.int
   val powerv : int vector vector vector
   val ispowerv : int vector vector vector
-  
+  val isexpv : int vector vector vector
+  val invv : int vector vector
   
   
 end

@@ -117,7 +117,7 @@ local open IntInf in
   val modu_f = mk_binf 5 (op mod)
   fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
-  fun power_f_aux (c,b,a) = 
+  fun wrapfv3 v (c,b,a) = 
     if c <= azero orelse c > amaxmod then raise Div else
     let 
       val c' = IntInf.toInt c
@@ -125,20 +125,20 @@ local open IntInf in
       val a' = IntInf.toInt (a mod c)
     in   
       IntInf.fromInt 
-      (Vector.sub (Vector.sub (Vector.sub (powerv,c'), b'), a'))
+      (Vector.sub (Vector.sub (Vector.sub (v,c'), b'), a'))
     end
-  val power_f = mk_ternf power_f_aux
-  fun ispower_f_aux (c,b,a) =
+  fun wrapfv2 v (c,a) = 
     if c <= azero orelse c > amaxmod then raise Div else
     let 
       val c' = IntInf.toInt c
-      val b' = IntInf.toInt (b mod c)
       val a' = IntInf.toInt (a mod c)
     in   
-      IntInf.fromInt 
-      (Vector.sub (Vector.sub (Vector.sub (ispowerv,c'), b'), a'))
+      IntInf.fromInt (Vector.sub (Vector.sub (v,c'), a'))
     end
-  val ispower_f = mk_ternf ispower_f_aux
+  val power_f = mk_ternf (wrapfv3 powerv)
+  val ispower_f = mk_ternf (wrapfv3 ispowerv)
+  val isexp_f = mk_ternf (wrapfv3 isexpv)
+  val inv_f = mk_binf 1 (wrapfv2 invv)
 end (* local *)
 
 
@@ -205,7 +205,7 @@ val execv = Vector.fromList
   x_f,y_f,
   compr_f, loop2_f,
   z_f, loop3_f,
-  power_f, ispower_f
+  power_f, ispower_f, isexp_f, inv_f
   ]
 
 (* -------------------------------------------------------------------------
@@ -466,7 +466,7 @@ fun penum_hadamard_fast exec ztop =
     val (sc,table) = next [] 0 4 (List.tabulate (ztop,I))
     val h = hash 1 (List.concat table)
   in   
-    map IntInf.fromInt [h,ztop,sc]
+    map IntInf.fromInt [h,ztop,sc-4]
   end
   handle Div => []
        | ProgTimeout => [] 

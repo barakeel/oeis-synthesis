@@ -89,6 +89,7 @@ fun collect_child boarde move =
     if length l1 <> arity then NONE else
     let 
       val p = Ins (move, map #1 (rev l1)) 
+      val _ = incr prog_counter
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
       if !hadamard_flag then 
@@ -103,7 +104,6 @@ fun collect_child boarde move =
       then SOME (move,exec)
       else 
         (
-        incr prog_counter; 
         if !prime_flag 
         then let val newexec = checkonline_prime (p,exec) in
             if !prime_found then NONE else SOME (move, newexec)

@@ -55,7 +55,10 @@ fun string_of_snp (seq,(n,p)) =
   
 fun stats_hdm dir primesol =
   let
-    val is = IntInf.toString (List.nth (fst (hd primesol),1))
+    val n = List.nth (fst (hd primesol),1)
+    val is = IntInf.toString n
+    val is2 = IntInf.toString (n * (n + 1) div 2)
+    val suff = is ^ "_" ^ is2
     val primesol_small = 
      dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
     val primesol_fast = 
@@ -63,9 +66,9 @@ fun stats_hdm dir primesol =
     val primesol_correct =
       dict_sort hdm_compare_length primesol
   in
-    writel (dir ^ "/best_correct" ^ is) (map string_of_snp primesol_correct);
-    writel (dir ^ "/best_small" ^ is) (map string_of_snp primesol_small);
-    writel (dir ^ "/best_fast" ^ is) (map string_of_snp primesol_fast)  
+    writel (dir ^ "/best_correct" ^ suff) (map string_of_snp primesol_correct);
+    writel (dir ^ "/best_small" ^ suff) (map string_of_snp primesol_small);
+    writel (dir ^ "/best_fast" ^ suff) (map string_of_snp primesol_fast)  
   end
 
 (* -------------------------------------------------------------------------

@@ -161,7 +161,21 @@ fun ispower (c,b,a) =
 val ispowerv = 
   Vector.tabulate (maxmod + 1, fn c => 
   Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => ispower (c,b,a))))
-  
+
+fun isexp (c,b,a) =
+  if exists (fn x => power(c,x,b) = a) (List.tabulate (c,I)) then 1 else 0 
+
+val isexpv = 
+  Vector.tabulate (maxmod + 1, fn c => 
+  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => isexp (c,b,a))))
+
+fun inv (c,a) = case List.find (fn x => x * a = 1) (List.tabulate (c,I)) of
+    SOME b => b
+  | NONE => 0
+   
+val invv = 
+  Vector.tabulate (maxmod + 1, fn c => 
+    Vector.tabulate (c, fn a => inv (c,a)))
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -191,7 +205,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
    ("cond",3),("loop",3),("x",0),("y",0),
    ("compr",2),("loop2",5)] @
    (if (!z_flag) then [("z",0),("loop3",7)] else []) @
-   (if (!hadamard_flag) then [("power",3),("ispower",3)] else [])
+   (if (!hadamard_flag) then [("power",3),("ispower",3),("isexp",3),
+     ("inv",2)] else [])
   )
 (* -------------------------------------------------------------------------
    All operators
@@ -209,7 +224,7 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 val ho_ariv = Vector.fromList (
   List.tabulate (9,fn _ => 0) @ 
   [1,0,0,1,2,0,3] @
-  [0,0]
+  [0,0,0,0]
   )
   
 fun depend_on v (Ins (id,pl)) = 
