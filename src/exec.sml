@@ -464,7 +464,7 @@ fun penum_hadamard_fast exec ztop =
     val sc = length table
     val h = hash 1 (List.concat table)
   in   
-    map IntInf.fromInt [h,ztop,sc]
+    if sc <= 1 then [] else map IntInf.fromInt [h,ztop,sc]
   end
   handle Div => []
        | ProgTimeout => [] 
