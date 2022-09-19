@@ -58,7 +58,7 @@ fun stats_hdm dir primesol =
     val n = List.nth (fst (hd primesol),1)
     val is = IntInf.toString n
     val is2 = IntInf.toString (n * (n - 1) div 2)
-    val suff = is ^ "_" ^ is2
+    val suff = is
     val primesol_small = 
      dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
     val primesol_fast = 

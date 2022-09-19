@@ -453,20 +453,18 @@ fun penum_hadamard_fast exec ztop =
     fun f (x,y,z) = if exec (fi x, fi y, fi z) <= 0 then 1 else ~1
     fun genline (z,y) = List.tabulate (z, fn x => 
       let val r = f(x,y,ztop) in incr_timer (); r end)
-    fun next table err ntot ordl = 
-      if int_div err ntot > 0.5 then (ntot-err,table) else
-      case ordl of [] => (ntot-err,table) | y :: m =>
-      let 
-        val cline = genline (ztop,y) 
-        val bl = map (orthogonal cline) table
-        val errn = sum_int (map (fn b => if b then 0 else 1) bl)
-      in
-        next (cline :: table) (err + errn) (ntot + length bl) m
+    fun next table ordl =
+      case ordl of [] => table) | y :: m =>
+      let val cline = genline (ztop,y) in
+        if all (orthogonal cline) table
+        then next (cline :: table) m
+        else table
       end
-    val (sc,table) = next [] 0 4 (List.tabulate (ztop,I))
+    val table = next [] (List.tabulate (ztop,I))
+    val sc = length table
     val h = hash 1 (List.concat table)
   in   
-    map IntInf.fromInt [h,ztop,sc-4]
+    map IntInf.fromInt [h,ztop,sc]
   end
   handle Div => []
        | ProgTimeout => [] 
