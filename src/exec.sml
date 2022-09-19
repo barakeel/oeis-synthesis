@@ -454,7 +454,7 @@ fun penum_hadamard_fast exec ztop =
     fun genline (z,y) = List.tabulate (z, fn x => 
       let val r = f(x,y,ztop) in incr_timer (); r end)
     fun next table ordl =
-      case ordl of [] => table) | y :: m =>
+      case ordl of [] => table | y :: m =>
       let val cline = genline (ztop,y) in
         if all (orthogonal cline) table
         then next (cline :: table) m
