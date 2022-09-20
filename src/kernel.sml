@@ -148,6 +148,7 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
 
 val maxmod = 76
 val amaxmod = IntInf.fromInt maxmod
+
 fun power (c,b,a) =
   if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
 
@@ -155,15 +156,17 @@ val powerv =
   Vector.tabulate (maxmod + 1, fn c => 
   Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => power (c,b,a))))
   
+fun fastpower (c,b,a) = Vector.sub (Vector.sub (Vector.sub (powerv,c),b),a)
+  
 fun ispower (c,b,a) =
-  if exists (fn x => power(c,b,x) = a) (List.tabulate (c,I)) then 1 else 0
+  if exists (fn x => fastpower(c,b,x) = a) (List.tabulate (c,I)) then 1 else 0
 
 val ispowerv = 
   Vector.tabulate (maxmod + 1, fn c => 
   Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => ispower (c,b,a))))
 
 fun isexp (c,b,a) =
-  if exists (fn x => power(c,x,b) = a) (List.tabulate (c,I)) then 1 else 0 
+  if exists (fn x => fastpower(c,x,b) = a) (List.tabulate (c,I)) then 1 else 0 
 
 val isexpv = 
   Vector.tabulate (maxmod + 1, fn c => 
@@ -176,6 +179,30 @@ fun inv (c,a) = case List.find (fn x => x * a = 1) (List.tabulate (c,I)) of
 val invv = 
   Vector.tabulate (maxmod + 1, fn c => 
     Vector.tabulate (c, fn a => inv (c,a)))
+
+fun findpower (c,b,a) =
+  case List.find (fn x => fastpower(c,b,x) = a) (List.tabulate (c,I)) of
+    SOME x => x
+  | NONE => 0
+
+val findpowerv =  Vector.tabulate (maxmod + 1, fn c => 
+  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => findpower (c,b,a))))
+
+fun findexp (c,b,a) =
+  case List.find (fn x => fastpower(c,x,b) = a) (List.tabulate (c,I)) of
+    SOME x => x
+  | NONE => 0
+
+val findexpv =  Vector.tabulate (maxmod + 1, fn c => 
+  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => findpower (c,b,a))))
+
+fun smallest_divisor a = 
+  case List.find (fn x => a mod x = 0) (List.tabulate (10000,fn x => x + 2)) of
+    SOME x => x
+  | NONE => 0
+  
+val divisorv = Vector.tabulate (10000,
+  fn x => if x = 0 then 0 else smallest_divisor x)
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -206,7 +233,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
    ("compr",2),("loop2",5)] @
    (if (!z_flag) then [("z",0),("loop3",7)] else []) @
    (if (!hadamard_flag) then [("power",3),("ispower",3),("isexp",3),
-     ("inv",2)] else [])
+     ("inv",2),("findpower",3),("findexp",3),("divisor",1)] else [])
   )
 (* -------------------------------------------------------------------------
    All operators
@@ -224,7 +251,7 @@ fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))
 val ho_ariv = Vector.fromList (
   List.tabulate (9,fn _ => 0) @ 
   [1,0,0,1,2,0,3] @
-  [0,0,0,0]
+  [0,0,0,0,0,0,0]
   )
   
 fun depend_on v (Ins (id,pl)) = 

@@ -156,6 +156,8 @@ fun human vn prog =
   | Ins (s,l) => "(" ^
      (if s = 16 then "pow" else if s = 17 then "ispow" else 
       if s = 18 then "isexp" else if s = 19 then "inv" else
+      if s = 20 then "findpower" else if s = 21 then "findexp" else
+      if s = 21 then "divisor" else
       its s) ^ " " ^ 
       String.concatWith " " (map h l) ^ ")"
   end

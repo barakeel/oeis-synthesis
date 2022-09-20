@@ -135,10 +135,20 @@ local open IntInf in
     in   
       IntInf.fromInt (Vector.sub (Vector.sub (v,c'), a'))
     end
+  fun wrapfv1 v c = 
+    if c <= azero orelse c >= IntInf.fromInt (Vector.length v) 
+      then raise Div else
+    let val c' = IntInf.toInt c in   
+      IntInf.fromInt (Vector.sub (v,c'))
+    end  
   val power_f = mk_ternf (wrapfv3 powerv)
   val ispower_f = mk_ternf (wrapfv3 ispowerv)
   val isexp_f = mk_ternf (wrapfv3 isexpv)
   val inv_f = mk_binf 1 (wrapfv2 invv)
+  val findpower_f = mk_ternf (wrapfv3 findpowerv)
+  val findexp_f = mk_ternf (wrapfv3 findexpv)
+  val divisor_f = mk_unf (wrapfv1 divisorv)
+  
 end (* local *)
 
 
@@ -205,7 +215,8 @@ val execv = Vector.fromList
   x_f,y_f,
   compr_f, loop2_f,
   z_f, loop3_f,
-  power_f, ispower_f, isexp_f, inv_f
+  power_f, ispower_f, isexp_f, inv_f, 
+  findpower_f, findexp_f, divisor_f
   ]
 
 (* -------------------------------------------------------------------------
@@ -443,6 +454,11 @@ fun penum_hadamard exec ztop =
        | Overflow => []
 
 
+fun norm_table table =
+  let fun norm_vect l = if hd l = ~1 then map (fn x => ~1 * x) l else l in
+    dict_sort (list_compare Int.compare) (map norm_vect table) 
+  end
+
 fun penum_hadamard_fast exec ztop = 
   let
     (* timers *)
@@ -462,7 +478,7 @@ fun penum_hadamard_fast exec ztop =
       end
     val table = next [] (List.tabulate (ztop,I))
     val sc = length table
-    val h = hash 1 (List.concat table)
+    val h = hash 1 (List.concat (norm_table table))
   in   
     if sc <= 1 then [] else map IntInf.fromInt [h,ztop,sc]
   end
