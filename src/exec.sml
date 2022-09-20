@@ -136,7 +136,7 @@ local open IntInf in
       IntInf.fromInt (Vector.sub (Vector.sub (v,c'), a'))
     end
   fun wrapfv1 v c = 
-    if c <= azero orelse c >= IntInf.fromInt (Vector.length v) 
+    if c < azero orelse c >= IntInf.fromInt (Vector.length v) 
       then raise Div else
     let val c' = IntInf.toInt c in   
       IntInf.fromInt (Vector.sub (v,c'))
