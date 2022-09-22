@@ -223,7 +223,7 @@ local open IntInf in
       then raise Div else
     let val c' = IntInf.toInt c in   
       IntInf.fromInt (Vector.sub (v,c'))
-    end  
+    end
   val power_f = mk_ternf 
     (if !compute_flag then power else wrapfv3 powerv)
   val ispower_f = mk_ternf 
@@ -584,7 +584,7 @@ fun penum_hadamard_fast exec ztop =
   handle Div => []
        | ProgTimeout => [] 
        | Overflow => []
-
+       | Size => raise ERR "penum_hadamard_fast" ""
 
 fun penum_hadamard_online tim exec ztop = 
   let

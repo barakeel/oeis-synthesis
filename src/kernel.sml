@@ -180,7 +180,9 @@ val invv =
   Vector.tabulate (maxmod + 1, fn c => 
     Vector.tabulate (c, fn a => inv (c,a)))
 
-fun fixinv (c,a) = case 
+fun fixinv (c,a) = 
+  if c <= 0 then 0 else
+  case 
   List.find (fn x => (x * a) mod c = 1) (List.tabulate (c,I)) of
     SOME b => b
   | NONE => 0   
@@ -265,9 +267,7 @@ val z_id = find_id "z"
 val ho_ariv = 
   if !hadamard_flag 
   then Vector.fromList (
-    List.tabulate (9,fn _ => 0) @ 
-    [0,0,0] @ 
-    List.tabulate (8,fn _ => 0)
+    List.tabulate (9,fn _ => 0) @ [0,0,0] @ List.tabulate (8,fn _ => 0)
   )
   else
   Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
