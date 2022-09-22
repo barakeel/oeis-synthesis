@@ -183,7 +183,7 @@ fun findexp (c,b,a) =
 
 end
 
-val compute_flag = ref true
+val compute_flag = ref false
 
 (* functions *)
 local open IntInf in
@@ -516,42 +516,6 @@ fun hash acc l = case l of
   | 1 :: m => hash ((2 * acc + 1) mod hash_modulo) m
   | ~1 :: m => hash ((2 * acc) mod hash_modulo) m
   | _ :: m => raise ERR "hash_hdmseq" ""
-
-fun score_table table = 
-  let 
-    val l1 = map (uncurry scalar_product) (all_pairs table)
-    val l2 = map (fn x => if x = 0 then 1 else 0) l1
-  in
-    sum_int l2
-  end
-
-
-fun penum_hadamard exec ztop = 
-  let
-    (* timers *)
-    val _ = timeincr := 1000
-    val _ = init_timer ()
-    val starttim = ref 0
-    val b = ref false
-    fun f (x,y,z) =
-      let 
-        val _ = starttim := !abstimer 
-        val r = exec (IntInf.fromInt x, IntInf.fromInt y, IntInf.fromInt z)
-      in
-        if r <= 0 then 1 else ~1
-      end
-    val table = List.tabulate (ztop, 
-      fn y => (List.tabulate (ztop, fn x => 
-        let val r = f(x,y,ztop) in incr_timer (); r end)))
-    val sc = score_table table
-    val h = hash 1 (List.concat table)
-  in   
-    map IntInf.fromInt [h,ztop,sc]
-  end
-  handle Div => [] 
-       | ProgTimeout => [] 
-       | Overflow => []
-
 
 fun norm_table table =
   let fun norm_vect l = if hd l = ~1 then map (fn x => ~1 * x) l else l in

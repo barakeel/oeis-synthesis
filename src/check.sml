@@ -274,7 +274,7 @@ fun filter_hdmd () =
     val l2 = map (fn x => (secondel (fst x),x)) l1
     val d = dregroup IntInf.compare l2
     val l3 = dlist d
-    val l4 = map (first_n 10000 o dict_sort hdm_compare_length o snd) l3
+    val l4 = map (first_n 5000 o dict_sort hdm_compare_length o snd) l3
   in
     hdmd := dnew seq_compare (List.concat l4)
   end
