@@ -174,11 +174,20 @@ val isexpv =
 
 fun inv (c,a) = case List.find (fn x => x * a = 1) (List.tabulate (c,I)) of
     SOME b => b
-  | NONE => 0
+  | NONE => 0   
    
 val invv = 
   Vector.tabulate (maxmod + 1, fn c => 
     Vector.tabulate (c, fn a => inv (c,a)))
+
+fun fixinv (c,a) = case 
+  List.find (fn x => (x * a) mod c = 1) (List.tabulate (c,I)) of
+    SOME b => b
+  | NONE => 0   
+   
+val fixinvv = 
+  Vector.tabulate (maxmod + 1, fn c => 
+    Vector.tabulate (c, fn a => fixinv (c,a)))
 
 fun findpower (c,b,a) =
   case List.find (fn x => fastpower(c,b,x) = a) (List.tabulate (c,I)) of
@@ -225,16 +234,27 @@ val loop2_id = 13
 val z_id = 14
 val loop3_id = 15
 
-val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha)) 
+val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  [("zero",0),("one",0),("two",0),
-   ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-   ("cond",3),("loop",3),("x",0),("y",0),
-   ("compr",2),("loop2",5)] @
-   (if (!z_flag) then [("z",0),("loop3",7)] else []) @
-   (if (!hadamard_flag) then [("power",3),("ispower",3),("isexp",3),
-     ("inv",2),("findpower",3),("findexp",3),("divisor",1)] else [])
+  if !hadamard_flag
+  then
+    [
+     ("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("loop",3),("x",0),("y",0),
+     ("compr",2),("loop2",5), 
+     ("power",3),("ispower",3),("isexp",3),
+     ("inv",2),("findpower",3),("findexp",3),("divisor",1),
+     ("fixinv",2)
+    ]
+  else
+    [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("loop",3),("x",0),("y",0),
+     ("compr",2),("loop2",5)] @
+     (if (!z_flag) then [("z",0),("loop3",7)] else [])
   )
+  
 (* -------------------------------------------------------------------------
    All operators
    ------------------------------------------------------------------------- *)
@@ -242,16 +262,19 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
 val operv = Vector.fromList base_operl
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
-fun name_of_oper i = fst (dest_var (Vector.sub (operv,i)))  
+fun name_of_oper i = 
+  if i >= Vector.length operv 
+  then its i
+  else fst (dest_var (Vector.sub (operv,i)))  
 
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
-val ho_ariv = Vector.fromList (
-  List.tabulate (9,fn _ => 0) @ 
-  [1,0,0,1,2,0,3] @
-  [0,0,0,0,0,0,0]
+val ho_ariv = 
+  if !hadamard_flag then Vector.tabulate (20,fn _ => 0) else
+  Vector.fromList (
+  List.tabulate (9,fn _ => 0) @ [1,0,0,1,2,0,3] @ List.tabulate (7,fn _ => 0)
   )
   
 fun depend_on v (Ins (id,pl)) = 

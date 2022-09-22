@@ -24,5 +24,7 @@ sig
   
   val penum_hadamard : exec -> int -> IntInf.int list
   val penum_hadamard_fast : exec -> int -> IntInf.int list
+  val penum_hadamard_online : int -> exec -> int -> 
+    (int list list * IntInf.int list)
   
 end

@@ -102,6 +102,79 @@ fun mk_septf3 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3, f4 x, f5 x, f6 x, f7 x)))
   | _ => raise ERR "mk_septf3" ""
 
+
+
+(* hadamard functions *)
+local open IntInf in
+ 
+fun power (c,b,a) = 
+  if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
+  
+fun ispower (c,b,a) = 
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+    val b' = b mod c
+  in
+    if exists (fn x => power(c,b',x) = a') 
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) then 1 else 0
+  end
+  
+fun isexp (c,b,a) =
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+    val b' = b mod c
+  in
+    if exists (fn x => power(c,x,b') = a') 
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) then 1 else 0 
+  end
+  
+fun inv (c,a) = 
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+  in
+    case List.find (fn x => x * a' = 1) 
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
+      SOME b => b
+    | NONE => 0   
+  end
+ 
+fun findpower (c,b,a) =
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+    val b' = b mod c
+  in
+    case List.find (fn x => power(c,b',x) = a') 
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
+      SOME x => x
+    | NONE => 0
+  end
+
+fun smallest_divisor (a: IntInf.int) = 
+  case List.find (fn x => a mod x = 0) 
+    (List.tabulate (IntInf.toInt a, fn x => IntInf.fromInt x + 2)) of
+    SOME x => x
+  | NONE => 0
+
+fun findexp (c,b,a) =
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+    val b' = b mod c
+  in
+    case List.find (fn x => power(c,x,b') = a')   
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
+      SOME x => x
+    | NONE => 0
+  end
+
+end
+
+val compute_flag = ref true
+
 (* functions *)
 local open IntInf in
   val zero_f = mk_nullf (fn _ => azero)
@@ -141,13 +214,20 @@ local open IntInf in
     let val c' = IntInf.toInt c in   
       IntInf.fromInt (Vector.sub (v,c'))
     end  
-  val power_f = mk_ternf (wrapfv3 powerv)
-  val ispower_f = mk_ternf (wrapfv3 ispowerv)
-  val isexp_f = mk_ternf (wrapfv3 isexpv)
-  val inv_f = mk_binf 1 (wrapfv2 invv)
-  val findpower_f = mk_ternf (wrapfv3 findpowerv)
-  val findexp_f = mk_ternf (wrapfv3 findexpv)
-  val divisor_f = mk_unf (wrapfv1 divisorv)
+  val power_f = mk_ternf 
+    (if !compute_flag then power else wrapfv3 powerv)
+  val ispower_f = mk_ternf 
+    (if !compute_flag then ispower else wrapfv3 ispowerv)
+  val isexp_f = mk_ternf 
+    (if !compute_flag then isexp else wrapfv3 isexpv)
+  val inv_f = mk_binf 1
+    (if !compute_flag then inv else wrapfv2 invv)
+  val findpower_f = mk_ternf 
+    (if !compute_flag then findpower else wrapfv3 findpowerv)
+  val findexp_f = mk_ternf
+    (if !compute_flag then findexp else wrapfv3 findexpv)
+  val divisor_f = mk_unf 
+    (if !compute_flag then smallest_divisor else wrapfv1 divisorv)
   
 end (* local *)
 
@@ -487,7 +567,55 @@ fun penum_hadamard_fast exec ztop =
        | Overflow => []
 
 
+fun penum_hadamard_online tim exec ztop = 
+  let
+    (* timers *)
+    val _ = timeincr := tim
+    val _ = init_timer ()
+    val fi = IntInf.fromInt
+    (* results *)
+    fun f (x,y,z) = if exec (fi x, fi y, fi z) <= 0 then 1 else ~1
+    fun genline (z,y) = List.tabulate (z, fn x => 
+      let val r = f(x,y,ztop) in incr_timer (); r end)
+    fun next table ordl =
+      case ordl of [] => table | y :: m =>
+      let val cline = genline (ztop,y) in
+        if all (orthogonal cline) table
+        then next (cline :: table) m
+        else table
+      end
+    val table = next [] (List.tabulate (ztop,I))
+    val sc = length table
+    val h = hash 1 (List.concat (norm_table table))
+  in   
+    if sc <= 1 then (table,[]) else (table,map IntInf.fromInt [h,ztop,sc])
+  end
+
+
 end (* struct *)
+
+(* -------------------------------------------------------------------------
+   Verifying hadamard function
+   ------------------------------------------------------------------------- *)
+
+(*
+load "exec"; open exec; 
+load "human"; open human aiLib;
+val itsol = kernel.read_primel "model/itsol20"; 
+fun test x ([a,b,c],d) = (b = IntInf.fromInt x) andalso c = b;
+val (a,(b,sol)) = hd (filter (test 28) itsol);
+humanf sol;
+
+fun ishdm (_,l) = case l of [a,b,c] => b=c | _ => false;
+
+val r = time (penum_hadamard_online 10000 (mk_exec sol)) 636;
+
+val il = filter ishdm (map (penum_hadamard_online 10000 (mk_exec sol)) 
+  (List.tabulate (50,fn x => 4* (x+1))));
+
+val il2 = map snd il;
+*)
+
 
 (* -------------------------------------------------------------------------
    Verifying that new code accept old solutions

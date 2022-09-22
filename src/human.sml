@@ -6,11 +6,6 @@ val ERR = mk_HOL_ERR "human"
 
 type prog = kernel.prog
 
-val python_flag = ref false
-
-fun mk_xn vn = if vn = ~1 then "x" else "X"
-fun mk_yn vn = if vn = ~1 then "y" else "Y"
-fun mk_zn vn = if vn = ~1 then "z" else "Z"
 
 fun rm_par s = 
   if String.size s = 0 then s else
@@ -19,8 +14,12 @@ fun rm_par s =
   else s;
 
 (* -------------------------------------------------------------------------
-   Printing to custom language or Python 
+   Printing to Python 
    ------------------------------------------------------------------------- *)
+
+fun mk_xn vn = if vn = ~1 then "x" else "X"
+fun mk_yn vn = if vn = ~1 then "y" else "Y"
+fun mk_zn vn = if vn = ~1 then "z" else "Z"
 
 fun is_loop (Ins(id,pl)) = mem id [9,12,13,16]
 
@@ -73,20 +72,19 @@ fun human vn prog =
         ctxt := !ctxt @ cs; fprev2
       end
   in
-  case prog of
-    Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
+    case prog of
+    Ins (0,[]) => its 0
+  | Ins (1,[]) => its 1
+  | Ins (2,[]) => its 2 
+  | Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
   | Ins (4,[p1,p2]) => sbinop "-" (p1,p2) 
   | Ins (5,[p1,p2]) => sbinop "*" (p1,p2)
-  | Ins (6,[p1,p2]) => sbinop (if !python_flag then  "//" else "div") (p1,p2)
-  | Ins (7,[p1,p2]) => sbinop (if !python_flag then  "%" else "mod") (p1,p2)
+  | Ins (6,[p1,p2]) => sbinop "//" (p1,p2)
+  | Ins (7,[p1,p2]) => sbinop "%" (p1,p2)
   | Ins (8,[p1,p2,p3]) => 
-    if !python_flag
-    then "(" ^ h p2 ^ " if " ^ h p1 ^ " <= 0 else " ^ h p3 ^ ")"
-    else "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+    "(" ^ h p2 ^ " if " ^ h p1 ^ " <= 0 else " ^ h p3 ^ ")"
   | Ins (9,[p1,p2,p3]) => 
-    if not (!python_flag) then
-      "loop(" ^ String.concatWith ", " [rhx p1, rhx p2, rhx p3] ^ ")"
-    else let fun f wn =
+    let fun f wn =
       let val (s1,s2,s3) = (rhx p1, human wn p2 ^ " + 1", rhuman wn p3) in
         ["  x = " ^ s3] @
         (if depend_on_z p1 then ["  z = x"]  else []) @
@@ -99,8 +97,7 @@ fun human vn prog =
     end
   | Ins (10,[]) => mk_xn vn
   | Ins (11,[]) => mk_yn vn
-  | Ins (12,[p1,p2]) => 
-    if not (!python_flag) then "compr(" ^ rhx p1 ^ ", " ^ rhx p2 ^ ")" else 
+  | Ins (12,[p1,p2]) =>
     let fun f wn = 
       let val (s1,s2) = (hx p1, rhuman wn p2) in
         ["  x,i = 0,0"] @
@@ -116,10 +113,7 @@ fun human vn prog =
       wrap_def f
     end
   | Ins (13,[p1,p2,p3,p4,p5]) => 
-    if not (!python_flag) 
-      then "loop2(" ^ String.concatWith ", "
-            [rhx p1, rhx p2, rhx p3, rhx p4, rhx p5] ^ ")"
-    else let fun f wn =
+    let fun f wn =
       let
         val (s1,s2) = (hx p1, hx p2)
         val s3 = human wn p3 ^ " + 1"
@@ -135,10 +129,7 @@ fun human vn prog =
     end
   | Ins (14,[]) => mk_zn vn
   | Ins (15,[p1,p2,p3,p4,p5,p6,p7]) => 
-    if not (!python_flag) 
-      then "loop3(" ^ String.concatWith ", "
-            [rhx p1, rhx p2, rhx p3, rhx p4, rhx p5, rhx p6, rhx p7] ^ ")"
-    else let fun f wn =
+    let fun f wn =
       let
         val (s1,s2,s3) = (hx p1, hx p2, hx p3)
         val s4 = human wn p4 ^ " + 1"
@@ -152,25 +143,13 @@ fun human vn prog =
     in
       wrap_def f
     end
-  | Ins (s,[]) => its s
-  | Ins (s,l) => "(" ^
-     (if s = 16 then "pow" else if s = 17 then "ispow" else 
-      if s = 18 then "isexp" else if s = 19 then "inv" else
-      if s = 20 then "findpower" else if s = 21 then "findexp" else
-      if s = 21 then "divisor" else
-      its s) ^ " " ^ 
-      String.concatWith " " (map h l) ^ ")"
+  | Ins (id,[]) => name_of_oper id
+  | Ins (id,l) => 
+    "(" ^ String.concatWith " "  (name_of_oper id :: map h l) ^ ")"
   end
-
-fun humanf p =
-  let 
-    val _ = python_flag := false
-    val s = human (~1) p
-  in rm_par s end
 
 fun human_python ntop p =
   let 
-    val _ = python_flag := true
     val _ = ctxt := [] 
     val _ = funn := 0
     val ps = 
@@ -195,11 +174,38 @@ fun human_python ntop p =
           "):\n  print (" ^ fs ^ "(x))"    
         val ps' = String.concatWith "\n" (!ctxt @ [test])
       in ps' end
-    val _ = ctxt := [] 
-    val _ = python_flag := false
+    val _ = ctxt := []
   in
     ps
   end
+
+(* -------------------------------------------------------------------------
+   Printing to custom language
+   ------------------------------------------------------------------------- *)
+
+fun human_simple p = 
+  let   
+    fun h p = human_simple p
+    fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
+  in
+    case p of
+      Ins (0,[]) => its 0
+    | Ins (1,[]) => its 1
+    | Ins (2,[]) => its 2
+    | Ins (3,[p1,p2]) => sbinop "+" (p1,p2)
+    | Ins (4,[p1,p2]) => sbinop "-" (p1,p2) 
+    | Ins (5,[p1,p2]) => sbinop "*" (p1,p2)
+    | Ins (6,[p1,p2]) => sbinop "div" (p1,p2)
+    | Ins (7,[p1,p2]) => sbinop "mod" (p1,p2)
+    | Ins (8,[p1,p2,p3]) => 
+      "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+    | Ins (id,[]) => name_of_oper id
+    | Ins (id,pl) => 
+      "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
+  end
+
+fun humanf p = rm_par (human_simple p)
+
 
 (* -------------------------------------------------------------------------
    S-expressions I/O
