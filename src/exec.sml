@@ -103,7 +103,6 @@ fun mk_septf3 opf fl = case fl of
   | _ => raise ERR "mk_septf3" ""
 
 
-
 (* hadamard functions *)
 local open IntInf in
  
@@ -140,6 +139,17 @@ fun inv (c,a) =
       SOME b => b
     | NONE => 0   
   end
+  
+fun fixinv (c,a) = 
+  if c <= 0 then raise Div else
+  let 
+    val a' = a mod c
+  in
+    case List.find (fn x => (x * a') mod c = 1) 
+      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
+      SOME b => b
+    | NONE => 0   
+  end  
  
 fun findpower (c,b,a) =
   if c <= 0 then raise Div else
@@ -222,6 +232,8 @@ local open IntInf in
     (if !compute_flag then isexp else wrapfv3 isexpv)
   val inv_f = mk_binf 1
     (if !compute_flag then inv else wrapfv2 invv)
+  val fixinv_f = mk_binf 1
+    (if !compute_flag then fixinv else wrapfv2 fixinvv)
   val findpower_f = mk_ternf 
     (if !compute_flag then findpower else wrapfv3 findpowerv)
   val findexp_f = mk_ternf
@@ -287,17 +299,24 @@ fun compr_f fl = case fl of
   end
   | _ => raise ERR "compr_f" ""
 
-val execv = Vector.fromList 
-  [
-  zero_f,one_f,two_f,
-  addi_f,diff_f,mult_f,divi_f,modu_f,
-  cond_f,loop_f,
-  x_f,y_f,
-  compr_f, loop2_f,
-  z_f, loop3_f,
-  power_f, ispower_f, isexp_f, inv_f, 
-  findpower_f, findexp_f, divisor_f
-  ]
+val execv = 
+  if !hadamard_flag then Vector.fromList 
+    [
+    zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+    cond_f,x_f,y_f,z_f,
+    power_f, ispower_f, isexp_f, inv_f, 
+    findpower_f, findexp_f, divisor_f, fixinv_f
+    ]
+  else Vector.fromList 
+    ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+     cond_f,loop_f,x_f,y_f,
+     compr_f, loop2_f] @
+     (if !z_flag then [z_f, loop3_f] else []))
+
+val _ = if Vector.length execv <> 
+           Vector.length operv
+        then raise ERR "execv" "mismatch with operv"
+        else ()
 
 (* -------------------------------------------------------------------------
    Execute a program

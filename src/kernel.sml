@@ -217,23 +217,6 @@ val divisorv = Vector.tabulate (10000,
    Instructions
    ------------------------------------------------------------------------- *)
 
-val zero_id = 0
-val one_id = 1
-val two_id = 2
-val addi_id = 3
-val diff_id = 4
-val mult_id = 5
-val divi_id = 6
-val modu_id = 7
-val cond_id = 8
-val loop_id = 9
-val x_id = 10
-val y_id = 11
-val compr_id = 12
-val loop2_id = 13
-val z_id = 14
-val loop3_id = 15
-
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag
@@ -241,8 +224,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     [
      ("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("loop",3),("x",0),("y",0),
-     ("compr",2),("loop2",5), 
+     ("cond",3),("x",0),("y",0),("z",0),
      ("power",3),("ispower",3),("isexp",3),
      ("inv",2),("findpower",3),("findexp",3),("divisor",1),
      ("fixinv",2)
@@ -254,7 +236,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("compr",2),("loop2",5)] @
      (if (!z_flag) then [("z",0),("loop3",7)] else [])
   )
-  
+
 (* -------------------------------------------------------------------------
    All operators
    ------------------------------------------------------------------------- *)
@@ -271,11 +253,30 @@ fun name_of_oper i =
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
+fun find_id s = case List.find (fn i => name_of_oper i = s) 
+    (List.tabulate (Vector.length operv,I)) of
+    SOME id => id
+  | NONE => ~1
+
+val x_id = find_id "x"
+val y_id = find_id "y"
+val z_id = find_id "z"
+
 val ho_ariv = 
-  if !hadamard_flag then Vector.tabulate (20,fn _ => 0) else
-  Vector.fromList (
-  List.tabulate (9,fn _ => 0) @ [1,0,0,1,2,0,3] @ List.tabulate (7,fn _ => 0)
+  if !hadamard_flag 
+  then Vector.fromList (
+    List.tabulate (9,fn _ => 0) @ 
+    [0,0,0] @ 
+    List.tabulate (8,fn _ => 0)
   )
+  else
+  Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
+    (if (!z_flag) then [0,3] else []))
+
+val _ = if Vector.length ho_ariv <> 
+           Vector.length operv
+        then raise ERR "ho_ariv" "mismatch with operv"
+        else ()
   
 fun depend_on v (Ins (id,pl)) = 
   (id = v) orelse 

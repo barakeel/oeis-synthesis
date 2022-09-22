@@ -93,10 +93,11 @@ sig
   val ispowerv : int vector vector vector
   val isexpv : int vector vector vector
   val invv : int vector vector
+  val fixinvv : int vector vector
   val findpowerv : int vector vector vector
   val findexpv : int vector vector vector
   val divisorv : int vector
-
+  
   
   
 
