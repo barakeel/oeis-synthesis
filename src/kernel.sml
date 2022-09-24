@@ -146,74 +146,32 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
-val maxmod = 76
-val amaxmod = IntInf.fromInt maxmod
-
-fun power (c,b,a) =
-  if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
-
-val powerv = 
-  Vector.tabulate (maxmod + 1, fn c => 
-  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => power (c,b,a))))
+fun sqrt_aux i (c,a) = 
+  if i >= c then 0 else
+  if (i * i) mod c = a then i else sqrt_aux (i+1) (c,a)
   
-fun fastpower (c,b,a) = Vector.sub (Vector.sub (Vector.sub (powerv,c),b),a)
+fun sqrt (c,a) = if c <= 0 then 0 else sqrt_aux 0 (c,a)
   
-fun ispower (c,b,a) =
-  if exists (fn x => fastpower(c,b,x) = a) (List.tabulate (c,I)) then 1 else 0
+val sqrtv =
+  Vector.tabulate (1000, fn c => Vector.tabulate (c, fn a => sqrt (c,a)))
 
-val ispowerv = 
-  Vector.tabulate (maxmod + 1, fn c => 
-  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => ispower (c,b,a))))
-
-fun isexp (c,b,a) =
-  if exists (fn x => fastpower(c,x,b) = a) (List.tabulate (c,I)) then 1 else 0 
-
-val isexpv = 
-  Vector.tabulate (maxmod + 1, fn c => 
-  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => isexp (c,b,a))))
-
-fun inv (c,a) = case List.find (fn x => x * a = 1) (List.tabulate (c,I)) of
-    SOME b => b
-  | NONE => 0   
-   
-val invv = 
-  Vector.tabulate (maxmod + 1, fn c => 
-    Vector.tabulate (c, fn a => inv (c,a)))
-
-fun fixinv (c,a) = 
-  if c <= 0 then 0 else
-  case 
-  List.find (fn x => (x * a) mod c = 1) (List.tabulate (c,I)) of
-    SOME b => b
-  | NONE => 0   
-   
-val fixinvv = 
-  Vector.tabulate (maxmod + 1, fn c => 
-    Vector.tabulate (c, fn a => fixinv (c,a)))
-
-fun findpower (c,b,a) =
-  case List.find (fn x => fastpower(c,b,x) = a) (List.tabulate (c,I)) of
-    SOME x => x
-  | NONE => 0
-
-val findpowerv =  Vector.tabulate (maxmod + 1, fn c => 
-  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => findpower (c,b,a))))
-
-fun findexp (c,b,a) =
-  case List.find (fn x => fastpower(c,x,b) = a) (List.tabulate (c,I)) of
-    SOME x => x
-  | NONE => 0
-
-val findexpv =  Vector.tabulate (maxmod + 1, fn c => 
-  Vector.tabulate (c, fn b => Vector.tabulate (c, fn a => findpower (c,b,a))))
-
-fun smallest_divisor a = 
-  case List.find (fn x => a mod x = 0) (List.tabulate (10000,fn x => x + 2)) of
-    SOME x => x
-  | NONE => 0
+fun inv_aux i (c,a) = 
+  if i >= c then 0 else
+  if (i * a) mod c = 1 then i else inv_aux (i+1) (c,a)
   
-val divisorv = Vector.tabulate (10000,
-  fn x => if x = 0 then 0 else smallest_divisor x)
+fun inv (c,a) = if c <= 0 then 0 else inv_aux 0 (c,a)
+  
+val invv =
+  Vector.tabulate (1000, fn c => Vector.tabulate (c, fn a => inv (c,a)))
+
+fun leastdiv_aux i c =
+  if i >= c then c else 
+  if c mod i = 0 then i else leastdiv_aux (i+1) c
+
+fun leastdiv a = leastdiv_aux 2 a
+  
+val leastdivv = 
+  Vector.tabulate (10000, fn x => if x = 0 then 0 else leastdiv x)
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -227,9 +185,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),("z",0),
-     ("power",3),("ispower",3),("isexp",3),
-     ("inv",2),("findpower",3),("findexp",3),("divisor",1),
-     ("fixinv",2)
+     ("sqrt",2),("inv",2),("leastdiv",1),("garray",2)
     ]
   else
     [("zero",0),("one",0),("two",0),
@@ -266,12 +222,9 @@ val z_id = find_id "z"
 
 val ho_ariv = 
   if !hadamard_flag 
-  then Vector.fromList (
-    List.tabulate (9,fn _ => 0) @ [0,0,0] @ List.tabulate (8,fn _ => 0)
-  )
-  else
-  Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
-    (if (!z_flag) then [0,3] else []))
+  then Vector.tabulate (Vector.length operv, fn _ => 0)
+  else Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
+       (if (!z_flag) then [0,3] else []))
 
 val _ = if Vector.length ho_ariv <> 
            Vector.length operv

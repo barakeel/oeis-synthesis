@@ -104,86 +104,15 @@ fun mk_septf3 opf fl = case fl of
 
 
 (* hadamard functions *)
-local open IntInf in
- 
-fun power (c,b,a) = 
-  if b <= 0 then 1 else (a * power (c,(b-1),a)) mod c
-  
-fun ispower (c,b,a) = 
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-    val b' = b mod c
-  in
-    if exists (fn x => power(c,b',x) = a') 
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) then 1 else 0
-  end
-  
-fun isexp (c,b,a) =
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-    val b' = b mod c
-  in
-    if exists (fn x => power(c,x,b') = a') 
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) then 1 else 0 
-  end
-  
-fun inv (c,a) = 
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-  in
-    case List.find (fn x => x * a' = 1) 
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
-      SOME b => b
-    | NONE => 0   
-  end
-  
-fun fixinv (c,a) = 
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-  in
-    case List.find (fn x => (x * a') mod c = 1) 
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
-      SOME b => b
-    | NONE => 0   
-  end  
- 
-fun findpower (c,b,a) =
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-    val b' = b mod c
-  in
-    case List.find (fn x => power(c,b',x) = a') 
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
-      SOME x => x
-    | NONE => 0
-  end
+val compute_flag = ref false (* dangerous only turn on for verification *)
 
-fun smallest_divisor (a: IntInf.int) = 
-  case List.find (fn x => a mod x = 0) 
-    (List.tabulate (IntInf.toInt a, fn x => IntInf.fromInt x + 2)) of
-    SOME x => x
-  | NONE => 0
 
-fun findexp (c,b,a) =
-  if c <= 0 then raise Div else
-  let 
-    val a' = a mod c
-    val b' = b mod c
-  in
-    case List.find (fn x => power(c,x,b') = a')   
-      (List.tabulate (IntInf.toInt c,IntInf.fromInt)) of
-      SOME x => x
-    | NONE => 0
-  end
-
-end
-
-val compute_flag = ref false
+(* global array *)
+val mil = 1000
+val global_array = Array2.array (mil,mil,azero)
+val current_x = ref azero
+val current_y = ref azero
+val current_dim = ref azero
 
 (* functions *)
 local open IntInf in
@@ -200,46 +129,25 @@ local open IntInf in
   val modu_f = mk_binf 5 (op mod)
   fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
-  fun wrapfv3 v (c,b,a) = 
-    if c <= azero orelse c > amaxmod then raise Div else
-    let 
-      val c' = IntInf.toInt c
-      val b' = IntInf.toInt (b mod c)
-      val a' = IntInf.toInt (a mod c)
-    in   
-      IntInf.fromInt 
-      (Vector.sub (Vector.sub (Vector.sub (v,c'), b'), a'))
-    end
   fun wrapfv2 v (c,a) = 
-    if c <= azero orelse c > amaxmod then raise Div else
-    let 
-      val c' = IntInf.toInt c
-      val a' = IntInf.toInt (a mod c)
-    in   
-      IntInf.fromInt (Vector.sub (Vector.sub (v,c'), a'))
-    end
+    if c <= azero orelse c >= fromInt (Vector.length v) then azero else
+      IntInf.fromInt (Vector.sub (Vector.sub (v, toInt c), toInt (a mod c)))
   fun wrapfv1 v c = 
-    if c < azero orelse c >= IntInf.fromInt (Vector.length v) 
-      then raise Div else
-    let val c' = IntInf.toInt c in   
-      IntInf.fromInt (Vector.sub (v,c'))
-    end
-  val power_f = mk_ternf 
-    (if !compute_flag then power else wrapfv3 powerv)
-  val ispower_f = mk_ternf 
-    (if !compute_flag then ispower else wrapfv3 ispowerv)
-  val isexp_f = mk_ternf 
-    (if !compute_flag then isexp else wrapfv3 isexpv)
-  val inv_f = mk_binf 1
-    (if !compute_flag then inv else wrapfv2 invv)
-  val fixinv_f = mk_binf 1
-    (if !compute_flag then fixinv else wrapfv2 fixinvv)
-  val findpower_f = mk_ternf 
-    (if !compute_flag then findpower else wrapfv3 findpowerv)
-  val findexp_f = mk_ternf
-    (if !compute_flag then findexp else wrapfv3 findexpv)
-  val divisor_f = mk_unf 
-    (if !compute_flag then smallest_divisor else wrapfv1 divisorv)
+    if c < azero orelse c >= fromInt (Vector.length v) then azero else
+      IntInf.fromInt (Vector.sub (v,toInt c))
+  val sqrt_f = mk_binf 1 (wrapfv2 sqrtv)
+  val inv_f = mk_binf 1 (wrapfv2 invv)
+  val leastdiv_f = mk_unf (wrapfv1 leastdivv)
+  fun garray_f_aux (x,y) = 
+    let
+      val x' = x mod !current_dim
+      val y' = x mod !current_dim
+    in
+      if x' > !current_x then azero else
+      if x' = !current_x andalso y' >= !current_y then azero else
+      Array2.sub (global_array, toInt x', toInt y')
+    end    
+  val garray_f = mk_binf 1 garray_f_aux
   
 end (* local *)
 
@@ -304,8 +212,7 @@ val execv =
     [
     zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
     cond_f,x_f,y_f,z_f,
-    power_f, ispower_f, isexp_f, inv_f, 
-    findpower_f, findexp_f, divisor_f, fixinv_f
+    sqrt_f, inv_f, leastdiv_f, garray_f
     ]
   else Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -524,22 +431,30 @@ fun norm_table table =
 
 fun penum_hadamard_fast exec ztop = 
   let
-    (* timers *)
-    val _ = timeincr := 1000
-    val _ = init_timer ()
     val fi = IntInf.fromInt
+    (* timers *)
+    val _ = current_dim := fi ztop
+    val _ = timeincr := 200
     (* results *)
-    fun f (x,y,z) = if exec (fi x, fi y, fi z) <= 0 then 1 else ~1
-    fun genline (z,y) = List.tabulate (z, fn x => 
-      let val r = f(x,y,ztop) in incr_timer (); r end)
-    fun next table ordl =
-      case ordl of [] => table | y :: m =>
-      let val cline = genline (ztop,y) in
+    fun f (x,y,z) = 
+      let 
+        val _ = current_x := fi x
+        val _ = current_y := fi y
+        val _ = init_timer ()
+        val r = exec (fi x, fi y, fi z)
+        val _ = Array2.update (global_array,x,y,r)
+      in
+        if r <= 0 then 1 else ~1
+      end
+    fun genline (z,x) = List.tabulate (z, fn y => f(x,y,ztop))
+    fun next table x =
+      if x >= ztop then table else
+      let val cline = genline (ztop,x) in
         if all (orthogonal cline) table
-        then next (cline :: table) m
+        then next (cline :: table) (x+1)
         else table
       end
-    val table = next [] (List.tabulate (ztop,I))
+    val table = next [] 0
     val sc = length table
     val h = hash 1 (List.concat (norm_table table))
   in   
@@ -550,29 +465,6 @@ fun penum_hadamard_fast exec ztop =
        | Overflow => []
        | Size => raise ERR "penum_hadamard_fast" ""
 
-fun penum_hadamard_online tim exec ztop = 
-  let
-    (* timers *)
-    val _ = timeincr := tim
-    val _ = init_timer ()
-    val fi = IntInf.fromInt
-    (* results *)
-    fun f (x,y,z) = if exec (fi x, fi y, fi z) <= 0 then 1 else ~1
-    fun genline (z,y) = List.tabulate (z, fn x => 
-      let val r = f(x,y,ztop) in incr_timer (); r end)
-    fun next table ordl =
-      case ordl of [] => table | y :: m =>
-      let val cline = genline (ztop,y) in
-        if all (orthogonal cline) table
-        then next (cline :: table) m
-        else table
-      end
-    val table = next [] (List.tabulate (ztop,I))
-    val sc = length table
-    val h = hash 1 (List.concat (norm_table table))
-  in   
-    if sc <= 1 then (table,[]) else (table,map IntInf.fromInt [h,ztop,sc])
-  end
 
 
 end (* struct *)

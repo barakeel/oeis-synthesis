@@ -88,17 +88,8 @@ sig
   val gpt_prog : prog -> string
   
   (* hadamard matrices *)
-  val amaxmod : IntInf.int
-  val powerv : int vector vector vector
-  val ispowerv : int vector vector vector
-  val isexpv : int vector vector vector
+  val sqrtv : int vector vector
   val invv : int vector vector
-  val fixinvv : int vector vector
-  val findpowerv : int vector vector vector
-  val findexpv : int vector vector vector
-  val divisorv : int vector
-  
-  
-  
+  val leastdivv : int vector  
 
 end
