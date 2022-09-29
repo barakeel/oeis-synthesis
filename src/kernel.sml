@@ -185,8 +185,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),("z",0),
-     ("sqrt",2),("inv",2),("leastdiv",1),("garray",2)
-    ]
+     ("sqrt",2),("inv",2),("leastdiv",1),
+     ("loop",3),("loop2",5),("loop3",7)]
   else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -222,7 +222,8 @@ val z_id = find_id "z"
 
 val ho_ariv = 
   if !hadamard_flag 
-  then Vector.tabulate (Vector.length operv, fn _ => 0)
+  then Vector.fromList 
+       (List.tabulate (Vector.length operv - 3, fn _ => 0) @ [1,2,3]) 
   else Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if (!z_flag) then [0,3] else []))
 

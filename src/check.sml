@@ -274,14 +274,14 @@ fun filter_hdmd () =
     val l2 = map (fn x => (secondel (fst x),x)) l1
     val d = dregroup IntInf.compare l2
     val l3 = dlist d
-    val l4 = map (first_n 5000 o dict_sort hdm_compare_length o snd) l3
+    val l4 = map (first_n 1000 o dict_sort hdm_compare_length o snd) l3
   in
     hdmd := dnew seq_compare (List.concat l4)
   end
 
 fun update_hdmd (il,(r,p)) =
   (
-  if dlength (!hdmd) > 50000 then filter_hdmd () else ();
+  if dlength (!hdmd) > 10000 then filter_hdmd () else ();
   case dfindo il (!hdmd) of 
     NONE => hdmd := dadd il (r,p) (!hdmd) 
   | SOME (rold,pold) => 
@@ -298,7 +298,7 @@ fun checkonline_hdm_z (p,exec) z =
   end
   
 fun checkonline_hdm (p,exec) =
-  app (checkonline_hdm_z (p,exec)) [668,716,892] 
+  app (checkonline_hdm_z (p,exec)) (List.tabulate (20, fn x => 2*x + 9)) 
 
 fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
 

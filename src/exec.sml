@@ -1,7 +1,7 @@
 structure exec :> exec =
 struct
 
-open HolKernel boolLib aiLib kernel bloom
+open HolKernel boolLib aiLib kernel bloom hadamard
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
 type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
@@ -107,13 +107,6 @@ fun mk_septf3 opf fl = case fl of
 val compute_flag = ref false (* dangerous only turn on for verification *)
 
 
-(* global array *)
-val mil = 1000
-val global_array = Array2.array (mil,mil,azero)
-val current_x = ref azero
-val current_y = ref azero
-val current_dim = ref azero
-
 (* functions *)
 local open IntInf in
   val zero_f = mk_nullf (fn _ => azero)
@@ -138,16 +131,6 @@ local open IntInf in
   val sqrt_f = mk_binf 1 (wrapfv2 sqrtv)
   val inv_f = mk_binf 1 (wrapfv2 invv)
   val leastdiv_f = mk_unf (wrapfv1 leastdivv)
-  fun garray_f_aux (x,y) = 
-    let
-      val x' = x mod !current_dim
-      val y' = x mod !current_dim
-    in
-      if x' > !current_x then azero else
-      if x' = !current_x andalso y' >= !current_y then azero else
-      Array2.sub (global_array, toInt x', toInt y')
-    end    
-  val garray_f = mk_binf 1 garray_f_aux
   
 end (* local *)
 
@@ -212,7 +195,8 @@ val execv =
     [
     zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
     cond_f,x_f,y_f,z_f,
-    sqrt_f, inv_f, leastdiv_f, garray_f
+    sqrt_f, inv_f, leastdiv_f,
+    loop_f, loop2_f, loop3_f
     ]
   else Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -429,36 +413,37 @@ fun norm_table table =
     dict_sort (list_compare Int.compare) (map norm_vect table) 
   end
 
+fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
+
 fun penum_hadamard_fast exec ztop = 
   let
     val fi = IntInf.fromInt
-    (* timers *)
-    val _ = current_dim := fi ztop
-    val _ = timeincr := 200
+    val _ = timeincr := 10000
     (* results *)
-    fun f (x,y,z) = 
-      let 
-        val _ = current_x := fi x
-        val _ = current_y := fi y
+    fun f (x,y,z) =
+      let
         val _ = init_timer ()
         val r = exec (fi x, fi y, fi z)
-        val _ = Array2.update (global_array,x,y,r)
       in
         if r <= 0 then 1 else ~1
       end
-    fun genline (z,x) = List.tabulate (z, fn y => f(x,y,ztop))
-    fun next table x =
-      if x >= ztop then table else
-      let val cline = genline (ztop,x) in
-        if all (orthogonal cline) table
-        then next (cline :: table) (x+1)
-        else table
-      end
-    val table = next [] 0
-    val sc = length table
-    val h = hash 1 (List.concat (norm_table table))
+    fun genline y = List.tabulate (ztop, fn x => f(x,y,ztop))
+    val v0 = Vector.fromList (norm_line (genline 0))
+    val v1 = Vector.fromList (norm_line (genline 1))
+    val v2 = Vector.fromList (norm_line (genline 2))
+    val v3 = Vector.tabulate (ztop, fn i => 
+      if i = 0 then 1 else 
+      let val sum = 
+        Vector.sub (v0,i) + Vector.sub (v1,i) + Vector.sub (v2,i)
+      in
+        if sum = 3 then ~1 else 
+        if sum = ~3 then 1
+        else if sum > 0 then 1 else ~1
+      end)
+    val sc = ~ (wilson_score2 (v0,v1,v2,v3))
+    val h = hash 1 (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
-    if sc <= 1 then [] else map IntInf.fromInt [h,ztop,sc]
+    map IntInf.fromInt [h,ztop,sc]
   end
   handle Div => []
        | ProgTimeout => [] 
