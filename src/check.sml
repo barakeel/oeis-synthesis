@@ -282,6 +282,7 @@ fun filter_hdmd () =
 
 fun update_hdmd (il,(r,p)) =
   (
+  filter_hdmd ();
   case dfindo il (!hdmd) of 
     NONE => hdmd := dadd il (r,p) (!hdmd) 
   | SOME (rold,pold) => 
@@ -293,8 +294,7 @@ fun update_hdmd (il,(r,p)) =
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm_z (p,exec) z =
-  let val il = penum_hadamard_fast exec z in 
-    filter_hdmd ();
+  let val il = penum_hadamard_fast exec z in
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
   
@@ -305,7 +305,6 @@ fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
 
 fun merge_hdmsol hdmsol = 
   let val _ = checkinit_hdm () in
-    filter_hdmd ();
     app update_hdmd hdmsol;
     checkfinal_hdm ()
   end
