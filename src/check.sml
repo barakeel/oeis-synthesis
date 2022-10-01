@@ -138,11 +138,10 @@ fun checkfinal () =
     val (_,t) = add_time (app checkb) bestpl1
     val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))  
-    fun forget ((a,b),c) = (a,c)
   in
     dlist (!wind)
   end
-
+  
 fun collect_candidate () = 
   let 
     val pl1 = List.concat (map (map snd o snd) (dlist (!wind)))

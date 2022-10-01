@@ -67,6 +67,10 @@ fun testcache costn y =
    Instructions
    ------------------------------------------------------------------------- *)
  
+val x_current = ref azero
+val y_current = ref azero
+val z_current = ref azero 
+ 
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
@@ -115,6 +119,9 @@ local open IntInf in
   val x_f = mk_nullf (fn (x,y,z) => x)
   val y_f = mk_nullf (fn (x,y,z) => y)
   val z_f = mk_nullf (fn (x,y,z) => z)
+  val X_f = mk_nullf (fn (x,y,z) => !x_current)
+  val Y_f = mk_nullf (fn (x,y,z) => !y_current)
+  val Z_f = mk_nullf (fn (x,y,z) => !z_current) 
   val addi_f = mk_binf 1 (op +)
   val diff_f = mk_binf 1 (op -)
   val mult_f = mk_binf 1 (op *)
@@ -122,6 +129,11 @@ local open IntInf in
   val modu_f = mk_binf 5 (op mod)
   fun cond_f_aux (a,b,c) = if a <= azero then b else c
   val cond_f = mk_ternf cond_f_aux
+  fun cases_f_aux (a,b,c) = 
+    if !y_current = azero then a 
+    else if !y_current = aone then b 
+    else c
+  val cases_f = mk_ternf cases_f_aux
   fun wrapfv2 v (c,a) = 
     if c <= azero orelse c >= fromInt (Vector.length v) then azero else
       IntInf.fromInt (Vector.sub (Vector.sub (v, toInt c), toInt (a mod c)))
@@ -194,9 +206,8 @@ val execv =
   if !hadamard_flag then Vector.fromList 
     [
     zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-    cond_f,x_f,y_f,z_f,
-    sqrt_f, inv_f, leastdiv_f,
-    loop_f, loop2_f, loop3_f
+    cond_f,cases_f,x_f,y_f,z_f,X_f,Y_f,Z_f,
+    compr_f,loop_f,loop2_f,loop3_f
     ]
   else Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -418,11 +429,11 @@ fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
 fun penum_hadamard_fast exec ztop = 
   let
     val fi = IntInf.fromInt
-    val _ = timeincr := 10000
     (* results *)
     fun f (x,y,z) =
       let
         val _ = init_timer ()
+        val _ = (x_current := fi x; y_current := fi y; z_current := fi z)
         val r = exec (fi x, fi y, fi z)
       in
         if r <= 0 then 1 else ~1

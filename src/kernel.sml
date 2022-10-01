@@ -74,10 +74,7 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
 fun raw_prog (Ins (id,pl)) =
   "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
 
-fun gpt_id id =
-  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
-  
-fun gpt_prog (Ins (id,pl)) = (String.concat (map gpt_prog pl)) ^ gpt_id id
+
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)
@@ -88,6 +85,28 @@ fun all_subprog (p as Ins (_,pl)) = p :: List.concat (map all_subprog pl)
 
 fun all_subcompr (Ins (id,pl)) =
   (if id = 12 then [hd pl] else []) @ List.concat (map all_subcompr pl)
+
+(* -------------------------------------------------------------------------
+   Gpt interface
+   ------------------------------------------------------------------------- *)
+
+fun gpt_id id =
+  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
+  
+fun gpt_move s = 
+  let val n = Char.ord (valOf (Char.fromString s)) in
+    if n >= 65 then n - 65 + 10 else n - 48
+  end
+  
+fun gpt_prog (Ins (id,pl)) = (String.concat (map gpt_prog pl)) ^ gpt_id id
+
+fun read_gpt file = 
+  let 
+    val l1 = map (fn s => String.tokens Char.isSpace s) (readl file)
+    val l2 = map (fn sl => map gpt_move sl) l1
+  in
+    l2
+  end
 
 (* -------------------------------------------------------------------------
    Storing programs
@@ -146,6 +165,8 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
+val maxprecomp = 10
+
 fun sqrt_aux i (c,a) = 
   if i >= c then 0 else
   if (i * i) mod c = a then i else sqrt_aux (i+1) (c,a)
@@ -153,7 +174,7 @@ fun sqrt_aux i (c,a) =
 fun sqrt (c,a) = if c <= 0 then 0 else sqrt_aux 0 (c,a)
   
 val sqrtv =
-  Vector.tabulate (1000, fn c => Vector.tabulate (c, fn a => sqrt (c,a)))
+  Vector.tabulate (maxprecomp, fn c => Vector.tabulate (c, fn a => sqrt (c,a)))
 
 fun inv_aux i (c,a) = 
   if i >= c then 0 else
@@ -162,7 +183,7 @@ fun inv_aux i (c,a) =
 fun inv (c,a) = if c <= 0 then 0 else inv_aux 0 (c,a)
   
 val invv =
-  Vector.tabulate (1000, fn c => Vector.tabulate (c, fn a => inv (c,a)))
+  Vector.tabulate (maxprecomp, fn c => Vector.tabulate (c, fn a => inv (c,a)))
 
 fun leastdiv_aux i c =
   if i >= c then c else 
@@ -171,7 +192,7 @@ fun leastdiv_aux i c =
 fun leastdiv a = leastdiv_aux 2 a
   
 val leastdivv = 
-  Vector.tabulate (10000, fn x => if x = 0 then 0 else leastdiv x)
+  Vector.tabulate (maxprecomp, fn x => if x = 0 then 0 else leastdiv x)
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -184,9 +205,10 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     [
      ("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0),
-     ("sqrt",2),("inv",2),("leastdiv",1),
-     ("loop",3),("loop2",5),("loop3",7)]
+     ("cond",3),("cases",3),("x",0),("y",0),("z",0),
+     ("X",0),("Y",0),("Z",0),
+     ("compr",2),("loop",3),("loop2",5),("loop3",7)
+     ]
   else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -223,7 +245,7 @@ val z_id = find_id "z"
 val ho_ariv = 
   if !hadamard_flag 
   then Vector.fromList 
-       (List.tabulate (Vector.length operv - 3, fn _ => 0) @ [1,2,3]) 
+       (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
   else Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if (!z_flag) then [0,3] else []))
 
@@ -254,12 +276,12 @@ exception ProgTimeout;
 
 val short_timeincr = 1000
 val long_timeincr = 100000
-val timeincr = ref short_timeincr
+val timeincr = ref (if !hadamard_flag then 10000 else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
-val max_compr_number = ref short_compr
+val max_compr_number = ref (if !hadamard_flag then 50 else short_compr)
 val graph = ref []
 val graphb = ref 0
 

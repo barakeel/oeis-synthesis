@@ -86,6 +86,7 @@ sig
   (* gpt *)
   val gpt_seq : seq -> string  
   val gpt_prog : prog -> string
+  val read_gpt : string -> int list list
   
   (* hadamard matrices *)
   val sqrtv : int vector vector
