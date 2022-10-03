@@ -280,13 +280,39 @@ fun parse_prog_aux sexp = case sexp of
 fun parse_prog s = parse_prog_aux (parse_sexp s)
   handle HOL_ERR _ => raise ERR "parse_human" s
 
+exception Arity of int * int
+
+fun apply_move move board =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then raise Arity (move,length l1)
+    else Ins (move, rev l1) :: l2
+  end
+
+fun human_gpt s = 
+  let 
+    val ml = movel_of_gpt s
+    val progl = foldl (uncurry apply_move) [] ml
+  in
+    print_endline (String.concatWith "\n\n" (map (human_python 32) progl))
+  end
+  handle Arity (i1,i2) => 
+    print_endline (its i1 ^ "does not have arity" ^ its i2)
+
+
 (*
 load "rl"; open aiLib kernel human rl;
-val p = random_prog 20;
+val p = game.random_prog 20;
 print_endline (humanf p ^ "\n"); 
 print_endline (human_python 32 p) ;
+val s = gpt_of_prog p;
 val p = parse_human "( * 1 1)";
 print_endline (sexpr p);
+
+human_gpt s;
 *)
 
 

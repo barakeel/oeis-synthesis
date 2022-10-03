@@ -526,8 +526,6 @@ fun prime () =
    Searching for hadamard matrices
    ------------------------------------------------------------------------- *)
 
-type primesol = seq * (int * prog)
-
 fun search_hdm () btiml =
   (
   search.randsearch_flag := (!ngen_glob = 0); 

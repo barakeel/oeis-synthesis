@@ -151,19 +151,14 @@ fun collect_candidate () =
   end
   
 fun checkpl pl =
-  (
-  checkinit ();
-  app (fn p => (init_fast_test (); checkf (p, mk_exec p))) pl;
-  checkfinal ()
-  )
-  
-fun checkpl_slow pl =
-  (
-  checkinit ();
-  app (fn p => (init_slow_test (); checkf (p, mk_exec p))) pl;
-  checkfinal ()
-  )  
- 
+  let val i = ref 0 in
+    checkinit ();
+    app (fn p => (init_fast_test (); incr i; 
+      if !i mod 10000 = 0 then print "." 
+      else checkf (p, mk_exec p)
+      )) pl;
+    checkfinal ()
+  end
  
 (* -------------------------------------------------------------------------
    Levenstein

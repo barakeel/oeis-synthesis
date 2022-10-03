@@ -184,7 +184,7 @@ fun to_gpt file =
     fun f (i,tpl) =
       let 
         val seqs = gpt_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
-        fun g (t,p) = seqs ^ ">" ^ gpt_prog p ^ "."
+        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog p ^ "."
       in
         map g tpl
       end

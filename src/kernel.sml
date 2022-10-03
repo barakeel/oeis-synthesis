@@ -93,20 +93,17 @@ fun all_subcompr (Ins (id,pl)) =
 fun gpt_id id =
   if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
   
-fun gpt_move s = 
+fun move_of_gpt s = 
   let val n = Char.ord (valOf (Char.fromString s)) in
     if n >= 65 then n - 65 + 10 else n - 48
   end
   
-fun gpt_prog (Ins (id,pl)) = (String.concat (map gpt_prog pl)) ^ gpt_id id
+fun gpt_of_prog (Ins (id,pl)) = 
+  String.concatWith " " (map gpt_of_prog pl @ [gpt_id id])
 
-fun read_gpt file = 
-  let 
-    val l1 = map (fn s => String.tokens Char.isSpace s) (readl file)
-    val l2 = map (fn sl => map gpt_move sl) l1
-  in
-    l2
-  end
+fun movel_of_gpt s = 
+  let val sl = String.tokens Char.isSpace s in map move_of_gpt sl end
+fun read_gpt file = map movel_of_gpt (readl file)
 
 (* -------------------------------------------------------------------------
    Storing programs
