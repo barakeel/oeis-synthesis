@@ -113,11 +113,16 @@ fun create_anumlpart (anumtl,n,anumlpart) =
 val wind = ref (dempty Int.compare)
 val partwind = ref (dempty Int.compare)  
 
+val partial_flag = bflag "partial_flag"
+ 
 fun checkf (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
-    fun g (anum,n) = update_partwind partwind (anum,(n,p))
+    fun g (anum,n) = 
+      if !partial_flag 
+      then update_wind wind (anum, (1000000000 - n, p))
+      else update_partwind partwind (anum,(n,p))
   in
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
@@ -127,6 +132,11 @@ fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
 fun checkinit () = (wind := dempty Int.compare; partwind := dempty Int.compare)
 
 fun checkfinal () = 
+  if !partial_flag then
+    let val _ = print_endline ("solutions: " ^ its (dlength (!wind))) in
+      dlist (!wind)
+    end
+  else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); checkf (p, mk_exec p))

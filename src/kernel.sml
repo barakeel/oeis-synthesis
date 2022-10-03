@@ -15,22 +15,16 @@ val configd =
     dnew String.compare (List.mapPartial f sl)
   end
 
-val z_flag = 
-  ref (string_to_bool (dfind "z_flag" configd) handle NotFound => false) 
-val t_flag = 
-  ref (string_to_bool (dfind "t_flag" configd) handle NotFound => false) 
-val sol2_flag = 
-  ref (string_to_bool (dfind "sol2_flag" configd) handle NotFound => false) 
-val notarget_flag = 
-  ref (string_to_bool (dfind "notarget_flag" configd) handle NotFound => false)
-val prime_flag = 
-  ref (string_to_bool (dfind "prime_flag" configd) handle NotFound => false) 
-val hadamard_flag = 
-  ref (string_to_bool (dfind "hadamard_flag" configd) handle NotFound => false) 
-val local_flag = 
-  ref (string_to_bool (dfind "local_flag" configd) handle NotFound => 
-    false)  
-  
+fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
+
+val z_flag = bflag "z_flag"
+val t_flag = bflag "t_flag"
+val sol2_flag = bflag "sol2_flag"
+val notarget_flag = bflag "notarget_flag"
+val prime_flag = bflag "prime_flag"
+val hadamard_flag = bflag "hadamard_flag"
+val local_flag = bflag "local_flag"
+
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
    ------------------------------------------------------------------------- *)

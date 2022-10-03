@@ -5,6 +5,7 @@ sig
   (* directory *)
   val selfdir : string 
   val configd : (string ,string) Redblackmap.dict
+  val bflag : string -> bool ref
   val t_flag : bool ref (* optimize for time instead of size *)
   val z_flag : bool ref (* functions of arity 3 *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
@@ -12,6 +13,7 @@ sig
   val prime_flag : bool ref (* train targeting only prime approximations *)
   val hadamard_flag : bool ref
   val local_flag : bool ref
+  
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
