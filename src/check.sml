@@ -13,17 +13,17 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
    Update set of solutions
    ------------------------------------------------------------------------- *)
 
+val abillion = 1000000000
+
 fun is_faster (t1,p1) (t2,p2) =   
   cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
 
-fun is_faster_orequal (t1,p1) (t2,p2) =   
-  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) <> GREATER
- 
 fun is_smaller (t1,p1) (t2,p2) = 
-  prog_compare_size (p1,p2) = LESS
-  
-fun is_smaller_orequal (t1,p1) (t2,p2) =   
-  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) <> GREATER 
+  if !partial_flag then
+  let val (b1,b2) = (t1 >= abillion, t2 >= abillion) in
+    cpl_compare bool_compare prog_compare_size (p1,p2) = LESS
+  end
+  else prog_compare_size (p1,p2) = LESS
 
 fun find_min_loop cmpf a m = case m of
     [] => a
@@ -95,7 +95,7 @@ fun update_partwind d (anum,(cov,p)) =
     in
       if all test1 oldl
       then d := dadd anum ((cov,p) :: filter (not o test2) oldl) (!d) 
-      else ()      
+      else ()
     end
 
 (* -------------------------------------------------------------------------
@@ -120,12 +120,13 @@ fun checkf (p,exec) =
     val (anumtl,cov,anumlpart) = coverf_oeis exec
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
     fun g (anum,n) = 
+      if n <= 2 then () else
       (
       if !partial_flag 
-      then update_wind wind (anum, [(1000000000 - n, p)])
-      else ();
+      then update_wind wind (anum, [(abillion + 10000 - n, p)])
+      else ()
+      );
       update_partwind partwind (anum,(n,p))
-      )
   in
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
