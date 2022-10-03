@@ -13,6 +13,7 @@ type ('a,'b) dict = ('a,'b) Redblackmap.dict
    Update set of solutions
    ------------------------------------------------------------------------- *)
 
+val partial_flag = bflag "partial_flag"
 val abillion = 1000000000
 
 fun is_faster (t1,p1) (t2,p2) =   
@@ -21,7 +22,7 @@ fun is_faster (t1,p1) (t2,p2) =
 fun is_smaller (t1,p1) (t2,p2) = 
   if !partial_flag then
   let val (b1,b2) = (t1 >= abillion, t2 >= abillion) in
-    cpl_compare bool_compare prog_compare_size (p1,p2) = LESS
+    cpl_compare bool_compare prog_compare_size ((b1,p1),(b2,p2)) = LESS
   end
   else prog_compare_size (p1,p2) = LESS
 
@@ -113,8 +114,7 @@ fun create_anumlpart (anumtl,n,anumlpart) =
 val wind = ref (dempty Int.compare)
 val partwind = ref (dempty Int.compare)  
 
-val partial_flag = bflag "partial_flag"
- 
+
 fun checkf (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
@@ -125,8 +125,9 @@ fun checkf (p,exec) =
       if !partial_flag 
       then update_wind wind (anum, [(abillion + 10000 - n, p)])
       else ()
-      );
+      ;
       update_partwind partwind (anum,(n,p))
+      )
   in
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
