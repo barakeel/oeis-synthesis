@@ -11,3 +11,4 @@ t_flag false
 sol2_flag false
 notarget_flag false
 prime_flag false
+partial_flag false
