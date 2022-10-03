@@ -774,7 +774,8 @@ fun rl_train_only ngen =
 
 fun rl_search ngen = 
   (
-  rl_search_only ngen; 
+  rl_search_only ngen;
+  PolyML.fullGC ();
   if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
   rl_train ngen
   )
@@ -782,6 +783,7 @@ fun rl_search ngen =
 and rl_train ngen = 
   (
   rl_train_only ngen; 
+  PolyML.fullGC ();
   rl_search (ngen + 1)
   )
 
@@ -796,7 +798,8 @@ fun rl_search_cont () =
     if n = 1 then (print_endline "waiting for tnn"; wait_tnn ()) else ();
     rl_search_only n
   end;
-  rl_search_cont ()
+  rl_search_cont ();
+  PolyML.fullGC ()
   )
 
 fun wait_itsol () = 
@@ -811,7 +814,8 @@ fun rl_train_cont () =
   else (print_endline "waiting for itsol"; wait_itsol ())
   ;
   rl_train_only ((find_last_ob () + 1) handle HOL_ERR _ => 0); 
-  rl_train_cont ()
+  rl_train_cont ();
+  PolyML.fullGC ()
   )
 
 end (* struct *)
