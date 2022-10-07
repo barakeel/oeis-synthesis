@@ -151,8 +151,9 @@ fun checkfinal () =
     val (_,t) = add_time (app checkb) bestpl1
     val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
     val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))  
+    val r = dlist (!wind)
   in
-    dlist (!wind)
+    checkinit (); r
   end
   
 fun collect_candidate () = 
@@ -172,7 +173,93 @@ fun checkpl pl =
       )) pl;
     checkfinal ()
   end
- 
+  
+val rev_flag = true
+  
+fun check_file file = 
+  let 
+    val mll1 = map movel_of_gpt (readl file)
+    val _ = print_endline (file ^ ":" ^ its (length mll1))
+    val mll = if rev_flag then map rev mll1 else mll1
+    val _ = record_flag := true
+    val error = ref 0
+    fun f ml = ignore (apply_movel ml []) handle Option => (incr error)
+    val _ = (progd := eempty prog_compare; error := 0)
+    val r = (app f mll; elist (!progd))
+    val _ = print_endline ("parse errors: " ^ its (!error));
+    val _ = print_endline ("parsed programs: " ^ its (elength (!progd)));
+    val _ = (progd := eempty prog_compare; error := 0)
+  in
+    checkpl r
+  end
+
+(* -------------------------------------------------------------------------
+   Parallel checking (two phases)
+   ------------------------------------------------------------------------- *)
+
+val checkspec : (unit, string, sol list) extspec =
+  {
+  self_dir = selfdir,
+  self = "check.checkspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () file = check_file file in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = let fun f file arg = writel file [arg] in f end,
+  read_arg = let fun f file = hd (readl file) in f end,
+  write_result = write_itprogl,
+  read_result = read_itprogl
+  } 
+
+fun stats_sol file itsol =
+  let
+    fun string_of_tp (t,p) =
+       "size " ^ its (prog_size p) ^ ", time " ^ its t ^ ": " ^ 
+       humanf p ^ "\n" ^ gpt_of_prog p
+    fun string_of_itprog (i,tpl) = 
+      "https://oeis.org/" ^ "A" ^ its i ^ " : " ^ 
+      string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^ 
+      String.concatWith "\n" (map string_of_tp tpl)
+    val itsolsort = dict_sort 
+      (snd_compare (list_compare (snd_compare prog_compare_size))) itsol
+  in
+    writel file (map string_of_itprog itsolsort)
+  end
+  
+fun stats_dir dir sol =
+  let
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
+    val train = read_itprogl (selfdir ^ "/model/itsol209")
+    val train_il = map fst train;
+    val train_set = enew Int.compare train_il;
+    val diff = filter (fn x => not (emem (fst x) train_set)) sol;
+  in
+    log ("sol: " ^ its (length sol));
+    stats_sol (dir ^ "/sol") sol;
+    log ("diff: " ^ its (length diff));
+    stats_sol (dir ^ "/diff") diff
+  end
+  
+fun parallel_check ncore dir = 
+  let 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val splitdir = dir ^ "/split"
+    val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
+    val (itsoll,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
+    val _ = log ("checking time: " ^ rts_round 6 t)
+    val (sol,t) = add_time merge_itsol (List.concat itsoll)
+    val _ = log ("merging time: " ^ rts_round 6 t)
+  in
+    stats_dir dir sol;
+    sol
+  end
+
 (* -------------------------------------------------------------------------
    Levenstein
    ------------------------------------------------------------------------- *) 

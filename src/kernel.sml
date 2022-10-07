@@ -81,25 +81,6 @@ fun all_subcompr (Ins (id,pl)) =
   (if id = 12 then [hd pl] else []) @ List.concat (map all_subcompr pl)
 
 (* -------------------------------------------------------------------------
-   Gpt interface
-   ------------------------------------------------------------------------- *)
-
-fun gpt_id id =
-  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
-  
-fun move_of_gpt s = 
-  let val n = Char.ord (valOf (Char.fromString s)) in
-    if n >= 65 then n - 65 + 10 else n - 48
-  end
-  
-fun gpt_of_prog (Ins (id,pl)) = 
-  String.concatWith " " (map gpt_of_prog pl @ [gpt_id id])
-
-fun movel_of_gpt s = 
-  let val sl = String.tokens Char.isSpace s in map move_of_gpt sl end
-fun read_gpt file = map movel_of_gpt (readl file)
-
-(* -------------------------------------------------------------------------
    Storing programs
    ------------------------------------------------------------------------- *)
 
@@ -293,6 +274,29 @@ fun catch_perror f x g =
   f x handle Div => g () 
            | ProgTimeout => g () 
            | Overflow => g ()
+  
+  
+(* -------------------------------------------------------------------------
+   Gpt interface
+   ------------------------------------------------------------------------- *)
+
+(* printer *)
+fun gpt_of_id id =
+  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
+  
+fun gpt_of_prog (Ins (id,pl)) = 
+  String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
+
+
+(* reader *)
+fun id_of_gpt s = 
+  let val n = Char.ord (valOf (Char.fromString s)) in
+    if n >= 65 then n - 65 + 10 else n - 48
+  end
+
+fun movel_of_gpt s = 
+  let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
+  
   
   
 end (* struct *)

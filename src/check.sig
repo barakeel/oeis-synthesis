@@ -30,4 +30,9 @@ sig
   val hdm_compare_length : 
     (kernel.seq  * (int * prog)) * (kernel.seq  * (int * prog)) -> order
   
+  (* parallelization *)
+  val checkspec : (unit, string, (anum * (int * prog) list) list)
+    smlParallel.extspec
+  val parallel_check : int -> string -> (anum * (int * prog) list) list
+  
 end
