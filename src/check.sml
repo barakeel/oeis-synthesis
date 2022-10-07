@@ -204,19 +204,20 @@ fun checkml d board movel =
     app f boardl;
     case movel of [] => () | move :: m => 
       (case next_board board move of
-        SOME newboard => checkml newboard m 
+        SOME newboard => checkml d newboard m 
       | NONE => incr error)    
   end  
   
 fun checkmll mll = 
   let 
-    val d = eempty prog_compare 
+    val d = ref (eempty prog_compare)
     val counter = ref 0
     val (_,t) = add_time (app (checkml d [])) mll
-    val _ = print_endline ("unique programs: " ^ dlength (!d)
+    val _ = print_endline ("unique programs: " ^ its (elength (!d))
       ^ " in " ^ rts_round 2 t)
     fun f p =
-      (incr counter; if !counter mod 10000 = 0 then print "." else ())
+      (incr counter; 
+       if !counter mod 10000 = 0 then print "." else ();
        init_fast_test (); checkf (p, mk_exec p))
   in
     Redblackset.app f (!d) 
