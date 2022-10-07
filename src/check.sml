@@ -195,9 +195,12 @@ fun next_boardl_aux board =
 fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
   
 val error = ref 0  
+val counter = ref 0
   
 fun checkml board movel =
   let 
+    val _ = (incr counter; if !counter mod 10000 = 0 then print_endline "." 
+             else ())
     val boardl = next_boardl [board]    
     fun f board = 
       case board of [p] => (init_fast_test (); checkf (p, mk_exec p))
