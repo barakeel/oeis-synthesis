@@ -199,7 +199,7 @@ val counter = ref 0
   
 fun checkml board movel =
   let 
-    val _ = (incr counter; if !counter mod 10000 = 0 then print_endline "." 
+    val _ = (incr counter; if !counter mod 10000 = 0 then print "." 
              else ())
     val boardl = next_boardl [board]    
     fun f board = 
