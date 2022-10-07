@@ -195,16 +195,11 @@ fun next_boardl_aux board =
 fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
   
 val error = ref 0  
-val counter = ref 0
-  
-fun checkml board movel =
-  let 
-    val _ = (incr counter; if !counter mod 10000 = 0 then print "." 
-             else ())
+
+fun checkml d board movel =
+  let
     val boardl = next_boardl [board]    
-    fun f board = 
-      case board of [p] => (init_fast_test (); checkf (p, mk_exec p))
-      | _ => ()
+    fun f board = case board of p :: m => d := eadd p (!d) | _ => ()
   in
     app f boardl;
     case movel of [] => () | move :: m => 
@@ -213,15 +208,29 @@ fun checkml board movel =
       | NONE => incr error)    
   end  
   
+fun checkmll mll = 
+  let 
+    val d = eempty prog_compare 
+    val counter = ref 0
+    val (_,t) = add_time (app (checkml d [])) mll
+    val _ = print_endline ("unique programs: " ^ dlength (!d)
+      ^ " in " ^ rts_round 2 t)
+    fun f p =
+      (incr counter; if !counter mod 10000 = 0 then print "." else ())
+       init_fast_test (); checkf (p, mk_exec p))
+  in
+    Redblackset.app f (!d) 
+  end
+
 fun check_file file = 
   let 
     val mll = map (rev o movel_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
     val _ = error := 0
-    val r = (checkinit (); app (checkml []) mll; checkfinal ())
-    val _ = print_endline ("parse errors: " ^ its (!error))
   in
-    r
+    checkinit (); checkmll mll;
+    print_endline ("parse errors: " ^ its (!error));
+    checkfinal ()
   end
 
 (* -------------------------------------------------------------------------
