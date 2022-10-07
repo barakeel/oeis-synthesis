@@ -213,15 +213,13 @@ fun checkml board movel =
   
 fun check_file file = 
   let 
-    val mll1 = map movel_of_gpt (readl file)
-    val _ = print_endline (file ^ ":" ^ its (length mll1))
-    val mll = map rev mll1
+    val mll = map (rev o movel_of_gpt) (readl file)
+    val _ = print_endline (file ^ ":" ^ its (length mll))
     val _ = error := 0
-    val r = (checkinit (); app (checkml []) mll; checkfinal (); elist (!progd))
-    val _ = print_endline ("parse errors: " ^ its (!error));
-    val _ = print_endline ("parsed programs: " ^ its (elength (!progd)));
+    val r = (checkinit (); app (checkml []) mll; checkfinal ())
+    val _ = print_endline ("parse errors: " ^ its (!error))
   in
-    checkpl r
+    r
   end
 
 (* -------------------------------------------------------------------------
