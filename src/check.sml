@@ -213,14 +213,16 @@ fun checkmll mll =
     val d = ref (eempty prog_compare)
     val counter = ref 0
     val (_,t) = add_time (app (checkml d [])) mll
-    val _ = print_endline ("unique programs: " ^ its (elength (!d))
+    val _ = print_endline ("parse errors: " ^ its (!error))
+    val _ = print_endline ("parsed programs: " ^ its (elength (!d))
       ^ " in " ^ rts_round 2 t)
     fun f p =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_fast_test (); checkf (p, mk_exec p))
+    val (_,t) = add_time (Redblackset.app f) (!d)
   in
-    Redblackset.app f (!d) 
+    print_endline ("fast check: " ^ rts_round 2 t)
   end
 
 fun check_file file = 
@@ -229,9 +231,7 @@ fun check_file file =
     val _ = print_endline (file ^ ":" ^ its (length mll))
     val _ = error := 0
   in
-    checkinit (); checkmll mll;
-    print_endline ("parse errors: " ^ its (!error));
-    checkfinal ()
+    checkinit (); checkmll mll; checkfinal ()
   end
 
 (* -------------------------------------------------------------------------
