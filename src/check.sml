@@ -165,30 +165,61 @@ fun collect_candidate () =
   end
   
 fun checkpl pl =
-  let val i = ref 0 in
-    checkinit ();
-    app (fn p => (init_fast_test (); incr i; 
-      if !i mod 10000 = 0 then print "." 
-      else checkf (p, mk_exec p)
-      )) pl;
-    checkfinal ()
+  let 
+    val i = ref 0 
+    fun f p = (
+      init_fast_test (); 
+      incr i; 
+      if !i mod 10000 = 0 then print "."  else ();
+      checkf (p, mk_exec p)
+      )
+  in
+    checkinit (); app f pl; checkfinal ()
   end
   
-val rev_flag = true
+fun next_board board move =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then NONE 
+    else SOME (Ins (move, rev l1) :: l2) 
+  end  
+  
+val movel = List.tabulate (Vector.length operv,I)  
+  
+fun next_boardl_aux board = 
+  List.mapPartial (next_board board) movel
+  
+fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
+  
+val error = ref 0  
+  
+fun checkml board movel =
+  let 
+    val boardl = next_boardl [board]    
+    fun f board = 
+      case board of p :: m =>
+        (init_fast_test (); checkf (p, mk_exec p))
+      | _ => ()
+  in
+    app f boardl;
+    case movel of [] => () | move :: m => 
+      (case next_board board move of
+        SOME newboard => checkml newboard m 
+      | NONE => incr error)    
+  end  
   
 fun check_file file = 
   let 
     val mll1 = map movel_of_gpt (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll1))
-    val mll = if rev_flag then map rev mll1 else mll1
-    val _ = record_flag := true
-    val error = ref 0
-    fun f ml = ignore (apply_movel ml []) handle Option => (incr error)
-    val _ = (progd := eempty prog_compare; error := 0)
-    val r = (app f mll; elist (!progd))
+    val mll = map rev mll1
+    val _ = error := 0
+    val r = (checkinit (); app (checkml []) mll; checkfinal (); elist (!progd))
     val _ = print_endline ("parse errors: " ^ its (!error));
     val _ = print_endline ("parsed programs: " ^ its (elength (!progd)));
-    val _ = (progd := eempty prog_compare; error := 0)
   in
     checkpl r
   end
@@ -247,6 +278,7 @@ fun stats_dir dir sol =
   
 fun parallel_check ncore dir = 
   let 
+    val _ = smlExecScripts.buildheap_options := "--maxheap 10000"
     val _ = smlExecScripts.buildheap_dir := dir
     val splitdir = dir ^ "/split"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
