@@ -200,8 +200,7 @@ fun checkml board movel =
   let 
     val boardl = next_boardl [board]    
     fun f board = 
-      case board of p :: m =>
-        (init_fast_test (); checkf (p, mk_exec p))
+      case board of [p] => (init_fast_test (); checkf (p, mk_exec p))
       | _ => ()
   in
     app f boardl;
