@@ -49,14 +49,13 @@ val po = qsynt "2 5 16 256";
 ```
 
 ### Train oeis-syntheis (requires 4GB of ram per core)
-Go to the `src` director and run:
+Go to the `src` directory and run:
 ```
 sh rl.sh expname
 ```
 
 - To change training options, 
   edit the `config` file and run `sh install.sh` again.
-- To start the training, and run:
 - You may change `expname` to reflect the aim of your experiment.
 - You can stop the training at any point by interrupting the process 
   with ctrl+c. 
@@ -67,6 +66,29 @@ A summary of the number of programs found at different generation is located at
 `src/exp/expname/log`.
 Resulting programs can be inspected in the directory `src/exp/expname/search/gen/full_prog` where `gen` is a generation number.
 Running multiple instances of ``rl.sh`` on the same machine may fail.
+
+### Standalone OEIS checker
+Go to the `src` directory and create the directories `exp` and `exp/expname`.
+In `exp/expname`, add two files: `solold` set of solutions in lisp format
+and `cand` a set of candidate programs in reverse reverse polish notation
+(e.g. "C B 1 4 5 ...") then run in the src directory:
+
+```
+sh check.sh expname
+```
+
+You may change `expname` to reflect the aim of your experiment.
+To change the checking options, edit the `config` file. The relevant entries 
+are `ncore`, `search_memory` and `sol2_flag`.
+
+The programs will produce two files `solnew` and `solnewgpt`.
+`solnewgpt` can be used to trained your machine learning model.
+The format is sequence>program. (note the dot at the end). The sequence is 
+reversed and only contains the first 16 numbers and the program is in reverse 
+polish notation.
+
+
+
 
 ### Known issues:
 
