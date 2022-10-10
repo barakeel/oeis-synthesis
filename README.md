@@ -67,11 +67,11 @@ A summary of the number of programs found at different generation is located at
 Resulting programs can be inspected in the directory `src/exp/expname/search/gen/full_prog` where `gen` is a generation number.
 Running multiple instances of ``rl.sh`` on the same machine may fail.
 
-### Standalone OEIS checker
+### Self-learning using an external machine learner
 Go to the `src` directory and create the directories `exp` and `exp/expname`.
 In `exp/expname`, add two files: `solold` set of solutions in lisp format
-and `cand` a set of candidate programs in reverse reverse polish notation
-(e.g. "C B 1 4 5 ...") then run in the src directory:
+and `cand` a set of candidate programs (the list of tokens composing the program is reversed compared `solnewgpt`).
+(e.g. on program "C B 1 4 5 ..." per line) then run in the src directory:
 
 ```
 sh check.sh expname
@@ -84,12 +84,17 @@ are `ncore`, `search_memory` and `sol2_flag`.
 The programs will produce two files `solnew` and `solnewgpt`.
 `solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is sequence>program. (note the dot at the end). The sequence is reversed and only contains the first 16 numbers and the program is in reverse polish notation.
 
-
-#### Self-learning using an external machine learner
 You can start a self-learning process by starting from the files `sol0` (to rename to `solold`) and `sol0gpt` to be used to produce the `cand` file.
-This files were generated using a random generator and selecting the smallest and fastest programs (`sol2_flag true` in the `config` file).
-Moving the file `solnew` from generation n directory to 
-the file `solold` of a generation n+1 directory is left to the user.
+These files can be dowloaded by running:
+
+```
+wget http://grid01.ciirc.cvut.cz/~thibault/oeis-gpt/sol0
+wget http://grid01.ciirc.cvut.cz/~thibault/oeis-gpt/sol0gpt
+```
+
+These files were generated using a random generator and selecting the smallest and fastest programs (`sol2_flag true` in the `config` file).
+Moving the file `solnew` from a `expname=generation_n` directory to 
+the file `solold` of a `expname=generation_n+1` directory is left to the user.
 
 ### Known issues:
 
