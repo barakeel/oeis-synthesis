@@ -312,7 +312,7 @@ fun parallel_check expname =
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
     val splitdir = dir ^ "/split"
     val _ = mkDir_err splitdir

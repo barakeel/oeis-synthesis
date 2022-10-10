@@ -4,7 +4,7 @@ ntarget 64
 nvis 0
 rtim 600.0
 time_opt 600.0
-search_memory 8000
+search_memory 12000
 train_memory 50000
 z_flag false
 t_flag false
