@@ -82,13 +82,14 @@ To change the checking options, edit the `config` file. The relevant entries
 are `ncore`, `search_memory` and `sol2_flag`.
 
 The programs will produce two files `solnew` and `solnewgpt`.
-`solnewgpt` can be used to trained your machine learning model.
-The format is sequence>program. (note the dot at the end). The sequence is 
-reversed and only contains the first 16 numbers and the program is in reverse 
-polish notation.
+`solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is sequence>program. (note the dot at the end). The sequence is reversed and only contains the first 16 numbers and the program is in reverse polish notation.
 
 
-
+#### Self-learning using an external machine learner
+You can start a self-learning process by starting from the files `sol0` (to rename to `solold`) and `sol0gpt` to be used to produce the `cand` file.
+This files were generated using a random generator and selecting the smallest and fastest programs (`sol2_flag true` in the `config` file).
+Moving the file `solnew` from generation n directory to 
+the file `solold` of a generation n+1 directory is left to the user.
 
 ### Known issues:
 
