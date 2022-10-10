@@ -198,20 +198,6 @@ val error = ref 0
 
 val localsearch_flag = ref false
 
-fun write_gsol file sol =
-  let
-    fun f (i,tpl) =
-      let 
-        val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
-        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog_nospace p ^ "."
-      in
-        map g tpl
-      end
-  in
-    writel file (shuffle (List.concat (map f sol)))
-  end
-
-
 fun checkml d board movel =
   (
   if !localsearch_flag then
@@ -306,7 +292,20 @@ fun stats_dir dir oldsol newsol =
   end
 
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
-  
+
+fun write_gsol file sol =
+  let
+    fun f (i,tpl) =
+      let 
+        val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
+        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog_nospace p ^ "."
+      in
+        map g tpl
+      end
+  in
+    writel file (shuffle (List.concat (map f sol)))
+  end
+
 fun parallel_check expname = 
   let 
     val dir = selfdir ^ "/exp/" ^ expname
