@@ -70,8 +70,8 @@ Running multiple instances of ``rl.sh`` on the same machine may fail.
 ### Self-learning using an external machine learner
 Go to the `src` directory and create the directories `exp` and `exp/expname`.
 In `exp/expname`, add two files: `solold` set of solutions in lisp format
-and `cand` a set of candidate programs (the list of tokens composing the program is reversed compared `solnewgpt`).
-(e.g. on program "C B 1 4 5 ..." per line) then run in the src directory:
+and `cand` a set of candidate program should be listed in prefix notation (with argument order reversed). This is the reverse order compared to the order given in `solnewgpt`.
+Run in the src directory:
 
 ```
 sh check.sh expname
