@@ -86,8 +86,9 @@ sig
   val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b 
   
   (* gpt *)
-  val gpt_seq : seq -> string  
+  val gpt_of_seq : seq -> string  
   val gpt_of_prog : prog -> string
+  val gpt_of_prog_nospace : prog -> string
   val movel_of_gpt : string -> int list
   
   (* hadamard matrices *)

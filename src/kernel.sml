@@ -45,7 +45,7 @@ type anum = int
 val seq_compare = list_compare IntInf.compare
 
 fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
-fun gpt_seq il = String.concatWith "|" (map IntInf.toString il)
+fun gpt_of_seq il = String.concatWith "|" (map IntInf.toString il)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
@@ -286,6 +286,9 @@ fun gpt_of_id id =
   
 fun gpt_of_prog (Ins (id,pl)) = 
   String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
+
+fun gpt_of_prog_nospace (Ins (id,pl)) = 
+  String.concat (map gpt_of_prog pl @ [gpt_of_id id])
 
 
 (* reader *)

@@ -1,0 +1,2 @@
+load "check";
+check.parallel_check "expname_template";

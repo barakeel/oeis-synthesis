@@ -24,7 +24,5 @@ sig
   val cover_target : (IntInf.int -> IntInf.int) -> 
     seq -> bool * int
 
-  (* to gpt *)
-  val to_gpt : string -> unit
 
 end

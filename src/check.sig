@@ -33,6 +33,6 @@ sig
   (* parallelization *)
   val checkspec : (unit, string, (anum * (int * prog) list) list)
     smlParallel.extspec
-  val parallel_check : int -> string -> (anum * (int * prog) list) list
+  val parallel_check : string -> unit
   
 end

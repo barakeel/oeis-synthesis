@@ -196,18 +196,39 @@ fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
   
 val error = ref 0  
 
-fun checkml d board movel =
+val localsearch_flag = ref false
+
+fun write_gsol file sol =
   let
-    val boardl = next_boardl [board]    
-    fun f board = case board of p :: m => d := eadd p (!d) | _ => ()
+    fun f (i,tpl) =
+      let 
+        val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
+        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog_nospace p ^ "."
+      in
+        map g tpl
+      end
   in
-    app f boardl;
+    writel file (shuffle (List.concat (map f sol)))
+  end
+
+
+fun checkml d board movel =
+  (
+  if !localsearch_flag then
+    let
+      val boardl = next_boardl [board]    
+      fun f board = case board of p :: m => d := eadd p (!d) | _ => ()
+    in
+      app f boardl
+    end
+  else (case board of p :: m => d := eadd p (!d) | _ => ())
+  ;
     case movel of [] => () | move :: m => 
       (case next_board board move of
         SOME newboard => checkml d newboard m 
       | NONE => incr error)    
-  end  
-  
+  )  
+
 fun checkmll mll = 
   let 
     val d = ref (eempty prog_compare)
@@ -225,7 +246,7 @@ fun checkmll mll =
     print_endline ("fast check: " ^ rts_round 2 t)
   end
 
-fun check_file file = 
+fun check_file file =
   let 
     val mll = map (rev o movel_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
@@ -272,34 +293,47 @@ fun stats_sol file itsol =
     writel file (map string_of_itprog itsolsort)
   end
   
-fun stats_dir dir sol =
+fun stats_dir dir oldsol newsol =
   let
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val train = read_itprogl (selfdir ^ "/model/itsol209")
-    val train_il = map fst train;
-    val train_set = enew Int.compare train_il;
-    val diff = filter (fn x => not (emem (fst x) train_set)) sol;
+    val oldset = enew Int.compare (map fst oldsol);
+    val diff = filter (fn x => not (emem (fst x) oldset)) newsol;
   in
-    log ("sol: " ^ its (length sol));
-    stats_sol (dir ^ "/sol") sol;
+    log ("sol: " ^ its (length newsol));
+    stats_sol (dir ^ "/stats_sol") newsol;
     log ("diff: " ^ its (length diff));
-    stats_sol (dir ^ "/diff") diff
+    stats_sol (dir ^ "/stats_diff") diff
   end
+
+val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
   
-fun parallel_check ncore dir = 
+fun parallel_check expname = 
   let 
-    val _ = smlExecScripts.buildheap_options := "--maxheap 10000"
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
     val _ = smlExecScripts.buildheap_dir := dir
     val splitdir = dir ^ "/split"
+    val _ = mkDir_err splitdir
+    val _ = cmd_in_dir dir "split -l 100000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val (itsoll,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
+    val oldsolfile = dir ^ "/" ^ "solold"
+    val oldsol = read_itprogl oldsolfile
     val _ = log ("checking time: " ^ rts_round 6 t)
-    val (sol,t) = add_time merge_itsol (List.concat itsoll)
+    val (newsol,t) = add_time merge_itsol (List.concat (oldsol :: itsoll))
     val _ = log ("merging time: " ^ rts_round 6 t)
+    val gptfile = dir ^ "/" ^ "solnewgpt" 
+    val newsolfile = dir ^ "/" ^ "solnew"
   in
-    stats_dir dir sol;
-    sol
+    stats_dir dir oldsol newsol;
+    write_itprogl (newsolfile ^ "_temp") newsol;
+    write_gsol (gptfile ^ "_temp") newsol;
+    OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
+    OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
   end
 
 (* -------------------------------------------------------------------------
