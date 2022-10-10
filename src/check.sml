@@ -241,11 +241,38 @@ fun check_file file =
     checkinit (); checkmll mll; checkfinal ()
   end
 
+
+(* -------------------------------------------------------------------------
+   Merging solutions from the merge directory
+   ------------------------------------------------------------------------- *)
+
+val mergen = ref 0
+val mergedir = selfdir ^ "/merge"
+fun init_merge () = (mergen := 0; clean_dir mergedir) 
+
+fun merge_itsol_file d file =
+  let val itsol = read_itprogl file in
+    app (update_wind d) itsol
+  end
+  
+fun merge_itsol_default dir = 
+  let 
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
+    val filel = listDir mergedir
+    val d = ref (dempty Int.compare)
+    val _ = app (merge_itsol_file d) filel
+    val _ = log ("sol: " ^ its (dlength (!d)))
+    val oldsolfile = dir ^ "/" ^ "solold"
+    val _ = merge_itsol_file d oldsolfile
+  in
+    dlist (!d)
+  end
+
 (* -------------------------------------------------------------------------
    Parallel checking (two phases)
    ------------------------------------------------------------------------- *)
 
-val checkspec : (unit, string, sol list) extspec =
+val checkspec : (unit, string, (anum * (int * prog) list) list) extspec =
   {
   self_dir = selfdir,
   self = "check.checkspec",
@@ -261,8 +288,12 @@ val checkspec : (unit, string, sol list) extspec =
   write_arg = let fun f file arg = writel file [arg] in f end,
   read_arg = let fun f file = hd (readl file) in f end,
   write_result = write_itprogl,
-  read_result = read_itprogl
-  } 
+  read_result = let fun f file = 
+    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
+     incr mergen; 
+     [])
+    in f end
+    }
 
 fun stats_sol file itsol =
   let
@@ -285,7 +316,7 @@ fun stats_dir dir oldsol newsol =
     val oldset = enew Int.compare (map fst oldsol);
     val diff = filter (fn x => not (emem (fst x) oldset)) newsol;
   in
-    log ("sol: " ^ its (length newsol));
+    log ("sol+oldsol: " ^ its (length newsol));
     stats_sol (dir ^ "/stats_sol") newsol;
     log ("diff: " ^ its (length diff));
     stats_sol (dir ^ "/stats_diff") diff
@@ -319,14 +350,15 @@ fun parallel_check expname =
     val _ = cmd_in_dir dir "split -l 100000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val (itsoll,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
-    val oldsolfile = dir ^ "/" ^ "solold"
-    val oldsol = read_itprogl oldsolfile
+    val _ = init_merge ()
+    val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
     val _ = log ("checking time: " ^ rts_round 6 t)
-    val (newsol,t) = add_time merge_itsol (List.concat (oldsol :: itsoll))
+    val (newsol,t) = add_time merge_itsol_default dir
     val _ = log ("merging time: " ^ rts_round 6 t)
+    val _ = init_merge ()
     val gptfile = dir ^ "/" ^ "solnewgpt" 
     val newsolfile = dir ^ "/" ^ "solnew"
+    val oldsol = read_itprogl (dir ^ "/" ^ "solold")
   in
     stats_dir dir oldsol newsol;
     write_itprogl (newsolfile ^ "_temp") newsol;

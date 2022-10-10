@@ -45,7 +45,11 @@ type anum = int
 val seq_compare = list_compare IntInf.compare
 
 fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
-fun gpt_of_seq il = String.concatWith "|" (map IntInf.toString il)
+val amillion = IntInf.fromInt 1000000
+fun gpt_of_int i = 
+  if IntInf.abs i > amillion then "*" else IntInf.toString i
+
+fun gpt_of_seq il = String.concatWith "|" (map gpt_of_int il)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
