@@ -292,7 +292,7 @@ fun gpt_of_prog (Ins (id,pl)) =
   String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
 
 fun gpt_of_prog_nospace (Ins (id,pl)) = 
-  String.concat (map gpt_of_prog pl @ [gpt_of_id id])
+  String.concat (map gpt_of_prog_nospace pl @ [gpt_of_id id])
 
 
 (* reader *)
