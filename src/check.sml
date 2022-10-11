@@ -329,7 +329,7 @@ fun write_gsol file sol =
     fun f (i,tpl) =
       let 
         val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
-        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog_nospace p ^ "."
+        fun g (t,p) = seqs ^ ">" ^ gpt_of_prog_nospace p
       in
         map g tpl
       end

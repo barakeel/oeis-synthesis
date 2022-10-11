@@ -87,9 +87,11 @@ sig
   
   (* gpt *)
   val gpt_of_seq : seq -> string  
+  val gpt_of_id : id -> string
   val gpt_of_prog : prog -> string
   val gpt_of_prog_nospace : prog -> string
-  val movel_of_gpt : string -> int list
+  val id_of_gpt : string -> id
+  val movel_of_gpt : string -> id list
   
   (* hadamard matrices *)
   val sqrtv : int vector vector

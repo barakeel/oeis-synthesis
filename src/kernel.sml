@@ -285,8 +285,7 @@ fun catch_perror f x g =
    ------------------------------------------------------------------------- *)
 
 (* printer *)
-fun gpt_of_id id =
-  if id < 10 then its id else Char.toString (Char.chr (65 + (id - 10)))
+fun gpt_of_id id = Char.toString (Char.chr (65 + id))
   
 fun gpt_of_prog (Ins (id,pl)) = 
   String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
@@ -297,9 +296,7 @@ fun gpt_of_prog_nospace (Ins (id,pl)) =
 
 (* reader *)
 fun id_of_gpt s = 
-  let val n = Char.ord (valOf (Char.fromString s)) in
-    if n >= 65 then n - 65 + 10 else n - 48
-  end
+  let val n = Char.ord (valOf (Char.fromString s)) in n - 65 end
 
 fun movel_of_gpt s = 
   let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
