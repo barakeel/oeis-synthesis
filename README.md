@@ -70,7 +70,8 @@ Running multiple instances of ``rl.sh`` on the same machine may fail.
 ### Self-learning using an external machine learner
 Go to the `src` directory and create the directories `exp` and `exp/expname`.
 In `exp/expname`, add two files: `solold` set of solutions in lisp format
-and `cand` a set of candidate program should be listed in prefix notation (with argument order reversed). This is the reverse order compared to the order given in `solnewgpt`.
+and `cand` a set of candidate program should be listed in 
+reverse reverse polish notation.
 Run in the src directory:
 
 ```
@@ -82,7 +83,7 @@ To change the checking options, edit the `config` file. The relevant entries
 are `ncore`, `search_memory` and `sol2_flag`.
 
 The programs will produce two files `solnew` and `solnewgpt`.
-`solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is "sequence>program.". The sequence is reversed contains the first 16 numbers and number with absolute value over a million are replaced by the symbol *.
+`solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is "sequence>program"
 The program is written in reverse polish notation. 
 
 You can start a self-learning process by starting from the files `sol0` (to rename to `solold`) and `sol0gpt` to be used to produce the `cand` file.

@@ -51,7 +51,7 @@ fun gpt_of_int i =
   else if i < ~amillion then "~_" 
   else IntInf.toString i
 
-fun gpt_of_seq il = String.concatWith "|" (map gpt_of_int il)
+fun gpt_of_seq il = String.concatWith " " (map gpt_of_int il)
 
 fun is_prefix seq1 seq2 = case (seq1,seq2) of
     ([],_) => true
@@ -289,10 +289,6 @@ fun gpt_of_id id = Char.toString (Char.chr (65 + id))
   
 fun gpt_of_prog (Ins (id,pl)) = 
   String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
-
-fun gpt_of_prog_nospace (Ins (id,pl)) = 
-  String.concat (map gpt_of_prog_nospace pl @ [gpt_of_id id])
-
 
 (* reader *)
 fun id_of_gpt s = 
