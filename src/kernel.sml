@@ -48,7 +48,7 @@ fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
 val amillion = IntInf.fromInt 1000000
 fun gpt_of_int i = 
   if i > amillion then "_" 
-  else if i < amillion then "~_" 
+  else if i < ~amillion then "~_" 
   else IntInf.toString i
 
 fun gpt_of_seq il = String.concatWith "|" (map gpt_of_int il)
