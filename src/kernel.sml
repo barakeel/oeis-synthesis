@@ -47,7 +47,7 @@ val seq_compare = list_compare IntInf.compare
 fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
 val amillion = IntInf.fromInt 1000000
 fun gpt_of_int i = 
-  if IntInf.abs i > amillion then "*" else IntInf.toString i
+  if IntInf.abs i > amillion then "_" else IntInf.toString i
 
 fun gpt_of_seq il = String.concatWith "|" (map gpt_of_int il)
 
@@ -71,8 +71,6 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
 
 fun raw_prog (Ins (id,pl)) =
   "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
-
-
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)
