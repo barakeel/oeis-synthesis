@@ -258,7 +258,7 @@ fun merge_itsol_file d file =
 fun merge_itsol_default dir = 
   let 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val filel = listDir mergedir
+    val filel = map (fn x => selfdir ^ "/merge/" ^ x) (listDir mergedir)
     val d = ref (dempty Int.compare)
     val _ = app (merge_itsol_file d) filel
     val _ = log ("sol: " ^ its (dlength (!d)))
