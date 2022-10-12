@@ -89,8 +89,7 @@ fun collect_child boarde move =
   in
     if length l1 <> arity then NONE else
     let
-      val p = Ins (move, map #1 (rev l1)) 
-      val _ = incr prog_counter
+      val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
       if null l2 orelse !array_flag then SOME (move,exec) else
@@ -107,7 +106,9 @@ fun collect_children boarde =
   (
   if !array_flag then
     (case boarde of [(p,exec,_,_)] => 
-       (if depend_on_y p then () else checkonline (p,exec)) | _ => ())
+       (if depend_on_y p then () 
+        else (checkonline (p,exec); incr prog_counter)) 
+        | _ => ())
   else ();
   List.mapPartial (collect_child boarde) movelg
   )
