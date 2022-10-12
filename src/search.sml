@@ -81,6 +81,7 @@ fun apply_move (move,exec) boarde =
 
 val prog_counter = ref 0
 
+(* todo : maybe split the checking part *)
 fun collect_child boarde move =
   let 
     val arity = arity_of_oper move
@@ -92,19 +93,23 @@ fun collect_child boarde move =
       val _ = incr prog_counter
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      if null l2 then SOME (move,exec) else
+      if null l2 orelse !array_flag then SOME (move,exec) else
         if !hadamard_flag then (checkonline_hdm (p,exec); SOME (move, exec)) 
         else if !prime_flag then 
           let val newexec = checkonline_prime (p,exec) in
             if !prime_found then NONE else SOME (move, newexec)
           end
-        else if !array_flag 
-          then (checkonline (p,exec); SOME (move, exec))
         else (checkonline (p,exec); SOME (move, cache_exec exec))
     end
   end
 
-fun collect_children boarde = List.mapPartial (collect_child boarde) movelg
+fun collect_children boarde = 
+  (
+  if !array_flag then
+    (case boarde of [(prog,exec,_,_)] => checkonline (p,exec) | _ => ())
+  else ();
+  List.mapPartial (collect_child boarde) movelg
+  )
 
 (* -------------------------------------------------------------------------
    Distributing visits in advance according to policy part of MCTS formula
@@ -214,6 +219,8 @@ and search_move rt depth (vis,tim) targete boarde pol =
 and search_aux rt depth (vis,tim) targete boarde = 
   if depth >= 10000 then () else
   let
+    va
+    
     val mfl = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
     val pol = create_pol targete boarde mfl
