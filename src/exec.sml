@@ -69,8 +69,12 @@ fun testcache costn y =
  
 val x_current = ref azero
 val y_current = ref azero
-val z_current = ref azero 
- 
+val z_current = ref azero
+val ainit = Vector.tabulate (10000,fn _ => azero)
+val array_glob = ref ainit
+fun init_array () = array_glob := ainit
+
+
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
@@ -106,10 +110,8 @@ fun mk_septf3 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3, f4 x, f5 x, f6 x, f7 x)))
   | _ => raise ERR "mk_septf3" ""
 
-
 (* hadamard functions *)
 val compute_flag = ref false (* dangerous only turn on for verification *)
-
 
 (* functions *)
 local open IntInf in
@@ -143,7 +145,20 @@ local open IntInf in
   val sqrt_f = mk_binf 1 (wrapfv2 sqrtv)
   val inv_f = mk_binf 1 (wrapfv2 invv)
   val leastdiv_f = mk_unf (wrapfv1 leastdivv)
-  
+  fun array_f_aux a = 
+    if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
+    then azero
+    else Vector.sub (!array_glob, toInt a)
+  val array_f = mk_unf array_f_aux
+  fun assign_f_aux (a,b) =
+    (
+    if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
+      then ()
+      else array_glob := Vector.update (!array_glob, toInt a, b);
+    azero
+    )
+  val assign_f = mk_binf 1 assign_f_aux
+    
 end (* local *)
 
 
@@ -209,12 +224,16 @@ val execv =
     cond_f,cases_f,x_f,y_f,z_f,X_f,Y_f,Z_f,
     compr_f,loop_f,loop2_f,loop3_f
     ]
-  else Vector.fromList 
+  else if !array_flag then Vector.fromList
+    [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+     cond_f,x_f,y_f,array_f,assign_f,loop_f]
+  else 
+    Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,loop_f,x_f,y_f,
      compr_f, loop2_f] @
      (if !z_flag then [z_f, loop3_f] else []))
-
+  
 val _ = if Vector.length execv <> 
            Vector.length operv
         then raise ERR "execv" "mismatch with operv"
@@ -229,7 +248,6 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
 
-(* only caching ones that do not depend on y or z *)
 fun cache_exec exec = 
   let 
     val v = Vector.fromList (rev (!graph))

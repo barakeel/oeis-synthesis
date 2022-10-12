@@ -120,6 +120,7 @@ val partwind = ref (dempty Int.compare)
 
 fun checkf (p,exec) = 
   let
+    val _ = if !array_flag then init_array () else ()
     val (anumtl,cov,anumlpart) = coverf_oeis exec
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
     fun g (anum,n) = 
@@ -137,6 +138,7 @@ fun checkf (p,exec) =
   end
 
 fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
+
 fun checkinit () = (wind := dempty Int.compare; partwind := dempty Int.compare)
 
 fun checkfinal () =
@@ -258,7 +260,7 @@ fun merge_itsol_file d file =
 fun merge_itsol_default dir = 
   let 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val filel = map (fn x => selfdir ^ "/merge/" ^ x) (listDir mergedir)
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
     val d = ref (dempty Int.compare)
     val _ = app (merge_itsol_file d) filel
     val _ = log ("sol: " ^ its (dlength (!d)))

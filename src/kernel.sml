@@ -23,6 +23,7 @@ val sol2_flag = bflag "sol2_flag"
 val notarget_flag = bflag "notarget_flag"
 val prime_flag = bflag "prime_flag"
 val hadamard_flag = bflag "hadamard_flag"
+val array_flag = bflag "array_flag"
 val local_flag = bflag "local_flag"
 
 (* -------------------------------------------------------------------------
@@ -176,8 +177,7 @@ val leastdivv =
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !hadamard_flag
-  then
+  if !hadamard_flag then
     [
      ("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -185,6 +185,11 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("X",0),("Y",0),("Z",0),
      ("compr",2),("loop",3),("loop2",5),("loop3",7)
      ]
+  else if !array_flag then    
+    [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("x",0),("y",0),
+     ("array",1),("assign",2),("loop",3)]
   else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -192,6 +197,9 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("compr",2),("loop2",5)] @
      (if (!z_flag) then [("z",0),("loop3",7)] else [])
   )
+  
+  
+  
 
 (* -------------------------------------------------------------------------
    All operators
@@ -220,8 +228,11 @@ val z_id = find_id "z"
 
 val ho_ariv = 
   if !hadamard_flag 
-  then Vector.fromList 
+    then Vector.fromList 
        (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
+  else if !array_flag
+    then Vector.fromList 
+       (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if (!z_flag) then [0,3] else []))
 
