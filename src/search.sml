@@ -106,7 +106,7 @@ fun collect_child boarde move =
 fun collect_children boarde = 
   (
   if !array_flag then
-    (case boarde of [(prog,exec,_,_)] => checkonline (p,exec) | _ => ())
+    (case boarde of [(p,exec,_,_)] => checkonline (p,exec) | _ => ())
   else ();
   List.mapPartial (collect_child boarde) movelg
   )
@@ -218,9 +218,7 @@ and search_move rt depth (vis,tim) targete boarde pol =
 
 and search_aux rt depth (vis,tim) targete boarde = 
   if depth >= 10000 then () else
-  let
-    va
-    
+  let  
     val mfl = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
     val pol = create_pol targete boarde mfl
