@@ -106,7 +106,8 @@ fun collect_child boarde move =
 fun collect_children boarde = 
   (
   if !array_flag then
-    (case boarde of [(p,exec,_,_)] => checkonline (p,exec) | _ => ())
+    (case boarde of [(p,exec,_,_)] => 
+       (if depend_on_y p then () else checkonline (p,exec)) | _ => ())
   else ();
   List.mapPartial (collect_child boarde) movelg
   )
