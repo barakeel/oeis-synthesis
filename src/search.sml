@@ -93,12 +93,20 @@ fun collect_child boarde move =
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
       if null l2 orelse !array_flag then SOME (move,exec) else
-        if !hadamard_flag then (checkonline_hdm (p,exec); SOME (move, exec)) 
+        if !hadamard_flag then
+          (
+          if depend_on_x p andalso depend_on_y p andalso depend_on_z p
+          then (checkonline_hdm (p,exec); incr prog_counter)
+          else ()
+          ;
+          SOME (move, exec)
+          ) 
         else if !prime_flag then 
-          let val newexec = checkonline_prime (p,exec) in
+          let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
             if !prime_found then NONE else SOME (move, newexec)
           end
-        else (checkonline (p,exec); SOME (move, cache_exec exec))
+        else (incr prog_counter; checkonline (p,exec); 
+              SOME (move, cache_exec exec))
     end
   end
 

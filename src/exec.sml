@@ -454,8 +454,7 @@ fun penum_hadamard_once h exec ztop =
       let
         val _ = init_timer ()
         val _ = (x_current := fi x; y_current := fi y; z_current := fi z)
-        val r = exec (fi x, fi y, fi z) 
-          handle Div => ~1 | ProgTimeout => ~1 | Overflow => ~1
+        val r = exec (fi x, fi y, fi z)
       in
         if r <= 0 then 1 else ~1
       end
@@ -485,6 +484,7 @@ fun penum_hadamard exec =
   in
     map IntInf.fromInt [sum_int scl,!h]
   end
+  handle Div => [] | ProgTimeout => [] | Overflow => []
 
 end (* struct *)
 
