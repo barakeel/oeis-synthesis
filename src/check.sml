@@ -472,16 +472,8 @@ fun hdm_compare_length ((l1,(_,p1)),(l2,(_,p2))) =
     ((thirdel l1,p1),(thirdel l2,p2))
 
 fun filter_hdmd () =
-  if dlength (!hdmd) < 21000 then () else
-  let 
-    val l1 = dlist (!hdmd)
-    val l2 = map (fn x => (secondel (fst x),x)) l1
-    val d = dregroup IntInf.compare l2
-    val l3 = dlist d
-    val l4 = map (first_n 1000 o dict_sort hdm_compare_length o snd) l3
-  in
-    hdmd := dnew seq_compare (List.concat l4)
-  end
+  if dlength (!hdmd) <= 30000 then () else
+    hdmd := dnew seq_compare (first_n 20000 (dlist (!hdmd)))
 
 fun update_hdmd (il,(r,p)) =
   (
@@ -496,15 +488,17 @@ fun update_hdmd (il,(r,p)) =
 
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
-fun checkonline_hdm_z (p,exec) z =
-  let val il = penum_hadamard_fast exec z in
+fun checkonline_hdm (p,exec) =
+  let val il = penum_hadamard exec in
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
-  
-fun checkonline_hdm (p,exec) =
-  app (checkonline_hdm_z (p,exec)) (List.tabulate (20, fn x => 2*x + 9)) 
 
-fun checkfinal_hdm () = (filter_hdmd (); dlist (!hdmd))
+fun checkfinal_hdm () = 
+  (
+  if dlength (!hdmd) <= 20000 then () else
+    hdmd := dnew seq_compare (first_n 20000 (dlist (!hdmd))); 
+  dlist (!hdmd)
+  )
 
 fun merge_hdmsol hdmsol = 
   let val _ = checkinit_hdm () in

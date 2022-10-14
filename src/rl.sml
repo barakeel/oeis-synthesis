@@ -55,10 +55,6 @@ fun string_of_snp (seq,(n,p)) =
   
 fun stats_hdm dir primesol =
   let
-    val n = List.nth (fst (hd primesol),1)
-    val is = IntInf.toString n
-    val is2 = IntInf.toString (n * (n - 1) div 2)
-    val suff = is
     val primesol_small = 
      dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
     val primesol_fast = 
@@ -66,9 +62,9 @@ fun stats_hdm dir primesol =
     val primesol_correct =
       dict_sort hdm_compare_length primesol
   in
-    writel (dir ^ "/best_correct" ^ suff) (map string_of_snp primesol_correct);
-    writel (dir ^ "/best_small" ^ suff) (map string_of_snp primesol_small);
-    writel (dir ^ "/best_fast" ^ suff) (map string_of_snp primesol_fast)  
+    writel (dir ^ "/best_correct") (map string_of_snp primesol_correct);
+    writel (dir ^ "/best_small") (map string_of_snp primesol_small);
+    writel (dir ^ "/best_fast") (map string_of_snp primesol_fast)  
   end
 
 (* -------------------------------------------------------------------------
@@ -654,16 +650,6 @@ fun worst_prime bl =
 
 fun number_of_errors (bn,badl) = (997 - bn) + length badl
 
-fun secondel l = List.nth (l,1)
-fun split_hdm l1 = 
- let 
-   val l2 = map (fn x => (secondel (fst x),x)) l1
-   val d = dregroup IntInf.compare l2
-   val l3 = dlist d
- in
-   map snd l3
- end
-
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -717,17 +703,9 @@ fun rl_search_only ngen =
         val allprog = map (snd o snd) newprimesol
         val _ = log ("programs: " ^ (its (length allprog)))
         val sizel = dict_sort Int.compare (map prog_size allprog)
-        val _ = log ("average best size: " ^ String.concatWith " "
-          (map (rts_round 2 o average_int) 
-           [sizel, first_n 1000 sizel, first_n 100 sizel, first_n 10 sizel]))
-        val speedl = dict_sort Int.compare (map (fst o snd) newprimesol)  
-        val _ = log ("average best speed: " ^  String.concatWith " "
-          (map (rts_round 2 o average_int) 
-          [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
-      
       in  
         write_primesol_atomic ngen newprimesol;
-        app (stats_hdm (!buildheap_dir)) (split_hdm newprimesol)
+        stats_hdm (!buildheap_dir) newprimesol
       end
       else
       let

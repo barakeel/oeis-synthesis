@@ -21,7 +21,7 @@ sig
   
   val prime_found : bool ref
   val penum_prime_exec : exec -> (IntInf.int list * exec)
-  val penum_hadamard_fast : exec -> int -> IntInf.int list
+  val penum_hadamard : exec -> IntInf.int list
   
   val init_array : unit -> unit
   

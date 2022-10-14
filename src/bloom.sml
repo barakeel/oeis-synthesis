@@ -56,7 +56,7 @@ fun oadd (seq,an) ot = case (ot,seq) of
     oadd (seq,an) (Odict ([an2],dempty IntInf.compare))
   | (Oleaf (an2,a2 :: m2),_) => 
     oadd (seq,an) (Odict ([], dnew IntInf.compare [(a2,(Oleaf (an2,m2)))]))
-  | (Odict (anl,d), []) => Odict (an :: anl, d)
+  | (Odict (anl,d), []) => Odict (anl, d)
   | (Odict (anl,d), a1 :: m1) =>
     let val oto = SOME (dfind a1 d) handle NotFound => NONE in
       case oto of 
@@ -68,6 +68,32 @@ fun oaddo (i,seqo,ot) =
   case seqo of NONE => ot | SOME seq => oadd (seq,i) ot
 
 val otree = Array.foldli oaddo oempty oseq
+
+fun new_anl (an,anl) = 
+  if anl = [~1] then [~1] 
+  else if length anl >= 31 then [~1] else an :: anl
+
+
+fun oaddsub (seq,an) ot = case (ot,seq) of
+    (Oleaf (an2,[]),_) => 
+    oaddsub (seq,an) (Odict ([an2],dempty IntInf.compare))
+  | (Oleaf (an2,a2 :: m2),_) => 
+    oaddsub (seq,an) (Odict ([], dnew IntInf.compare [(a2,(Oleaf (an2,m2)))]))
+  | (Odict (anl,d), []) => Odict (new_anl (an,anl), d)
+  | (Odict (anl,d), a1 :: m1) =>
+    let 
+      val oto = SOME (dfind a1 d) handle NotFound => NONE 
+      val newanl = new_anl (an,anl)
+    in
+      case oto of 
+        NONE => Odict (newanl, dadd a1 (Oleaf (an,m1)) d)
+      | SOME newot => Odict (newanl, dadd a1 (oaddsub (m1,an) newot) d)
+    end
+
+fun oaddsubo (i,seqo,ot) = 
+  case seqo of NONE => ot | SOME seq => oaddsub (seq,i) ot
+
+val otreesub = Array.foldli oaddsubo oempty oseq
 
 (* -------------------------------------------------------------------------
    Collecting partial sequences stopped because of timeout

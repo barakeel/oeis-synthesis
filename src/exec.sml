@@ -444,7 +444,9 @@ fun norm_table table =
 
 fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
 
-fun penum_hadamard_fast exec ztop = 
+(* score average *)
+
+fun penum_hadamard_once h exec ztop = 
   let
     val fi = IntInf.fromInt
     (* results *)
@@ -452,7 +454,8 @@ fun penum_hadamard_fast exec ztop =
       let
         val _ = init_timer ()
         val _ = (x_current := fi x; y_current := fi y; z_current := fi z)
-        val r = exec (fi x, fi y, fi z)
+        val r = exec (fi x, fi y, fi z) 
+          handle Div => ~1 | ProgTimeout => ~1 | Overflow => ~1
       in
         if r <= 0 then 1 else ~1
       end
@@ -470,16 +473,18 @@ fun penum_hadamard_fast exec ztop =
         else if sum > 0 then 1 else ~1
       end)
     val sc = ~ (wilson_score2 (v0,v1,v2,v3))
-    val h = hash 1 (vector_to_list (Vector.concat [v0,v1,v2,v3]))
+    val _ = h := hash (!h) (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
-    map IntInf.fromInt [h,ztop,sc]
+    sc
   end
-  handle Div => []
-       | ProgTimeout => [] 
-       | Overflow => []
-       | Size => raise ERR "penum_hadamard_fast" ""
-
-
+  
+fun penum_hadamard exec =
+  let
+    val h = ref 1
+    val scl = List.tabulate (10, fn x => penum_hadamard_once h exec (2*x + 9))
+  in
+    map IntInf.fromInt [sum_int scl,!h]
+  end
 
 end (* struct *)
 
