@@ -27,9 +27,7 @@ sig
   val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
   val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
     (kernel.seq * (int * prog)) list
-  val hdm_compare_length : 
-    (kernel.seq  * (int * prog)) * (kernel.seq  * (int * prog)) -> order
-  
+
   (* parallelization *)
   val checkspec : (unit, string, (anum * (int * prog) list) list)
     smlParallel.extspec

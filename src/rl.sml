@@ -54,18 +54,7 @@ fun string_of_snp (seq,(n,p)) =
   string_of_seq seq
   
 fun stats_hdm dir primesol =
-  let
-    val primesol_small = 
-     dict_sort (snd_compare (snd_compare prog_compare_size)) primesol 
-    val primesol_fast = 
-      dict_sort (snd_compare (fst_compare Int.compare)) primesol
-    val primesol_correct =
-      dict_sort hdm_compare_length primesol
-  in
-    writel (dir ^ "/best_correct") (map string_of_snp primesol_correct);
-    writel (dir ^ "/best_small") (map string_of_snp primesol_small);
-    writel (dir ^ "/best_fast") (map string_of_snp primesol_fast)  
-  end
+  writel (dir ^ "/best") (map string_of_snp primesol)
 
 (* -------------------------------------------------------------------------
    Files

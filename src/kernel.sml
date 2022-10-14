@@ -179,12 +179,12 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag then
     [
-     ("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("cases",3),("x",0),("y",0),("z",0),
-     ("X",0),("Y",0),("Z",0),
-     ("compr",2),("loop",3),("loop2",5),("loop3",7)
-     ]
+    ("zero",0),("one",0),("two",0),
+    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+    ("cond",3),("cases",3),("x",0),("y",0),("z",0),
+    ("X",0),("Y",0),("Z",0),
+    ("compr",2),("loop",3),("loop2",5),("loop3",7)
+    ]
   else if !array_flag then    
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
