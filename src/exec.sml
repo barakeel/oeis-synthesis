@@ -444,7 +444,6 @@ fun norm_table table =
 
 fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
 
-(* score average *)
 
 fun penum_hadamard_once h exec ztop = 
   let
@@ -471,7 +470,7 @@ fun penum_hadamard_once h exec ztop =
         if sum = ~3 then 1
         else if sum > 0 then 1 else ~1
       end)
-    val sc = ~ (wilson_score2 (v0,v1,v2,v3))
+    val sc = wilson_score2 (v0,v1,v2,v3)
     val _ = h := hash (!h) (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
     sc
