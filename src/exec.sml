@@ -426,11 +426,11 @@ fun scalar_product l1 l2 =
   sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
 
 fun orthogonal l1 l2 = scalar_product l1 l2 = 0
-val hash_modulo = 79260655 * 10000000 + 5396977
+val hash_modulo = 79260655 * 10000 + 5396977
 
 fun hash acc l = case l of
     [] => acc
-  | 1 :: m => hash ((88591 * acc + 51287) mod hash_modulo) m
+  | 1 :: m => hash ((88591 * acc + 512871) mod hash_modulo) m
   | ~1 :: m => hash ((88591 * acc) mod hash_modulo) m
   | _ :: m => raise ERR "hash_hdmseq" ""
 
