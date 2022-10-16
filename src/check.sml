@@ -463,20 +463,23 @@ fun merge_primesol primesol =
 
 val hdmd = ref (dempty seq_compare)
 
-fun filter_hdmd () =
-  if dlength (!hdmd) <= 30000 then () else
-    hdmd := dnew seq_compare (first_n 20000 (dlist (!hdmd)))
+exception Catchable of IntInf.int list;
+  
+fun biggest_key d =
+  (Redblackmap.revapp (fn (a,b) => raise Catchable a) d; [])
+  handle Catchable r => r
 
-fun update_hdmd (il,(r,p)) =
-  (
-  filter_hdmd ();
-  case dfindo il (!hdmd) of 
-    NONE => hdmd := dadd il (r,p) (!hdmd) 
+fun filter_hdmd () = 
+  if dlength (!hdmd) >= 20001 
+  then hdmd := drem (biggest_key (!hdmd)) (!hdmd)
+  else ()
+  
+fun update_hdmd (il,(r,p)) = case dfindo il (!hdmd) of 
+    NONE => (hdmd := dadd il (r,p) (!hdmd); filter_hdmd ())
   | SOME (rold,pold) => 
     if better_small (r,p) (rold,pold)
     then hdmd := dadd il (r,p) (!hdmd)
     else ()
-  )
 
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
@@ -485,12 +488,7 @@ fun checkonline_hdm (p,exec) =
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
 
-fun checkfinal_hdm () = 
-  (
-  if dlength (!hdmd) <= 20000 then () else
-    hdmd := dnew seq_compare (first_n 20000 (dlist (!hdmd))); 
-  dlist (!hdmd)
-  )
+fun checkfinal_hdm () = (dlist (!hdmd))
 
 fun merge_hdmsol hdmsol = 
   let val _ = checkinit_hdm () in
