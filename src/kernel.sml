@@ -142,7 +142,7 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
-val maxprecomp = 10
+val maxprecomp = if !hadamard_flag then 1000 else 10
 
 fun sqrt_aux i (c,a) = 
   if i >= c then 0 else
@@ -181,9 +181,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     [
     ("zero",0),("one",0),("two",0),
     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-    ("cond",3),("cases",3),("x",0),("y",0),("z",0),
-    ("X",0),("Y",0),("Z",0),
-    ("compr",2),("loop",3),("loop2",5),("loop3",7)
+    ("cond",3),("x",0),("y",0),("z",0),("sqrt",2),("inv",2)
     ]
   else if !array_flag then    
     [("zero",0),("one",0),("two",0),
@@ -228,8 +226,7 @@ val z_id = find_id "z"
 
 val ho_ariv = 
   if !hadamard_flag 
-    then Vector.fromList 
-       (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
+    then Vector.fromList (List.tabulate (Vector.length operv, fn _ => 0)) 
   else if !array_flag
     then Vector.fromList 
        (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
