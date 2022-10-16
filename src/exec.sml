@@ -431,7 +431,7 @@ val hash_modulo = 79260655 * 10000 + 5396977
 fun hash acc l = case l of
     [] => acc
   | 1 :: m => hash ((88591 * acc + 512871) mod hash_modulo) m
-  | ~1 :: m => hash ((88591 * acc) mod hash_modulo) m
+  | ~1 :: m => hash ((69833 * acc + 47303) mod hash_modulo) m
   | _ :: m => raise ERR "hash_hdmseq" ""
 
 fun norm_table table =
