@@ -483,7 +483,7 @@ fun penum_hadamard exec =
     val sortedscl = dict_sort Int.compare scl
   
   in
-    map IntInf.fromInt (sortedscl @ !h @ scl)
+    map IntInf.fromInt (sortedscl @ [!h] @ scl)
   end
   handle Div => [] | ProgTimeout => [] | Overflow => []
 
