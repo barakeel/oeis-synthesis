@@ -43,6 +43,22 @@ fun wilson_score2 (v1,v2,v3,v4) =
     !score
   end  
    
+fun wilson_score3 (v1,v2,v3,v4) = 
+  let
+    val score = ref 0
+    val n = Vector.length v1
+    fun test offset = 
+      if offset >= n then !score else
+      let val r = self_scalar v1 offset + self_scalar v2 offset + 
+                  self_scalar v3 offset + self_scalar v4 offset
+      in
+        if r = 0 then (incr score; test (offset + 1)) else ()
+      end
+    val _ = test 1
+  in
+    ~ ((!score * 10000) div n)
+  end
+   
 (* -------------------------------------------------------------------------
    Basic MCTS
    ------------------------------------------------------------------------- *)

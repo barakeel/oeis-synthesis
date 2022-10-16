@@ -470,7 +470,7 @@ fun penum_hadamard_once h exec ztop =
         if sum = ~3 then 1
         else if sum > 0 then 1 else ~1
       end)
-    val sc = wilson_score2 (v0,v1,v2,v3)
+    val sc = wilson_score3 (v0,v1,v2,v3)
     val _ = h := hash (!h) (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
     sc
@@ -480,8 +480,10 @@ fun penum_hadamard exec =
   let
     val h = ref 1
     val scl = List.tabulate (10, fn x => penum_hadamard_once h exec (2*x + 9))
+    val sortedscl = dict_sort Int.compare scl
+  
   in
-    map IntInf.fromInt [sum_int scl,!h]
+    map IntInf.fromInt (sortedscl @ !h @ scl)
   end
   handle Div => [] | ProgTimeout => [] | Overflow => []
 

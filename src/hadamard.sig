@@ -3,6 +3,7 @@ sig
 
   val wilson_score : int vector * int vector * int vector * int vector -> int
   val wilson_score2 : int vector * int vector * int vector * int vector -> int
+  val wilson_score3 : int vector * int vector * int vector * int vector -> int
   
   exception Success of int list list
   val size_glob : int ref
