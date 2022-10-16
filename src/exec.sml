@@ -426,7 +426,7 @@ fun scalar_product l1 l2 =
   sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
 
 fun orthogonal l1 l2 = scalar_product l1 l2 = 0
-val hash_modulo = 79260655 * 10000 + 5396977
+val hash_modulo = 486632209873
 
 fun hash acc l = case l of
     [] => acc
