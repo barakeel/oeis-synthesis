@@ -48,7 +48,7 @@ fun wilson_score3 (v1,v2,v3,v4) =
     val score = ref 0
     val n = Vector.length v1
     fun test offset = 
-      if offset >= n then !score else
+      if offset >= n then () else
       let val r = self_scalar v1 offset + self_scalar v2 offset + 
                   self_scalar v3 offset + self_scalar v4 offset
       in
