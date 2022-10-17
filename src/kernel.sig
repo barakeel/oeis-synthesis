@@ -14,6 +14,7 @@ sig
   val hadamard_flag : bool ref
   val local_flag : bool ref
   val array_flag : bool ref
+  val sqrt_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

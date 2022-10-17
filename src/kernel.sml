@@ -25,6 +25,7 @@ val prime_flag = bflag "prime_flag"
 val hadamard_flag = bflag "hadamard_flag"
 val array_flag = bflag "array_flag"
 val local_flag = bflag "local_flag"
+val sqrt_flag = bflag "sqrt_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -142,7 +143,7 @@ fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
    Extra pre-computed instructions
    ------------------------------------------------------------------------- *)
 
-val maxprecomp = if !hadamard_flag then 1000 else 10
+val maxprecomp = if !hadamard_flag andalso !sqrt_flag then 1000 else 10
 
 fun sqrt_aux i (c,a) = 
   if i >= c then 0 else
@@ -178,11 +179,10 @@ val leastdivv =
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag then
-    [
-    ("zero",0),("one",0),("two",0),
-    ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-    ("cond",3),("x",0),("y",0),("z",0),("sqrt",2),("inv",2)
-    ]
+    [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("x",0),("y",0),("z",0)] @ 
+     (if (!sqrt_flag) then [("sqrt",2),("inv",2)] else [])
   else if !array_flag then    
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -195,9 +195,6 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("compr",2),("loop2",5)] @
      (if (!z_flag) then [("z",0),("loop3",7)] else [])
   )
-  
-  
-  
 
 (* -------------------------------------------------------------------------
    All operators

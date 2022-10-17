@@ -132,8 +132,7 @@ fun select (mtree as (MNode (_,sum,vis,cv))) =
   
 fun update_cv state cv sc ci =
   let val r = Vector.sub (cv,ci) in 
-    r := SOME 
-     (MNode (state , ref sc, ref 1.0, empty_cv ()))
+    r := SOME (MNode (state , ref sc, ref 1.0, empty_cv ()))
   end
     
 fun update_parent sc (sum,vis) = (sum := !sum + sc; vis := !vis + 1.0)
@@ -192,13 +191,5 @@ fun loop nsim mtree = case mtree of MNode (state,_,_,_) =>
 size_glob := 5;
 explo := 1.0;
 app (fn () => loop 10000 (init_tree ())) (List.tabulate (100, fn _ => ()));
-
-  
-
-  
-  
-  
-  
-  
 
 *)

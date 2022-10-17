@@ -219,8 +219,10 @@ fun compr_f fl = case fl of
 
 val execv = 
   if !hadamard_flag then Vector.fromList 
-    [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-     cond_f,x_f,y_f,z_f,sqrt_f,inv_f]
+    ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+     cond_f,x_f,y_f,z_f] @
+    (if !sqrt_flag then [sqrt_f,inv_f] else [])) 
+    
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
