@@ -470,17 +470,18 @@ fun penum_hadamard_once h exec ztop =
     val sc = wilson_score3 (v0,v1,v2,v3)
     val _ = h := hash (!h) (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
-    sc
+    (sc,[v0,v1,v2,v3])
   end
   
 fun penum_hadamard exec =
   let
     val h = ref 1
-    val scl = List.tabulate (10, fn x => penum_hadamard_once h exec (2*x + 9))
-    val sortedscl = dict_sort Int.compare scl
-  
+    val scl = List.tabulate (10, fn x => penum_hadamard_once h exec (2*x + 7))
+    val sortedscl = dict_sort (fst_compare Int.compare) scl
+    val ((a,vla),(b,vlb)) = pair_of_list (first_n 2 sortedscl)
+    val h = hash 1 (vector_to_list (Vector.concat (vla @ vlb)))
   in
-    map IntInf.fromInt (sortedscl @ [!h] @ scl)
+    map IntInf.fromInt ([a + b, h] @ map fst scl)
   end
   handle Div => [] | ProgTimeout => [] | Overflow => []
 
