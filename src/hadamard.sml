@@ -52,7 +52,8 @@ fun wilson_score3 (v1,v2,v3,v4) =
       let val r = self_scalar v1 offset + self_scalar v2 offset + 
                   self_scalar v3 offset + self_scalar v4 offset
       in
-        if r = 0 then (incr score; test (offset + 1)) else ()
+        if r = 0 then incr score else ();
+        test (offset + 1)
       end
     val _ = test 1
   in
