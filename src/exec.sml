@@ -470,8 +470,42 @@ fun penum_hadamard_once h exec ztop =
     val sc = wilson_score3 (v0,v1,v2,v3)
     val _ = h := hash (!h) (vector_to_list (Vector.concat [v0,v1,v2,v3]))
   in   
-    (sc,[v0,v1,v2,v3])
+    (sc,(v0,v1,v2,v3))
   end
+
+fun value acc l = case l of
+    [] => acc 
+  | ~1 :: m => value (2*acc) m
+  | 1 :: m => value (2*acc+1) m
+  | _ :: m => raise ERR "value" ""
+  
+fun rotate_back l = tl l @ [hd l]  
+
+fun value_vl (l0,l1,l2,l3) = 
+  value 0 l0 + value 0 l1 + value 0 l2 + value 0 l3
+
+fun norm_vl n (bestvl,bestsc) (l0,l1,l2,l3) =
+  if n <= 0 then bestvl else
+  let 
+    val newvl = 
+      (rotate_back l0, rotate_back l1, rotate_back l2, rotate_back l3) 
+    val newsc = value_vl newvl  
+  in
+    norm_vl (n-1) (if newsc > bestsc then (newvl,newsc) else (bestvl,bestsc))
+      newvl
+  end  
+  
+fun norm_vl_full (v0,v1,v2,v3) =
+  let 
+    val n = Vector.length v0 
+    val bestvl = 
+      (vector_to_list v0, vector_to_list v1, 
+       vector_to_list v2, vector_to_list v3)
+    val bestsc = value_vl bestvl
+    val (l1,l2,l3,l4) = norm_vl (n-1) (bestvl,bestsc) bestvl  
+  in
+    List.concat (dict_sort (list_compare Int.compare) [l1,l2,l3,l4])
+  end 
   
 fun penum_hadamard exec =
   let
@@ -479,7 +513,7 @@ fun penum_hadamard exec =
     val scl = List.tabulate (10, fn x => penum_hadamard_once h exec (2*x + 7))
     val sortedscl = dict_sort (fst_compare Int.compare) scl
     val ((a,vla),(b,vlb)) = pair_of_list (first_n 2 sortedscl)
-    val h = hash 1 (vector_to_list (Vector.concat (vla @ vlb)))
+    val h = hash 1 (norm_vl_full vla @ norm_vl_full vlb)
   in
     map IntInf.fromInt ([a + b, h] @ map fst scl)
   end
