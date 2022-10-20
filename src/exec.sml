@@ -221,7 +221,7 @@ val execv =
   if !hadamard_flag then Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
       cond_f,x_f,y_f,z_f] @
-    (if !sqrt_flag then [sqrt_f,inv_f] else []) @
+    (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
     (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else [])
     )
   else if !array_flag then Vector.fromList
