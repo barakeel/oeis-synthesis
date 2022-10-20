@@ -262,7 +262,7 @@ exception ProgTimeout;
 
 val short_timeincr = 1000
 val long_timeincr = 100000
-val timeincr = ref (if !hadamard_flag then 100000 else short_timeincr)
+val timeincr = ref (if !hadamard_flag then 10000 else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
