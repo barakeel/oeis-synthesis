@@ -469,13 +469,19 @@ fun biggest_key d =
   (Redblackmap.revapp (fn (a,b) => raise Catchable a) d; [])
   handle Catchable r => r
 
+fun smallest_key d =
+  (Redblackmap.app (fn (a,b) => raise Catchable a) d; [])
+  handle Catchable r => r
+
 fun filter_hdmd () = 
-  if dlength (!hdmd) >= 20001 
-  then hdmd := drem (biggest_key (!hdmd)) (!hdmd)
+  if dlength (!hdmd) >= 40001
+  then hdmd := drem (smallest_key (!hdmd)) (!hdmd)
   else ()
   
 fun update_hdmd (il,(r,p)) = case dfindo il (!hdmd) of 
-    NONE => (hdmd := dadd il (r,p) (!hdmd); filter_hdmd ())
+    NONE => 
+      if seq_compare (il, smallest_key (!hdmd)) = LESS then () else
+      (hdmd := dadd il (r,p) (!hdmd); filter_hdmd ())
   | SOME (rold,pold) => 
     if better_small (r,p) (rold,pold)
     then hdmd := dadd il (r,p) (!hdmd)
@@ -484,7 +490,7 @@ fun update_hdmd (il,(r,p)) = case dfindo il (!hdmd) of
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm (p,exec) =
-  let val il = penum_hadamard exec in
+  let val il = penum_real_hadamard exec in
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
 

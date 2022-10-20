@@ -97,8 +97,7 @@ fun collect_child boarde move =
           (
           if depend_on_x p andalso depend_on_y p andalso depend_on_z p
           then (checkonline_hdm (p,exec); incr prog_counter)
-          else ()
-          ;
+          else ();
           SOME (move, exec)
           ) 
         else if !prime_flag then 

@@ -220,9 +220,10 @@ fun compr_f fl = case fl of
 val execv = 
   if !hadamard_flag then Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-     cond_f,x_f,y_f,z_f] @
-    (if !sqrt_flag then [sqrt_f,inv_f] else [])) 
-    
+      cond_f,x_f,y_f,z_f] @
+    (if !sqrt_flag then [sqrt_f,inv_f] else []) @
+    (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else [])
+    )
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
@@ -421,7 +422,7 @@ fun penum_prime_exec exec =
   end
 
 (* -------------------------------------------------------------------------
-   Hadamard (maybe use hash function)
+   Williamson type hadamard matrices
    ------------------------------------------------------------------------- *)
 
 fun scalar_product l1 l2 =
@@ -520,6 +521,47 @@ fun penum_hadamard exec =
     map IntInf.fromInt ([a + b, h] @ map fst scl)
   end
   handle Div => [] | ProgTimeout => [] | Overflow => []
+
+(* -------------------------------------------------------------------------
+   Hadamard matrices
+   ------------------------------------------------------------------------- *)
+
+fun scalv l1 l2 = sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
+fun perp l1 l2 = (scalv l1 l2 = 0)
+
+fun penum_real_hadamard_once exec ztop = 
+  let
+    val fi = IntInf.fromInt
+    (* results *)
+    fun f (x,y,z) =
+      let
+        val _ = init_timer ()
+        val r = exec (fi x, fi y, fi z)
+      in
+        if r <= 0 then 1 else ~1
+      end
+    fun genline y = List.tabulate (ztop, fn x => f(x,y,ztop))
+    fun loop set ytop =
+      if ytop = ztop then ytop - 1 else
+      let val line = genline ytop in
+        if not (all (perp line) set) 
+        then ytop - 1 
+        else loop (line :: set) (ytop + 1)
+      end
+  in   
+    loop [] 0
+  end
+  
+
+fun penum_real_hadamard exec =
+  let 
+    val scl = List.tabulate (12, 
+      fn x => penum_real_hadamard_once exec (4*(2*x + 1)))
+  in
+    map IntInf.fromInt (sum_int scl :: scl)
+  end
+  handle Div => [] | ProgTimeout => [] | Overflow => []
+
 
 end (* struct *)
 

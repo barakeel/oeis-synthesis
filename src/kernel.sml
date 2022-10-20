@@ -26,6 +26,7 @@ val hadamard_flag = bflag "hadamard_flag"
 val array_flag = bflag "array_flag"
 val local_flag = bflag "local_flag"
 val sqrt_flag = bflag "sqrt_flag"
+val loop_flag = bflag "loop_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -181,8 +182,10 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   if !hadamard_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0)] @ 
-     (if (!sqrt_flag) then [("sqrt",2),("inv",2)] else [])
+     ("cond",3),("x",0),("y",0),("z",0)] @
+     (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
+     (if (!loop_flag) then 
+       [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
   else if !array_flag then    
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -221,15 +224,17 @@ val x_id = find_id "x"
 val y_id = find_id "y"
 val z_id = find_id "z"
 
-val ho_ariv = 
-  if !hadamard_flag 
-    then Vector.fromList (List.tabulate (Vector.length operv, fn _ => 0)) 
+val ho_ariv = Vector.fromList (
+  if !hadamard_flag then 
+    if not (!loop_flag) 
+    then (List.tabulate (Vector.length operv, fn _ => 0))
+    else (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
   else if !array_flag
-    then Vector.fromList 
-       (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
-  else Vector.fromList (List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
-       (if (!z_flag) then [0,3] else []))
-
+    then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
+  else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
+         (if (!z_flag) then [0,3] else [])
+  )
+  
 val _ = if Vector.length ho_ariv <> 
            Vector.length operv
         then raise ERR "ho_ariv" "mismatch with operv"
@@ -257,7 +262,7 @@ exception ProgTimeout;
 
 val short_timeincr = 1000
 val long_timeincr = 100000
-val timeincr = ref (if !hadamard_flag then 10000 else short_timeincr)
+val timeincr = ref (if !hadamard_flag then 100000 else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40

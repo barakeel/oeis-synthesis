@@ -54,7 +54,7 @@ fun string_of_snp (seq,(n,p)) =
   string_of_seq seq
   
 fun stats_hdm dir primesol =
-  writel (dir ^ "/best") (map string_of_snp primesol)
+  writel (dir ^ "/best") (map string_of_snp (rev primesol))
 
 (* -------------------------------------------------------------------------
    Files
