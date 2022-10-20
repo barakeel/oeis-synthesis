@@ -542,10 +542,10 @@ fun penum_real_hadamard_once exec ztop =
       end
     fun genline y = List.tabulate (ztop, fn x => f(x,y,ztop))
     fun loop set ytop =
-      if ytop = ztop then ytop - 1 else
+      if ytop = ztop then 2*ytop else
       let val line = genline ytop in
         if not (all (perp line) set) 
-        then ytop - 1 
+        then ytop 
         else loop (line :: set) (ytop + 1)
       end
   in   
