@@ -199,7 +199,7 @@ fun create_compr f =
     (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
   in
     (fn x => if x < 0 orelse x >= Vector.length v 
-             then raise Div 
+             then (if !hadamard_flag then (azero,1) else raise Div) 
              else Vector.sub (v,x))
   end
 
@@ -221,6 +221,7 @@ val execv =
   if !hadamard_flag then Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
       cond_f,x_f,y_f,z_f] @
+    (if !bigvar_flag then [X_f,Y_f,Z_f] else []) @   
     (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
     (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else [])
     )
@@ -234,8 +235,7 @@ val execv =
      compr_f, loop2_f] @
      (if !z_flag then [z_f, loop3_f] else []))
   
-val _ = if Vector.length execv <> 
-           Vector.length operv
+val _ = if Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"
         else ()
 
@@ -430,7 +430,13 @@ fun scalar_product l1 l2 =
 
 fun orthogonal l1 l2 = scalar_product l1 l2 = 0
 val hash_modulo = 486632209873
+val hash_moduloi = IntInf.fromInt 486632209873
 
+fun hash_one h i = 
+  let val i' = IntInf.toInt (i mod hash_moduloi) in
+    (88591 * h + 512871 + i') mod hash_modulo
+  end
+  
 fun hash acc l = case l of
     [] => acc
   | 1 :: m => hash ((88591 * acc + 512871) mod hash_modulo) m
@@ -531,34 +537,35 @@ fun perp l1 l2 = (scalv l1 l2 = 0)
 
 fun penum_real_hadamard_once exec ztop = 
   let
+    val _ = prime_found := false
+    val h = ref 1
     val fi = IntInf.fromInt
     (* results *)
     fun f (x,y,z) =
       let
         val _ = init_timer ()
         val r = exec (fi x, fi y, fi z)
+        val _ = h := hash_one (!h) r
       in
         if r <= 0 then 1 else ~1
       end
     fun genline y = List.tabulate (ztop, fn x => f(x,y,ztop))
     fun loop set ytop =
-      if ytop = ztop then 2*ytop else
+      if ytop = ztop then (prime_found := true; ytop) else
       let val line = genline ytop in
         if not (all (perp line) set) 
         then ytop 
         else loop (line :: set) (ytop + 1)
       end
+    val sc = loop [] 0
   in   
-    loop [] 0
+    (sc,!h)
   end
   
 
 fun penum_real_hadamard exec =
-  let 
-    val scl = List.tabulate (12, 
-      fn x => penum_real_hadamard_once exec (4*(2*x + 1)))
-  in
-    map IntInf.fromInt (sum_int scl :: scl)
+  let val (sc,h) = penum_real_hadamard_once exec 12 in
+    map IntInf.fromInt [sc,h]
   end
   handle Div => [] | ProgTimeout => [] | Overflow => []
 

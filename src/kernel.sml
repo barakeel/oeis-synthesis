@@ -27,6 +27,7 @@ val array_flag = bflag "array_flag"
 val local_flag = bflag "local_flag"
 val sqrt_flag = bflag "sqrt_flag"
 val loop_flag = bflag "loop_flag"
+val bigvar_flag = bflag "bigvar_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -183,9 +184,10 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),("z",0)] @
+     (if (!bigvar_flag) then [("X",0),("Y",0),("Z",0)] else []) @
      (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
      (if (!loop_flag) then 
-       [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
+        [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
   else if !array_flag then    
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -262,12 +264,12 @@ exception ProgTimeout;
 
 val short_timeincr = 1000
 val long_timeincr = 100000
-val timeincr = ref (if !hadamard_flag then 10000 else short_timeincr)
+val timeincr = ref (if !hadamard_flag then 100000 else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
-val max_compr_number = ref (if !hadamard_flag then 50 else short_compr)
+val max_compr_number = ref (if !hadamard_flag then 24 else short_compr)
 val graph = ref []
 val graphb = ref 0
 
