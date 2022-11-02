@@ -98,7 +98,7 @@ fun collect_child boarde move =
           if depend_on_x p andalso depend_on_y p andalso depend_on_z p
           then (checkonline_hdm (p,exec); incr prog_counter)
           else ();
-          if !prime_found then NONE else SOME (move, exec)
+          SOME (move, exec)
           ) 
         else if !prime_flag then 
           let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in

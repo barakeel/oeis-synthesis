@@ -432,6 +432,8 @@ fun orthogonal l1 l2 = scalar_product l1 l2 = 0
 val hash_modulo = 486632209873
 val hash_moduloi = IntInf.fromInt 486632209873
 
+fun hash_zero h i = (88591 * h + 512872 + i) mod hash_modulo
+
 fun hash_one h i = 
   let val i' = IntInf.toInt (i mod hash_moduloi) in
     (88591 * h + 512871 + i') mod hash_modulo
@@ -448,8 +450,9 @@ fun norm_table table =
     dict_sort (list_compare Int.compare) (map norm_vect table) 
   end
 
-fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
+fun hash_table table = hash 1 (List.concat (norm_table table))
 
+fun norm_line l = if hd l = 1 then l else map (fn x => ~1 * x) l
 
 fun penum_hadamard_once h exec ztop = 
   let
@@ -530,6 +533,9 @@ fun penum_hadamard exec =
 
 (* -------------------------------------------------------------------------
    Hadamard matrices
+   (either a unique set of loops or 
+    a unique matrice modulo normalization)
+   How to normalize hadamard matrices
    ------------------------------------------------------------------------- *)
 
 fun scalv l1 l2 = sum_int (map (fn (x,y) => x * y) (combine (l1,l2)))
@@ -537,37 +543,39 @@ fun perp l1 l2 = (scalv l1 l2 = 0)
 
 fun penum_real_hadamard_once exec ztop = 
   let
-    val _ = prime_found := false
-    val h = ref 1
     val fi = IntInf.fromInt
     (* results *)
     fun f (x,y,z) =
       let
         val _ = init_timer ()
+        val _ = (x_current := fi x; y_current := fi y; z_current := fi z)
         val r = exec (fi x, fi y, fi z)
-        val _ = h := hash_one (!h) r
       in
         if r <= 0 then 1 else ~1
       end
     fun genline y = List.tabulate (ztop, fn x => f(x,y,ztop))
     fun loop set ytop =
-      if ytop = ztop then (prime_found := true; ytop) else
+      if ytop = ztop then ytop else
       let val line = genline ytop in
-        if not (all (perp line) set) 
-        then ytop 
+        if not (all (perp line) set) then ytop 
         else loop (line :: set) (ytop + 1)
       end
-    val sc = loop [] 0
+    val sc' = loop [] 0
+    val sc = if sc' <= 1 then 0 else sc'
   in   
-    (sc,!h)
+    (sc * 10000) div ztop
   end
+  handle Div => ~1 | ProgTimeout => ~2 | Overflow => ~3
   
-
 fun penum_real_hadamard exec =
-  let val (sc,h) = penum_real_hadamard_once exec 12 in
-    map IntInf.fromInt [sc,h]
+  let 
+    val scl = map (penum_real_hadamard_once exec)
+      (List.tabulate (10, fn x => 4*(2*x+7)))
+    val sortedscl = rev (dict_sort Int.compare scl)
+    val bestsc = hd sortedscl
+  in
+    if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
-  handle Div => [] | ProgTimeout => [] | Overflow => []
 
 
 end (* struct *)

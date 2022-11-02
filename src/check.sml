@@ -474,7 +474,7 @@ fun smallest_key d =
   handle Catchable r => r
 
 fun filter_hdmd () = 
-  if dlength (!hdmd) >= 20001
+  if dlength (!hdmd) >= 10001
   then hdmd := drem (smallest_key (!hdmd)) (!hdmd)
   else ()
   
