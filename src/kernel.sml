@@ -269,7 +269,7 @@ val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
-val max_compr_number = ref (if !hadamard_flag then 24 else short_compr)
+val max_compr_number = ref (if !hadamard_flag then 27*4 else short_compr)
 val graph = ref []
 val graphb = ref 0
 
