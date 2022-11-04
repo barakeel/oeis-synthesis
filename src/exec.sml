@@ -74,11 +74,9 @@ val z_current = ref azero
 val ainit = Vector.tabulate (10000,fn _ => azero)
 val array_glob = ref ainit
 fun init_array () = array_glob := ainit
-fun arinit dim = 
-  Vector.tabulate (dim, fn x => Vector.tabulate (dim, fn y => 
-    if x = 0 andalso y = 0 then aone else azero))
-val xar_glob = ref (arinit 28)
-val yar_glob = ref (arinit 28)
+fun init_arr2 dim = 
+  Vector.tabulate (dim, fn x => Vector.tabulate (dim, fn y => azero))
+val arr2_glob = ref (init_arr2 28)
 (* end global data *)
 
 fun mk_nullf opf fl = case fl of
@@ -119,37 +117,7 @@ fun mk_septf3 opf fl = case fl of
 (* hadamard functions *)
 val compute_flag = ref false (* dangerous only turn on for verification *)
 
-(* functions *)
-fun xarf offx offy = mk_nullf (fn (x,y,z) => 
-  Vector.sub (Vector.sub (!xar_glob, IntInf.toInt ((x+offx) mod z)),
-    IntInf.toInt ((y+offy) mod z))) 
-fun yarf offx offy = mk_nullf (fn (x,y,z) => 
-  Vector.sub (Vector.sub (!yar_glob, IntInf.toInt ((x+offx) mod z)),
-    IntInf.toInt ((y+offy) mod z))) 
-
 local open IntInf in
-  val x11_f = xarf (~1) (~1)
-  val x12_f = xarf (~1) 0
-  val x13_f = xarf (~1) 1
-  val x21_f = xarf 0 (~1)
-  val x22_f = xarf 0 0
-  val x23_f = xarf 0 1
-  val x31_f = xarf 1 (~1)
-  val x32_f = xarf 1 0
-  val x33_f = xarf 1 1
-  val y11_f = yarf (~1) (~1)
-  val y12_f = yarf (~1) 0
-  val y13_f = yarf (~1) 1
-  val y21_f = yarf 0 (~1)
-  val y22_f = yarf 0 0
-  val y23_f = yarf 0 1
-  val y31_f = yarf 1 (~1)
-  val y32_f = yarf 1 0
-  val y33_f = yarf 1 1
-  val not_f = mk_unf (fn a => 1 - a)
-  val and_f = mk_binf 1 (fn (a,b) => a * b) 
-  val or_f = mk_binf 1 (fn (a,b) => (a + b) - a * b)
-  val xor_f = mk_binf 1 (fn (a,b) => (a + b) - 2 * a * b)  
   val zero_f = mk_nullf (fn _ => azero)
   val one_f = mk_nullf (fn _ => aone)
   val two_f = mk_nullf (fn _ => atwo)
@@ -185,6 +153,13 @@ local open IntInf in
     then azero
     else Vector.sub (!array_glob, toInt a)
   val array_f = mk_unf array_f_aux
+  fun arr2_f_aux (a,b) =  
+    let val v = Vector.sub (!arr2_glob, 
+      toInt (a mod fromInt (Vector.length (!arr2_glob))))
+    in
+      Vector.sub (v, toInt (a mod fromInt (Vector.length v)))
+    end
+  val arr2_f = mk_binf 1 arr2_f_aux 
   fun assign_f_aux (a,b) =
     (
     if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
@@ -254,10 +229,9 @@ fun compr_f fl = case fl of
 val execv = 
   if !hadamard_flag then 
     if !convolution_flag then
-      Vector.fromList [x11_f (* dummy function *) ,
-       x11_f,x12_f,x13_f,x21_f,x22_f,x23_f,x31_f,x32_f,x33_f,
-       y11_f,y12_f,y13_f,y21_f,y22_f,y23_f,y31_f,y32_f,y33_f,
-       not_f,and_f,or_f,xor_f]  
+      Vector.fromList 
+      ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+        cond_f,x_f,y_f,z_f,arr2_f]) 
     else
     Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -619,13 +593,11 @@ fun penum_real_hadamard exec =
    Hadamard matrices generated via convolution
    ------------------------------------------------------------------------- *)
 
-fun score_aux table count set xtop =
-  if xtop = Vector.length table then count else
-  let 
-    val line = Vector.sub (table,xtop) 
-    val newcount = length (filter (perp line) set)  
-  in
-    score_aux table newcount (line :: set) (xtop + 1)
+fun score_aux table set xtop =
+  if xtop = Vector.length table then xtop else
+  let val line = Vector.sub (table,xtop) in
+    if not (all (perp line) set) then xtop else 
+    score_aux table (line :: set) (xtop + 1)
   end
 
 fun hash acc l = case l of
@@ -639,57 +611,44 @@ fun hash_table table = hash 1 (List.concat (vector_to_list table))
 fun score_table table = 
   let 
     val dim = Vector.length table
-    val sc = score_aux table 0 [] 0 
+    val sc = score_aux table [] 0 
   in
-    if sc <= 0 
-    then hash_table table
-    else (sc * 10000 * 10000) div ((dim * (dim - 1)) div 2)
+    if sc <= 1 then 0 else (sc * 10000) div dim
   end
  
-fun penum_conv_hadamard_once (exec1,exec2,exec3) ztop = 
+fun penum_conv_hadamard_once exec ztop = 
   let
-    val arinitz = arinit ztop 
-    val _ = (xar_glob := arinitz; yar_glob := arinitz)
+    val _ = arr2_glob := init_arr2 ztop
     val fi = IntInf.fromInt
     (* results *)
-    fun f1 (x,y) = (init_timer (); exec1 (fi x, fi y, fi ztop))
-    fun f2 (x,y) = (init_timer (); exec2 (fi x, fi y, fi ztop))
-    fun f3 (x,y) = (init_timer (); 
-      let val r = exec3 (fi x, fi y, fi ztop) in 
-        if r <= azero then 1 else ~1
-      end)
+    fun f1 (x,y) = (init_timer (); exec (fi x, fi y, fi ztop))
+    fun f3 (x,y) = 
+      if Vector.sub (Vector.sub (!arr2_glob,x),y) <= azero 
+      then 1 else ~1
     fun update () = 
       let
-        val new_xar = 
-          Vector.tabulate (ztop, 
+        val new_arr2 = 
+          Vector.tabulate (ztop,
             fn x => Vector.tabulate (ztop, fn y => f1 (x,y)))
-        val _ = xar_glob := new_xar
-        val new_yar = 
-          Vector.tabulate (ztop, 
-            fn x => Vector.tabulate (ztop, fn y => f2 (x,y)))
-        val _ = yar_glob := new_yar
+        val _ = arr2_glob := new_arr2
       in
         ()
       end
-    fun get_table () =
+    fun next_table () =
+      (
+      update ();
       Vector.tabulate (ztop, fn x => List.tabulate (ztop, fn y => f3 (x,y))) 
-    val _ = funpow ztop update ()
-    val table1 = get_table () 
-    val _ = funpow ztop update ()
-    val table2 = get_table ()
-    val _ = funpow ztop update ()
-    val table3 = get_table ()
-    val _ = funpow ztop update ()
-    val table4 = get_table ()  
-    val tablescl = map_assoc score_table [table1,table2,table3,table4]
+      )
+    val tablel = List.tabulate (2 * ztop, fn _ => next_table ())  
+    val scl = map score_table tablel
   in   
-    snd (hd (dict_sort compare_imax tablescl))
+    list_imax scl
   end
   handle Div => ~1 | ProgTimeout => ~2 | Overflow => ~3
   
-fun penum_conv_hadamard (exec1,exec2,exec3) =
+fun penum_conv_hadamard exec =
   let 
-    val scl = map (penum_conv_hadamard_once (exec1,exec2,exec3))
+    val scl = map (penum_conv_hadamard_once exec)
       (List.tabulate (5, fn x => 4*(2*x+7)))
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl

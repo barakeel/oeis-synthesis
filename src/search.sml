@@ -84,7 +84,6 @@ val prog_counter = ref 0
 
 (* todo : maybe split the checking part *)
 fun collect_child boarde move =
-  if !convolution_flag andalso move = 0 then NONE else 
   let 
     val _ = incr node_counter
     val arity = arity_of_oper move
@@ -95,20 +94,11 @@ fun collect_child boarde move =
       val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      if !hadamard_flag andalso !convolution_flag then
-        (case l2 of 
-           [(p2,exec2,_,_),(p3,exec3,_,_)] => 
-           (
-           checkonline_conv_hdm ((p3,exec3),(p2,exec2),(p,exec)); 
-           incr prog_counter; 
-           SOME (move, exec)
-           )
-          | _ => SOME (move,exec)
-        )
-      else if not (null l2) orelse !array_flag then SOME (move,exec) else
+      if not (null l2) orelse !array_flag then SOME (move,exec) else
         if !hadamard_flag then
           (
-          if depend_on_x p andalso depend_on_y p andalso depend_on_z p
+          if (depend_on_x p andalso depend_on_y p) andalso 
+             (depend_on_z p orelse !convolution_flag)
           then (checkonline_hdm (p,exec); incr prog_counter)
           else ();
           SOME (move, exec)

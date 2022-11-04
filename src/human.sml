@@ -212,8 +212,7 @@ fun human_simple p =
       "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
   end
 
-fun humanf p = if !convolution_flag 
-               then human_trivial p else rm_par (human_simple p)
+fun humanf p = rm_par (human_simple p)
 
 
 (* -------------------------------------------------------------------------

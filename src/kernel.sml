@@ -183,13 +183,9 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag then
     if !convolution_flag then
-    [("comb",3),("x11",0),("x12",0),("x13",0),
-     ("x21",0),("x22",0),("x23",0),
-     ("x31",0),("x32",0),("x33",0),
-     ("y11",0),("y12",0),("y13",0),
-     ("y21",0),("y22",0),("y23",0),
-     ("y31",0),("y32",0),("y33",0),
-     ("not",1),("and",2),("or",2),("xor",2)]
+    [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("x",0),("y",0),("z",0),("arr2",2)]
     else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
