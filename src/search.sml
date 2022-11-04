@@ -98,7 +98,8 @@ fun collect_child boarde move =
         if !hadamard_flag then
           (
           if (depend_on_x p andalso depend_on_y p) andalso 
-             (depend_on_z p orelse !convolution_flag)
+             (depend_on_z p orelse !convolution_flag) andalso
+             (not (!convolution_flag) orelse contain_arr2 p)
           then (checkonline_hdm (p,exec); incr prog_counter)
           else ();
           SOME (move, exec)

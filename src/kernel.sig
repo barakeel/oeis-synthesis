@@ -49,6 +49,7 @@ sig
   val depend_on_y : prog -> bool
   val depend_on_z : prog -> bool
   val is_constant : prog -> bool
+  val contain_arr2 : prog -> bool
   (* solutions *)
   type sol = anum * (int * prog) list
    

@@ -228,9 +228,14 @@ fun find_id s = case List.find (fn i => name_of_oper i = s)
     SOME id => id
   | NONE => ~1
 
+val arr2_id = find_id "arr2"
 val x_id = find_id "x"
 val y_id = find_id "y"
 val z_id = find_id "z"
+
+fun contain_arr2 (Ins (id,pl)) = 
+  (id = arr2_id) orelse exists contain_arr2 pl
+  
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
