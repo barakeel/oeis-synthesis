@@ -618,16 +618,19 @@ fun penum_real_hadamard exec =
    Hadamard matrices generated via convolution
    ------------------------------------------------------------------------- *)
 
-fun score_aux table set xtop =
-  if xtop = Vector.length table then xtop else
-  let val line = Vector.sub (table,xtop) in
-    if not (all (perp line) set) then xtop 
-    else score_aux table (line :: set) (xtop + 1)
+fun score_aux table count set xtop =
+  if xtop = Vector.length table then count else
+  let 
+    val line = Vector.sub (table,xtop) 
+    val newcount = length (filter (perp line) set)  
+  in
+    score_aux table newcount (line :: set) (xtop + 1)
   end
 
 fun score_table table = 
-  let val sc = score_aux table [] 0 in
-    if sc <= 1 then 0 else (sc * 10000) div (Vector.length table)
+  let val sc = score_aux 0 table [] 0 in
+    (sc * 1000 * 1000) div 
+    ((Vector.length table * (Vector.length table - 1)) div 2)
   end
  
 fun penum_conv_hadamard_once (exec1,exec2,exec3) ztop = 
@@ -678,7 +681,7 @@ fun penum_conv_hadamard (exec1,exec2,exec3) =
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl
   in
-    if bestsc < 0 then [] else map IntInf.fromInt (sortedscl @ scl)
+    if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
 
 
