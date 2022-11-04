@@ -183,6 +183,15 @@ fun human_python ntop p =
    Printing to custom language
    ------------------------------------------------------------------------- *)
 
+fun human_trivial p = 
+  let fun h p = human_trivial p in
+    case p of
+      Ins (~1,[p1,p2,p3]) => "[" ^ h p1 ^ ", " ^ h p2 ^ ", " ^ h p3 ^ "]"
+    | Ins (id,[]) => name_of_oper id
+    | Ins (id,pl) => 
+      "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
+  end
+
 fun human_simple p = 
   let   
     fun h p = human_simple p
@@ -204,7 +213,8 @@ fun human_simple p =
       "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
   end
 
-fun humanf p = rm_par (human_simple p)
+fun humanf p = if !convolution_flag 
+               then human_trivial p else rm_par (human_simple p)
 
 
 (* -------------------------------------------------------------------------

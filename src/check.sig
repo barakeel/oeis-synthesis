@@ -11,7 +11,6 @@ sig
   val checkonline : prog * exec.exec -> unit
   val checkfinal : unit -> (anum * (int * prog) list) list
   val checkpl : prog list -> (anum * (int * prog) list) list
-  
   val collect_candidate : unit -> prog list
   
   (* primes *)
@@ -24,6 +23,8 @@ sig
   (* hadamard *)
   val checkinit_hdm : unit -> unit
   val checkonline_hdm : prog * exec.exec -> unit
+  val checkonline_conv_hdm : 
+    (prog * exec.exec) * (prog * exec.exec) * (prog * exec.exec) -> unit
   val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
   val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
     (kernel.seq * (int * prog)) list

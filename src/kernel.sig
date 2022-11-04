@@ -17,6 +17,7 @@ sig
   val sqrt_flag : bool ref
   val loop_flag : bool ref
   val bigvar_flag : bool ref
+  val convolution_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

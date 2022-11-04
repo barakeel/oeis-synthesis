@@ -79,11 +79,13 @@ fun apply_move (move,exec) boarde =
     else exec_fun (move,exec) l1 l2
   end
 
+val node_counter = ref 0
 val prog_counter = ref 0
 
 (* todo : maybe split the checking part *)
 fun collect_child boarde move =
   let 
+    val _ = incr node_counter
     val arity = arity_of_oper move
     val (l1,l2) = part_n arity boarde
   in
@@ -92,7 +94,17 @@ fun collect_child boarde move =
       val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      if null l2 orelse !array_flag then SOME (move,exec) else
+      if !hadamard_flag andalso !convolution_flag then
+        (case l2 of 
+           [(p2,exec2,_,_),(p3,exec3,_,_)] => 
+           (
+           checkonline_conv_hdm ((p3,exec3),(p2,exec2),(p,exec)); 
+           incr prog_counter; 
+           SOME (move, exec)
+           )
+          | _ => SOME (move,exec)
+        )
+      else if not (null l2) orelse !array_flag then SOME (move,exec) else
         if !hadamard_flag then
           (
           if depend_on_x p andalso depend_on_y p andalso depend_on_z p
@@ -279,6 +291,7 @@ fun search_board (vis,tinc) board =
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) boarde
   in
+    print_endline ("nodes: " ^ its (!node_counter));
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end

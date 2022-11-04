@@ -493,8 +493,13 @@ fun checkonline_hdm (p,exec) =
   let val il = penum_real_hadamard exec in
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
+  
+fun checkonline_conv_hdm ((p1,exec1),(p2,exec2),(p3,exec3)) =
+  let val il = penum_conv_hadamard (exec1,exec2,exec3) in
+    if null il then () else update_hdmd (il,(0,Ins(~1,[p1,p2,p3])))
+  end  
 
-fun checkfinal_hdm () = (dlist (!hdmd))
+fun checkfinal_hdm () = dlist (!hdmd)
 
 fun merge_hdmsol hdmsol = 
   let val _ = checkinit_hdm () in
