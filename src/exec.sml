@@ -254,7 +254,8 @@ fun compr_f fl = case fl of
 val execv = 
   if !hadamard_flag then 
     if !convolution_flag then
-      Vector.fromList [x11_f,x12_f,x13_f,x21_f,x22_f,x23_f,x31_f,x32_f,x33_f,
+      Vector.fromList [x11_f (* dummy function *) ,
+       x11_f,x12_f,x13_f,x21_f,x22_f,x23_f,x31_f,x32_f,x33_f,
        y11_f,y12_f,y13_f,y21_f,y22_f,y23_f,y31_f,y32_f,y33_f,
        not_f,and_f,or_f,xor_f]  
     else
@@ -627,10 +628,22 @@ fun score_aux table count set xtop =
     score_aux table newcount (line :: set) (xtop + 1)
   end
 
+fun hash acc l = case l of
+    [] => acc
+  | 1 :: m => hash ((591 * acc + 871) mod 1000) m
+  | ~1 :: m => hash ((833 * acc + 303) mod 1000) m
+  | _ :: m => raise ERR "hash_hdmseq" ""
+
+fun hash_table table = hash 1 (List.concat (vector_to_list table))
+
 fun score_table table = 
-  let val sc = score_aux 0 table [] 0 in
-    (sc * 1000 * 1000) div 
-    ((Vector.length table * (Vector.length table - 1)) div 2)
+  let 
+    val dim = Vector.length table
+    val sc = score_aux table 0 [] 0 
+  in
+    if sc <= 0 
+    then hash_table table
+    else (sc * 10000 * 10000) div ((dim * (dim - 1)) div 2)
   end
  
 fun penum_conv_hadamard_once (exec1,exec2,exec3) ztop = 

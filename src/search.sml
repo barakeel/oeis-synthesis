@@ -84,6 +84,7 @@ val prog_counter = ref 0
 
 (* todo : maybe split the checking part *)
 fun collect_child boarde move =
+  if !convolution_flag andalso move = 0 then NONE else 
   let 
     val _ = incr node_counter
     val arity = arity_of_oper move

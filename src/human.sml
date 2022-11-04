@@ -186,8 +186,7 @@ fun human_python ntop p =
 fun human_trivial p = 
   let fun h p = human_trivial p in
     case p of
-      Ins (~1,[p1,p2,p3]) => "[" ^ h p1 ^ ", " ^ h p2 ^ ", " ^ h p3 ^ "]"
-    | Ins (id,[]) => name_of_oper id
+      Ins (id,[]) => name_of_oper id
     | Ins (id,pl) => 
       "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
   end

@@ -183,7 +183,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag then
     if !convolution_flag then
-    [("x11",0),("x12",0),("x13",0),
+    [("comb",3),("x11",0),("x12",0),("x13",0),
      ("x21",0),("x22",0),("x23",0),
      ("x31",0),("x32",0),("x33",0),
      ("y11",0),("y12",0),("y13",0),
@@ -238,9 +238,12 @@ val z_id = find_id "z"
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
-    if not (!loop_flag) 
-    then (List.tabulate (Vector.length operv, fn _ => 0))
-    else (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
+    if !convolution_flag 
+      then (List.tabulate (Vector.length operv, fn _ => 0))
+    else if not (!loop_flag) 
+      then (List.tabulate (Vector.length operv, fn _ => 0))
+    else 
+      (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
   else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
