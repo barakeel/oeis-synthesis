@@ -286,6 +286,7 @@ fun search_board (vis,tinc) board =
   let 
     val _ = search_time_flag := (vis <= 0)
     val _ = prog_counter := 0
+    val _ = node_counter := 0  
     val targete = get_targete ()
     val boarde = get_boarde board
     val rt = Timer.startRealTimer ()

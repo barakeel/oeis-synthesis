@@ -678,7 +678,7 @@ fun penum_conv_hadamard (exec1,exec2,exec3) =
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl
   in
-    if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
+    if bestsc < 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
 
 
