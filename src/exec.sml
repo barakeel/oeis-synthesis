@@ -582,7 +582,7 @@ fun penum_real_hadamard_once exec ztop =
 fun penum_real_hadamard exec =
   let 
     val scl = map (penum_real_hadamard_once exec)
-      (List.tabulate (10, fn x => 4*(2*x+7)))
+      (List.tabulate (5, fn x => 4*(2*x+7)))
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl
   in
