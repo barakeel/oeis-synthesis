@@ -77,6 +77,9 @@ fun init_array () = array_glob := ainit
 fun init_arr2 dim = 
   Vector.tabulate (dim, fn x => Vector.tabulate (dim, fn y => azero))
 val arr2_glob = ref (init_arr2 28)
+fun init_arr1 dim = Vector.tabulate (dim, fn _ => azero)
+val arr1_glob = ref (init_arr1 28)
+
 (* end global data *)
 
 fun mk_nullf opf fl = case fl of
@@ -159,7 +162,10 @@ local open IntInf in
     in
       Vector.sub (v, toInt (a mod fromInt (Vector.length v)))
     end
-  val arr2_f = mk_binf 1 arr2_f_aux 
+  val arr2_f = mk_binf 1 arr2_f_aux
+  fun arr1_f_aux a =  
+    Vector.sub (!arr1_glob, toInt (a mod fromInt (Vector.length (!arr1_glob))))
+  val arr1_f = mk_unf arr1_f_aux 
   fun assign_f_aux (a,b) =
     (
     if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
@@ -228,18 +234,21 @@ fun compr_f fl = case fl of
 
 val execv = 
   if !hadamard_flag then 
-    if !convolution_flag then
+    if !family_flag then
+      Vector.fromList 
+      ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+        cond_f,x_f,y_f,z_f,arr1_f]) 
+    else if !convolution_flag then
       Vector.fromList 
       ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
         cond_f,x_f,y_f,z_f,arr2_f]) 
     else
-    Vector.fromList 
-    ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-      cond_f,x_f,y_f,z_f] @
-    (if !bigvar_flag then [X_f,Y_f,Z_f] else []) @   
-    (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
-    (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else [])
-    )
+      Vector.fromList 
+      ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+        cond_f,x_f,y_f,z_f] @
+      (if !bigvar_flag then [X_f,Y_f,Z_f] else []) @   
+      (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
+      (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else []))
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
@@ -656,6 +665,70 @@ fun penum_conv_hadamard exec =
     if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
 
+(* -------------------------------------------------------------------------
+   Hadamard matrices that are a subset of a family of vectors
+   ------------------------------------------------------------------------- *)
+
+(* cliquel *)
+fun perpv v1 v2 = 
+  let 
+    val sum = ref 0 
+    fun f (i,a) = sum := !sum + a * Vector.sub (v2,i)
+  in
+    Vector.appi f v1;
+    !sum = 0
+  end
+
+fun add_line_one line (clique,n) =
+  if all (perpv line) clique 
+  then SOME (line :: clique, n+1) 
+  else NONE
+  
+fun add_line line cliquel =
+  cliquel @ List.mapPartial (add_line_one line) cliquel
+
+fun filter_clique cliquel = 
+  if length cliquel <= 1000 then cliquel else
+  first_n 1000 (dict_sort compare_imax cliquel)
+  
+fun score_clique cliquel = snd (hd (dict_sort compare_imax cliquel))
+
+(* main *)
+fun penum_family_hadamard_once exec ztop = 
+  let
+    val _ = arr1_glob := init_arr1 ztop
+    val fi = IntInf.fromInt
+    val xref = ref 0
+    fun f1 y = (init_timer (); exec (fi (!xref), fi y, fi ztop))
+    fun project r = if r <= azero then 1 else ~1 
+    fun next_line () = 
+      let val r = Vector.tabulate (ztop, f1) in
+        arr1_glob := r; incr xref; SOME (Vector.map project r)
+      end
+      handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
+    fun next_clique n cliquel = 
+      if (n <> 0 andalso n mod 100 = 0 andalso score_clique cliquel 
+          <= n div 100) 
+        then cliquel else 
+      case next_line () of NONE => cliquel | SOME line =>
+        let val newcliquel = filter_clique (add_line line cliquel) in 
+          next_clique (n+1) newcliquel
+        end
+    val cliquel = next_clique 0 [([],0)] 
+    val sc = score_clique cliquel
+  in   
+    if sc <= 1 then 0 else (sc * 10000) div ztop
+  end
+  
+fun penum_family_hadamard exec =
+  let 
+    val scl = map (penum_family_hadamard_once exec)
+      (List.tabulate (5, fn x => 4*(2*x+7)))
+    val sortedscl = rev (dict_sort Int.compare scl)
+    val bestsc = hd sortedscl
+  in
+    if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
+  end
 
 
 end (* struct *)

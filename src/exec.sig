@@ -24,6 +24,7 @@ sig
   val penum_hadamard : exec -> IntInf.int list
   val penum_real_hadamard : exec -> IntInf.int list
   val penum_conv_hadamard : exec -> IntInf.int list
+  val penum_family_hadamard : exec -> IntInf.int list
   val init_array : unit -> unit
   
 end

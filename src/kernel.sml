@@ -29,6 +29,7 @@ val sqrt_flag = bflag "sqrt_flag"
 val loop_flag = bflag "loop_flag"
 val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
+val family_flag = bflag "family_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -182,7 +183,11 @@ val leastdivv =
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hadamard_flag then
-    if !convolution_flag then
+    if !family_flag then
+    [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("x",0),("y",0),("z",0),("arr1",1)]
+    else if !convolution_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),("z",0),("arr2",2)]
@@ -228,20 +233,20 @@ fun find_id s = case List.find (fn i => name_of_oper i = s)
     SOME id => id
   | NONE => ~1
 
+val arr1_id = find_id "arr1"
 val arr2_id = find_id "arr2"
 val x_id = find_id "x"
 val y_id = find_id "y"
 val z_id = find_id "z"
 
+fun contain_arr1 (Ins (id,pl)) = 
+  (id = arr1_id) orelse exists contain_arr1 pl
 fun contain_arr2 (Ins (id,pl)) = 
   (id = arr2_id) orelse exists contain_arr2 pl
-  
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
-    if !convolution_flag 
-      then (List.tabulate (Vector.length operv, fn _ => 0))
-    else if not (!loop_flag) 
+    if not (!loop_flag) 
       then (List.tabulate (Vector.length operv, fn _ => 0))
     else 
       (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
@@ -284,7 +289,7 @@ val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
-val max_compr_number = ref (if !hadamard_flag then 27*4 else short_compr)
+val max_compr_number = ref (if !hadamard_flag then 15*4 else short_compr)
 val graph = ref []
 val graphb = ref 0
 

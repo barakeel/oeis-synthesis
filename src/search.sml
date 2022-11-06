@@ -96,14 +96,7 @@ fun collect_child boarde move =
     in 
       if not (null l2) orelse !array_flag then SOME (move,exec) else
         if !hadamard_flag then
-          (
-          if (depend_on_x p andalso depend_on_y p) andalso 
-             (depend_on_z p orelse !convolution_flag) andalso
-             (not (!convolution_flag) orelse contain_arr2 p)
-          then (checkonline_hdm (p,exec); incr prog_counter)
-          else ();
-          SOME (move, exec)
-          ) 
+          (checkonline_hdm (p,exec); incr prog_counter; SOME (move, exec)) 
         else if !prime_flag then 
           let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
             if !prime_found then NONE else SOME (move, newexec)

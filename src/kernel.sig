@@ -18,6 +18,7 @@ sig
   val loop_flag : bool ref
   val bigvar_flag : bool ref
   val convolution_flag : bool ref
+  val family_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -50,6 +51,7 @@ sig
   val depend_on_z : prog -> bool
   val is_constant : prog -> bool
   val contain_arr2 : prog -> bool
+  val contain_arr1 : prog -> bool
   (* solutions *)
   type sol = anum * (int * prog) list
    

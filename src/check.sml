@@ -490,9 +490,10 @@ fun update_hdmd (il,(r,p)) = case dfindo il (!hdmd) of
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm (p,exec) =
-  let val il = if !convolution_flag 
-               then penum_conv_hadamard exec 
-               else penum_real_hadamard exec 
+  let val il = 
+    if !family_flag then penum_family_hadamard exec
+    else if !convolution_flag then penum_conv_hadamard exec 
+    else penum_real_hadamard exec 
   in
     if null il then () else update_hdmd (il,(!abstimer,p))
   end
