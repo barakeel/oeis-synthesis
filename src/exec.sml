@@ -669,14 +669,20 @@ fun penum_conv_hadamard_once exec ztop =
     fun next_table () =
       (
       update ();
-      List.tabulate (ztop, fn x => List.tabulate (ztop, fn y => f3 (x,y))) 
+      SOME (List.tabulate (ztop, fn x => 
+            List.tabulate (ztop, fn y => f3 (x,y)))) 
       )
-    val tablel = List.tabulate (2 * ztop, fn _ => next_table ())  
-    val scl = map maxclique_table tablel
+      handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
+    fun create_tablel tablel n = 
+      if n >= 2*ztop then tablel else
+      case next_table () of NONE => tablel
+      | SOME table => create_tablel (table :: tablel) (n+1)
+    val tablel = create_tablel [] 0
+    val sc = if null tablel then 0 else list_imax (map maxclique_table tablel)
   in   
-    list_imax scl
+    if sc <= 1 then 0 else (sc * 10000) div ztop
   end
-  handle Div => ~1 | ProgTimeout => ~2 | Overflow => ~3
+  
   
 fun penum_conv_hadamard exec =
   let 
@@ -839,3 +845,4 @@ val l = penum_prime p;
 !abstimer;
 
 *)
+     
