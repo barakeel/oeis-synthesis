@@ -248,7 +248,7 @@ fun contain_arr2 (Ins (id,pl)) =
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
-    if not (!loop_flag) orelse !family_flag orelse !convolution_flag
+    if !loop_flag orelse !family_flag orelse !convolution_flag
     then List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3] 
     else List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
