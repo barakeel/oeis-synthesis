@@ -599,6 +599,29 @@ fun penum_real_hadamard exec =
   end
 
 (* -------------------------------------------------------------------------
+   Computing the size of the maximal clique of a matrix
+   ------------------------------------------------------------------------- *)
+
+fun maxclique_table table = 
+  let
+    fun add_line_one line (clique,n) =
+      if all (perp line) clique 
+      then SOME (line :: clique, n+1) 
+      else NONE
+    val lined = ref (eempty (list_compare Int.compare))
+    fun add_line (line,cliquel) =
+      if not (emem line (!lined)) then
+        (
+        lined := eadd line (!lined);
+        cliquel @ List.mapPartial (add_line_one line) cliquel
+        )
+      else cliquel
+    val cliquel = foldl add_line [([],0)] table
+  in
+    list_imax (map snd cliquel)
+  end
+
+(* -------------------------------------------------------------------------
    Hadamard matrices generated via convolution
    ------------------------------------------------------------------------- *)
 
@@ -646,10 +669,10 @@ fun penum_conv_hadamard_once exec ztop =
     fun next_table () =
       (
       update ();
-      Vector.tabulate (ztop, fn x => List.tabulate (ztop, fn y => f3 (x,y))) 
+      List.tabulate (ztop, fn x => List.tabulate (ztop, fn y => f3 (x,y))) 
       )
     val tablel = List.tabulate (2 * ztop, fn _ => next_table ())  
-    val scl = map score_table tablel
+    val scl = map maxclique_table tablel
   in   
     list_imax scl
   end
@@ -658,7 +681,7 @@ fun penum_conv_hadamard_once exec ztop =
 fun penum_conv_hadamard exec =
   let 
     val scl = map (penum_conv_hadamard_once exec)
-      (List.tabulate (5, fn x => 4*(2*x+7)))
+      (List.tabulate (6, fn x => 4*(2*x+5)))
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl
   in
