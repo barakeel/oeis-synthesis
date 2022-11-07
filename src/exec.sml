@@ -726,8 +726,8 @@ fun penum_family_hadamard_once exec ztop =
       end
       handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
     fun next_clique n cliquel = 
-      if (n <> 0 andalso n mod 100 = 0 andalso score_clique cliquel 
-          <= n div 100)
+      if (n <> 0 andalso n mod ztop = 0 andalso score_clique cliquel 
+          <= n div ztop)
         then cliquel else 
       case next_line () of NONE => cliquel | SOME line =>
         let val newcliquel = filter_clique (add_line line cliquel) in 
