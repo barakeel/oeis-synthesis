@@ -186,11 +186,13 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     if !family_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0),("arr1",1)]
+     ("cond",3),("x",0),("y",0),("z",0),("arr1",1),
+     ("compr",2),("loop",3),("loop2",5),("loop3",7)]
     else if !convolution_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0),("arr2",2)]
+     ("cond",3),("x",0),("y",0),("z",0),("arr2",2),
+     ("compr",2),("loop",3),("loop2",5),("loop3",7)]
     else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -246,10 +248,9 @@ fun contain_arr2 (Ins (id,pl)) =
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
-    if not (!loop_flag) 
-      then (List.tabulate (Vector.length operv, fn _ => 0))
-    else 
-      (List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3]) 
+    if not (!loop_flag) orelse !family_flag orelse !convolution_flag
+    then List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3] 
+    else List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @

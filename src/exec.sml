@@ -160,7 +160,7 @@ local open IntInf in
     let val v = Vector.sub (!arr2_glob, 
       toInt (a mod fromInt (Vector.length (!arr2_glob))))
     in
-      Vector.sub (v, toInt (a mod fromInt (Vector.length v)))
+      Vector.sub (v, toInt (b mod fromInt (Vector.length v)))
     end
   val arr2_f = mk_binf 1 arr2_f_aux
   fun arr1_f_aux a =  
@@ -237,11 +237,11 @@ val execv =
     if !family_flag then
       Vector.fromList 
       ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-        cond_f,x_f,y_f,z_f,arr1_f]) 
+        cond_f,x_f,y_f,z_f,arr1_f,compr_f, loop_f, loop2_f, loop3_f]) 
     else if !convolution_flag then
       Vector.fromList 
       ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-        cond_f,x_f,y_f,z_f,arr2_f]) 
+        cond_f,x_f,y_f,z_f,arr2_f,compr_f, loop_f, loop2_f, loop3_f]) 
     else
       Vector.fromList 
       ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -271,7 +271,7 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
   
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
-
+  
 fun cache_exec exec = 
   let 
     val v = Vector.fromList (rev (!graph))
@@ -670,6 +670,17 @@ fun penum_conv_hadamard exec =
    ------------------------------------------------------------------------- *)
 
 (* cliquel *)
+fun vecti_compare_aux i (v1,v2) =
+  if Vector.length v1 = i then EQUAL else
+  case Int.compare (Vector.sub (v1,i),Vector.sub(v2,i)) of
+    EQUAL => vecti_compare_aux (i+1) (v1,v2)
+  | x => x
+  
+fun vecti_compare (v1,v2) = 
+  case Int.compare (Vector.length v1, Vector.length v2) of
+    EQUAL => vecti_compare_aux 0 (v1,v2)
+  | x => x
+
 fun perpv v1 v2 = 
   let 
     val sum = ref 0 
@@ -683,10 +694,17 @@ fun add_line_one line (clique,n) =
   if all (perpv line) clique 
   then SOME (line :: clique, n+1) 
   else NONE
+
+val lined = ref (eempty vecti_compare)
   
 fun add_line line cliquel =
-  cliquel @ List.mapPartial (add_line_one line) cliquel
-
+  if not (emem line (!lined)) then
+    (
+    lined := eadd line (!lined);
+    cliquel @ List.mapPartial (add_line_one line) cliquel
+    )
+  else cliquel
+  
 fun filter_clique cliquel = 
   if length cliquel <= 1000 then cliquel else
   first_n 1000 (dict_sort compare_imax cliquel)
@@ -697,18 +715,19 @@ fun score_clique cliquel = snd (hd (dict_sort compare_imax cliquel))
 fun penum_family_hadamard_once exec ztop = 
   let
     val _ = arr1_glob := init_arr1 ztop
+    val _ = lined := eempty vecti_compare
     val fi = IntInf.fromInt
     val xref = ref 0
     fun f1 y = (init_timer (); exec (fi (!xref), fi y, fi ztop))
     fun project r = if r <= azero then 1 else ~1 
-    fun next_line () = 
+    fun next_line () =
       let val r = Vector.tabulate (ztop, f1) in
         arr1_glob := r; incr xref; SOME (Vector.map project r)
       end
       handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
     fun next_clique n cliquel = 
       if (n <> 0 andalso n mod 100 = 0 andalso score_clique cliquel 
-          <= n div 100) 
+          <= n div 100)
         then cliquel else 
       case next_line () of NONE => cliquel | SOME line =>
         let val newcliquel = filter_clique (add_line line cliquel) in 
@@ -723,7 +742,7 @@ fun penum_family_hadamard_once exec ztop =
 fun penum_family_hadamard exec =
   let 
     val scl = map (penum_family_hadamard_once exec)
-      (List.tabulate (5, fn x => 4*(2*x+7)))
+      (List.tabulate (6, fn x => 4*(2*x+5)))
     val sortedscl = rev (dict_sort Int.compare scl)
     val bestsc = hd sortedscl
   in
