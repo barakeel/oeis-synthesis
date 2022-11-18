@@ -17,19 +17,28 @@ val configd =
 
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 
+val notarget_flag = bflag "notarget_flag"
+val local_flag = bflag "local_flag"
+
+(* main_experiment flags *)
 val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
-val notarget_flag = bflag "notarget_flag"
+val macro_flag = bflag "macro_flag"
+
+(* side experiments flags *)
 val prime_flag = bflag "prime_flag"
-val hadamard_flag = bflag "hadamard_flag"
 val array_flag = bflag "array_flag"
-val local_flag = bflag "local_flag"
+
+
+(* hadamard flags *)
+val hadamard_flag = bflag "hadamard_flag"
 val sqrt_flag = bflag "sqrt_flag"
 val loop_flag = bflag "loop_flag"
 val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
 val family_flag = bflag "family_flag"
+
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts

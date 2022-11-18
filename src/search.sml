@@ -101,7 +101,7 @@ fun collect_child boarde move =
           let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
             if !prime_found then NONE else SOME (move, newexec)
           end
-        else (incr prog_counter; checkonline (p,exec);
+        else (incr prog_counter; checkonline (p,exec); 
               SOME (move, cache_exec exec))
     end
   end
