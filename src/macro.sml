@@ -522,9 +522,9 @@ fun boot expname ngen nmacro =
     val dircur = selfdir ^ "/exp/" ^ expcur
     val expnext = expname ^ its (ngen+1)
     val dirnext = selfdir ^ "/exp/" ^ expnext
-    val _ = app mkdir_exp [expcur,expnext]
-    val macrol = create_macrol (nmacro,20,200)
-    val _ = save_macrol expcur macrol
+    val _ = app mkdir_exp [expcur,expnext] 
+    val _ = save_macrol expcur (create_macrol (nmacro,20,200))
+    val _ = PolyML.fullGC ()
   in
     parallel_check_macro expcur;
     cmd_in_dir dircur ("cp " ^ dircur ^ "/solnew" ^ " " ^ dirnext ^ "/solold");
@@ -545,7 +545,7 @@ val macrol = create_macrol (20000,20,200);
 save_macrol "macro1" macrol;
 parallel_check_macro "macro1";
 
-boot "macroinit" 0 20000;
+boot "boot2m" 0 1000000;
 
 *)
 
