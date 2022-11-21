@@ -90,7 +90,7 @@ fun next_board (board : (prog * int * int) list) (move,moven) =
     val (l1,l2) = part_n arity board 
   in
     if length l1 < arity
-    then []   
+    then board   
     else (Ins (move, rev (map #1 l1)), 
           list_imin (moven :: map #2 l1), moven) :: l2
   end;
