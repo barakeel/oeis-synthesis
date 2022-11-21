@@ -338,7 +338,27 @@ fun id_of_gpt s =
 
 fun movel_of_gpt s = 
   let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
-  
+
+fun apply_move move board =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then raise ERR "prog_of_gpt" "arity"
+    else Ins (move, rev l1) :: l2
+  end
+
+fun prog_of_gpt s = 
+  let 
+    val ml = movel_of_gpt s
+    val progl = foldl (uncurry apply_move) [] ml
+  in
+    case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
+  end
+ 
+    
+    
   
   
 end (* struct *)

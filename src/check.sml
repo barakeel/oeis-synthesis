@@ -27,26 +27,21 @@ fun find_min cmpf l = case l of
     [] => raise ERR "find_min" ""
   | a :: m => find_min_loop cmpf a m
 
-fun update_ifnew d anum (tpl,newtpl) = 
-  if list_compare (snd_compare prog_compare) (tpl,newtpl) = EQUAL 
-  then () 
-  else d := dadd anum newtpl (!d)
-
 fun update_smallest d anum tpl =
   let val newtpl = [find_min is_smaller tpl] in
-    update_ifnew d anum (tpl,newtpl)
+    d := dadd anum newtpl (!d)
   end
   
 fun update_fastest d anum tpl =
   let val newtpl = [find_min is_faster tpl] in
-    update_ifnew d anum (tpl,newtpl)
+    d := dadd anum newtpl (!d)
   end  
    
 fun update_sol2 d anum tpl =
   let val newtpl = mk_fast_set (snd_compare prog_compare) 
     [find_min is_smaller tpl, find_min is_faster tpl]
   in
-    update_ifnew d anum (tpl,newtpl)
+    d := dadd anum newtpl (!d)
   end
 
 fun update_wind d (anum,toptpl) =
@@ -64,12 +59,6 @@ fun merge_itsol itsol =
     app (update_wind d) itsol;
     dlist (!d)
   end
-
-fun compare_to (t1,t2) = case (t1,t2) of
-    (NONE,NONE) => EQUAL
-  | (SOME _, NONE) => LESS
-  | (NONE, SOME _) => GREATER
-  | (SOME x1, SOME x2) => Int.compare (x1,x2)
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
 val compare_cov = inv_cmp Int.compare

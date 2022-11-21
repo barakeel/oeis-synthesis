@@ -99,6 +99,7 @@ sig
   val gpt_of_prog : prog -> string
   val id_of_gpt : string -> id
   val movel_of_gpt : string -> id list
+  val prog_of_gpt : string -> prog
   
   (* hadamard matrices *)
   val sqrtv : int vector vector
