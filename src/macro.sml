@@ -31,6 +31,27 @@ fun random_macro x =
 fun rm_undef (macro,i) = filter (fn x => x < minop + i) macro;
 
 (* -------------------------------------------------------------------------
+   List utils
+   ------------------------------------------------------------------------- *)
+
+fun lfields_aux buf acc sep l = case l of
+    [] => rev (rev buf :: acc)
+  | a :: m => 
+    if a = sep then lfields_aux [] (rev buf :: acc) sep m
+    else lfields_aux (a :: buf) acc sep m
+    
+fun lfields sep l = lfields_aux [] [] sep l    
+
+fun subseq (n,m) l = first_n (m-n+1) (snd (part_n n l));
+
+fun lconcatw_aux x ll = case ll of
+    [] => []
+  | [a] => [a]
+  | a :: m => a :: [x] :: lconcatw_aux x m;
+ 
+fun lconcatw x ll = List.concat (lconcatw_aux x ll);
+
+(* -------------------------------------------------------------------------
    Storing expanded macro in a vector
    ------------------------------------------------------------------------- *)
 
@@ -89,16 +110,6 @@ fun collect_prog_line moveltop =
      !progl
    end;
 
-fun subseq (n,m) l = first_n (m-n+1) (snd (part_n n l));
-
-fun lconcatw_aux x ll = case ll of
-    [] => []
-  | [a] => [a]
-  | a :: m => a :: [x] :: lconcatw_aux x m;
- 
-fun lconcatw x ll = List.concat (lconcatw_aux x ll);
-
-
 fun rename_macro macro =
   let 
     val i = ref minop
@@ -112,7 +123,7 @@ fun rename_macro macro =
 fun collect_prog macro =
   let 
     val _ = macrov := empty_macrov
-    val macrol1 = rpt_split_sl hashop macro
+    val macrol1 = lfields hashop macro
     val macrol2 = map rm_undef (number_snd 0 macrol1)
     fun maxdep_of macro = 
       let val n = list_imax macro in
@@ -437,16 +448,46 @@ fun merge_itsol_default dir =
     val _ = app (merge_itsol_file d) filel
     val _ = log ("sol: " ^ its (dlength (!d)))
     val oldsolfile = dir ^ "/" ^ "solold"
-    val _ = merge_itsol_file d oldsolfile
+    val _ = if not (exists_file oldsolfile) then ()
+            else merge_itsol_file d oldsolfile
   in
     dlist (!d)
   end
 
+(* training data *)
+fun invert_macro macro = 
+  let 
+    val macrol1 = lfields hashop macro
+    val macrol2 = map rev macrol1
+  in
+    lconcatw hashop macrol2
+  end  
+
+fun write_gptsol file sol =
+  let
+    fun f (i,tpl) =
+      let 
+        val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
+        fun g (t,(p,(n,macro))) = 
+          seqs ^ ">" ^ string_of_macro (invert_macro macro)
+      in
+        map g tpl
+      end
+  in
+    writel file (shuffle (List.concat (map f sol)))
+  end
+
+fun mkdir_exp expname = 
+  (
+  mkDir_err (selfdir ^ "/exp");
+  mkDir_err (selfdir ^ "/exp/" ^ expname)
+  )
+ 
+
 fun parallel_check_macro expname = 
   let 
     val dir = selfdir ^ "/exp/" ^ expname
-    val _ = mkDir_err (selfdir ^ "/exp")
-    val _ = mkDir_err dir
+    val _ = mkdir_exp expname
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
@@ -462,13 +503,33 @@ fun parallel_check_macro expname =
     val _ = log ("merging time: " ^ rts_round 6 t)
     val _ = init_merge () 
     val newsolfile = dir ^ "/" ^ "solnew"
-    val oldsol = read_itcandl (dir ^ "/" ^ "solold")
+    val gptfile = dir ^ "/" ^ "solnewgpt" 
+    val oldsol = 
+      if not (exists_file (dir ^ "/" ^ "solold")) 
+      then [] 
+      else read_itcandl (dir ^ "/" ^ "solold")
   in
     stats_dir dir oldsol newsol;
+    write_gptsol (gptfile ^ "_temp") newsol;
     write_itcandl (newsolfile ^ "_temp") newsol;
-    OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile}
+    OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
+    OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
   end
-
+    
+fun boot expname ngen nmacro = 
+  let 
+    val expcur = expname ^ its ngen
+    val dircur = selfdir ^ "/exp/" ^ expcur
+    val expnext = expname ^ its (ngen+1)
+    val dirnext = selfdir ^ "/exp/" ^ expnext
+    val _ = app mkdir_exp [expcur,expnext]
+    val macrol = create_macrol (nmacro,20,200)
+    val _ = save_macrol expcur macrol
+  in
+    parallel_check_macro expcur;
+    cmd_in_dir dircur ("cp " ^ dircur ^ "/solnew" ^ " " ^ dirnext ^ "/solold");
+    boot expname (ngen + 1) nmacro
+  end
 
 end (* struct *)
 
@@ -478,9 +539,14 @@ load "macro"; open kernel aiLib macro;
 
 val macrol = create_macrol (10000,20,200);
 val candl = extract_candl macrol;
-val sol = check_candl candl;  
+val sol = check_candl candl;   
 
-parallel_check_macro "macro";
+val macrol = create_macrol (20000,20,200);
+save_macrol "macro1" macrol;
+parallel_check_macro "macro1";
+
+boot "macroinit" 0 20000;
+
 *)
 
 

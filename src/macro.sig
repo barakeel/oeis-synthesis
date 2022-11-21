@@ -17,6 +17,6 @@ sig
     smlParallel.extspec
   
   val parallel_check_macro : string -> unit
-  
+  val boot : string -> int -> int -> unit
   
 end
