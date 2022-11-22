@@ -1,0 +1,2 @@
+load "macro";
+macro.parallel_check_macro "expname_template";

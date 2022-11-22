@@ -51,6 +51,14 @@ fun lconcatw_aux x ll = case ll of
  
 fun lconcatw x ll = List.concat (lconcatw_aux x ll);
 
+fun invert_macro macro = 
+  let 
+    val macrol1 = lfields hashop macro
+    val macrol2 = map rev macrol1
+  in
+    lconcatw hashop macrol2
+  end
+
 (* -------------------------------------------------------------------------
    Storing expanded macro in a vector
    ------------------------------------------------------------------------- *)
@@ -90,7 +98,7 @@ fun next_board (board : (prog * int * int) list) (move,moven) =
     val (l1,l2) = part_n arity board 
   in
     if length l1 < arity
-    then board   
+    then []   
     else (Ins (move, rev (map #1 l1)), 
           list_imin (moven :: map #2 l1), moven) :: l2
   end;
@@ -370,12 +378,16 @@ val mergen = ref 0
 val mergedir = selfdir ^ "/merge"
 fun init_merge () = (mergen := 0; clean_dir mergedir) 
 
+val boot_flag = ref false
+
 fun check_file file =
   let 
     val macrol = map macro_of_string (readl file)
-    val _ = print_endline (file ^ ":" ^ its (length macrol))
+    val macrol1 = if !boot_flag then macrol else 
+      (print_endline "inverting macros"; map invert_macro macrol)
+    val _ = print_endline (file ^ ":" ^ its (length macrol1))
   in
-    check_candl (extract_candl macrol)
+    check_candl (extract_candl macrol1)
   end
 
 val checkspec : (unit, string, (anum * (int * cand) list) list) extspec =
@@ -454,15 +466,6 @@ fun merge_itsol_default dir =
     dlist (!d)
   end
 
-(* training data *)
-fun invert_macro macro = 
-  let 
-    val macrol1 = lfields hashop macro
-    val macrol2 = map rev macrol1
-  in
-    lconcatw hashop macrol2
-  end  
-
 fun write_gptsol file sol =
   let
     fun f (i,tpl) =
@@ -518,6 +521,7 @@ fun parallel_check_macro expname =
     
 fun boot expname ngen nmacro = 
   let 
+    val _ = boot_flag := true
     val expcur = expname ^ its ngen
     val dircur = selfdir ^ "/exp/" ^ expcur
     val expnext = expname ^ its (ngen+1)
@@ -545,7 +549,7 @@ val macrol = create_macrol (20000,20,200);
 save_macrol "macro1" macrol;
 parallel_check_macro "macro1";
 
-boot "boot2m" 0 1000000;
+boot "boot3m" 0 1000000;
 
 *)
 
