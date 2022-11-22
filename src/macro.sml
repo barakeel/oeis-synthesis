@@ -41,6 +41,8 @@ fun lfields_aux buf acc sep l = case l of
     else lfields_aux (a :: buf) acc sep m
     
 fun lfields sep l = lfields_aux [] [] sep l    
+fun ltokens sep l = filter (fn x => not (null x)) (lfields sep l)
+
 
 fun subseq (n,m) l = first_n (m-n+1) (snd (part_n n l));
 
@@ -57,6 +59,11 @@ fun invert_macro macro =
     val macrol2 = map rev macrol1
   in
     lconcatw hashop macrol2
+  end
+  
+fun defl_macro macro =
+  let val macrol = ltokens hashop macro in
+    if null macrol then [] else butlast macrol
   end
 
 (* -------------------------------------------------------------------------
@@ -414,18 +421,28 @@ val checkspec : (unit, string, (anum * (int * cand) list) list) extspec =
 
 fun stats_sol file itsol =
   let
+    val d = ref (dempty (list_compare Int.compare))
     fun string_of_tp (t,p) =
-       "size: " ^ its (fst (snd p)) ^ ", time: " ^ its t ^ 
-       ", prog: " ^ gpt_of_prog (fst p) ^ 
-       ", macro: " ^ string_of_macro (snd (snd p))
+      let 
+        val defl = defl_macro (snd (snd p)) 
+        val _ = d := count_dict (!d) defl
+      in
+        "size: " ^ its (fst (snd p)) ^ 
+        ", time: " ^ its t ^ 
+        ", prog: " ^ gpt_of_prog (fst p) ^ 
+        ", macro: " ^ string_of_macro (snd (snd p))
+      end
     fun string_of_itprog (i,tpl) = 
       "https://oeis.org/" ^ "A" ^ its i ^ " : " ^ 
       string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^ 
       String.concatWith "\n" (map string_of_tp tpl)
     val itsolsort = dict_sort 
       (snd_compare (list_compare (snd_compare cand_compare_size))) itsol
+    val freql = filter (fn (_,x) => x > 1) (dlist (!d))
+    fun f (macro,n) = its n ^ ": " ^ string_of_macro macro
   in
-    writel file (map string_of_itprog itsolsort)
+    writel file (map string_of_itprog itsolsort);
+    writel (file ^ "_deffreq") (map f (dict_sort compare_imax freql))
   end
   
 fun stats_dir dir oldsol newsol =
