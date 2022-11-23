@@ -438,10 +438,10 @@ fun stats_sol file itsol =
       String.concatWith "\n" (map string_of_tp tpl)
     val itsolsort = dict_sort 
       (snd_compare (list_compare (snd_compare cand_compare_size))) itsol
-    val freql = filter (fn (_,x) => x > 1) (dlist (!d))
     fun f (macro,n) = its n ^ ": " ^ string_of_macro macro
+    val _ = writel file (map string_of_itprog itsolsort)
+    val freql = dlist (!d)
   in
-    writel file (map string_of_itprog itsolsort);
     writel (file ^ "_deffreq") (map f (dict_sort compare_imax freql))
   end
   
@@ -552,7 +552,56 @@ fun boot expname ngen nmacro =
     boot expname (ngen + 1) nmacro
   end
 
+(* -------------------------------------------------------------------------
+   Beam search
+   ------------------------------------------------------------------------- *)
+
+val stopmove = maxop + 1
+
 end (* struct *)
+
+(* 
+take a function that converts macro into terms
+1,5,25
+every functions
+
+take the n most likely element after each step 
+given a function that give you the probability for the next move (including the stop move).
+*)
+
+(* 
+PolyML.print_depth 10;
+load "macro"; open kernel aiLib macro;
+
+val res = [0,9];
+val alpha6 = rpt_fun_type 2 alpha;
+fun mk_var6 s = mk_var (s,alpha6);
+val nonetm = mk_var ("none",alpha);
+val idtmv = Vector.fromList (map mk_var6 (List.tabulate (26,gpt_of_id)));
+val ERR = mk_HOL_ERR "test";
+
+fun term_of_macro_aux tml idl = case idl of
+    [] => if null tml then raise ERR "term_of_macro" "empty" else hd tml
+  | id :: idm =>
+  let 
+    val tmv = Vector.fromList tml
+    fun f x = Vector.sub (tmv,x) handle Subscript => nonetm
+    val argl = map f res
+    val newtm = list_mk_comb (Vector.sub (idtmv,id), argl)
+  in
+    term_of_macro_aux (newtm :: tml) idm
+  end;
+ 
+fun term_of_macro macro = term_of_macro_aux [] macro; 
+val macro = random_macro 10;
+fun string_of_macro il = String.concatWith " " (map gpt_of_id il);
+val s = string_of_macro macro;
+
+val tm = term_of_macro macro;
+
+*)
+
+
 
 (*
 PolyML.print_depth 10;
