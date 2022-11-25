@@ -288,7 +288,8 @@ fun search () targetn =
     val _ = init_search targetn
     val _ = print_endline "search start"
   in
-    (search.search (!nvis,!rtim); checkfinal ())
+    if !beam_flag then search.beamsearch ()
+    else (search.search (!nvis,!rtim); checkfinal ())
   end
 
 fun string_of_timeo () = (case !time_opt of

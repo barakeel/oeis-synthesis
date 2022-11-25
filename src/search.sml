@@ -282,14 +282,107 @@ fun search_board (vis,tinc) board =
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
 
+
+(* -------------------------------------------------------------------------
+   Beam search
+   ------------------------------------------------------------------------- *) 
+ 
+val progd = ref (eempty prog_compare)
+
+fun exec_fun move l1 l2 =
+  let 
+    val f = fp_emb_either
+    val p = (Ins (move, map #1 (rev l1)))
+    val _ = progd := eadd p (!progd)
+  in
+    if !randsearch_flag then (p,empty_emb,empty_emb) :: l2 else
+    let
+      val oper = Vector.sub (operv,move)
+      val emb1 = 
+        if arity_of oper <= 0 
+        then f oper []
+        else f (cap_tm oper) [f oper (map #2 (rev l1))]
+      val emb2 = 
+        if null l2 then emb1 else
+        f (cap_tm stack_cat) [f stack_cat [emb1, #3 (hd l2)]]
+    in
+      ((p,emb1,emb2) :: l2)
+    end
+  end
+
+fun apply_move move boarde =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity boarde
+  in
+    if length l1 <> arity 
+    then raise ERR "apply_move" ""
+    else (exec_fun move l1 l2)
+  end
+  
+fun create_pol targete boarde ml =
+  if !randsearch_flag 
+    then normalize_distrib (map (fn x => (x, random_real ())) ml)
+  else
+  let  
+    val f = fp_emb_either
+    val progle = if null boarde then f stack_empty [] else #3 (hd boarde)
+    val preboarde = 
+       if !notarget_flag then progle else
+       f pair_progseq [progle,targete]
+    val prepolie = f prepoli [preboarde]
+    val ende = f head_poli [prepolie]
+    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
+    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) ml
+    val pol3 = normalize_distrib pol2
+    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
+  in
+    pol4
+  end
+  
+fun beamsearch_aux targete maxwidth maxdepth depth beaml =
+  if depth >= maxdepth then beaml else  
+  let 
+    fun f (boarde,sc) =
+      let 
+        val ml = available_movel boarde 
+        val pol = create_pol targete boarde ml
+        fun g (m,msc) = ((boarde,m),sc * msc)
+      in
+        map g pol
+      end 
+    val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
+    val beaml2 = first_n maxwidth beaml1
+    fun h ((boarde,m),sc) = (apply_move m boarde, sc)
+    val beaml3 = map h beaml2
+  in
+    beamsearch_aux targete maxwidth maxdepth (depth + 1) beaml3
+  end
+
+fun beamsearch () =  
+  let 
+    val _ = progd := eempty prog_compare
+    val targete = get_targete ()
+    val (_,t) = add_time (beamsearch_aux targete 240 240 0) [([],1.0)]
+    val pl = elist (!progd)
+    val _ = print_endline 
+      ("beamsearch: " ^ its (elength (!progd)) ^ " " ^ rts_round 2 t)
+    val (sol,t) = add_time checkpl pl
+    val _ = print_endline 
+      ("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
+  in
+    sol
+  end
  
 end (* struct *)
 
 (* 
+PolyML.print_depth 3;
 load "search"; open kernel aiLib search;
 tnn.update_fp_op (selfdir ^ "/tnn_in_c/ob_online.so");
-target_glob := List.tabulate (16,IntInf.fromInt);
-(* bloom.select_random_target (); *)
+bloom.select_random_target ();
+randsearch_flag := false;
+val sol = beamsearch ();
 
 check.checkinit ();
 search (0, 60.0);
@@ -303,16 +396,6 @@ more solutions: 3689
 > val it = 55: int
 *)
 
-check_init ();
-search (200000, NONE);
-val _ = check.checkfinal ();
 
-val rt = Timer.startRealTimer ();
-val tim = 1000.0;
-fun f x = if tim <= Time.toReal (Timer.checkRealTimer rt) then 1-x else x;
-500: 10sec, 10, 11, 4,5
-5000: 73sec, 34sec, 
-
-1000: 5.89
 
 *)

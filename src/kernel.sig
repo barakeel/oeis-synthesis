@@ -4,6 +4,8 @@ sig
   include Abbrev
   (* directory *)
   val selfdir : string 
+ 
+  (* flags *)
   val configd : (string ,string) Redblackmap.dict
   val bflag : string -> bool ref
   val t_flag : bool ref (* optimize for time instead of size *)
@@ -20,6 +22,7 @@ sig
   val convolution_flag : bool ref
   val family_flag : bool ref
   val macro_flag : bool ref
+  val beam_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
