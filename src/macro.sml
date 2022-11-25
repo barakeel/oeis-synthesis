@@ -201,7 +201,9 @@ fun merge_candl candl =
 fun extract_candl_one macro = 
   let  
     val l1 = collect_prog macro
-    val l2 = map (fn (a,b) => (a,(length b,b))) l1
+    fun g b = length (filter (fn x => x <> hashop) b)
+    fun f (a,b) = (a,(g b, b))
+    val l2 = map f l1
     val l3 = merge_candl l2
   in
     l3
