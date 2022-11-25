@@ -263,33 +263,26 @@ fun wrap_trainf ngen =
 fun clean_dicts () = 
   (progd := eempty prog_compare; embd := dempty Term.compare)
 
-fun init_search targetn =
+fun init_cube () =
   let
     val _ = print_endline "initialization"
-    val fileso = tnndir ^ "/ob.so"
     val _ = if !ngen_glob <= 0
             then search.randsearch_flag := true
             else search.randsearch_flag := false
-    val itsol = if !ngen_glob <= 0 then [] else read_itsol (!ngen_glob - 1)
-    val _ = if not (!search.randsearch_flag) andalso not (exists_file fileso) 
-            then raise ERR "init_search" "missing .so file"
-            else use_ob := true
-    val _ = if !search.randsearch_flag then () else update_fp_op fileso
-    val _ = if !ngen_glob mod 2 = 0 
+    val _ = use_ob := true
+    val _ = if !ngen_glob mod 2 = 0
             then noise_flag := false
             else (noise_flag := true; noise_coeff_glob := 0.1)
-    val _ = select_random_target ()
+    val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
   in
     ()
   end
 
 fun search () targetn =
-  let
-    val _ = init_search targetn
-    val _ = print_endline "search start"
-  in
-    if !beam_flag then search.beamsearch ()
-    else (search.search (!nvis,!rtim); checkfinal ())
+  let val _ = print_endline "search start" in
+    if !beam_flag 
+    then (select_random_target (); search.beamsearch ())
+    else (select_random_target (); search.search (!nvis,!rtim); checkfinal ())
   end
 
 fun string_of_timeo () = (case !time_opt of
@@ -309,7 +302,8 @@ val parspec : (unit, int, sol list) extspec =
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "tnn.dim_glob := " ^ its (!dim_glob),
      "tnn.use_ob := " ^ bts (!use_ob),
-     "game.time_opt := " ^ string_of_timeo ()] 
+     "game.time_opt := " ^ string_of_timeo (),
+     "rl.init_cube ()"] 
     ^ ")"),
   function = search,
   write_param = let fun f _ () = () in f end,
@@ -380,17 +374,6 @@ fun start_cube n =
     val (newtree,t) = add_time (mcts (mctsobj ())) tree
   in
     clean_dicts (); record_flag := false; newtree
-  end
-
-fun init_cube () =
-  let
-    val _ = print_endline "initialization"
-    val _ = if !ngen_glob mod 2 = 0
-            then noise_flag := false
-            else (noise_flag := true; noise_coeff_glob := 0.1)
-    val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
-  in
-    ()
   end
 
 fun search_cube () btiml =
