@@ -281,7 +281,7 @@ fun init_cube () =
 fun search () targetn =
   let val _ = print_endline "search start" in
     if !beam_flag 
-    then (select_random_target (); search.beamsearch ())
+    then search.beamsearch ()
     else (select_random_target (); search.search (!nvis,!rtim); checkfinal ())
   end
 

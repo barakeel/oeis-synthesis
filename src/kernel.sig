@@ -24,6 +24,7 @@ sig
   val macro_flag : bool ref
   val beam_flag : bool ref
   val newseq_flag : bool ref
+  val stop_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -78,6 +79,7 @@ sig
   
   (* operators *)
   val operv : term vector
+  val maxmove : int
   val arity_of_oper : int -> int
   val name_of_oper : int -> string
   

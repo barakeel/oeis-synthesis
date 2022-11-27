@@ -27,6 +27,7 @@ val sol2_flag = bflag "sol2_flag"
 val macro_flag = bflag "macro_flag"
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
+val stop_flag = bflag "stop_flag"
 
 (* side experiments flags *)
 val prime_flag = bflag "prime_flag"
@@ -230,6 +231,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
    ------------------------------------------------------------------------- *)
 
 val operv = Vector.fromList base_operl
+val maxmove = Vector.length operv
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
 fun name_of_oper i = 

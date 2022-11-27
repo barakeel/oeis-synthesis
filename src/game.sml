@@ -39,7 +39,6 @@ fun mctsparam () = {
 
 type move = int
 val movelg = List.tabulate (Vector.length operv, I)
-val maxmove = length movelg
 val move_compare = Int.compare
 fun string_of_move x = its x
 

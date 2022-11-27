@@ -2,8 +2,6 @@ signature game =
 sig
 
   type move = int
-  val maxmove : int
-  
   type board = kernel.prog list
 
   (* recording programs during the search *)

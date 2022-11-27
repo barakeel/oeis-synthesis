@@ -8,6 +8,8 @@ val ERR = mk_HOL_ERR "tnn"
 type tnn = mlTreeNeuralNetwork.tnn
 type player = (board,move) player
 
+val maxmove = if !stop_flag then maxmove + 1 else maxmove
+
 (* -------------------------------------------------------------------------
    Globals
    ------------------------------------------------------------------------- *)
@@ -291,7 +293,8 @@ fun random_step board =
 
 fun random_nstep board = 
   if random_real () < 0.5 then board else random_nstep (random_step board)
-  
+
+ 
 fun create_exl iprogl =
   let
     val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
@@ -299,6 +302,9 @@ fun create_exl iprogl =
       let
         val _ = target_glob := valOf (Array.sub (oseq,i))
         val bml = linearize_safe p
+        val stopex = if not (!stop_flag) then [] else
+          [(poli_of_board [p], vector_to_list 
+            (Vector.update (zerov, maxmove - 1, 1.0)))]
         fun f (board,move) =
            let 
              val newv = Vector.update (zerov, move, 1.0)
@@ -307,7 +313,7 @@ fun create_exl iprogl =
              (poli_of_board board, newl)
            end
       in
-        map f bml
+        stopex @ map f bml
       end
     val _ = use_cache := true
     val r = map create_ex iprogl

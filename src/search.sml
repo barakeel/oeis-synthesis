@@ -1,7 +1,7 @@
 structure search :> search =
 struct
 
-open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn exec check
+open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn exec check bloom
 val ERR = mk_HOL_ERR "search"
 type emb = real vector
 
@@ -333,7 +333,8 @@ fun create_pol targete boarde ml =
     val prepolie = f prepoli [preboarde]
     val ende = f head_poli [prepolie]
     val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
-    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) ml
+    val pol2 = map (fn x => (x, Vector.sub (pol1,x))) 
+      (if !stop_flag then maxmove :: ml else ml)
     val pol3 = normalize_distrib pol2
     val pol4 = if !game.noise_flag then add_noise pol3 else pol3
   in
@@ -353,8 +354,11 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
       end 
     val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
     val beaml2 = first_n maxwidth beaml1
-    fun h ((boarde,m),sc) = (apply_move m boarde, sc)
-    val beaml3 = map h beaml2
+    fun h ((boarde,m),sc) = 
+      if !stop_flag andalso m = maxmove 
+      then NONE 
+      else SOME (apply_move m boarde, sc)
+    val beaml3 = List.mapPartial h beaml2
   in
     beamsearch_aux targete maxwidth maxdepth (depth + 1) beaml3
   end
@@ -362,12 +366,18 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
 fun beamsearch () =  
   let 
     val _ = progd := eempty prog_compare
-    val targete = get_targete ()
-    val (_,t) = add_time (beamsearch_aux targete 240 240 0) [([],1.0)]
-    val pl = elist (!progd)
+    fun f () =
+      let 
+        val _ = select_random_target ()
+        val targete = get_targete ()
+      in
+        beamsearch_aux targete 240 240 0 [([],1.0)]
+      end
+    fun loop n = if n <= 0 then () else (f (); loop (n-1))
+    val (_,t) = add_time loop 100
     val _ = print_endline 
       ("beamsearch: " ^ its (elength (!progd)) ^ " " ^ rts_round 2 t)
-    val (sol,t) = add_time checkpl pl
+    val (sol,t) = add_time checkpl (elist (!progd))
     val _ = print_endline 
       ("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
   in
