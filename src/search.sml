@@ -374,7 +374,7 @@ fun beamsearch () =
         beamsearch_aux targete 240 240 0 [([],1.0)]
       end
     fun loop n = if n <= 0 then () else (f (); loop (n-1))
-    val (_,t) = add_time loop 100
+    val (_,t) = add_time loop 1
     val _ = print_endline 
       ("beamsearch: " ^ its (elength (!progd)) ^ " " ^ rts_round 2 t)
     val (sol,t) = add_time checkpl (elist (!progd))
