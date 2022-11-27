@@ -26,6 +26,7 @@ val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val macro_flag = bflag "macro_flag"
 val beam_flag = bflag "beam_flag"
+val newseq_flag = bflag "newseq_flag"
 
 (* side experiments flags *)
 val prime_flag = bflag "prime_flag"

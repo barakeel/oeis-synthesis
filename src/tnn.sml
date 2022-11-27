@@ -55,20 +55,24 @@ end
 
 val seq_empty = mk_var ("seq_empty", alpha);
 val seq_cat = mk_var ("seq_cat", alpha3);
+val seq16 = mk_var ("seq16", rpt_fun_type 17 alpha)
+val seq16ph = mk_var ("seq16ph", alpha); 
 
-fun term_of_seq_nocache seq = case seq of
+fun term_of_seq_nocache1 seq = case seq of
     [] => seq_empty
   | a :: m => list_mk_comb 
-    (seq_cat, [term_of_nat a, term_of_seq_nocache m]);
+    (seq_cat, [term_of_nat a, term_of_seq_nocache1 m]);
+
+fun term_of_seq_nocache2 seq = 
+  list_mk_comb (seq16, map term_of_nat seq @ 
+    List.tabulate (16 - length seq, fn _ => seq16ph))
+  
+val term_of_seq_nocache =
+  if !newseq_flag then term_of_seq_nocache2 else term_of_seq_nocache1
 
 fun term_of_seq_cache seq = 
   dfind seq (!seqtmd) handle NotFound => 
-  let val r =
-    case seq of
-      [] => seq_empty
-    | a :: m => list_mk_comb 
-      (seq_cat, [term_of_nat a, term_of_seq_nocache m]);
-  in
+  let val r = term_of_seq_nocache seq in
     seqtmd := dadd seq r (!seqtmd); r
   end
   
@@ -77,7 +81,8 @@ fun term_of_seq x =
   then term_of_seq_cache x
   else term_of_seq_nocache x  
   
-val seqoperl = natoperl @ [seq_empty,seq_cat]
+val seqoperl = natoperl @ (if !newseq_flag then [seq16,seq16ph]
+  else [seq_empty,seq_cat])
 
 (* two layers *)
 fun cap_tm tm = 
@@ -150,7 +155,8 @@ fun poli_of_board board = mk_comb (head_poli,
 (* embedding dimensions *)
 val operl = vector_to_list operv @ [stack_empty,stack_cat]
 val operlcap = operl @ List.mapPartial cap_opt operl
-val seqoperlcap = seqoperl @ [cap_tm seq_cat, cap_tm seq_empty]
+val seqoperlcap = seqoperl @ 
+  (if !newseq_flag then [] else [cap_tm seq_cat, cap_tm seq_empty])
 val allcap = [pair_progseq] @ operlcap @ seqoperlcap
 
 val operlext = allcap @ [prepoli,head_poli]

@@ -23,6 +23,7 @@ sig
   val family_flag : bool ref
   val macro_flag : bool ref
   val beam_flag : bool ref
+  val newseq_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
