@@ -360,7 +360,7 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
       else SOME (apply_move m boarde, sc)
     val beaml3 = List.mapPartial h beaml2
   in
-    beamsearch_aux targete maxwidth maxdepth (depth + 1) beaml3
+    beamsearch_aux targete (length beaml3) maxdepth (depth + 1) beaml3
   end
 
 fun beamsearch () =  
