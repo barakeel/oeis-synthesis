@@ -342,7 +342,7 @@ fun create_pol targete boarde ml =
   end
   
 fun beamsearch_aux targete maxwidth maxdepth depth beaml =
-  if depth >= maxdepth then beaml else  
+  if depth >= maxdepth orelse maxwidth <= 0 then beaml else  
   let 
     fun f (boarde,sc) =
       let 
@@ -354,13 +354,14 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
       end 
     val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
     val beaml2 = first_n maxwidth beaml1
+    val i = ref 0
     fun h ((boarde,m),sc) = 
       if !stop_flag andalso m = maxmove 
-      then NONE 
+      then (incr i; NONE) 
       else SOME (apply_move m boarde, sc)
     val beaml3 = List.mapPartial h beaml2
   in
-    beamsearch_aux targete (length beaml3) maxdepth (depth + 1) beaml3
+    beamsearch_aux targete (maxwidth - i) maxdepth (depth + 1) beaml3
   end
 
 fun beamsearch () =  
@@ -371,7 +372,7 @@ fun beamsearch () =
         val _ = select_random_target ()
         val targete = get_targete ()
       in
-        beamsearch_aux targete 2400 240 0 [([],1.0)]
+        beamsearch_aux targete 240 240 0 [([],1.0)]
       end
     fun loop n = if n <= 0 then () else (f (); loop (n-1))
     val (_,t) = add_time loop 1
