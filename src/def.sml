@@ -11,14 +11,8 @@ fun string_of_macro il = String.concatWith " " (map gpt_of_id il)
 
 type cand = prog * (int * macro);
 
-val coeff = int_div 9 34
-val nullopv = Vector.fromList [0,1,2,10,11]
 (* stop token could be added after maxop + 1 *)
-
 (* val defv = Vector.fromList (map macro_of_string readl (selfdir ^ "/def")) *)
-
-
-  
 (* remove undefined def + remove leading zeros *)
 fun rm_undef (macro,i) = filter (fn x => x < minop + i) macro;
 
@@ -27,7 +21,7 @@ fun rm_undef (macro,i) = filter (fn x => x < minop + i) macro;
    ------------------------------------------------------------------------- *)
 
 load "kernel"; open kernel aiLib;
-
+PolyML.print_depth 10;
 val minop = Vector.length operv;
 val maxop = minop + 9;
 fun is_defid x = x >= minop andalso x <= maxop;
@@ -91,16 +85,26 @@ fun extract_subseq_one expbody =
 fun extract_subseq expbody = case expbody of [] => () | a :: m =>
   (extract_subseq_one expbody; extract_subseq m);
   
-val expbody = random_defbody 20; 
-val _ = (subd := dempty (list_compare Int.compare); extract_subseq expbody);
+val expbody = random_defbody 1000; 
+val _ = (subd := dempty (list_compare Intfun compression_score (il,freq) = 
+  let val n = length il in (n - 3) * freq end;
+  
+val l = map_assoc compression_score (dlist (!subd));  
+dict_sort compare_imax l;.compare); extract_subseq expbody);
 !subd;
 dict_sort compare_imax (dlist (!subd));
+
+fun compression_score defsize (il,freq) = 
+  let val n = length il in (n - defsize) * freq end;
+  
+val l = map_assoc (compression_score 1) (dlist (!subd));  
+dict_sort compare_imax l;
 
 (* -------------------------------------------------------------------------
    Storing expanded definitions in a vector
    ------------------------------------------------------------------------- *)
 
-
+(* look up what I did before (max arity 2 is enough?) *)
 
 
 (* -------------------------------------------------------------------------
