@@ -342,7 +342,7 @@ fun create_pol targete boarde ml =
   end
   
 fun beamsearch_aux targete maxwidth maxdepth depth beaml =
-  if depth >= maxdepth orelse maxwidth <= 0 then beaml else  
+  if depth >= maxdepth orelse maxwidth <= 0 then () else  
   let 
     fun f (boarde,sc) =
       let 
@@ -361,7 +361,7 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
       else SOME (apply_move m boarde, sc)
     val beaml3 = List.mapPartial h beaml2
   in
-    beamsearch_aux targete (maxwidth - i) maxdepth (depth + 1) beaml3
+    beamsearch_aux targete (maxwidth - !i) maxdepth (depth + 1) beaml3
   end
 
 fun beamsearch () =  
