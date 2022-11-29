@@ -174,7 +174,7 @@ fun split_tim (torg,tinc) dis =
       end
   in
     map rm_polv (map_assoc f dis)
-  end   
+  end
   
 (* -------------------------------------------------------------------------
    Create a policy from a targete and boarde
@@ -371,7 +371,7 @@ fun beamsearch () =
         val _ = select_random_target ()
         val targete = get_targete ()
       in
-        beamsearch_aux targete 240 240 0 [([],1.0)]
+        beamsearch_aux targete 2400 240 0 [([],1.0)]
       end
     fun loop n = if n <= 0 then () else (f (); loop (n-1))
     val (_,t) = add_time loop 1
