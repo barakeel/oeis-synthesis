@@ -543,7 +543,7 @@ fun compute_freq f sol1 =
   let val freql = dlist 
     (count_dict (dempty prog_compare) (List.concat (map f sol1)))
   in
-    dict_sort compare_imax (filter (fn x => snd x > 10) freql)
+    dict_sort compare_imax (filter (fn x => snd x >= 10) freql)
   end
 
 fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
