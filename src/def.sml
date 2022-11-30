@@ -468,7 +468,7 @@ fun check_file file =
 val checkspec : (unit, string, (anum * (int * cand) list) list) extspec =
   {
   self_dir = selfdir,
-  self = "macro.checkspec",
+  self = "def.checkspec",
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
@@ -645,7 +645,7 @@ val candl = map parse (read_cand "cand");
 val candle = map expand candl;
 val candlp = extract_candl candle;
 
-convertto_itcandl "exp/def/solold_prog" "exp/def/soldold_cand";
+convertto_itcandl "exp/def/solold_prog" "exp/def/solold_cand";
 *)
 
 
