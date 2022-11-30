@@ -38,12 +38,12 @@ fun read_cand file =
    Generate random candidates and random definitions for testing
    ------------------------------------------------------------------------- *) 
 
-fun random_cand () =
-  List.tabulate (random_int (10,20), fn _ => random_int (0,maxop))
+fun random_cand () = (if !reverse_flag then rev else I)
+  (List.tabulate (random_int (10,50), fn _ => random_int (0,maxop)))
 
-fun gen_cand n =
+fun gen_cand file n =
   let val l = List.tabulate (n, fn _ => string_of_macro (random_cand ())) in
-    writel (selfdir ^ "/cand") l
+    writel file l
   end
   
 fun random_def () =
@@ -377,7 +377,8 @@ fun mk_def limit progl =
       end
     fun f macro = case macro of [] => () | a :: m => (f_one macro; f m)
     val _ = app f macrol
-    val l1 = filter (fn (a,b) => b >= 20) (dlist (!subd))
+    val l1 = filter (fn (a,b) => b >= 20 andalso length a > defsize) 
+      (dlist (!subd))
     fun score (il,freq) = if emem il prevd then NONE 
        else SOME (il, (length il - defsize) * freq)
     val l2 = List.mapPartial score l1
@@ -394,6 +395,8 @@ load "def"; open aiLib kernel def;
 val sol = read_itprogl "sol0";
 val progl1 = map snd (List.concat (map snd sol));
 val progl2 = mk_fast_set prog_compare progl1;
+val defl = mk_def 10 progl2;
+writel "def0" (map string_of_macro defl);
 *)
 
 fun replace_aux n (def,id) macro = 
@@ -584,7 +587,7 @@ fun parallel_check_def expname =
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = read_def (dir ^ "/defold")
-    val _ = log ("reading " ^ its (Vector.length (!defv)) ^ "definitions")
+    val _ = log ("reading " ^ its (Vector.length (!defv)) ^ " definitions")
     val _ = init_merge ()
     val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
     val _ = log ("checking time: " ^ rts_round 6 t)
@@ -604,12 +607,26 @@ fun parallel_check_def expname =
        else read_itcandl (dir ^ "/" ^ "solold")
   in
     stats_dir dir oldsol newsol;
-    writel (newdeffile ^ "_temp") (map string_of_macro defl);
+    writel (newdeffile ^ "_temp") (map string_of_macro newdefl);
     write_gptsol defidl (gptfile ^ "_temp") newsol;
     write_itcandl (newsolfile ^ "_temp") newsol;
     OS.FileSys.rename {old = newdeffile ^ "_temp", new = newdeffile};
     OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
     OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
+  end
+
+fun itcand_of_itprog (i,tpl) =
+  let fun f (t,p) = 
+    let val m = macro_of_prog p in
+      (t,(p,(length m,m)))
+    end
+  in
+    (i, map f tpl)
+  end
+  
+fun convertto_itcandl filein fileout = 
+  let val sol = read_itprogl filein in
+    write_itcandl fileout (map itcand_of_itprog sol)    
   end
 
 
@@ -628,6 +645,7 @@ val candl = map parse (read_cand "cand");
 val candle = map expand candl;
 val candlp = extract_candl candle;
 
+convertto_itcandl "exp/def/solold_prog" "exp/def/soldold_cand";
 *)
 
 
