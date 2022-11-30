@@ -1,0 +1,2 @@
+load "def";
+def.parallel_check_def "expname_template";

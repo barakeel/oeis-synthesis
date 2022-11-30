@@ -21,7 +21,6 @@ sig
   val bigvar_flag : bool ref
   val convolution_flag : bool ref
   val family_flag : bool ref
-  val macro_flag : bool ref
   val beam_flag : bool ref
   val newseq_flag : bool ref
   val stop_flag : bool ref

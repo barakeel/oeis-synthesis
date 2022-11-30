@@ -24,7 +24,6 @@ val local_flag = bflag "local_flag"
 val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
-val macro_flag = bflag "macro_flag"
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
@@ -90,7 +89,8 @@ fun prog_compare (Ins(s1,pl1),Ins(s2,pl2)) =
   cpl_compare Int.compare (list_compare prog_compare) ((s1,pl1),(s2,pl2))
 
 fun raw_prog (Ins (id,pl)) =
-  "(" ^ its id ^ " " ^ String.concatWith " " (map raw_prog pl) ^ ")"
+  if null pl then its id else
+  "(" ^ String.concatWith " " (its id :: map raw_prog pl) ^ ")"
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
 fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)
