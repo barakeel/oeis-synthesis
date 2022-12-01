@@ -37,4 +37,8 @@ sig
     (int * (int * cand) list)
   val convertto_itcandl : string -> string -> unit
 
+  val write_gptsol : 
+    (int list * int) list -> string -> (int * (int * cand) list) list -> unit
+
+
 end

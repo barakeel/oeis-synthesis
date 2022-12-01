@@ -14,7 +14,6 @@ type cand = prog * (int * macro)
 val minop = Vector.length operv
 val maxop = minop + 9
 fun is_id x = x >= minop
-fun index_id x = x - minop
 
 (* -------------------------------------------------------------------------
    Read definitions and candidates
@@ -38,7 +37,7 @@ fun read_cand file =
    Generate random candidates and random definitions for testing
    ------------------------------------------------------------------------- *) 
 
-fun random_cand () = (if !reverse_flag then rev else I)
+fun random_cand () =
   (List.tabulate (random_int (10,50), fn _ => random_int (0,maxop)))
 
 fun gen_cand file n =
@@ -62,7 +61,7 @@ fun compress_idl idl =
   let fun loop acc lcur = 
     case lcur of [] => acc | a :: m => loop (10 * acc + a) m
   in
-    minop + loop 0 (rev (map index_id idl))
+    minop + loop 0 (rev (map (fn y => y - minop) idl))
   end
 
 fun lfields_aux buf acc l = case l of
@@ -209,7 +208,7 @@ fun collect progd (d,macro) =
         val macro1 = compress_indexed (d, subseq (a,b) macroi) 
         val macro2 = expand_all_id macro1  
       in
-        (p, (length macro2, macro1))
+        (p, (length macro2, macro2))
       end
     val candl = map f progiil
   in
@@ -387,18 +386,6 @@ fun mk_def limit progl =
     map (fn (a,b) => rev a) l3  
   end;
 
-
-(* 
-PolyML.print_depth 20;
-load "def"; open aiLib kernel def;
-
-val sol = read_itprogl "sol0";
-val progl1 = map snd (List.concat (map snd sol));
-val progl2 = mk_fast_set prog_compare progl1;
-val defl = mk_def 10 progl2;
-writel "def0" (map string_of_macro defl);
-*)
-
 fun replace_aux n (def,id) macro = 
   case macro of [] => [] | a :: m =>
   let val (l1,l2) = part_n n macro in
@@ -411,7 +398,7 @@ fun replace (def,id) macro = replace_aux (length def) (def,id) macro;
   
 fun replacenew macro (def,id) = 
   let val newmacro = replace (def,id) macro in
-    if newmacro = macro then NONE else SOME macro
+    if newmacro = macro then NONE else SOME (expand_all_id newmacro)
   end
   
 fun replacenewl defidl p =
@@ -489,20 +476,35 @@ val checkspec : (unit, string, (anum * (int * cand) list) list) extspec =
 
 fun stats_sol file itsol =
   let
-    fun string_of_tp (t,p) =
-      "size: " ^ its (fst (snd p)) ^ 
+    val freqd = ref (dempty Int.compare)
+    fun count_id m = 
+      let 
+        val m' = compress_all_id m 
+        val idl = filter (fn x => x >= minop) m'
+      in
+        freqd := count_dict (!freqd) idl
+      end
+    fun string_of_tp (t,(p,(n,m))) =
+      (
+      count_id m;
+      "size: " ^ its n ^ 
       ", time: " ^ its t ^ 
-      ", prog: " ^ gpt_of_prog (fst p) ^ 
-      ", macro: " ^ string_of_macro (snd (snd p))
+      ", prog: " ^ gpt_of_prog p ^ 
+      ", macro: " ^ string_of_macro m
+      )
     fun string_of_itprog (i,tpl) = 
       "https://oeis.org/" ^ "A" ^ its i ^ " : " ^ 
       string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^ 
       String.concatWith "\n" (map string_of_tp tpl)
     val itsolsort = dict_sort 
       (snd_compare (list_compare (snd_compare cand_compare_size))) itsol
-    fun f (macro,n) = its n ^ ": " ^ string_of_macro macro
+    val _ = writel file (map string_of_itprog itsolsort)
+    fun f (id,n) = 
+      its n ^ ": " ^ string_of_macro (expand_id id) ^ ", " ^ 
+      string_of_macro (fst (Vector.sub (!defv, id - minop)))
+    val l = dict_sort compare_imax (dlist (!freqd))
   in
-    writel file (map string_of_itprog itsolsort)
+    writel (file ^ "_deffreq") (map f l) 
   end
   
 fun stats_dir dir oldsol newsol =
@@ -553,16 +555,15 @@ fun write_gptsol defidl file sol =
         val pl = map g2 tpl
         val extral = List.concat (map (replacenewl defidl) pl)
         fun h macro =
-          let val macro' = expand_all_id macro in
-            seqs ^ ">" ^ string_of_macro 
-              (if !reverse_flag then rev macro' else macro')
-          end
+          seqs ^ ">" ^ string_of_macro 
+            (if !reverse_flag then rev macro else macro)
       in
         map h (macrol @ extral)
       end
-  
+    val l1 = List.concat (map f sol)
+    val _ = print_endline ("write_gptsol: " ^ its (length l1))
   in
-    writel file (shuffle (List.concat (map f sol)))
+    writel file l1
   end
 
 fun mkdir_exp expname = 
@@ -596,7 +597,7 @@ fun parallel_check_def expname =
     val _ = init_merge ()
     val (defl,t) = add_time (mk_def 10) (progl_of_sol newsol)
     val newdefl = map fst (vector_to_list (!defv)) @ defl
-    val defidl = number_snd (Vector.length (!defv)) defl
+    val defidl = number_snd (Vector.length (!defv) + minop) defl
     val _ = log ("definition time: " ^ rts_round 6 t) 
     val newdeffile = dir ^ "/" ^ "defnew"
     val newsolfile = dir ^ "/" ^ "solnew"
@@ -644,8 +645,23 @@ read_def "def";
 val candl = map parse (read_cand "cand");
 val candle = map expand candl;
 val candlp = extract_candl candle;
+*)
 
-convertto_itcandl "exp/def/solold_prog" "exp/def/solold_cand";
+
+
+(* Create initial files requires "sol0"
+
+PolyML.print_depth 20;
+load "def"; open aiLib kernel def;
+convertto_itcandl "sol0" "initdef/sol0";
+val sol = read_itprogl "sol0";
+val cand = map itcand_of_itprog sol;
+val progl1 = map snd (List.concat (map snd sol));
+val progl2 = mk_fast_set prog_compare progl1;
+val defl = mk_def 10 progl2;
+writel "initdef/def0" (map string_of_macro defl);
+val defidl = number_snd (Vector.length operv) defl;
+write_gptsol defidl "initdef/sol0gpt" cand;
 *)
 
 
