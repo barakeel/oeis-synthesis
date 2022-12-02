@@ -14,6 +14,7 @@ type cand = prog * (int * macro)
 val minop = Vector.length operv
 val maxop = minop + 9
 fun is_id x = x >= minop
+fun contain_id m = exists (fn x => x >= minop) m
 
 (* -------------------------------------------------------------------------
    Read definitions and candidates
@@ -77,7 +78,7 @@ fun in_defv id =
   id - minop >= 0 andalso id - minop < Vector.length (!defv);
 
 (* does some cleaning too if a id does not exists *)
-fun compress_all_id macro =
+fun compress_all_idl macro =
   let 
     fun f idl = 
       if not (is_id (hd idl)) then idl else
@@ -201,12 +202,12 @@ fun update_progd progd candl =
 
 fun collect progd (d,macro) =
   let
-    val macroi = number_snd 0 macro
+    val macroi = number_snd 0 macro    
     val progiil = collect_aux (number_snd 0 macro)
     fun f (p,a,b) = 
       let 
         val macro1 = compress_indexed (d, subseq (a,b) macroi) 
-        val macro2 = expand_all_id macro1  
+        val macro2 = expand_all_id macro1
       in
         (p, (length macro2, macro2))
       end
@@ -214,13 +215,15 @@ fun collect progd (d,macro) =
   in
     update_progd progd candl 
   end
-  
+
 fun extract_candl candle = 
   let
     val progd = ref (dempty prog_compare)
     val (_,t) = add_time (app (collect progd)) candle
     val _ = print_endline ("extract_candl: " ^ rts_round 2 t)
     val _ = print_endline ("cand: " ^ its (dlength (!progd)))
+    val l = filter (contain_id o snd o snd) (dlist (!progd))
+    val _ = print_endline ("cand with id: " ^ its (length l))
   in
     dlist (!progd)
   end
@@ -444,9 +447,16 @@ fun init_merge () = (mergen := 0; clean_dir mergedir)
 
 fun check_file file =
   let
-    val candl = map compress_all_id (read_cand file)
+    val dir = OS.Path.dir (OS.Path.dir file)
+    val _ = read_def (dir ^ "/defold")
+    val _ = print_endline (its (Vector.length (!defv)) ^ " definitions")
+    val candl = map compress_all_idl (read_cand file)
     val _ = print_endline (file ^ ":" ^ its (length candl))
+    val l1 = filter contain_id candl
+    val _ = print_endline ("macro1 with id: " ^ its (length l1))
     val candle = map expand candl
+    val l2 = filter (fn x => dlength (fst x) >= 1) candle
+    val _ = print_endline ("macro2 with id: " ^ its (length l2))
     val candlp = extract_candl candle
   in
     check_candl candlp
@@ -479,7 +489,7 @@ fun stats_sol file itsol =
     val freqd = ref (dempty Int.compare)
     fun count_id m = 
       let 
-        val m' = compress_all_id m 
+        val m' = compress_all_idl m 
         val idl = filter (fn x => x >= minop) m'
       in
         freqd := count_dict (!freqd) idl
@@ -641,8 +651,11 @@ load "def"; open aiLib kernel def;
 gen_cand 1000;
 gen_def 123;
 
-read_def "def";
-val candl = map parse (read_cand "cand");
+read_def "exp/def3/defold";
+Vector.length (!defv);
+val candl = read_cand "exp/def3/cand";
+val candl1 = map compress_all_idl candl;
+val l = filter contain_id candl1;
 val candle = map expand candl;
 val candlp = extract_candl candle;
 *)

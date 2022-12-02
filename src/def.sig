@@ -15,10 +15,14 @@ sig
   val string_of_macro : macro -> string
   val macro_of_string : string -> macro
   
+  val compress_idl : int list -> int
+  val compress_all_idl: int list -> int list
+  val expand_id : int -> int list
+  val expand_all_id : int list -> int list
+  
   val defv : (macro * int) vector ref
   val read_def : string -> unit
   val read_cand : string -> macro list
-  val compress_all_id : macro -> macro
   val expand : macro -> (int, int * int) Redblackmap.dict * macro
   val compress : (int, int * int) Redblackmap.dict * macro -> macro
   val extract_candl : ((int, int * int) Redblackmap.dict * macro) list ->
