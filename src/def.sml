@@ -400,7 +400,7 @@ fun all_revprefix l = all_suffix (rev l);
 
 fun mk_def limit progl = 
   let
-    val defsize = length (expand_id (Vector.length (!defv) + minop))
+    val defsize = length (expand_id (Vector.length (!defv) + minop + limit - 1))
     val prevd = enew (list_compare Int.compare) 
       (map (rev o fst) (vector_to_list (!defv)))
     val macrol = map macro_of_prog progl
