@@ -82,9 +82,10 @@ fun compress_all_idl macro =
   let 
     fun f idl = 
       if not (is_id (hd idl)) then idl else
-      let val i = compress_idl idl in
-        if in_defv i then [i] else []
-      end
+        let val i = compress_idl idl in
+          if in_defv i then [i] else []
+        end
+        handle Overflow => []
   in
     List.concat (map f (lfields macro))
   end
