@@ -122,7 +122,7 @@ fun lconcatw_aux ll = case ll of
     let val sepo = 
       if is_id (hd a) andalso is_id (hd b) then [sepop] else []
     in     
-      a :: sepo :: lconcatw_aux m
+      a :: sepo :: lconcatw_aux (b :: m)
     end
  
 fun lconcatw ll = List.concat (lconcatw_aux ll);
