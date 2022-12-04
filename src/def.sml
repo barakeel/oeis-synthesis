@@ -13,6 +13,7 @@ type cand = prog * (int * macro)
 
 val minop = Vector.length operv
 val maxop = minop + 9
+val sepop = maxop + 1
 fun is_id x = x >= minop
 fun contain_id m = exists (fn x => x >= minop) m
 
@@ -57,6 +58,17 @@ fun gen_def n =
 (* -------------------------------------------------------------------------
    Converting list of indices to a single index
    ------------------------------------------------------------------------- *)
+local 
+  fun lfields_aux buf acc sep l = case l of
+    [] => rev (rev buf :: acc)
+  | a :: m => 
+    if a = sep then lfields_aux [] (rev buf :: acc) sep m
+    else lfields_aux (a :: buf) acc sep m
+  fun lfields sep l = lfields_aux [] [] sep l    
+in 
+  fun ltokens sep l = filter (fn x => not (null x)) (lfields sep l)
+end
+
 
 fun compress_idl idl =
   let fun loop acc lcur = 
@@ -78,14 +90,21 @@ fun in_defv id =
   id - minop >= 0 andalso id - minop < Vector.length (!defv);
 
 (* does some cleaning too if a id does not exists *)
+
+fun compress_idl_safe idl =
+  if null idl then [] else
+  (
+  let val i = compress_idl idl in
+    if in_defv i then [i] else []
+  end
+  handle Overflow => []
+  )
+
 fun compress_all_idl macro =
   let 
     fun f idl = 
       if not (is_id (hd idl)) then idl else
-        let val i = compress_idl idl in
-          if in_defv i then [i] else []
-        end
-        handle Overflow => []
+      List.concat (map compress_idl_safe (ltokens sepop idl))
   in
     List.concat (map f (lfields macro))
   end
@@ -96,9 +115,21 @@ fun expand_id_aux x =
 fun expand_id x = 
   map (fn y => y + minop) (expand_id_aux (x - minop)) 
 
+fun lconcatw_aux ll = case ll of
+    [] => []
+  | [a] => [a]
+  | a :: b :: m =>
+    let val sepo = 
+      if is_id (hd a) andalso is_id (hd b) then [sepop] else []
+    in     
+      a :: sepo :: lconcatw_aux m
+    end
+ 
+fun lconcatw ll = List.concat (lconcatw_aux ll);
+  
 fun expand_all_id macro = 
   let fun f i = if is_id i then expand_id i else [i] in
-    List.concat (map f macro)
+    lconcatw (map f macro)
   end
 
 (* -------------------------------------------------------------------------

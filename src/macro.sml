@@ -43,7 +43,6 @@ fun lfields_aux buf acc sep l = case l of
 fun lfields sep l = lfields_aux [] [] sep l    
 fun ltokens sep l = filter (fn x => not (null x)) (lfields sep l)
 
-
 fun subseq (n,m) l = first_n (m-n+1) (snd (part_n n l));
 
 fun lconcatw_aux x ll = case ll of
