@@ -6,9 +6,10 @@ open HolKernel Abbrev boolLib aiLib kernel exec bloom smlParallel
 val ERR = mk_HOL_ERR "def"
 type macro = int list
 type cand = prog * (int * macro)
+val reverse_flag = ref true
 
 (* -------------------------------------------------------------------------
-   Extra tokens for definitions
+   Macros
    ------------------------------------------------------------------------- *) 
 
 val minop = Vector.length operv
@@ -16,24 +17,8 @@ val maxop = minop + 9
 val sepop = maxop + 1
 fun is_id x = x >= minop
 fun contain_id m = exists (fn x => x >= minop) m
-
-(* -------------------------------------------------------------------------
-   Read definitions and candidates
-   ------------------------------------------------------------------------- *)
-
-val reverse_flag = ref true
-
 fun macro_of_string s = map id_of_gpt (String.tokens Char.isSpace s)
 fun string_of_macro il = String.concatWith " " (map gpt_of_id il)
-
-val defv = ref (Vector.fromList [])
-fun read_def file = defv := 
-  Vector.fromList (map_assoc length (map macro_of_string (readl file)))
- 
-fun read_cand file =
-  let val macrol = map macro_of_string (readl file) in
-    if !reverse_flag then map rev macrol else macrol  
-  end
 
 (* -------------------------------------------------------------------------
    Generate random candidates and random definitions for testing
@@ -41,7 +26,6 @@ fun read_cand file =
 
 fun random_cand () =
   (List.tabulate (random_int (10,50), fn _ => random_int (0,maxop)))
-
 fun gen_cand file n =
   let val l = List.tabulate (n, fn _ => string_of_macro (random_cand ())) in
     writel file l
@@ -49,15 +33,15 @@ fun gen_cand file n =
   
 fun random_def () =
   List.tabulate (random_int (5,10), fn _ => random_int (0,minop-1))
-
 fun gen_def n =
   let val l = List.tabulate (n, fn _ => string_of_macro (random_def ())) in
     writel (selfdir ^ "/def") l
   end  
 
 (* -------------------------------------------------------------------------
-   Converting list of indices to a single index
+   Converting list of indices to single index and back
    ------------------------------------------------------------------------- *)
+
 local 
   fun lfields_aux buf acc sep l = case l of
     [] => rev (rev buf :: acc)
@@ -68,7 +52,6 @@ local
 in 
   fun ltokens sep l = filter (fn x => not (null x)) (lfields sep l)
 end
-
 
 fun compress_idl idl =
   let fun loop acc lcur = 
@@ -86,19 +69,9 @@ fun lfields_aux buf acc l = case l of
 
 fun lfields l = lfields_aux [] [] l;
 
-fun in_defv id =
-  id - minop >= 0 andalso id - minop < Vector.length (!defv);
-
-(* does some cleaning too if a id does not exists *)
-
 fun compress_idl_safe idl =
   if null idl then [] else
-  (
-  let val i = compress_idl idl in
-    if in_defv i then [i] else []
-  end
-  handle Overflow => []
-  )
+  (let val i = compress_idl idl in [i] end handle Overflow => [])
 
 fun compress_all_idl macro =
   let 
@@ -133,39 +106,54 @@ fun expand_all_id macro =
   end
 
 (* -------------------------------------------------------------------------
-   Expand and compress definitions
+   Read definitions and candidates
    ------------------------------------------------------------------------- *)
+
+val defv = ref (Vector.fromList [])
+fun read_def file = defv := 
+  Vector.fromList (map (compress_all_idl o macro_of_string) (readl file))
+fun write_def file = writel file
+  (map (string_of_macro o expand_all_id) (vector_to_list (!defv)));  
  
-fun expand_aux d i acc macro = case macro of
-    [] => (d,rev acc)
+fun read_cand file =
+  let val macrol = map macro_of_string (readl file) in
+    if !reverse_flag then map rev macrol else macrol  
+  end
+
+
+(* -------------------------------------------------------------------------
+   Unfold and fold definitions
+   ------------------------------------------------------------------------- *)
+
+fun unfold_def_one v macro = case macro of
+    [] => []
   | a :: m => 
-    if not (is_id a) then expand_aux d (i + 1) (a :: acc) m else 
-    let 
-      val (def,size) = Vector.sub (!defv, a - minop) 
-      val newd = dadd i (a,size) d
-    in
-      expand_aux newd (i + size) (rev def @ acc) m
-    end
+    if is_id a 
+    then Vector.sub (v, a - minop) @ unfold_def_one v m
+    else a :: unfold_def_one v m
 
-fun expand macro = expand_aux (dempty Int.compare) 0 [] macro
+fun unfold_def v macro = 
+  let val newmacro = unfold_def_one v macro in
+    if newmacro = macro then macro else unfold_def v newmacro
+  end
 
-fun compress_aux acc (d,macro) = case macro of 
-    [] => rev acc
-  | (a,i) :: m => 
-   (
-   case dfindo i d of 
-     NONE => compress_aux (a :: acc) (d,m)
-   | SOME (macroid,size) =>
-     let val (l1,l2) = part_n size macro in
-       if length l1 < size 
-       then compress_aux (a :: acc) (d,m)
-       else compress_aux (macroid :: acc) (d,l2)  
-     end
-   )
-  
-fun compress_indexed (d,macro) = compress_aux [] (d,macro)    
-fun compress (d,macro) = compress_indexed (d, number_snd 0 macro) 
+fun is_prefix_cont def macro = case (def,macro) of 
+      ([],_) => SOME macro 
+    | (_,[]) => NONE 
+    | (a1 :: m1, a2 :: m2) => if a1 <> a2 then NONE else is_prefix_cont m1 m2
 
+fun fold_def_one (def,defn) macro = case macro of 
+    [] => []
+  | a :: m =>
+    (
+    case is_prefix_cont def macro of
+       NONE => a :: fold_def_one (def,defn) m
+     | SOME cont => defn :: fold_def_one (def,defn) cont
+    )
+
+fun fold_def defidl macro = foldl (uncurry fold_def_one) macro defidl 
+
+fun defidl_of_defv v = number_snd minop (vector_to_list v)
 
 (* -------------------------------------------------------------------------
    Converting macro to program and vice versa
@@ -188,38 +176,36 @@ fun prog_of_macro macro =
 
 fun macro_of_prog_aux (Ins (id,pl)) = 
   id :: List.concat (map macro_of_prog_aux (rev pl));
-fun  macro_of_prog p = rev (macro_of_prog_aux p);
+fun macro_of_prog p = rev (macro_of_prog_aux p);
 
 (* -------------------------------------------------------------------------
-   Collect programs from a macro in a context
+   Collect programs from subsequences in an unfolded macro
    ------------------------------------------------------------------------- *)
 
-fun next_board (board : (prog * int * int) list) (move,moven) =
+fun next_board board move =
   let 
     val arity = arity_of_oper move
     val (l1,l2) = part_n arity board 
   in
     if length l1 < arity
     then []   
-    else (Ins (move, rev (map #1 l1)), 
-          list_imin (moven :: map #2 l1), moven) :: l2
-  end;
+    else Ins (move, rev l1) :: l2
+  end
   
 fun collect_aux moveltop = 
   let 
     val progl = ref []
-    fun loop board movel = case movel of [] => () | (move,moven) :: m => 
+    fun loop board movel = case movel of [] => () | move :: m => 
       let 
-        val newboard = next_board board (move,moven)
-        val _ = if null newboard then () else progl := hd newboard :: !progl
+        val newboard = next_board board move
+        val _ = if null newboard then () 
+                else progl := hd newboard :: !progl
       in
         loop newboard m
       end
    in
      loop [] moveltop; !progl
-   end;
-
-fun subseq (n,m) l = first_n (m-n+1) (snd (part_n n l))
+   end
 
 fun update_progd progd candl =
   let
@@ -232,30 +218,24 @@ fun update_progd progd candl =
     app f candl
   end
 
-fun collect progd (d,macro) =
-  let
-    val macroi = number_snd 0 macro    
-    val progiil = collect_aux (number_snd 0 macro)
-    fun f (p,a,b) = 
-      let 
-        val macro1 = compress_indexed (d, subseq (a,b) macroi) 
-        val macro2 = expand_all_id macro1
-      in
-        (p, (length macro2, macro2))
+fun collect progd defidl macro =
+  let   
+    val progl = collect_aux macro
+    fun f p = 
+      let val newm = expand_all_id (fold_def defidl (macro_of_prog p)) in
+        (p, (length newm, newm))
       end
-    val candl = map f progiil
+    val candl = map f progl
   in
     update_progd progd candl 
   end
 
 fun extract_candl candle = 
   let
+    val defidl = defidl_of_defv (!defv)
     val progd = ref (dempty prog_compare)
-    val (_,t) = add_time (app (collect progd)) candle
+    val (_,t) = add_time (app (collect progd defidl)) candle
     val _ = print_endline ("extract_candl: " ^ rts_round 2 t)
-    val _ = print_endline ("cand: " ^ its (dlength (!progd)))
-    val l = filter (contain_id o snd o snd) (dlist (!progd))
-    val _ = print_endline ("cand with id: " ^ its (length l))
   in
     dlist (!progd)
   end
@@ -391,56 +371,69 @@ fun check_candl candl =
     checkfinal ()
   end;
 
+
 (* -------------------------------------------------------------------------
-   Turn programs into definitions
+   Turn frequent submacro into definitions
    ------------------------------------------------------------------------- *)
 
 fun all_suffix l = case l of [] => [] | a :: m => l :: all_suffix m;
 fun all_revprefix l = all_suffix (rev l);
 
-fun mk_def limit progl = 
+fun count_subseq macrol =
   let
-    val defsize = length (expand_id (Vector.length (!defv) + minop + limit - 1))
-    val prevd = enew (list_compare Int.compare) 
-      (map (rev o fst) (vector_to_list (!defv)))
-    val macrol = map macro_of_prog progl
     val subd = ref (dempty (list_compare Int.compare))
-    fun f_one macro = 
+    fun f_one macro =
       let val l = all_revprefix (first_n 240 macro) in
         subd := count_dict (!subd) l
       end
     fun f macro = case macro of [] => () | a :: m => (f_one macro; f m)
     val _ = app f macrol
-    val l1 = filter (fn (a,b) => b >= 20 andalso length a > defsize) 
-      (dlist (!subd))
-    fun score (il,freq) = if emem il prevd then NONE 
-       else SOME (il, (length il - defsize) * freq)
-    val l2 = List.mapPartial score l1
-    val l3 = first_n limit (dict_sort compare_imax l2)
   in
-    map (fn (a,b) => rev a) l3  
+    map_fst rev (dlist (!subd))
+  end
+
+(* updates defv *)
+fun mk_def n progl =
+  if n <= 0 then () else
+  let
+    val v = !defv
+    val defidl = defidl_of_defv v
+    val defsize = length (expand_id (Vector.length v + minop))
+    val prevd = enew (list_compare Int.compare) (vector_to_list v)
+    val macrol = map (fold_def defidl o macro_of_prog) progl
+    val l1 = count_subseq macrol
+    fun score (macro,freq) = 
+      if freq < 20 orelse length macro <= defsize orelse 
+         length (unfold_def v macro) >= 240 orelse emem macro prevd 
+      then NONE 
+      else SOME (macro, (length (expand_all_id macro) - defsize) * freq)
+    val l2 = List.mapPartial score l1
+    val l3 = first_n 1 (map fst (dict_sort compare_imax l2))
+  in
+    if null l3 then () else 
+    (
+    print_endline (string_of_macro (expand_all_id (hd l3)));
+    defv := Vector.concat [!defv, Vector.fromList l3];
+    mk_def (n-1) progl
+    )
   end;
 
-fun replace_aux n (def,id) macro = 
-  case macro of [] => [] | a :: m =>
-  let val (l1,l2) = part_n n macro in
-    if l1 = def 
-    then id :: replace_aux n (def,id) l2
-    else a :: replace_aux n (def,id) m
-  end
+(* -------------------------------------------------------------------------
+   Recompute macro the set of solutions
+   ------------------------------------------------------------------------- *)
 
-fun replace (def,id) macro = replace_aux (length def) (def,id) macro;
-  
-fun replacenew macro (def,id) = 
-  let val newmacro = replace (def,id) macro in
-    if newmacro = macro then NONE else SOME (expand_all_id newmacro)
+fun recompute_macro sol = 
+  let 
+    val defidl = defidl_of_defv (!defv)
+    fun g (t,(p,(n,m))) = 
+      let val newm = expand_all_id (fold_def defidl (macro_of_prog p)) in
+        (t,(p,(length newm,newm)))
+      end
+    fun f (anum,tpl) = (anum, map g tpl)
+  in
+    map f sol
   end
   
-fun replacenewl defidl p =
-  let val macro = macro_of_prog p in
-    List.mapPartial (replacenew macro) defidl
-  end
-
 (* -------------------------------------------------------------------------
    Candidates I/O
    ------------------------------------------------------------------------- *)
@@ -477,18 +470,18 @@ val mergen = ref 0
 val mergedir = selfdir ^ "/merge"
 fun init_merge () = (mergen := 0; clean_dir mergedir) 
 
+fun in_defv id = id - minop >= 0 andalso id - minop < Vector.length (!defv);
+fun rm_missing macro = filter (fn i => i < minop orelse in_defv i) macro
+
 fun check_file file =
   let
+    val _ = print_endline file 
     val dir = OS.Path.dir (OS.Path.dir file)
     val _ = read_def (dir ^ "/defold")
     val _ = print_endline (its (Vector.length (!defv)) ^ " definitions")
-    val candl = map compress_all_idl (read_cand file)
-    val _ = print_endline (file ^ ":" ^ its (length candl))
-    val l1 = filter contain_id candl
-    val _ = print_endline ("macro1 with id: " ^ its (length l1))
-    val candle = map expand candl
-    val l2 = filter (fn x => dlength (fst x) >= 1) candle
-    val _ = print_endline ("macro2 with id: " ^ its (length l2))
+    val candl = map (rm_missing o compress_all_idl) (read_cand file)
+    val _ = print_endline (its (length candl) ^ " candidates")
+    val candle = map (unfold_def (!defv)) candl
     val candlp = extract_candl candle
   in
     check_candl candlp
@@ -543,7 +536,7 @@ fun stats_sol file itsol =
     val _ = writel file (map string_of_itprog itsolsort)
     fun f (id,n) = 
       its n ^ ": " ^ string_of_macro (expand_id id) ^ ", " ^ 
-      string_of_macro (fst (Vector.sub (!defv, id - minop)))
+      string_of_macro (Vector.sub (!defv, id - minop))
     val l = dict_sort compare_imax (dlist (!freqd))
   in
     writel (file ^ "_deffreq") (map f l) 
@@ -553,7 +546,7 @@ fun stats_dir dir oldsol newsol =
   let
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val oldset = enew Int.compare (map fst oldsol);
-    val diff = filter (fn x => not (emem (fst x) oldset)) newsol;
+    val diff = filter (fn x => not (emem (fst x) oldset)) newsol    
   in
     log ("sol+oldsol: " ^ its (length newsol));
     stats_sol (dir ^ "/stats_sol") newsol;
@@ -586,21 +579,18 @@ fun merge_itsol_default dir =
     dlist (!d)
   end
 
-fun write_gptsol defidl file sol =
+fun write_gptsol file sol =
   let
     fun f (i,tpl) =
       let 
         val seqs = gpt_of_seq (rev (first_n 16 (valOf (Array.sub (oseq,i))))) 
-        fun g1 (t,(p,(n,macro))) = macro
-        fun g2 (t,(p,(n,macro))) = p
-        val macrol = map g1 tpl
-        val pl = map g2 tpl
-        val extral = List.concat (map (replacenewl defidl) pl)
+        fun g (t,(p,(n,macro))) = macro
+        val macrol = map g tpl
         fun h macro =
           seqs ^ ">" ^ string_of_macro 
             (if !reverse_flag then rev macro else macro)
       in
-        map h (macrol @ extral)
+        map h macrol
       end
     val l1 = List.concat (map f sol)
     val _ = print_endline ("write_gptsol: " ^ its (length l1))
@@ -634,29 +624,33 @@ fun parallel_check_def expname =
     val _ = init_merge ()
     val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
     val _ = log ("checking time: " ^ rts_round 6 t)
-    val (newsol,t) = add_time merge_itsol_default dir
+    val (tempsol,t) = add_time merge_itsol_default dir
     val _ = log ("merging time: " ^ rts_round 6 t)
     val _ = init_merge ()
-    val (defl,t) = add_time (mk_def 10) (progl_of_sol newsol)
-    val newdefl = map fst (vector_to_list (!defv)) @ defl
-    val defidl = number_snd (Vector.length (!defv) + minop) defl
-    val _ = log ("definition time: " ^ rts_round 6 t) 
+    val (_,t) = add_time (mk_def 10) (progl_of_sol tempsol)
+    val _ = log ("mk_def time: " ^ rts_round 6 t)  
+    val (newsol,t) = add_time recompute_macro tempsol
+    val _ = log ("recompute_macro time: " ^ rts_round 6 t)
     val newdeffile = dir ^ "/" ^ "defnew"
     val newsolfile = dir ^ "/" ^ "solnew"
     val gptfile = dir ^ "/" ^ "solnewgpt" 
     val oldsol = 
-       if not (exists_file (dir ^ "/" ^ "solold")) 
-       then [] 
-       else read_itcandl (dir ^ "/" ^ "solold")
+      if not (exists_file (dir ^ "/" ^ "solold")) 
+      then [] 
+      else read_itcandl (dir ^ "/" ^ "solold")
   in
     stats_dir dir oldsol newsol;
-    writel (newdeffile ^ "_temp") (map string_of_macro newdefl);
-    write_gptsol defidl (gptfile ^ "_temp") newsol;
+    write_def (newdeffile ^ "_temp");
+    write_gptsol (gptfile ^ "_temp") newsol;
     write_itcandl (newsolfile ^ "_temp") newsol;
     OS.FileSys.rename {old = newdeffile ^ "_temp", new = newdeffile};
     OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
     OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
   end
+
+(* -------------------------------------------------------------------------
+   Create initial files
+   ------------------------------------------------------------------------- *)
 
 fun itcand_of_itprog (i,tpl) =
   let fun f (t,p) = 
@@ -671,6 +665,26 @@ fun convertto_itcandl filein fileout =
   let val sol = read_itprogl filein in
     write_itcandl fileout (map itcand_of_itprog sol)    
   end
+
+fun init_itcand dir n itcandl =
+  let 
+    val _ = mkDir_err dir
+    val newdeffile = dir ^ "/" ^ "defnew"
+    val newsolfile = dir ^ "/" ^ "solnew"
+    val gptfile = dir ^ "/" ^ "solnewgpt"  
+    val _ = defv := Vector.fromList []
+    val (_,t) = add_time (mk_def n) (progl_of_sol itcandl)
+    val _ = print_endline ("mk_def time: " ^ rts_round 6 t)  
+    val (newsol,t) = add_time recompute_macro itcandl
+  in
+    write_def newdeffile;
+    write_gptsol gptfile newsol;
+    write_itcandl newsolfile newsol
+  end
+       
+fun init_itprog dir n itprogl =
+  init_itcand dir n (map itcand_of_itprog itprogl)
+
 
 
 end (* struct *)  
@@ -693,20 +707,11 @@ val candlp = extract_candl candle;
 *)
 
 
-
-(* Create initial files requires "sol0"
-
-PolyML.print_depth 20;
+(* Create initial files
 load "def"; open aiLib kernel def;
-convertto_itcandl "sol0" "initdef/sol0";
-val sol = read_itprogl "sol0";
-val cand = map itcand_of_itprog sol;
-val progl1 = map snd (List.concat (map snd sol));
-val progl2 = mk_fast_set prog_compare progl1;
-val defl = mk_def 10 progl2;
-writel "initdef/def0" (map string_of_macro defl);
-val defidl = number_snd (Vector.length operv) defl;
-write_gptsol defidl "initdef/sol0gpt" cand;
+
+init_itprog (selfdir ^ "/initgreedy") 20 (read_itprogl "sol0");
+init_itprog (selfdir ^ "/initgreedy") 20 (read_itcandl "solnew");
 *)
 
 
