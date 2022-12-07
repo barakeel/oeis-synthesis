@@ -383,7 +383,7 @@ fun count_subseq macrol =
   let
     val subd = ref (dempty (list_compare Int.compare))
     fun f_one macro =
-      let val l = all_revprefix (first_n 240 macro) in
+      let val l = all_revprefix (first_n 24 macro) in
         subd := count_dict (!subd) l
       end
     fun f macro = case macro of [] => () | a :: m => (f_one macro; f m)
@@ -691,27 +691,26 @@ end (* struct *)
 
 
 (*
-PolyML.print_depth 20;
 load "def"; open aiLib kernel def;
+load "game"; 
+val progl = List.tabulate (1000, fn _ => 
+  game.random_prog (random_int (20,240)));
+
+defv := Vector.fromList [];
+val (_,t) = add_time (mk_def 10) progl;
+!defv;
 
 gen_cand 1000;
 gen_def 123;
-
-read_def "exp/def3/defold";
-Vector.length (!defv);
-val candl = read_cand "exp/def3/cand";
-val candl1 = map compress_all_idl candl;
-val l = filter contain_id candl1;
-val candle = map expand candl;
-val candlp = extract_candl candle;
 *)
 
 
 (* Create initial files
 load "def"; open aiLib kernel def;
+init_itcand (selfdir ^ "/initgreedy") 10 (read_itcandl "solnew");
 
-init_itprog (selfdir ^ "/initgreedy") 20 (read_itprogl "sol0");
-init_itprog (selfdir ^ "/initgreedy") 20 (read_itcandl "solnew");
+load "def"; open aiLib kernel def;
+init_itprog (selfdir ^ "/initgreedy") 10 (read_itprogl "sol0");
 *)
 
 
