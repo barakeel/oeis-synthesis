@@ -110,8 +110,14 @@ fun expand_all_id macro =
    ------------------------------------------------------------------------- *)
 
 val defv = ref (Vector.fromList [])
-fun read_def file = defv := 
-  Vector.fromList (map (compress_all_idl o macro_of_string) (readl file))
+fun read_def file = 
+  let val _ =
+    defv := 
+    Vector.fromList (map (compress_all_idl o macro_of_string) (readl file))
+  in
+    print_endline ("Reading " ^ its (Vector.length (!defv)) ^ " definitions")
+  end
+  
 fun write_def file = writel file
   (map (string_of_macro o expand_all_id) (vector_to_list (!defv)));  
  
@@ -762,15 +768,14 @@ gen_def 123;
 *)
 
 (* Create initial files
-load "def"; open aiLib kernel def;
-init_itcand (selfdir ^ "/initgreedy") 10 (read_itcandl "solnew");
 
 load "def"; open aiLib kernel def;
 
+read_def (selfdir ^ "/initgreedy2/defnew");
+init_itprog (selfdir ^ "/initgreedy3") 20 (read_itprogl "sol0");
 
-init_itprog (selfdir ^ "/initgreedy3") 20 (read_itprogl "solnew");
 
-defv := read_def (selfdir ^ "/initgreedy3");
+init_itprog (selfdir ^ "/initgreedy4") 20 (read_itprogl "sol0");
 
 *)
 
