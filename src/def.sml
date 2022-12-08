@@ -436,15 +436,12 @@ fun count_subseq macrol =
   end
 
 (* updates defv *)
-fun mk_def n progl =
+fun mk_def_aux n macrol =
   if n <= 0 then () else
   let
-    val v = !defv
-    val defidl = defidl_of_defv v
     val defsize = length (expand_id (Vector.length v + minop))
     val prevd = enew (list_compare Int.compare) (vector_to_list v)
-    val (macrol,t) = add_time (map (fold_def defidl o macro_of_prog)) progl
-    val _ = print_endline ("fold time: " ^ rts_round 6 t)
+    
     val (l1,t) = add_time count_subseq macrol
     val _ = print_endline ("count time: " ^ rts_round 6 t) 
     fun score (macro,freq) = 
@@ -455,16 +452,32 @@ fun mk_def n progl =
     val (l2,t) = add_time (List.mapPartial score) l1
     val _ = print_endline ("score time: " ^ rts_round 6 t) 
     val (l3',t) = add_time (dict_sort compare_imax) l2
-    val _ = print_endline ("sort time: " ^ rts_round 6 t) 
-    val l3 = first_n 1 (map fst l3')
+    val _ = print_endline ("sort time: " ^ rts_round 6 t)
   in
-    if null l3 then () else 
+    if null l3' then () else 
     (
-    print_endline (string_of_macro (expand_all_id (hd l3)));
-    defv := Vector.concat [!defv, Vector.fromList l3];
-    mk_def (n-1) progl
+    let  
+      val newdef = hd (map fst l3')
+      val _ = print_endline (string_of_macro (expand_all_id newdef));
+      val defidl = [(newdef,Vector.length (!defv) + minop)]
+      val _ = defv := Vector.concat [!defv, Vector.fromList [newdef]];
+      val (newmacrol,t) = add_time (fold_def defidl) macrol
+      val _ = print_endline ("fold time: " ^ rts_round 6 t)
+    in
+      mk_def_aux (n-1) newmacrol
+    end
     )
   end;
+  
+fun mk_def n progl =
+  let 
+    val v = !defv
+    val defidl = defidl_of_defv v
+    val (macrol,t) = add_time (map (fold_def defidl o macro_of_prog)) progl
+    val _ = print_endline ("initial fold time: " ^ rts_round 6 t)
+  in
+    mk_def_aux n macrol
+  end
 
 (* -------------------------------------------------------------------------
    Recompute macro the set of solutions
