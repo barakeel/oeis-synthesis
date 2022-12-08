@@ -371,25 +371,68 @@ fun check_candl candl =
     checkfinal ()
   end;
 
+(* -------------------------------------------------------------------------
+   Tree of macros
+   ------------------------------------------------------------------------- *)
+
+fun update_vector v n k =
+  if n >= Vector.length v 
+  then Vector.concat [v, 
+    Vector.tabulate (n - Vector.length v, fn _ => NONE), 
+    Vector.fromList [SOME k]]
+  else Vector.update (v,n,SOME k)
+
+datatype ctree = 
+  Cleaf of int list |
+  Cvect of int * ctree option vector 
+
+val vempty = Vector.fromList []
+val ctempty = Cvect (0,vempty)
+ 
+fun cadd seq ct = case (ct,seq) of
+    (Cleaf [], _) => 
+    cadd seq (Cvect (1, vempty))
+  | (Cleaf (a2 :: m2), _) => 
+    cadd seq (Cvect (1, update_vector vempty a2 (Cleaf m2)))
+  | (Cvect (n,v), []) => Cvect (n+1, v)
+  | (Cvect (n,v), a1 :: m1) =>
+    let val cto = Vector.sub (v,a1) handle Subscript => NONE in
+      case cto of
+        NONE => Cvect (n+1, update_vector v a1 (Cleaf m1)) 
+      | SOME newct => Cvect (n+1, update_vector v a1 (cadd m1 newct))
+    end
+    
+fun clist ct =
+  let 
+    val acc = ref [] 
+    fun clist_aux revprefix ct = case ct of
+      Cleaf _ => ()
+    | Cvect (n,v) => if n < 20 then () else
+      let 
+        val _ = acc := (rev revprefix, n) :: !acc
+        val l1 = number_snd 0 (vector_to_list v)
+        fun f (newcto,a) = case newcto of
+            NONE => () 
+          | SOME newct => clist_aux (a :: revprefix) newct
+      in
+        app f l1   
+      end
+  in 
+    clist_aux [] ct; !acc 
+  end
 
 (* -------------------------------------------------------------------------
    Turn frequent submacro into definitions
    ------------------------------------------------------------------------- *)
-
-fun all_suffix l = case l of [] => [] | a :: m => l :: all_suffix m;
-fun all_revprefix l = all_suffix (rev l);
-
+  
 fun count_subseq macrol =
   let
-    val subd = ref (dempty (list_compare Int.compare))
-    fun f_one macro =
-      let val l = all_revprefix (first_n 24 macro) in
-        subd := count_dict (!subd) l
-      end
-    fun f macro = case macro of [] => () | a :: m => (f_one macro; f m)
-    val _ = app f macrol
+    val ct = ref ctempty
+    fun loop macro = case macro of [] => () | a :: m => 
+      (ct := cadd (first_n 24 macro) (!ct); loop m)
+    val _ = app loop macrol
   in
-    map_fst rev (dlist (!subd))
+    clist (!ct)
   end
 
 (* updates defv *)
@@ -400,15 +443,20 @@ fun mk_def n progl =
     val defidl = defidl_of_defv v
     val defsize = length (expand_id (Vector.length v + minop))
     val prevd = enew (list_compare Int.compare) (vector_to_list v)
-    val macrol = map (fold_def defidl o macro_of_prog) progl
-    val l1 = count_subseq macrol
+    val (macrol,t) = add_time (map (fold_def defidl o macro_of_prog)) progl
+    val _ = print_endline ("fold time: " ^ rts_round 6 t)
+    val (l1,t) = add_time count_subseq macrol
+    val _ = print_endline ("count time: " ^ rts_round 6 t) 
     fun score (macro,freq) = 
       if freq < 20 orelse length macro <= defsize orelse 
          length (unfold_def v macro) >= 240 orelse emem macro prevd 
-      then NONE 
+      then NONE
       else SOME (macro, (length (expand_all_id macro) - defsize) * freq)
-    val l2 = List.mapPartial score l1
-    val l3 = first_n 1 (map fst (dict_sort compare_imax l2))
+    val (l2,t) = add_time (List.mapPartial score) l1
+    val _ = print_endline ("score time: " ^ rts_round 6 t) 
+    val (l3',t) = add_time (dict_sort compare_imax) l2
+    val _ = print_endline ("sort time: " ^ rts_round 6 t) 
+    val l3 = first_n 1 (map fst l3')
   in
     if null l3 then () else 
     (
@@ -693,24 +741,21 @@ end (* struct *)
 (*
 load "def"; open aiLib kernel def;
 load "game"; 
+PolyML.print_depth 10;
 val progl = List.tabulate (1000, fn _ => 
   game.random_prog (random_int (20,240)));
-
 defv := Vector.fromList [];
 val (_,t) = add_time (mk_def 10) progl;
-!defv;
-
 gen_cand 1000;
 gen_def 123;
 *)
-
 
 (* Create initial files
 load "def"; open aiLib kernel def;
 init_itcand (selfdir ^ "/initgreedy") 10 (read_itcandl "solnew");
 
 load "def"; open aiLib kernel def;
-init_itprog (selfdir ^ "/initgreedy") 10 (read_itprogl "sol0");
+init_itprog (selfdir ^ "/initgreedy2") 10 (read_itprogl "sol0");
 *)
 
 
