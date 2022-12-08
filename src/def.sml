@@ -439,14 +439,13 @@ fun count_subseq macrol =
 fun mk_def_aux n macrol =
   if n <= 0 then () else
   let
-    val defsize = length (expand_id (Vector.length v + minop))
-    val prevd = enew (list_compare Int.compare) (vector_to_list v)
-    
+    val defsize = length (expand_id (Vector.length (!defv) + minop))
+    val prevd = enew (list_compare Int.compare) (vector_to_list (!defv))
     val (l1,t) = add_time count_subseq macrol
     val _ = print_endline ("count time: " ^ rts_round 6 t) 
     fun score (macro,freq) = 
       if freq < 20 orelse length macro <= defsize orelse 
-         length (unfold_def v macro) >= 240 orelse emem macro prevd 
+         length (unfold_def (!defv) macro) >= 240 orelse emem macro prevd 
       then NONE
       else SOME (macro, (length (expand_all_id macro) - defsize) * freq)
     val (l2,t) = add_time (List.mapPartial score) l1
@@ -461,7 +460,7 @@ fun mk_def_aux n macrol =
       val _ = print_endline (string_of_macro (expand_all_id newdef));
       val defidl = [(newdef,Vector.length (!defv) + minop)]
       val _ = defv := Vector.concat [!defv, Vector.fromList [newdef]];
-      val (newmacrol,t) = add_time (fold_def defidl) macrol
+      val (newmacrol,t) = add_time (map (fold_def defidl)) macrol
       val _ = print_endline ("fold time: " ^ rts_round 6 t)
     in
       mk_def_aux (n-1) newmacrol
@@ -732,8 +731,7 @@ fun init_itcand dir n itcandl =
     val _ = mkDir_err dir
     val newdeffile = dir ^ "/" ^ "defnew"
     val newsolfile = dir ^ "/" ^ "solnew"
-    val gptfile = dir ^ "/" ^ "solnewgpt"  
-    val _ = defv := Vector.fromList []
+    val gptfile = dir ^ "/" ^ "solnewgpt"
     val (_,t) = add_time (mk_def n) (progl_of_sol itcandl)
     val _ = print_endline ("mk_def time: " ^ rts_round 6 t)  
     val (newsol,t) = add_time recompute_macro itcandl
@@ -768,7 +766,12 @@ load "def"; open aiLib kernel def;
 init_itcand (selfdir ^ "/initgreedy") 10 (read_itcandl "solnew");
 
 load "def"; open aiLib kernel def;
-init_itprog (selfdir ^ "/initgreedy2") 10 (read_itprogl "sol0");
+
+
+init_itprog (selfdir ^ "/initgreedy3") 20 (read_itprogl "solnew");
+
+defv := read_def (selfdir ^ "/initgreedy3");
+
 *)
 
 
