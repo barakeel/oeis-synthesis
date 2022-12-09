@@ -407,7 +407,23 @@ fun cadd seq ct = case (ct,seq) of
         NONE => Cvect (n+1, update_vector v a1 (Cleaf m1)) 
       | SOME newct => Cvect (n+1, update_vector v a1 (cadd m1 newct))
     end
-    
+  
+fun crm seq ct = case (ct,seq) of
+    (Cleaf seq2, _) => 
+    if seq <> seq2 
+    then raise ERR "crm" "sequence not found 1" 
+    else ctempty
+  | (Cvect (n,v), []) => 
+    if n-1 < 0 
+    then raise ERR "crm" "sequence not found 2"
+    else if n-1 <= 0 then ctempty else Cvect (n-1,v)
+  | (Cvect (n,v), a1 :: m1) =>
+    let val cto = Vector.sub (v,a1) handle Subscript => NONE in
+      case cto of
+        NONE => raise ERR "crm" "sequence not found 3"
+      | SOME newct => Cvect (n-1, update_vector v a1 (crm m1 newct))
+    end
+
 fun clist ct =
   let 
     val acc = ref [] 
@@ -426,28 +442,35 @@ fun clist ct =
   in 
     clist_aux [] ct; !acc 
   end
+  
+  
+  
 
 (* -------------------------------------------------------------------------
    Turn frequent submacro into definitions
    ------------------------------------------------------------------------- *)
-  
-fun count_subseq macrol =
+
+fun count_subseq ct macrol =
   let
-    val ct = ref ctempty
-    fun loop macro = case macro of [] => () | a :: m => 
-      (ct := cadd (first_n 24 macro) (!ct); loop m)
-    val _ = app loop macrol
+    fun rmall macro = case macro of [] => () | a :: m => 
+      (ct := crm (first_n 24 macro) (!ct); rmall m)
+    fun addall macro = case macro of [] => () | a :: m => 
+      (ct := cadd (first_n 24 macro) (!ct); addall m)
+    fun f (m1,m2) = 
+      if m1 = m2 then () else (rmall m1; addall m2) 
+    val _ = app f macrol
   in
     clist (!ct)
-  end
+  end  
 
 (* updates defv *)
-fun mk_def_aux n macrol =
+fun mk_def_aux n ct macrol =
   if n <= 0 then () else
   let
-    val defsize = length (expand_id (Vector.length (!defv) + minop))
+    val defname = expand_id (Vector.length (!defv) + minop)
+    val defsize = length defname
     val prevd = enew (list_compare Int.compare) (vector_to_list (!defv))
-    val (l1,t) = add_time count_subseq macrol
+    val (l1,t) = add_time (count_subseq ct) macrol
     val _ = print_endline ("count time: " ^ rts_round 6 t) 
     fun score (macro,freq) = 
       if freq < 20 orelse length macro <= defsize orelse 
@@ -462,26 +485,29 @@ fun mk_def_aux n macrol =
     if null l3' then () else 
     (
     let  
-      val newdef = hd (map fst l3')
-      val _ = print_endline (string_of_macro (expand_all_id newdef));
-      val defidl = [(newdef,Vector.length (!defv) + minop)]
-      val _ = defv := Vector.concat [!defv, Vector.fromList [newdef]];
-      val (newmacrol,t) = add_time (map (fold_def defidl)) macrol
+      val (newdef,sc) = hd l3'
+      val _ = print_endline (string_of_macro (expand_all_id newdef))
+      val _ = print_endline ("name: " ^ string_of_macro defname)
+      val _ = print_endline ("score: " ^ its sc)
+      val defidl = [(newdef, Vector.length (!defv) + minop)]
+      val _ = defv := Vector.concat [!defv, Vector.fromList [newdef]]
+      val (newmacrol,t) = add_time (map_assoc (fold_def defidl)) 
+        (map snd macrol)
       val _ = print_endline ("fold time: " ^ rts_round 6 t)
     in
-      mk_def_aux (n-1) newmacrol
+      mk_def_aux (n-1) ct newmacrol
     end
     )
   end;
   
 fun mk_def n progl =
   let 
-    val v = !defv
-    val defidl = defidl_of_defv v
+    val ct = ref ctempty
+    val defidl = defidl_of_defv (!defv)
     val (macrol,t) = add_time (map (fold_def defidl o macro_of_prog)) progl
     val _ = print_endline ("initial fold time: " ^ rts_round 6 t)
   in
-    mk_def_aux n macrol
+    mk_def_aux n ct (map (fn x => ([],x)) macrol)
   end
 
 (* -------------------------------------------------------------------------
@@ -772,10 +798,8 @@ gen_def 123;
 load "def"; open aiLib kernel def;
 
 read_def (selfdir ^ "/initgreedy2/defnew");
-init_itprog (selfdir ^ "/initgreedy3") 20 (read_itprogl "sol0");
-
-
 init_itprog (selfdir ^ "/initgreedy4") 20 (read_itprogl "sol0");
+init_itprog (selfdir ^ "/initgreedy6") 20 (read_itprogl "sol0");
 
 *)
 
