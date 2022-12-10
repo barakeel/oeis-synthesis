@@ -34,6 +34,8 @@ sig
   val rl_search_cont : unit -> unit
   val rl_train_cont : unit -> unit
 
+  val rl_search_simple : unit -> unit
+
   (* interactive search *)
   val search_target : IntInf.int list -> kernel.prog option
  

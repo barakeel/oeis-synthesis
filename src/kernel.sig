@@ -24,6 +24,7 @@ sig
   val beam_flag : bool ref
   val newseq_flag : bool ref
   val stop_flag : bool ref
+  val simple_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

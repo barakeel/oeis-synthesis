@@ -442,9 +442,6 @@ fun clist ct =
   in 
     clist_aux [] ct; !acc 
   end
-  
-  
-  
 
 (* -------------------------------------------------------------------------
    Turn frequent submacro into definitions
