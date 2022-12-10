@@ -675,7 +675,7 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
     val _ =
-      if !ngen_glob = 0 then () else
+      if !ngen_glob = 0 orelse !simple_flag then () else
       let 
         val tnngen = find_last_ob ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
@@ -771,7 +771,10 @@ fun rl_search_simple_aux ngen =
   )
 
 fun rl_search_simple () =
-  let val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0) in
+  let 
+    val _ = ignore (mk_dirs ())  
+    val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0)
+  in
     rl_search_simple_aux n
   end
 
