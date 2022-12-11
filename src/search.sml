@@ -180,9 +180,7 @@ fun apply_move (move,exec) boarde =
 
 val node_counter = ref 0
 val prog_counter = ref 0
-val local_search = ref false
 
-(* todo : maybe split the checking part *)
 fun collect_child boarde move =
   let 
     val _ = incr node_counter
@@ -194,32 +192,35 @@ fun collect_child boarde move =
       val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      if not (null l2) orelse !array_flag then SOME (move,exec) else
-        if !hadamard_flag then
+      if not (null l2) then SOME (move, exec) 
+      else if !hadamard_flag then
           (checkonline_hdm (p,exec); incr prog_counter; SOME (move, exec)) 
         else if !prime_flag then 
           let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
             if !prime_found then NONE else SOME (move, newexec)
           end
         else (
-             if !local_search andalso not (depend_on_y p)
-             then (incr prog_counter; checkonline (p,exec))
-             else (); 
-             SOME (move, cache_exec exec)
+             if not (depend_on_y p)
+             then (incr prog_counter; 
+                   checkonline (p,exec); 
+                   SOME (move, cache_exec exec))
+             else SOME (move, exec) 
              )
     end
   end
 
-fun collect_children boarde = 
-  (
+(*
   if not (!local_search) then
     (case boarde of [(p,exec,_,_)] => 
        (if depend_on_y p then () 
-        else (checkonline (p,exec); incr prog_counter)) 
+        else (incr prog_counter; checkonline (p,exec))) 
         | _ => ())
   else ();
+*)
+
+fun collect_children boarde = 
   List.mapPartial (collect_child boarde) movelg
-  )
+
 
 (* -------------------------------------------------------------------------
    Distributing visits in advance according to policy part of MCTS formula

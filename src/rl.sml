@@ -305,9 +305,7 @@ fun init_cube () =
     val _ = print_endline "initialization"
     val _ = if !ngen_glob <= 0
             then search.randsearch_flag := true
-            else search.randsearch_flag := false
-    val (_,t) = add_time init_ct ()
-    val _ = print_endline ("counting tree: " ^ rts_round 6 t)
+            else (init_ct (); search.randsearch_flag := false) 
     val _ = use_ob := true
     val _ = if !ngen_glob mod 2 = 0
             then noise_flag := false
