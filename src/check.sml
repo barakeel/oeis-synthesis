@@ -98,7 +98,6 @@ val partwind = ref (dempty Int.compare)
 
 fun checkf (p,exec) = 
   let
-    val _ = if !array_flag then init_array () else ()
     val (anumtl,cov,anumlpart) = coverf_oeis exec
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
     fun g (anum,n) = 

@@ -206,18 +206,16 @@ fun collect_child boarde move =
     end
   end
 
-(*
-
-*)
-
-fun collect_children boarde = 
-  (
-  (case boarde of 
-    [(p,exec,_,_)] => (incr prog_counter; checkonline (p,exec))
-    | _ => ())
-   ;
-  List.mapPartial (collect_child boarde) movelg
-  )
+fun collect_children boarde = case boarde of
+    [(p,exec,a,b)] => 
+    let 
+      val _ = (incr prog_counter; checkonline (p,exec))
+      val newboarde = [(p,cache_exec exec, a, b)]
+    in
+      (newboarde, List.mapPartial (collect_child newboarde) movelg)
+    end
+  | _ => (boarde, List.mapPartial (collect_child boarde) movelg)
+   
 
 (* -------------------------------------------------------------------------
    Distributing visits in advance according to policy part of MCTS formula
@@ -297,7 +295,6 @@ fun create_pol targete boarde mfl =
   in
     pol4
   end
- 
   else 
   let  
     val f = fp_emb_either
@@ -340,22 +337,24 @@ and search_move rt depth (vis,tim) targete boarde pol =
 and search_aux rt depth (vis,tim) targete boarde = 
   if depth >= 10000 then () else
   let  
-    val mfl = collect_children boarde 
+    val (newboarde, mfl) = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
-    val pol = create_pol targete boarde mfl
+    val pol = create_pol targete newboarde mfl
   in
-    search_move rt (depth + 1) (vis,tim) targete boarde pol
+    search_move rt (depth + 1) (vis,tim) targete newboarde pol
   end
 
 fun search (vis,tinc) = 
   let 
     val _ = search_time_flag := (vis <= 0)
+    val _ = node_counter := 0  
     val _ = prog_counter := 0
     val _ = checkinit ()
     val targete = get_targete ()
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
   in
+    print_endline ("nodes: " ^ its (!node_counter));
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end

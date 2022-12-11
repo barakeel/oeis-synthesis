@@ -278,8 +278,7 @@ val ho_ariv = Vector.fromList (
          (if (!z_flag) then [0,3] else [])
   )
   
-val _ = if Vector.length ho_ariv <> 
-           Vector.length operv
+val _ = if Vector.length ho_ariv <> Vector.length operv
         then raise ERR "ho_ariv" "mismatch with operv"
         else ()
   

@@ -10,8 +10,6 @@ type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
    Time limit
    ------------------------------------------------------------------------- *)
 
-val maxint1 = valOf (Int.maxInt)
-
 local open IntInf in
   val azero = fromInt 0
   val aone = fromInt 1
@@ -23,8 +21,8 @@ local open IntInf in
   fun pow2 b = arb_pow atwo (fromInt b)
   val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
   val minarb = ~maxarb
-  val maxint = fromInt maxint1
-  val minint = ~maxint
+  val maxint = fromInt (valOf (Int.maxInt))
+  val minint = fromInt (valOf (Int.minInt))
   fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
 end 
@@ -277,18 +275,17 @@ fun cache_exec exec =
     val v = Vector.fromList (rev (!graph))
     val b = !graphb
   in
-    fn x =>
-    let val no = SOME (IntInf.toInt (#1 x)) handle Overflow => NONE in
-      case no of NONE => exec x | SOME n => 
+    fn (x,y,z) =>
+    if large_int x orelse y <> azero orelse z <> azero then exec (x,y,z) else  
+    let val n = IntInf.toInt x in
       if n = Vector.length v andalso !abstimer + b > !timelimit
         then raise ProgTimeout 
       else 
-      if n >= 0 andalso n < Vector.length v 
-        then 
-          let val (r,tim) = Vector.sub (v,n) in
-            testcache tim r
-          end
-      else exec x    
+      if n >= 0 andalso n < Vector.length v then 
+        let val (r,tim) = Vector.sub (v,n) in
+          testcache tim r
+        end
+      else exec (x,y,z)   
     end
   end
   
