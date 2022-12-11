@@ -180,6 +180,7 @@ fun apply_move (move,exec) boarde =
 
 val node_counter = ref 0
 val prog_counter = ref 0
+val local_search = ref false
 
 (* todo : maybe split the checking part *)
 fun collect_child boarde move =
@@ -200,14 +201,18 @@ fun collect_child boarde move =
           let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
             if !prime_found then NONE else SOME (move, newexec)
           end
-        else (incr prog_counter; checkonline (p,exec); 
-              SOME (move, cache_exec exec))
+        else (
+             if !local_search andalso not (depend_on_y p)
+             then (incr prog_counter; checkonline (p,exec))
+             else (); 
+             SOME (move, cache_exec exec)
+             )
     end
   end
 
 fun collect_children boarde = 
   (
-  if !array_flag then
+  if not (!local_search) then
     (case boarde of [(p,exec,_,_)] => 
        (if depend_on_y p then () 
         else (checkonline (p,exec); incr prog_counter)) 
