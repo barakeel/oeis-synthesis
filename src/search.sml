@@ -210,7 +210,7 @@ fun collect_children boarde = case boarde of
     [(p,exec,a,b)] => 
     let 
       val _ = (incr prog_counter; checkonline (p,exec))
-      val newboarde = [(p,cache_exec exec, a, b)]
+      val newboarde = boarded (* [(p,cache_exec exec, a, b)] *)
     in
       (newboarde, List.mapPartial (collect_child newboarde) movelg)
     end
