@@ -368,7 +368,6 @@ fun search_target target =
             else ()
     val _ = if !use_ob then update_fp_op fileso else ()
     val _ = player_glob := player_wtnn_cache
-    val _ = noise_flag := true
     val _ = target_glob := target
     val _ = online_flag := true
     val tree = starting_tree (mctsobj ()) []
