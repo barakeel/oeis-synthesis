@@ -41,10 +41,10 @@ fi
 
 ## OpenBLAS: installation
 cd $DIR
-echo "Installing OpenBLAS (version 0.3.19)"
+echo "Installing OpenBLAS (version 0.3.21)"
 git clone https://github.com/xianyi/OpenBLAS
 cd OpenBLAS
-git checkout 2480e5046e3b0120da8a7fd1442eca628df55f87
+git checkout b89fb708caa5a5a32de8f4306c4ff132e0228e9a
 make
 
 if [ -f "libopenblas.a" ]
