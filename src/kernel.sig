@@ -26,6 +26,9 @@ sig
   val stop_flag : bool ref
   val simple_flag : bool ref
   
+  val use_ob : bool ref
+  val dim_glob : int ref   
+
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option

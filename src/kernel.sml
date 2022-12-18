@@ -47,6 +47,11 @@ val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
 val family_flag = bflag "family_flag"
 
+(* tnn flag *)
+val use_ob = ref true
+val dim_glob = ref  
+  (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
+
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts

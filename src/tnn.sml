@@ -15,9 +15,6 @@ val maxmove = if !stop_flag then maxmove + 1 else maxmove
    ------------------------------------------------------------------------- *)
 
 val tnn_glob = ref (dempty Term.compare)
-val use_ob = ref true
-val dim_glob = ref  
-  (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val embd = ref (dempty Term.compare)
   
 val use_cache = ref false (* only used during export *)
