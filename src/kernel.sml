@@ -25,14 +25,12 @@ val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val simple_flag =  bflag "simple_flag"
-
+val extranum_flag = bflag "extranum_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
-
-
 
 (* side experiments flags *)
 val prime_flag = bflag "prime_flag"
@@ -234,7 +232,10 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("loop",3),("x",0),("y",0),
      ("compr",2),("loop2",5)] @
-     (if (!z_flag) then [("z",0),("loop3",7)] else [])
+     (if !z_flag then [("z",0),("loop3",7)] else []) @
+     (if !extranum_flag then
+       [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
+       ("nine",0),("ten",0)] else [])
   )
 
 
@@ -280,7 +281,8 @@ val ho_ariv = Vector.fromList (
   else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
-         (if (!z_flag) then [0,3] else [])
+       (if !z_flag then [0,3] else []) @
+       (if !extranum_flag then List.tabulate (8, fn _ => 0) else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv

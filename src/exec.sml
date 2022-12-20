@@ -14,6 +14,14 @@ local open IntInf in
   val azero = fromInt 0
   val aone = fromInt 1
   val atwo = fromInt 2
+  val athree = fromInt 3
+  val afour = fromInt 4
+  val afive = fromInt 5
+  val asix = fromInt 6
+  val aseven = fromInt 7
+  val aeight = fromInt 8
+  val anine = fromInt 9
+  val aten = fromInt 10  
   fun aincr x = x + aone
   fun adecr x = x - aone
   fun aleq a b = a <= b
@@ -122,6 +130,14 @@ local open IntInf in
   val zero_f = mk_nullf (fn _ => azero)
   val one_f = mk_nullf (fn _ => aone)
   val two_f = mk_nullf (fn _ => atwo)
+  val three_f = mk_nullf (fn _ => athree)
+  val four_f = mk_nullf (fn _ => afour)
+  val five_f = mk_nullf (fn _ => afive)
+  val six_f = mk_nullf (fn _ => asix)
+  val seven_f = mk_nullf (fn _ => aseven)
+  val eight_f = mk_nullf (fn _ => aeight)
+  val nine_f = mk_nullf (fn _ => anine)
+  val ten_f = mk_nullf (fn _ => aten)
   val x_f = mk_nullf (fn (x,y,z) => x)
   val y_f = mk_nullf (fn (x,y,z) => y)
   val z_f = mk_nullf (fn (x,y,z) => z)
@@ -255,8 +271,10 @@ val execv =
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,loop_f,x_f,y_f,
      compr_f, loop2_f] @
-     (if !z_flag then [z_f, loop3_f] else []))
-  
+     (if !z_flag then [z_f, loop3_f] else []) @
+     (if !extranum_flag then 
+      [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
+      else []))
 val _ = if Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"
         else ()
