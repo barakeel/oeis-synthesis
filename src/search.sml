@@ -192,7 +192,11 @@ fun collect_child boarde move =
       val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      SOME (move,exec)
+      if !locsearch_flag andalso not (null l2)
+      then (incr prog_counter; 
+            checkonline (p,exec); 
+            SOME (move, cache_exec exec))
+      else SOME (move,exec)
       (* 
       if not (null l2) then SOME (move, exec) 
       else if !hadamard_flag then
@@ -209,7 +213,9 @@ fun collect_child boarde move =
 fun collect_children boarde = case boarde of
     [(p,exec,a,b)] => 
     let 
-      val _ = (incr prog_counter; checkonline (p,exec))
+      val _ = if not (!locsearch_flag) 
+              then (incr prog_counter; checkonline (p,exec))
+              else ()
       val newboarde = boarde
     in
       (newboarde, List.mapPartial (collect_child newboarde) movelg)

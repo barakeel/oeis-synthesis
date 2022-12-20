@@ -26,6 +26,8 @@ val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val simple_flag =  bflag "simple_flag"
 val extranum_flag = bflag "extranum_flag"
+val locsearch_flag = bflag "locsearch_flag"
+val halfnoise_flag = bflag "halfnoise_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

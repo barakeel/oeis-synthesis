@@ -300,6 +300,15 @@ fun init_ct () =
 fun clean_dicts () = 
   (progd := eempty prog_compare; embd := dempty Term.compare)
 
+fun halfnoise () = 
+  if !halfnoise_flag then
+    (
+    if !ngen_glob mod 2 = 0
+    then noise_flag := false
+    else (noise_flag := true; noise_coeff_glob := 0.1)
+    )
+  else noise_flag := false
+  
 (* also used in non-cubing *)
 fun init_cube () =
   let
@@ -308,12 +317,7 @@ fun init_cube () =
             then search.randsearch_flag := true
             else (init_ct (); search.randsearch_flag := false) 
     val _ = use_ob := true
-    val _ = noise_flag := false
-    (*
-            if !ngen_glob mod 2 = 0
-            then noise_flag := false
-            else (noise_flag := true; noise_coeff_glob := 0.1)
-     *)
+    val _ = halfnoise ()
     val _ = if !ngen_glob = 0 orelse !simple_flag then () 
             else update_fp_op (tnndir ^ "/ob.so")
   in
@@ -405,12 +409,7 @@ fun start_cube n =
       if !ngen_glob = 0 then player_glob := player_random 
       else if !simple_flag then player_glob := search.cplayer (!search.ct_glob)
       else (update_fp_op (tnndir ^ "/ob.so"); player_glob := player_wtnn_cache)
-    val _ = noise_flag := false
-            (*
-            if !ngen_glob mod 2 = 0
-            then noise_flag := false
-            else (noise_flag := true; noise_coeff_glob := 0.1)
-             *)
+    val _ = halfnoise ()
     val _ = game.nsim_opt := SOME n
     val _ = game.time_opt := NONE
     val _ = record_flag := false

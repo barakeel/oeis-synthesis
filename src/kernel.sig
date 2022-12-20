@@ -26,6 +26,8 @@ sig
   val stop_flag : bool ref
   val simple_flag : bool ref
   val extranum_flag : bool ref
+  val locsearch_flag : bool ref
+  val halfnoise_flag : bool ref
   
   val use_ob : bool ref
   val dim_glob : int ref   
