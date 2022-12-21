@@ -244,8 +244,8 @@ fun wrap_trainf ngen =
        "rl.expname := " ^ mlquote (!expname) ^ ";",
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
        "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
-       "tnn.dim_glob := " ^ its (!dim_glob) ^ ";",
-       "tnn.use_ob := " ^ bts (!use_ob) ^ ";"
+       "kernel.dim_glob := " ^ its (!dim_glob) ^ ";",
+       "kernel.use_ob := " ^ bts (!use_ob) ^ ";"
        ]
   in
     writel makefile ["INCLUDES = " ^ selfdir]; 
@@ -346,8 +346,8 @@ val parspec : (unit, int, sol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "tnn.dim_glob := " ^ its (!dim_glob),
-     "tnn.use_ob := " ^ bts (!use_ob),
+     "kernel.dim_glob := " ^ its (!dim_glob),
+     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -439,8 +439,8 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "tnn.dim_glob := " ^ its (!dim_glob),
-     "tnn.use_ob := " ^ bts (!use_ob),
+     "kernel.dim_glob := " ^ its (!dim_glob),
+     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -511,8 +511,8 @@ val primespec : (unit, (prog list * real) list, primesol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "tnn.dim_glob := " ^ its (!dim_glob),
-     "tnn.use_ob := " ^ bts (!use_ob),
+     "kernel.dim_glob := " ^ its (!dim_glob),
+     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -556,8 +556,8 @@ val hdmspec : (unit, (prog list * real) list, primesol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "tnn.dim_glob := " ^ its (!dim_glob),
-     "tnn.use_ob := " ^ bts (!use_ob),
+     "kernel.dim_glob := " ^ its (!dim_glob),
+     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
