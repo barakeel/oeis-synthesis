@@ -192,7 +192,7 @@ fun collect_child boarde move =
       val p = Ins (move, map #1 (rev l1))
       val exec = mk_exec_move move (map #2 (rev l1))  
     in 
-      if !locsearch_flag andalso null l2
+      if !locsearch_flag andalso null l2 andalso not (depend_on_y p)
       then (incr prog_counter; 
             checkonline (p,exec); 
             SOME (move, cache_exec exec))
