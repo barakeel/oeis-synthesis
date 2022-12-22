@@ -228,7 +228,7 @@ fun create_compr f =
     (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
   in
     (fn x => if x < 0 orelse x >= Vector.length v 
-             then (if !hadamard_flag then (azero,1) else raise Div) 
+             then (if !hadamard_flag then (azero,1) else raise ProgTimeout) 
              else Vector.sub (v,x))
   end
 
