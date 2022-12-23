@@ -319,7 +319,7 @@ fun parallel_check expname =
     val _ = smlExecScripts.buildheap_dir := dir
     val splitdir = dir ^ "/split"
     val _ = mkDir_err splitdir
-    val _ = cmd_in_dir dir "split -l 100000 cand split/cand"
+    val _ = cmd_in_dir dir "split -l 10000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = init_merge ()
