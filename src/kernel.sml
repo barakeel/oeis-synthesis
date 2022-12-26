@@ -28,6 +28,8 @@ val simple_flag =  bflag "simple_flag"
 val extranum_flag = bflag "extranum_flag"
 val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
+val subprog_flag = bflag "subprog_flag"
+val slowcheck_flag = bflag "slowcheck_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

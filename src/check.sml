@@ -95,7 +95,6 @@ fun create_anumlpart (anumtl,n,anumlpart) =
 val wind = ref (dempty Int.compare)
 val partwind = ref (dempty Int.compare)  
 
-
 fun checkf (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
@@ -189,11 +188,30 @@ fun checkml d board movel =
       | NONE => incr error)    
   )  
 
+fun apply_movel board movel = case movel of [] => board | move :: m => 
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then []
+    else apply_movel (Ins (move, rev l1) :: l2) m
+  end
+
+fun prog_of_ml lr ml = 
+  let val progl = apply_movel [] ml in
+    case progl of [p] => lr := p :: !lr | _ => incr error
+  end
+
 fun checkmll mll = 
   let 
     val d = ref (eempty prog_compare)
+    val lr = ref []
     val counter = ref 0
-    val (_,t) = add_time (app (checkml d [])) mll
+    val (_,t) = 
+      if !subprog_flag 
+      then add_time (app (checkml d [])) mll
+      else add_time (app (prog_of_ml lr)) mll
     val _ = print_endline ("parse errors: " ^ its (!error))
     val _ = print_endline ("parsed programs: " ^ its (elength (!d))
       ^ " in " ^ rts_round 2 t)
@@ -201,7 +219,10 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_fast_test (); checkf (p, mk_exec p))
-    val (_,t) = add_time (Redblackset.app f) (!d)
+    val (_,t) = 
+      if !subprog_flag 
+      then add_time (Redblackset.app f) (!d)
+      else add_time (app f) (!lr)
   in
     print_endline ("fast check: " ^ rts_round 2 t)
   end
@@ -212,7 +233,14 @@ fun check_file file =
     val _ = print_endline (file ^ ":" ^ its (length mll))
     val _ = error := 0
   in
-    checkinit (); checkmll mll; checkfinal ()
+    checkinit (); checkmll mll; 
+    if !slowcheck_flag then checkfinal () else 
+      let 
+        val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
+        val r = dlist (!wind)
+      in
+        checkinit (); r
+      end 
   end
 
 

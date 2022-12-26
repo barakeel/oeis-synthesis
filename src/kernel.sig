@@ -28,6 +28,8 @@ sig
   val extranum_flag : bool ref
   val locsearch_flag : bool ref
   val halfnoise_flag : bool ref
+  val subprog_flag : bool ref
+  val slowcheck_flag : bool ref
   
   val use_ob : bool ref
   val dim_glob : int ref   
