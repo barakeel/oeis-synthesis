@@ -107,9 +107,11 @@ fun checkf (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
 
-fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
+fun checkonline (p,exec) = 
+  (init_fast_test (); checkf (p,exec))
 
-fun checkinit () = (wind := dempty Int.compare; partwind := dempty Int.compare)
+fun checkinit () = 
+  (wind := dempty Int.compare; partwind := dempty Int.compare)
 
 fun checkfinal () =
   let
@@ -337,49 +339,6 @@ fun parallel_check expname =
     write_gsol (gptfile ^ "_temp") newsol;
     OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
     OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
-  end
-
-(* -------------------------------------------------------------------------
-   Levenstein
-   ------------------------------------------------------------------------- *) 
-  
-fun min3 (a,b,c) = Int.min (Int.min (a,b),c) 
-
-fun lev cache (al,an) (bl,bn) = 
-  let val v = Array2.sub (cache,an,bn) in 
-    if v >= 0 then v else
-    (
-    case (al,bl) of
-      ([],_) => bn
-    | (_,[]) => an
-    | (a :: am, b :: bm) => 
-      let val r =
-        if a = b then lev cache (am,an-1) (bm,bn-1) else 
-        1 + min3 (lev cache (al,an) (bm,bn-1), lev cache (am,an-1) (bl,bn), 
-                  lev cache (am,an-1) (bm,bn-1))
-      in
-        Array2.update (cache,an,bn,r); r
-      end
-    )
-  end;
-
-fun levenstein al bl =
-  let 
-    val (an,bn) = (length al, length bl)
-    val cache = Array2.array (an+1,bn+1,~1) 
-  in
-    lev cache (al,length al) (bl,length bl)
-  end;
-  
-fun is_similar p1 p2 =
-  let 
-    val (l1,l2) = (map snd (linearize p1), map snd (linearize p2)) 
-    val levn = levenstein l1 l2
-    val (n1,n2) = (length l1, length l2)
-    val diffn = Int.abs (n1 - n2)
-    val minn = Int.min (n1,n2)
-  in
-    int_div (levn - diffn) (minn) <= 0.2
   end
 
 (* -------------------------------------------------------------------------
