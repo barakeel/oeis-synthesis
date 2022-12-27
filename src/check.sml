@@ -389,13 +389,14 @@ fun dedupl expname =
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = init_merge ()
     val (_,t) = add_time (parmap_queue_extern ncore subprogspec ()) filel
-    val _ = log ("subprogram deduplication time: " ^ rts_round 6 t)
-    val (sl,t) = add_time merge_subprog_default dir
+    val _ = log ("subprogram detection time: " ^ rts_round 6 t)
+    val _ = OS.FileSys.rename {old = candfile, new = candfile ^ "_org"}
+    val (_,t) = add_time (cmd_in_dir selfdir) 
+      ("find ./merge | xargs cat | sort -u > " ^ candfile)
     val _ = log ("merging time: " ^ rts_round 6 t)
     val _ = (init_merge (); clean_dir splitdir)
   in
-    OS.FileSys.rename {old = candfile, new = candfile ^ "_org"};
-    writel candfile sl
+    ()
   end
 
 
@@ -457,7 +458,7 @@ fun parallel_check expname =
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = init_merge ()
-    val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) filel
+    val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) (rev filel)
     val _ = log ("checking time: " ^ rts_round 6 t)
     val (newsol,t) = add_time merge_itsol_default dir
     val _ = log ("merging time: " ^ rts_round 6 t)
