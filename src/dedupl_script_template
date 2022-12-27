@@ -1,0 +1,2 @@
+load "check";
+check.dedupl "expname_template";

@@ -8,6 +8,7 @@ val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum
 type prog = kernel.prog
 type ('a,'b) dict = ('a,'b) Redblackmap.dict
+val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 
 (* -------------------------------------------------------------------------
    Update set of solutions
@@ -182,11 +183,11 @@ fun checkml d board movel =
     end
   else (case board of p :: m => d := eadd p (!d) | _ => ())
   ;
-    case movel of [] => () | move :: m => 
-      (case next_board board move of
-        SOME newboard => checkml d newboard m 
-      | NONE => incr error)    
-  )  
+  case movel of [] => () | move :: m => 
+    (case next_board board move of
+      SOME newboard => checkml d newboard m 
+    | NONE => incr error)    
+  )
 
 fun apply_movel board movel = case movel of [] => board | move :: m => 
   let 
@@ -233,7 +234,7 @@ fun check_file file =
     val _ = print_endline (file ^ ":" ^ its (length mll))
     val _ = error := 0
   in
-    checkinit (); checkmll mll; 
+    checkmll mll; 
     if !slowcheck_flag then checkfinal () else 
       let 
         val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
@@ -242,7 +243,6 @@ fun check_file file =
         checkinit (); r
       end 
   end
-
 
 (* -------------------------------------------------------------------------
    Merging solutions from the merge directory
@@ -297,6 +297,112 @@ val checkspec : (unit, string, (anum * (int * prog) list) list) extspec =
     in f end
     }
 
+(* -------------------------------------------------------------------------
+   Parallel subprograms merge
+   ------------------------------------------------------------------------- *)
+
+fun random_cand () = List.tabulate (random_int (10,200), fn _ =>
+  random_int (0,Vector.length operv - 1))
+
+fun random_candfile file n = 
+  let 
+    val candl = List.tabulate (n, fn _ => random_cand ())
+    fun f cand = String.concatWith " " (map gpt_of_id cand)
+    val sl = map f candl
+  in
+    writel file sl
+  end
+
+fun merge_subprog_file d file =
+  app (fn s => d := eadd s (!d)) (readl file) 
+
+fun gpt_of_prog_rev p = implode (rev (explode (gpt_of_prog p)))
+
+fun merge_subprog_default dir = 
+  let 
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val d = ref (eempty String.compare)
+    val _ = app (merge_subprog_file d) filel
+    val _ = log ("subprograms: " ^ its (elength (!d)))
+  in
+    elist (!d)
+  end
+
+fun parsemll mll = 
+  let 
+    val d = ref (eempty prog_compare)
+    val counter = ref 0
+    val (_,t) = add_time (app (checkml d [])) mll
+    val _ = print_endline ("parse errors: " ^ its (!error))
+    val _ = print_endline ("parse programs: " ^ its (elength (!d)))
+    val _ = print_endline ("parse time: " ^ rts_round 2 t)
+  in
+    map gpt_of_prog_rev (elist (!d))
+  end
+
+fun parse_file file =
+  let 
+    val mll = map (rev o movel_of_gpt) (readl file)
+    val _ = print_endline (file ^ ":" ^ its (length mll))
+    val _ = error := 0
+  in
+    parsemll mll
+  end
+
+val subprogspec : (unit, string, string list) extspec =
+  {
+  self_dir = selfdir,
+  self = "check.subprogspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () file = parse_file file in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = let fun f file arg = writel file [arg] in f end,
+  read_arg = let fun f file = hd (readl file) in f end,
+  write_result = writel,
+  read_result = let fun f file = 
+    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
+     incr mergen; 
+     [])
+    in f end
+  }
+
+fun dedupl expname = 
+  let 
+    val dir = selfdir ^ "/exp/" ^ expname
+    val candfile = dir ^ "/cand"
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val splitdir = dir ^ "/split"
+    val _ = mkDir_err splitdir
+    val _ = cmd_in_dir dir "split -l 100000 cand split/cand"
+    val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
+    val _ = init_merge ()
+    val (_,t) = add_time (parmap_queue_extern ncore subprogspec ()) filel
+    val _ = log ("subprogram deduplication time: " ^ rts_round 6 t)
+    val (sl,t) = add_time merge_subprog_default dir
+    val _ = log ("merging time: " ^ rts_round 6 t)
+    val _ = (init_merge (); clean_dir splitdir)
+  in
+    OS.FileSys.rename {old = candfile, new = candfile ^ "_org"};
+    writel candfile sl
+  end
+
+
+(* -------------------------------------------------------------------------
+   Statistics
+   ------------------------------------------------------------------------- *)
+
 fun stats_sol file itsol =
   let
     fun string_of_tp (t,p) =
@@ -323,8 +429,6 @@ fun stats_dir dir oldsol newsol =
     log ("diff: " ^ its (length diff));
     stats_sol (dir ^ "/stats_diff") diff
   end
-
-val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 
 fun write_gsol file sol =
   let
