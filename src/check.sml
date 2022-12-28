@@ -392,7 +392,7 @@ fun dedupl expname =
     val _ = log ("subprogram detection time: " ^ rts_round 6 t)
     val _ = OS.FileSys.rename {old = candfile, new = candfile ^ "_org"}
     val (_,t) = add_time (cmd_in_dir selfdir) 
-      ("find ./merge | xargs cat | sort -u > " ^ candfile)
+      ("find ./merge -type f | xargs cat | sort -u > " ^ candfile)
     val _ = log ("merging time: " ^ rts_round 6 t)
     val _ = (init_merge (); clean_dir splitdir)
   in
