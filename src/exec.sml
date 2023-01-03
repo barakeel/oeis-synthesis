@@ -144,6 +144,8 @@ local open IntInf in
   val X_f = mk_nullf (fn (x,y,z) => !x_current)
   val Y_f = mk_nullf (fn (x,y,z) => !y_current)
   val Z_f = mk_nullf (fn (x,y,z) => !z_current) 
+  val suc_f = mk_unf (fn x => x + 1)
+  val pred_f = mk_unf (fn x => x + 1)
   val addi_f = mk_binf 1 (op +)
   val diff_f = mk_binf 1 (op -)
   val mult_f = mk_binf 1 (op *)
@@ -266,7 +268,9 @@ val execv =
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
-  else 
+  else if !minimal_flag 
+    then Vector.fromList [zero_f, x_f, y_f, suc_f, pred_f, loop_f]
+  else
     Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,loop_f,x_f,y_f,

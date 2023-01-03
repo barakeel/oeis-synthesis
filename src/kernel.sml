@@ -30,6 +30,8 @@ val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
 val subprog_flag = bflag "subprog_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
+val minimal_flag = bflag "minimal_flag"
+
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
@@ -38,7 +40,6 @@ val stop_flag = bflag "stop_flag"
 (* side experiments flags *)
 val prime_flag = bflag "prime_flag"
 val array_flag = bflag "array_flag"
-
 
 (* hadamard flags *)
 val hadamard_flag = bflag "hadamard_flag"
@@ -52,7 +53,6 @@ val family_flag = bflag "family_flag"
 val use_ob = ref true
 val dim_glob = ref  
   (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
-
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -230,6 +230,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),
      ("array",1),("assign",2),("loop",3)]
+  else if !minimal_flag then
+    [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
   else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -240,8 +242,6 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
        ("nine",0),("ten",0)] else [])
   )
-
-
 
 (* -------------------------------------------------------------------------
    All operators
@@ -283,6 +283,7 @@ val ho_ariv = Vector.fromList (
     else List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
+  else if !minimal_flag then [0,0,0,0,0,1]
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else [])
@@ -304,7 +305,7 @@ fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun depend_on_z p = depend_on z_id p
 fun is_constant p = 
-  not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
+ not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
 
 (* -------------------------------------------------------------------------
    Timer
