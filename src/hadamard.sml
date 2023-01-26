@@ -14,7 +14,7 @@ fun self_scalar v offset =
     val sum = ref 0
     fun loop x = if x >= n then !sum else 
       (sum := !sum + Vector.sub (v,x) * Vector.sub (v,(x - offset) mod n);
-       loop (x+1))  
+       loop (x+1))
   in
     loop 0
   end

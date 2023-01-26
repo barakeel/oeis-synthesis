@@ -31,7 +31,7 @@ sig
   val subprog_flag : bool ref
   val slowcheck_flag : bool ref
   val minimal_flag : bool ref
-  
+  val ramsey_flag : bool ref
   val use_ob : bool ref
   val dim_glob : int ref   
 

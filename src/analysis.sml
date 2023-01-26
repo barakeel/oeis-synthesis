@@ -77,9 +77,11 @@ writel "size-distrib" (map (fn (a,b) => its a ^ " " ^ its b) sizel2);
    -------------------------------------------------------------------------- *)
 
 load "kernel"; open aiLib kernel;
+load "bloom"; open bloom;
+load "exec"; open exec;
 
 val ERR = mk_HOL_ERR "test";
-val dir = "/home/user/oeis-bfile";
+val dir = "/home/thibault/big/datasets/oeis-bfile";
 
 fun readln ntop path =
   let
@@ -98,6 +100,27 @@ fun readln ntop path =
   end;
 
 val isol25 = read_iprogl "model/isol25"; length isol25;
+val sol189 = read_itprogl "model/sol189"; length sol189;
+
+fun is_faster (t1,p1) (t2,p2) =   
+  cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
+
+fun is_smaller (t1,p1) (t2,p2) = 
+  prog_compare_size (p1,p2) = LESS
+
+fun find_min_loop cmpf a m = case m of
+    [] => a
+  | a' :: m' => find_min_loop cmpf (if cmpf a' a then a' else a)  m'
+
+fun find_min cmpf l = case l of 
+    [] => raise ERR "find_min" ""
+  | a :: m => find_min_loop cmpf a m
+
+fun fsmall (a,tpl) = (a, snd (find_min is_smaller tpl));
+fun ffast (a,tpl) = (a, snd (find_min is_faster tpl));
+
+val smallsol = map fsmall sol189;
+val fastsol = map ffast sol189;
 
 fun get_seq_sl sl =
   let fun f s = 
@@ -119,18 +142,16 @@ fun get_seq (i,p) =
   let val file = dir ^ "/b" ^ its i ^ ".txt" in
     incr counter;
     if !counter mod 1000 = 0 then print "." else ();
-    if longfile file 
-    then SOME ((i,p), get_seq_sl (readln 300 file))
-    else NONE
+    SOME ((i,p), get_seq_sl (readln 300 file)) handle _ => NONE
   end;
 
 (* Reads the first 300 lines of each b-file *)  
-val isol25e = List.mapPartial get_seq isol25; length isol25e;
+val sol = fastsol; (* fastsol *)
 
-fun in_order l = seq_compare
-    (map fst l, List.tabulate (length l, IntInf.fromInt)) = EQUAL
+val sole = List.mapPartial get_seq sol; length sole;
 
-load "bloom"; open bloom;
+
+
 fun is_prefix_alt ((i,p),l) = 
   let 
     val seq1 = valOf (Array.sub (oseq,i)) 
@@ -150,11 +171,7 @@ fun is_continuous ((i,p),l) =
   let val seq1 = valOf (Array.sub (oseq,i)) in
     continuous (map fst (first_n (length seq1 + maxnext) l))
   end;
-  
-fun is_continuous ((i,p),l) = 
-  let val seq1 = valOf (Array.sub (oseq,i)) in
-    continuous (map fst (first_n (length seq1 + maxnext) l))
-  end;
+
   
 fun keep_ext ((i,p),l) = 
   let val seq1 = valOf (Array.sub (oseq,i)) in
@@ -162,43 +179,38 @@ fun keep_ext ((i,p),l) =
     then NONE
     else SOME ((i,p), map snd (first_n (length seq1 + maxnext) l))
   end; 
-
-load "exec"; open exec;
-counter := 0;
-fun is_correct ((i,p),l) = 
-  let val l' = penum_wtime 10000000 p (length l) in
-    seq_compare (l',l) = EQUAL
-  end;
   
-fun is_timeout ((i,p),l) = 
-  let val l' = penum_wtime 10000000 p (length l) in
-    length l' < length l
-  end;  
-
+val counter = ref 0 ; 
+max_compr_number := 200;
 fun correct_bl ((i,p),l) = 
   let 
+    val _ = incr counter
+    val _ = if !counter mod 1000 = 0 then print "." else ()
     val seq1 = valOf (Array.sub (oseq,i))
     val i1 = length seq1
-    val l' = penum_wtime 10000000 p (length l)
+    val l' = penum_wtime 100000 p (length l)
   in
-    ((i,p), List.tabulate (maxnext, fn x => 
-       seq_compare (first_n (i1+x+1) l', first_n (i1+x+1) l) = EQUAL))
+    ((i,p), (length l' < length l, List.tabulate (maxnext, fn x => 
+       seq_compare (first_n (i1+x+1) l', first_n (i1+x+1) l) = EQUAL)))
   end;  
 
 PolyML.print_depth 1;
-val l0 = filter is_prefix_alt isol25e; length l0;
+val l0 = filter is_prefix_alt sole; length l0;
 val l1 = filter is_continuous l0; length l1;
 val l2 = List.mapPartial keep_ext l1; length l2;
-val l3 = filter is_correct l2; length l3;
-val l4 = filter (not o is_timeout) l2; length l4;
 val l5 = map correct_bl l2; length l5;
-val l6 = list_combine (map snd l5);
+val l6 = list_combine (map (snd o snd) l5);
+val l4 = filter (fst o snd) l5;
 val l7 = map (fn l => sum_int (map (fn x => if x then 1 else 0) l)) l6;
 val l8 = map (fn x => int_div x (length l5)) l7;
-length l2; length l2 - length l4; length l3;
 
 fun f (i,x) = (its i ^ " " ^ rts x); 
-writel "largeinput" (map f (number_fst 0 (1.0 :: l8)));
+writel "fast_timeout" ["total", its (length l2), "timeout", its (length l4)];
+writel "fast_largeinput" (map f (number_fst 0 (1.0 :: l8)));
+
+writel "small_timeout" ["total", its (length l2), "timeout", its (length l4)];
+writel "small_largeinput" (map f (number_fst 0 (1.0 :: l8)));
+
 
 
 (* --------------------------------------------------------------------------

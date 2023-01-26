@@ -17,7 +17,13 @@ val configd =
 
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 
-val notarget_flag = bflag "notarget_flag"
+val hadamard_flag = bflag "hadamard_flag"
+val prime_flag = bflag "prime_flag"
+
+val notarget_flag = if !hadamard_flag orelse !prime_flag
+                    then ref true 
+                    else bflag "notarget_flag"
+                    
 val local_flag = bflag "local_flag"
 
 (* main_experiment flags *)
@@ -38,16 +44,15 @@ val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
 
 (* side experiments flags *)
-val prime_flag = bflag "prime_flag"
 val array_flag = bflag "array_flag"
 
 (* hadamard flags *)
-val hadamard_flag = bflag "hadamard_flag"
 val sqrt_flag = bflag "sqrt_flag"
 val loop_flag = bflag "loop_flag"
 val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
 val family_flag = bflag "family_flag"
+val ramsey_flag = bflag "ramsey_flag"
 
 (* tnn flag *)
 val use_ob = ref true

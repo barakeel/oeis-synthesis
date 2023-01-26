@@ -520,7 +520,7 @@ fun merge_primesol primesol =
   end 
   
 (* -------------------------------------------------------------------------
-   Check if a program generates hadamard matrices
+   Check if a program generates hadamard matrices (does ramsey too)
    ------------------------------------------------------------------------- *)
 
 val hdmd = ref (dempty seq_compare)
@@ -536,7 +536,7 @@ fun smallest_key d =
   handle Catchable r => r
 
 fun filter_hdmd () = 
-  if dlength (!hdmd) >= 10001
+  if dlength (!hdmd) >= 20001
   then hdmd := drem (smallest_key (!hdmd)) (!hdmd)
   else ()
   
@@ -553,7 +553,8 @@ fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm (p,exec) =
   let val il = 
-    if !family_flag then penum_family_hadamard exec
+    if !ramsey_flag then penum_ramsey exec 
+    else if !family_flag then penum_family_hadamard exec
     else if !convolution_flag then penum_conv_hadamard exec 
     else penum_real_hadamard exec 
   in
@@ -567,6 +568,7 @@ fun merge_hdmsol hdmsol =
     app update_hdmd hdmsol;
     checkfinal_hdm ()
   end
+
   
-  
+
 end (* struct *)

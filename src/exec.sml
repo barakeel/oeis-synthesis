@@ -1,7 +1,7 @@
 structure exec :> exec =
 struct
 
-open HolKernel boolLib aiLib kernel bloom hadamard
+open HolKernel boolLib aiLib kernel bloom hadamard ramsey
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
 type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
@@ -617,6 +617,7 @@ fun penum_real_hadamard exec =
     if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
 
+
 (* -------------------------------------------------------------------------
    Computing the size of the maximal clique of a matrix
    ------------------------------------------------------------------------- *)
@@ -797,6 +798,39 @@ fun penum_family_hadamard exec =
     if bestsc <= 0 then [] else map IntInf.fromInt (sortedscl @ scl)
   end
 
+(* -------------------------------------------------------------------------
+   Ramsey numbers
+   ------------------------------------------------------------------------- *)
+
+val color1 = 4
+val color2 = 6
+val maxgraph = 36
+  
+fun hash_ramsey a gsize =
+  let 
+    val pl = all_pairs (List.tabulate (gsize,I))
+    val il = map (fn (x,y) => if Array2.sub (a,x,y) then 1 else ~1) pl 
+  in
+    hash 1 il
+  end
+      
+fun penum_ramsey exec = 
+  let
+    val fi = IntInf.fromInt
+    val _ = init_timer ()
+    (* results *)
+    fun f (x,y) =
+      let
+        val r = exec (fi x, fi y, azero)
+        val _ = incr_timer ()
+      in
+        r <= azero
+      end
+    val (a,sc) = ramsey f maxgraph color1 color2
+    val anorm = norm_graph a sc
+  in   
+    if sc <= 0 then [] else map IntInf.fromInt [sc, hash_ramsey anorm sc]
+  end
 
 end (* struct *)
 
