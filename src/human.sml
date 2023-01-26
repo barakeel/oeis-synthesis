@@ -264,7 +264,10 @@ fun parse_sexp s =
     | _ => raise ERR "parse_sexp" s
   end
 
-val tokenl =    
+val tokenl =  
+  if !hadamard_flag then
+  ["0","1","2","+","-","*","/","%","cond","x","y","z"]
+  else
   ["0","1","2","+","-","*","/","%","cond","loop","x","y","compr","loop2"]
 val tokend = dnew String.compare (number_snd 0 tokenl)
 val tokenv = Vector.fromList tokenl

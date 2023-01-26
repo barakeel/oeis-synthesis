@@ -804,7 +804,7 @@ fun penum_family_hadamard exec =
 
 val color1 = 4
 val color2 = 6
-val maxgraph = 36
+val maxgraph = 41
   
 fun hash_ramsey a gsize =
   let 
@@ -853,7 +853,7 @@ fun mk_f exec (x,y) =
 
 
 val p = game.random_prog 10; humanf p;
-val p = parse_prog "(- x 2)";
+val p = parse_human "(% (/ (- x y) ( * 2 2)) 2)";
 val exec = mk_exec p;
 val f = mk_f (mk_exec p);
 
@@ -863,13 +863,10 @@ val color2 = 6
 val maxgraph = 36;
 val (a,sc) = ramsey f maxgraph color1 color2;
 
+val b = cut a 4;
+all_clique
+
 penum_ramsey exec;
-
-
-fun cut a gsize = 
-  let fun f (x,y) = Array2.sub (a,y,x) in
-    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
-  end;
   
 val acut = cut a sc;  
 

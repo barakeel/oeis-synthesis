@@ -28,11 +28,17 @@ fun permute sigma a gsize =
     Array2.tabulate Array2.RowMajor (gsize,gsize,f)
   end
 
-(* permutate so that the new vertex have index 0 *)
+(* permute so that the new vertex have index 0 *)
 fun cycle a gsize =
   let fun sigma x = if x = 0 then gsize-1 else x-1 in
     permute sigma a gsize
   end
+
+fun cut a gsize = 
+  let fun f (x,y) = Array2.sub (a,y,x) in
+    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
+  end
+
 
 (* -------------------------------------------------------------------------
    All cliques containing vertex 0
@@ -189,6 +195,8 @@ val gsize = 8;
 val a = Array2.tabulate Array2.RowMajor 
   (gsize,gsize,fn _ => random_real () < 0.5);
 val asym = mk_sym a gsize;
+
+val cliquel = all_clique asym gsize 5;
 
 val charac = all_charac asym gsize;
 val anorm = norm_graph asym gsize;

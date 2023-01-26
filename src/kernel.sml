@@ -230,7 +230,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
      (if (!loop_flag) then 
         [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
-  else if !array_flag then    
+  else if !array_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),
