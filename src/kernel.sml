@@ -321,12 +321,17 @@ exception ProgTimeout;
 val short_timeincr = 1000
 val long_timeincr = 100000
 val timeincr = ref (if !convolution_flag then 5000 
-                    else if !hadamard_flag then 10000 else short_timeincr)
+                    else if !hadamard_flag then 10000 
+                    else if !ramsey_flag then 100000
+                    else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
-val max_compr_number = ref (if !hadamard_flag then 15*4 else short_compr)
+val max_compr_number = ref (
+  if !ramsey_flag then 200 
+  else if !hadamard_flag then 15*4 
+  else short_compr)
 val graph = ref []
 val graphb = ref 0
 

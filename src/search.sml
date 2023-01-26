@@ -197,16 +197,6 @@ fun collect_child boarde move =
             checkonline (p,exec); 
             SOME (move, cache_exec exec))
       else SOME (move,exec)
-      (* 
-      if not (null l2) then SOME (move, exec) 
-      else if !hadamard_flag then
-          (checkonline_hdm (p,exec); incr prog_counter; SOME (move, exec)) 
-        else if !prime_flag then 
-          let val newexec = (incr prog_counter; checkonline_prime (p,exec)) in
-            if !prime_found then NONE else SOME (move, newexec)
-          end
-        else
-      *) 
     end
   end
 
@@ -214,7 +204,10 @@ fun collect_children boarde = case boarde of
     [(p,exec,a,b)] => 
     let 
       val _ = if not (!locsearch_flag) 
-              then (incr prog_counter; checkonline (p,exec))
+              then (incr prog_counter; 
+                    if !hadamard_flag then checkonline_hdm (p,exec)
+                    else if !prime_flag then ignore (checkonline_prime (p,exec))
+                    else checkonline (p,exec))
               else ()
       val newboarde = boarde
     in

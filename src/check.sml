@@ -526,10 +526,6 @@ fun merge_primesol primesol =
 val hdmd = ref (dempty seq_compare)
 
 exception Catchable of IntInf.int list;
-  
-fun biggest_key d =
-  (Redblackmap.revapp (fn (a,b) => raise Catchable a) d; [])
-  handle Catchable r => r
 
 fun smallest_key d =
   (Redblackmap.app (fn (a,b) => raise Catchable a) d; [])

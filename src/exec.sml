@@ -829,14 +829,84 @@ fun penum_ramsey exec =
     val (a,sc) = ramsey f maxgraph color1 color2
     val anorm = norm_graph a sc
   in   
-    if sc <= 0 then [] else map IntInf.fromInt [sc, hash_ramsey anorm sc]
+    map IntInf.fromInt [sc, hash_ramsey anorm sc]
   end
 
 end (* struct *)
 
+(*
+load "kernel"; open kernel;
+load "exec"; open exec; 
+load "human"; open human aiLib;
+load "game";
+load "ramsey"; open ramsey;
+
+init_timer (); 
+val fi = IntInf.fromInt;
+fun mk_f exec (x,y) =
+  let
+    val r = exec (fi x, fi y, fi 0)
+    val _ = incr_timer ()
+  in
+    r <= fi 0
+  end;
+
+
+val p = game.random_prog 10; humanf p;
+val p = parse_prog "(- x 2)";
+val exec = mk_exec p;
+val f = mk_f (mk_exec p);
+
+
+val color1 = 4
+val color2 = 6
+val maxgraph = 36;
+val (a,sc) = ramsey f maxgraph color1 color2;
+
+penum_ramsey exec;
+
+
+fun cut a gsize = 
+  let fun f (x,y) = Array2.sub (a,y,x) in
+    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
+  end;
+  
+val acut = cut a sc;  
+
+penum_ramsey exec;
+*)
+
+
 (* -------------------------------------------------------------------------
    Verifying hadamard function
    ------------------------------------------------------------------------- *)
+
+(*
+load "kernel"; open kernel;
+load "exec"; open exec; 
+load "human"; open human aiLib;
+
+
+
+
+val itsol = kernel.read_primel "model/itsol20"; 
+fun test x ([a,b,c],d) = (b = IntInf.fromInt x) andalso c = b;
+val (a,(b,sol)) = hd (filter (test 28) itsol);
+humanf sol;
+
+fun ishdm (_,l) = case l of [a,b,c] => b=c | _ => false;
+
+val r = time (penum_hadamard_online 10000 (mk_exec sol)) 636;
+
+val il = filter ishdm (map (penum_hadamard_online 10000 (mk_exec sol)) 
+  (List.tabulate (50,fn x => 4* (x+1))));
+
+val il2 = map snd il;
+*)
+
+
+
+
 
 (*
 load "exec"; open exec; 

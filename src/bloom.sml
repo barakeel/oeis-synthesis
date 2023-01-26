@@ -16,7 +16,9 @@ end
    OEIS array read from disk
    ------------------------------------------------------------------------- *)
 
-val oraw = readl (selfdir ^ "/data/oeis");
+val oraw = 
+  if !prime_flag orelse !hadamard_flag then [] else 
+  readl (selfdir ^ "/data/oeis");
 val _ = print_endline ("oeis: " ^ its (length oraw));
 (* val solved = enew Int.compare 
   (map fst (read_iprogl (selfdir ^ "/model/isol_online"))); *)

@@ -107,7 +107,8 @@ fun ramsey f n size1 size2 =
       if gsize > n then (a, gsize-1) else
       (
       if not (update_array a f gsize) then (a, gsize-1) 
-      else if contains_clique a gsize size1 size2 then (a, gsize-1) 
+      else if contains_clique a gsize size1 size2 
+        then (a, gsize-1) 
       else loop (gsize + 1)
       )
   in
