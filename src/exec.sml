@@ -652,10 +652,12 @@ fun score_aux table set xtop =
     score_aux table (line :: set) (xtop + 1)
   end
 
+val hashmod = 79260655 * 10000000 + 5396977
+
 fun hash acc l = case l of
     [] => acc
-  | 1 :: m => hash ((591 * acc + 871) mod 1000) m
-  | ~1 :: m => hash ((833 * acc + 303) mod 1000) m
+  | 1 :: m => hash ((91 * acc + 71) mod hashmod) m
+  | ~1 :: m => hash ((33 * acc + 31) mod hashmod) m
   | _ :: m => raise ERR "hash_hdmseq" ""
 
 fun hash_table table = hash 1 (List.concat (vector_to_list table))
@@ -827,7 +829,7 @@ fun penum_ramsey exec =
         r <= azero
       end
     val (a,sc) = ramsey f maxgraph color1 color2
-    (* val anorm = norm_graph a sc *)
+    val anorm = norm_graph a sc
   in   
     map IntInf.fromInt [sc, hash_ramsey a sc]
   end
