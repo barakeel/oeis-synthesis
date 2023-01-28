@@ -559,11 +559,35 @@ fun checkonline_hdm (p,exec) =
  
 fun checkfinal_hdm () = dlist (!hdmd)
 
+(*
 fun merge_hdmsol hdmsol = 
   let val _ = checkinit_hdm () in
     app update_hdmd hdmsol;
     checkfinal_hdm ()
   end
+*)
+
+fun merge_hdm_file file =
+  let val sol = read_primel file in
+    app update_hdmd sol
+  end
+  
+fun merge_hdm fileo = 
+  let 
+    val _ = checkinit_hdm ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_hdm_file filel
+    val _ = if isSome fileo then merge_hdm_file (valOf fileo) else ()
+  in
+    checkfinal_hdm ()
+  end
+
+
+
+
+
+
+
 
   
 

@@ -5,6 +5,11 @@ sig
   type prog = kernel.prog
   type anum = bloom.anum
   
+  (* merge directory *)
+  val init_merge : unit -> unit
+  val mergedir : string
+  val mergen : int ref
+
   val merge_itsol : (anum * (int * prog) list) list -> 
                     (anum * (int * prog) list) list
   val checkinit : unit -> unit
@@ -24,9 +29,12 @@ sig
   val checkinit_hdm : unit -> unit
   val checkonline_hdm : prog * exec.exec -> unit
   val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
+  (*
   val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
     (kernel.seq * (int * prog)) list
-
+  *)
+  val merge_hdm : string option -> (kernel.seq * (int * prog)) list
+  
   (* parallelization *)
   val checkspec : (unit, string, (anum * (int * prog) list) list)
     smlParallel.extspec
@@ -37,6 +45,8 @@ sig
   val random_candfile : string -> int -> unit
   val subprogspec : (unit, string, string list) smlParallel.extspec
   val dedupl: string -> unit
+  
+  
   
   
 end

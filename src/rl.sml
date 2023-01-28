@@ -567,7 +567,11 @@ val hdmspec : (unit, (prog list * real) list, primesol list) extspec =
   write_arg = write_proglrl,
   read_arg = read_proglrl,
   write_result = write_primel,
-  read_result = read_primel
+  read_result = let fun f file = 
+    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
+     incr mergen; 
+     [])
+    in f end
   }
 
 fun hdm () = 
@@ -712,10 +716,12 @@ fun rl_search_only ngen =
       end
       else if !hadamard_flag then 
       let 
+        val _ = init_merge ()
         val (primesoll,t) = add_time hdm ()
         val _ = log ("search time: " ^ rts_round 6 t)
-        val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
-        val newprimesol = merge_hdmsol (List.concat (oldprimesol :: primesoll))
+        val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
+        val newprimesol = merge_hdm oldfileo
+        val _ = init_merge ()
         val allprog = map (snd o snd) newprimesol
         val _ = log ("programs: " ^ (its (length allprog)))
         val sizel = dict_sort Int.compare (map prog_size allprog)
