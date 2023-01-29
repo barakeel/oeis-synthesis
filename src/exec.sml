@@ -82,12 +82,11 @@ val array_glob = ref ainit
 fun init_array () = array_glob := ainit
 fun init_arr2 dim = 
   Vector.tabulate (dim, fn x => Vector.tabulate (dim, fn y => azero))
-val arr2_glob = ref (init_arr2 28)
+val arr2_glob = ref (init_arr2 41)
 fun init_arr1 dim = Vector.tabulate (dim, fn _ => azero)
 val arr1_glob = ref (init_arr1 28)
 
 (* end global data *)
-
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
@@ -190,6 +189,13 @@ local open IntInf in
     azero
     )
   val assign_f = mk_binf 1 assign_f_aux
+  fun edge_f_aux (a,b) =  
+    if a < azero orelse a >= fromInt (Vector.length (!arr2_glob)) then 0 else 
+    let val v = Vector.sub (!arr2_glob, toInt a) in
+      if b < azero orelse b > fromInt (Vector.length v) then 0 else
+      Vector.sub (v, toInt b)
+    end
+  val edge_f = mk_binf 1 edge_f_aux   
     
 end (* local *)
 
@@ -264,7 +270,9 @@ val execv =
         cond_f,x_f,y_f,z_f] @
       (if !bigvar_flag then [X_f,Y_f,Z_f] else []) @   
       (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
-      (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else []))
+      (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else []) @
+      (if !ramseypred_flag then [edge_f] else []))
+      
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
@@ -652,7 +660,7 @@ fun score_aux table set xtop =
     score_aux table (line :: set) (xtop + 1)
   end
 
-val hashmod = 103787
+val hashmod = 10009
 
 fun hash acc l = case l of
     [] => acc
@@ -833,6 +841,13 @@ fun penum_ramsey exec =
   in   
     map IntInf.fromInt [sc, hash_ramsey a sc]
   end
+
+(* -------------------------------------------------------------------------
+   Ramsey numbers with predicate
+   ------------------------------------------------------------------------- *)
+
+
+
 
 end (* struct *)
 
