@@ -391,10 +391,13 @@ fun search_target target =
 
 fun get_boardsc tree = 
   let 
+    val maxprob = 1.0 / ncore
     val leafl = all_leaf tree
     fun f (node,cl,prob) = 
       let fun g (move,r,_) = 
-        ((#apply_move game.game) move (#board node), !rtim * prob * r) 
+        let val r' = if prob * r > maxprob then maxprob else prob * r) in
+          ((#apply_move game.game) move (#board node), !rtim * r')
+        end 
       in
         map g cl
       end
