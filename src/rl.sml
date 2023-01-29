@@ -469,7 +469,7 @@ fun sort_cube l1 =
   
 fun cube () = 
   let
-    val tree = start_cube (ncore * 8)
+    val tree = start_cube (ncore * 32)
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1

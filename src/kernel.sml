@@ -53,6 +53,7 @@ val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
 val family_flag = bflag "family_flag"
 val ramsey_flag = bflag "ramsey_flag"
+val ramseypred_flag = bflag "ramseypred_flag"
 
 (* tnn flag *)
 val use_ob = ref true
@@ -229,7 +230,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if (!bigvar_flag) then [("X",0),("Y",0),("Z",0)] else []) @
      (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
      (if (!loop_flag) then 
-        [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
+        [("compr",2),("loop",3),("loop2",5),("loop3",7)] else []) @
+     (if (!ramseypred_flag) then [("edge",2)] else [])
   else if !array_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -283,7 +285,9 @@ fun contain_arr2 (Ins (id,pl)) =
 
 val ho_ariv = Vector.fromList (
   if !hadamard_flag then 
-    if !loop_flag orelse !family_flag orelse !convolution_flag
+    if !loop_flag andalso !ramseypred_flag then
+      List.tabulate (Vector.length operv - 5, fn _ => 0) @ [1,1,2,3,0] 
+    else if !loop_flag orelse !family_flag orelse !convolution_flag
     then List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3] 
     else List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
@@ -322,14 +326,15 @@ val short_timeincr = 1000
 val long_timeincr = 100000
 val timeincr = ref (if !convolution_flag then 5000 
                     else if !hadamard_flag then 10000 
-                    else if !ramsey_flag then 100000
+                    else if !ramsey_flag then 200000
+                    else if !ramseypred_flag then 100000
                     else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
 val max_compr_number = ref (
-  if !ramsey_flag then 200 
+  if !ramsey_flag orelse !ramseypred_flag then 200 
   else if !hadamard_flag then 15*4 
   else short_compr)
 val graph = ref []
