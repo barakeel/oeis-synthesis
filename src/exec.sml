@@ -652,7 +652,7 @@ fun score_aux table set xtop =
     score_aux table (line :: set) (xtop + 1)
   end
 
-val hashmod = 79260655 * 10000000 + 5396977
+val hashmod = 103787
 
 fun hash acc l = case l of
     [] => acc
