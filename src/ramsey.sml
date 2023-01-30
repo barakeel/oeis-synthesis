@@ -369,8 +369,12 @@ fun bigsteps nsim mtree =
 
 
 fun bigsteps_fun () = 
-  (nsimul := 1; bestscore := 0.0; bigsteps 1000000 (init_tree ()))
-
+  let 
+    fun f () = (nsimul := 1; bestscore := 0.0; bigsteps 1000000 (init_tree ()))
+    val (_,t) = add_time f () 
+  in
+    print_endline ("bigstep time: " ^ rts_round 2 t)
+  end
   
 val ramseyspec : (unit, unit, unit) extspec =
   {
