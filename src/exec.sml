@@ -660,12 +660,10 @@ fun score_aux table set xtop =
     score_aux table (line :: set) (xtop + 1)
   end
 
-val hashmod = 10009
-
 fun hash acc l = case l of
     [] => acc
-  | 1 :: m => hash ((91 * acc + 71) mod hashmod) m
-  | ~1 :: m => hash ((33 * acc + 31) mod hashmod) m
+  | 1 :: m => hash ((91 * acc + 71) mod hash_modulo) m
+  | ~1 :: m => hash ((33 * acc + 31) mod hash_modulo) m
   | _ :: m => raise ERR "hash_hdmseq" ""
 
 fun hash_table table = hash 1 (List.concat (vector_to_list table))

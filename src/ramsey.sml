@@ -408,6 +408,14 @@ fun bigsteps_parallel expname ncore =
   in
     smlParallel.parmap_queue_extern ncore ramseyspec () l
   end
+  
+(*
+load "ramsey"; open ramsey;
+load "aiLib"; open aiLib;
+bigsteps_parallel "ramseypar" 32;
+
+  
+  
 (* -------------------------------------------------------------------------
    Graph normalization
    ------------------------------------------------------------------------- *)
