@@ -400,6 +400,10 @@ fun bigsteps_parallel expname ncore =
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = smlExecScripts.buildheap_dir := dir
     val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options := 
+      "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) 
+         handle NotFound => 8000) 
     val l = List.tabulate (32 * 8, fn _ => ())
   in
     smlParallel.parmap_queue_extern ncore ramseyspec () l
