@@ -413,12 +413,31 @@ fun bigsteps_parallel expname ncore =
 load "ramsey"; open ramsey;
 load "aiLib"; open aiLib;
 bigsteps_parallel "ramseypar" 32;
-
+*)
   
   
 (* -------------------------------------------------------------------------
    Graph normalization
    ------------------------------------------------------------------------- *)
+
+fun more_edge a gsize =
+  let 
+    val edgel = 
+      List.tabulate (gsize - 1, fn x => List.tabulate (x, fn y => (x,y)))  
+    fun f (x,y) =
+      if Array2.sub (a,x,y) then () else
+        (
+        Array2.update (a,x,y,true);
+        Array2.update (a,y,x,true);
+        if null (all_clique a gsize (4 - 2) [([x,y],0)])
+        then () 
+        else 
+          (Array2.update (a,x,y,false);
+           Array2.update (a,y,x,false))
+        )      
+  in
+    app f (List.concat edgel)
+  end
 
 fun neighbor_of a gsize x = 
   let 
@@ -458,6 +477,7 @@ fun all_charac a gsize =
 
 fun norm_graph a gsize =
   let
+    val _ = more_edge a gsize
     val cl = all_charac a gsize
     val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
     val cv = Vector.fromList (map fst clsorted)
