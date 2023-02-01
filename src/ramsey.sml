@@ -442,7 +442,7 @@ fun more_edge a gsize =
 fun neighbor_of a gsize x = 
   let 
     val l = ref []
-    f  un loop y = 
+    fun loop y = 
       if y >= gsize then ()
       else (if Array2.sub (a,x,y) orelse x = y 
             then l := y :: !l else (); 
