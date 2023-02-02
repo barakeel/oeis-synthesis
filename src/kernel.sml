@@ -326,7 +326,7 @@ val short_timeincr = 1000
 val long_timeincr = 100000
 val timeincr = ref (if !convolution_flag then 5000 
                     else if !hadamard_flag then 10000 
-                    else if !ramsey_flag then 200000
+                    else if !ramsey_flag then 100000
                     else if !ramseypred_flag then 100000
                     else short_timeincr)
 val timelimit = ref (!timeincr)

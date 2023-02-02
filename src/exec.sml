@@ -837,7 +837,7 @@ fun penum_ramsey exec =
     val (a,sc) = ramsey f maxgraph color1 color2
     val anorm = norm_graph a sc
   in   
-    map IntInf.fromInt [sc, hash_ramsey a sc]
+    map IntInf.fromInt [sc, hash_ramsey anorm sc]
   end
 
 (* -------------------------------------------------------------------------
