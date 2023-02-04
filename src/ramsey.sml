@@ -477,7 +477,7 @@ fun all_charac a gsize =
 
 fun norm_graph a gsize =
   let
-    (* val _ = more_edge a gsize *)
+    val _ = more_edge a gsize
     val cl = all_charac a gsize
     val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
     val cv = Vector.fromList (map fst clsorted)
