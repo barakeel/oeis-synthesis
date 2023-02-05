@@ -814,10 +814,10 @@ val color1 = 4
 val color2 = 6
 val maxgraph = 41
   
-fun hash_ramsey a gsize =
+fun hash_ramsey m =
   let 
     val pl = all_pairs (List.tabulate (gsize,I))
-    val il = map (fn (x,y) => if Array2.sub (a,x,y) then 1 else ~1) pl 
+    val il = map (fn (x,y) => if mat_sub (m,x,y) then 1 else ~1) pl 
   in
     hash 1 il
   end
@@ -834,10 +834,10 @@ fun penum_ramsey exec =
       in
         r <= azero
       end
-    val (a,sc) = ramsey f maxgraph color1 color2
-    val anorm = norm_graph a sc
+    val (mt,mf,i) = ramsey f
+    val anorm = norm_graph (mt,mf,i) 
   in   
-    map IntInf.fromInt [sc, hash_ramsey anorm sc]
+    map IntInf.fromInt [i, hash_ramsey anorm sc]
   end
 
 (* -------------------------------------------------------------------------

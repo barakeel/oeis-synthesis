@@ -3,141 +3,24 @@ struct
 
 open HolKernel Abbrev boolLib aiLib kernel smlParallel
 val ERR = mk_HOL_ERR "ramsey"
+type mat = bool vector vector
 
 (* -------------------------------------------------------------------------
-   Takes the basic array: put the last vertex at index n-1 to index 0
-   and index 0 to n-2 maps to 1 to n-1.
-   ------------------------------------------------------------------------- *)
+   Global parameters
+   ------------------------------------------------------------------------- *) 
 
-fun mk_sym a gsize = 
-  let fun f (x,y) = if x = y then false else 
-                    if x < y then Array2.sub (a,x,y)
-                    else Array2.sub (a,y,x) 
-  in
-    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
-  end
-
-fun invert a gsize =
-  let fun f (x,y) = if x = y then false else not (Array2.sub (a,x,y)) in
-    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
-  end
-  
-(* sigma is a permutation from new indices to old indices *)
-fun permute sigma a gsize =
-  let fun f (x,y) = Array2.sub (a,sigma x,sigma y) in
-    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
-  end
-
-(* permute so that the new vertex have index 0 *)
-fun cycle a gsize =
-  let fun sigma x = if x = 0 then gsize-1 else x-1 in
-    permute sigma a gsize
-  end
-
-fun cut a gsize = 
-  let fun f (x,y) = Array2.sub (a,y,x) in
-    Array2.tabulate Array2.RowMajor (gsize,gsize,f)
-  end
-
+val color1 = 4
+val color2 = 6
 
 (* -------------------------------------------------------------------------
-   All cliques containing a list of set of vertices
-   ------------------------------------------------------------------------- *)
-
-fun has_edge a x y = Array2.sub (a,x,y)
-
+   Matrix operations
+   ------------------------------------------------------------------------- *) 
+ 
 fun apprange f (minv,maxv) =
   let fun loop x = if x <= maxv then (f x; loop (x+1)) else () in 
     loop minv 
-  end
-  
-fun update_clique a gsize l (clique,startn) =
-  let fun f x = 
-    if all (has_edge a x) clique 
-    then l := (x :: clique, x + 1) :: !l 
-    else ()
-  in
-    apprange f (startn, gsize - 1)
-  end
+  end 
 
-fun all_clique a gsize extran cliquel = 
-  let fun next_cliquel cliquel =
-    let val l = ref [] in (app (update_clique a gsize l) cliquel; !l) end
-  in
-    funpow extran next_cliquel cliquel
-  end
-
-(* -------------------------------------------------------------------------
-   All cliques containing the last vertex
-   ------------------------------------------------------------------------- *)
-  
-fun contains_clique a gsize size1 size2 = 
-  let 
-    val aanti = invert a gsize
-    val cliquel = all_clique a gsize (size1 - 1) [([gsize - 1],0)]
-    val anticliquel = all_clique aanti gsize (size2 - 1) [([gsize - 1],0)]
-  in
-    not (null cliquel) orelse not (null anticliquel)
-  end
-
-(* -------------------------------------------------------------------------
-   All cliques containing two vertices
-   ------------------------------------------------------------------------- *)
-
-fun update_array a f gsize = 
-  let 
-    fun loop i = 
-      if i >= gsize - 1 then () else
-      let val b = f (i,gsize-1) in
-        Array2.update (a,i,gsize-1,b);
-        Array2.update (a,gsize-1,i,b);
-        loop (i+1)
-      end   
-  in
-    (loop 0; true)
-  end
-  handle Div => false | ProgTimeout => false | Overflow => false
-
-fun ramsey f n size1 size2 = 
-  let
-    val a = Array2.tabulate Array2.RowMajor (n,n,fn _ => false)  
-    fun loop gsize = 
-      if gsize > n then (a, gsize-1) else
-      (
-      if not (update_array a f gsize) then (a, gsize-1) 
-      else if contains_clique a gsize size1 size2 
-        then (a, gsize-1) 
-      else loop (gsize + 1)
-      )
-  in
-    loop 1
-  end
-  
-(* -------------------------------------------------------------------------
-   Search procedure using a predicate as a filter 
-   (true = continue introduce 1 and ~1 in the array, false = stop)
-   ------------------------------------------------------------------------- *) 
-
-(*
-val maxsize = 40;
-fun ramsey_search_one maxwidth maxtime graph (x,y) =
-  let val _ = initialize array2 with_ graph in
-    if f (x,y) > 0 then () else
-    rl := v2_update (graph1,x,y,1) :: 
-          v2_update (graph2,x,y,~1) :: (!rl)
-  end
-
-
-fun ramsey_search f maxsize maxwidth maxtime =
-  let
-    
-  in
-  *)  
-  
- (* -------------------------------------------------------------------------
-   Matrix operations
-   ------------------------------------------------------------------------- *) 
-  
 fun mat_sub (m,i,j) = Vector.sub (Vector.sub (m,i),j)
   
 fun mat_update (m,i,j,v) =
@@ -146,47 +29,210 @@ fun mat_update (m,i,j,v) =
 fun mat_update_sym (m,i,j,v) =
   mat_update (mat_update (m,i,j,v),j,i,v)
 
-fun grow_matrix v = 
-  let 
-    val size = Vector.length v
-    val newline = Vector.tabulate (size + 1, fn _ => false)
-    val newcol = Vector.fromList [false]
-    fun f x = Vector.concat [x,newcol]
+fun mat_tabulate (n,f) = 
+  Vector.tabulate (n,fn x => Vector.tabulate (n, fn y => f (x,y)))
+
+fun mat_enlarge m size = 
+  let
+    val oldsize = Vector.length m
+    fun f (x,y) = if x >= oldsize orelse y >= oldsize 
+                  then false
+                  else mat_sub (m,x,y)
   in
-    Vector.concat [Vector.map f v, Vector.fromList [newline]]
-  end  
+    mat_tabulate (size,f)
+  end
   
+fun mat_crop m size = 
+  let
+    val oldsize = Vector.length m
+    fun f (x,y) = mat_sub (m,x,y)
+  in
+    mat_tabulate (size,f)
+  end
+  
+fun mat_resize m size = 
+  if size = Vector.length m then m 
+  else if size > Vector.length m then mat_enlarge m size   
+  else mat_crop m size
+
+fun mat_permute m sigma =
+  let fun f (x,y) = mat_sub (m, sigma x, sigma y) in
+    mat_tabulate (Vector.length m, f)
+  end
+
+(* -------------------------------------------------------------------------
+   Graph operations
+   ------------------------------------------------------------------------- *)
+  
+val edgel = List.concat (List.tabulate (41, 
+      fn x => (List.tabulate (x, fn y => (x,y)))));
+val edgev = Vector.fromList edgel  
+  
+val starting_graph = 
+  (
+  Vector.fromList [Vector.fromList [false]],
+  Vector.fromList [Vector.fromList [false]],
+  0 (* index of the next edge in the edgev *)
+  )  
+
+fun has_edge m x y = mat_sub (m,x,y)
+  
+fun graph_add (mt0,mf0,i) b = 
+  let 
+    val (a1,a2) = Vector.sub (edgev,i)
+    val (mt1,mf1) = (mat_resize mt0 (a1+1), mat_resize mf0 (a1+1))
+    val (mt2,mf2) = (mat_update_sym (mt1,a1,a2,b),
+                     mat_update_sym (mf1,a1,a2,not b))
+  in
+    (mt2,mf2,i+1)
+  end
+
+(* -------------------------------------------------------------------------
+   Compute cliques in one graph
+   ------------------------------------------------------------------------- *)
+
+fun update_clique m l (clique,i) =
+  let
+    fun f x =
+      if all (has_edge m x) clique
+      then l := (x :: clique, x+1) :: !l 
+      else ()
+  in
+    apprange f (i, Vector.length m - 1)
+  end
+
+fun all_clique m n cliquel = 
+  let 
+    fun next_cliquel cliquel =
+      let val l = ref [] in (app (update_clique m l) cliquel; !l) end
+  in
+    funpow n next_cliquel cliquel
+  end  
+
+(* -------------------------------------------------------------------------
+   Graph normalization
+   ------------------------------------------------------------------------- *)
+
+fun more_edge mt i =
+  let  
+    fun f ((x,y),m) =
+      if mat_sub (m,x,y) then m else
+        (
+        let val newm = mat_update_sym (m,x,y,true) in
+          if null (all_clique newm (color1 - 2) [([x,y],0)])
+          then newm
+          else m
+        end
+        )  
+  in
+    foldl f mt (first_n i edgel)  
+  end
+
+fun neighbor_of m x = 
+  let fun test y = mat_sub (m,x,y) in
+    filter test (List.tabulate (Vector.length m, I))
+  end
+  
+fun all_neighbor m = 
+  Vector.tabulate (Vector.length m, neighbor_of m)
+
+fun charac nv x =
+  let
+    val l = ref []
+    fun loop nl = 
+      let 
+        val nll = map (fn y => Vector.sub (nv,y)) nl
+        val newnl = mk_fast_set Int.compare (List.concat nll) 
+      in
+        if newnl = nl then () else (l := length newnl :: !l; loop newnl)
+      end
+  in
+    loop [x]; rev (!l)
+  end
+    
+fun all_charac m =
+  let val nv = all_neighbor m in
+    List.tabulate (Vector.length m, fn x => (x, charac nv x))   
+  end
+
+fun norm_graph (mt0,mf0,i) =
+  let
+    val newm = more_edge mt0 i
+    val cl = all_charac newm
+    val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
+    val cv = Vector.fromList (map fst clsorted)
+    fun sigma x = Vector.sub (cv,x)
+  in
+    mat_permute newm sigma  
+  end
+
+
+(* -------------------------------------------------------------------------
+   Compute the largest ramsey graph
+   ------------------------------------------------------------------------- *)
+
+fun ramsey_loop f (graph as (mt0,mf0,i0)) = 
+  let 
+    val (a1,a2) = Vector.sub (edgev,i0)
+    val bo = SOME (f (a1,a2)) 
+      handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
+  in
+    case bo of
+      NONE => graph
+    | SOME b => 
+      let 
+        (* val _ = print_endline 
+          (its i0 ^ ": " ^ its a1 ^ "-" ^ its a2 ^ ", " ^ bts b) *)
+        val (newgraph as (mt1,mf1,i1)) = graph_add (mt0,mf0,i0) b
+      in
+        if b then 
+          if null (all_clique mt1 (color1 - 2) [([a1,a2],0)])
+          then ramsey_loop f newgraph
+          else graph
+        else
+          if null (all_clique mf1 (color2 - 2) [([a1,a2],0)])
+          then ramsey_loop f newgraph
+          else graph
+      end
+  end
+  
+fun ramsey f = ramsey_loop f starting_graph 
+
+  
+(* -------------------------------------------------------------------------
+   Test
+   ------------------------------------------------------------------------- *)
+
+(*
+load "ramsey"; open ramsey;
+load "aiLib"; open aiLib;
+fun frandom (a,b) = random_real () < 0.5;
+fun f () = ramsey frandom;
+val _ = time List.tabulate (100000,fn _ => f ());
+
+*)
+
+
+  
+  
+(* 4 matrices original values + changed values 
+   (both anti and for) 
+ *)
+
+(* This was MCTS
 (* -------------------------------------------------------------------------
    All cliques containing a list of set of vertices
    ------------------------------------------------------------------------- *)
 
 type board = bool vector vector * bool vector vector * int
 
-fun mhas_edge m x y = mat_sub (m,x,y)
-  
-fun mupdate_clique m l (clique,startn) =
-  let fun f x = 
-    if all (mhas_edge m x) clique 
-    then l := (x :: clique, x + 1) :: !l 
-    else ()
-  in
-    apprange f (startn, Vector.length m - 1)
-  end
 
-fun mall_clique m extran cliquel = 
-  let fun next_cliquel cliquel =
-    let val l = ref [] in (app (mupdate_clique m l) cliquel; !l) end
-  in
-    funpow extran next_cliquel cliquel
-  end
   
 (* -------------------------------------------------------------------------
    Basic MCTS
    ------------------------------------------------------------------------- *)
 
-val pairl = List.concat (List.tabulate (41, 
-      fn x => (List.tabulate (x, fn y => (x,y)))));
-val pairv = Vector.fromList pairl
+
 
 
 val edge_proba = ref 0.5
@@ -200,8 +246,7 @@ val starting_board =
   0
   )
 
-val color1 = 4
-val color2 = 6
+
 
 fun is_valid (graph,antigraph,i) =    
   if i = 0 then true else 
@@ -414,116 +459,10 @@ load "ramsey"; open ramsey;
 load "aiLib"; open aiLib;
 bigsteps_parallel "ramseypar" 32;
 *)
+*)
   
-  
-(* -------------------------------------------------------------------------
-   Graph normalization
-   ------------------------------------------------------------------------- *)
 
-fun more_edge a gsize =
-  let 
-    val edgel = 
-      List.tabulate (gsize - 1, fn x => List.tabulate (x, fn y => (x,y)))  
-    fun f (x,y) =
-      if Array2.sub (a,x,y) then () else
-        (
-        Array2.update (a,x,y,true);
-        Array2.update (a,y,x,true);
-        if null (all_clique a gsize (4 - 2) [([x,y],0)])
-        then () 
-        else 
-          (Array2.update (a,x,y,false);
-           Array2.update (a,y,x,false))
-        )      
-  in
-    app f (List.concat edgel)
-  end
-
-fun neighbor_of a gsize x = 
-  let 
-    val l = ref []
-    fun loop y = 
-      if y >= gsize then ()
-      else (if Array2.sub (a,x,y) orelse x = y 
-            then l := y :: !l else (); 
-            loop (y + 1))
-  in
-    loop 0; 
-    mk_fast_set Int.compare (!l)
-  end
-  
-fun all_neighbor a gsize =
-  Vector.tabulate (gsize, fn x => neighbor_of a gsize x)
-
-fun charac nv a gsize x =
-  let
-    val l = ref []
-    fun loop nl = 
-      let 
-        val nll = map (fn y => Vector.sub (nv,y)) nl
-        val newnl = mk_fast_set Int.compare (List.concat nll) 
-      in
-        if newnl = nl then () else
-        (l := length newnl :: !l; loop newnl)
-      end
-  in
-    loop [x]; rev (!l)
-  end
-    
-fun all_charac a gsize =
-  let val nv = all_neighbor a gsize in
-    List.tabulate (gsize, fn x => (x, charac nv a gsize x))   
-  end
-
-fun norm_graph a gsize =
-  let
-    val _ = more_edge a gsize
-    val cl = all_charac a gsize
-    val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
-    val cv = Vector.fromList (map fst clsorted)
-    fun sigma x = Vector.sub (cv,x)
-  in
-    permute sigma a gsize
-  end
 
 end (* struct *)
 
-(* -------------------------------------------------------------------------
-   Test
-   ------------------------------------------------------------------------- *)
 
-(*
-load "ramsey"; open ramsey;
-load "aiLib"; open aiLib;
-fun frandom (a,b) = random_real () < 0.5;
-fun fglob () = ramsey frandom 50 4 6;
-fun f () = hd (dict_sort compare_imax  (List.tabulate (100000,fn _ => fglob ())));
-val (abest,nbest) = time f ();
-
-load "ramsey"; open ramsey;
-load "aiLib"; open aiLib;
-val tree = init_tree ();
-PolyML.print_depth 2;
-val newtree = time (mcts tree) 1000;
-!bestscore;
-
-
-
-
-*)
-
-(*
-load "ramsey"; open ramsey;
-load "aiLib"; open aiLib;
-val gsize = 8;
-val a = Array2.tabulate Array2.RowMajor 
-  (gsize,gsize,fn _ => random_real () < 0.5);
-val asym = mk_sym a gsize;
-
-val cliquel = all_clique asym gsize 5;
-
-val charac = all_charac asym gsize;
-val anorm = norm_graph asym gsize;
-val characnorm = all_charac anorm gsize;
-
-*)
