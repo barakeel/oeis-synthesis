@@ -17,7 +17,7 @@ end
    ------------------------------------------------------------------------- *)
 
 val oraw = 
-  if !prime_flag orelse !hadamard_flag then [] else 
+  if !prime_flag orelse !hadamard_flag orelse !ramsey_flag then [] else 
   readl (selfdir ^ "/data/oeis");
 val _ = print_endline ("oeis: " ^ its (length oraw));
 (* val solved = enew Int.compare 

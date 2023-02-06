@@ -3,9 +3,8 @@ struct
 
 open HolKernel Abbrev boolLib aiLib kernel smlParallel
 val ERR = mk_HOL_ERR "ramsey"
-type mat = bool vector vector
-type graph = mat * mat * int
-datatype branch = Follow | Avoid | Backtrack
+type mat = bool Array2.array
+type graph = mat * mat * int ref
 
 (* -------------------------------------------------------------------------
    Global parameters
@@ -21,122 +20,100 @@ val color2 = 6
 fun apprange f (minv,maxv) =
   let fun loop x = if x <= maxv then (f x; loop (x+1)) else () in 
     loop minv 
-  end 
+  end
 
-fun mat_sub (m,i,j) = Vector.sub (Vector.sub (m,i),j)
+fun mat_sub (m,i,j) = Array2.sub (m,i,j)
   
-fun mat_update (m,i,j,v) =
-  Vector.update (m,i, Vector.update (Vector.sub (m,i),j,v))
-
+fun mat_update (m,i,j,v) = Array2.update (m,i,j,v)
+  
 fun mat_update_sym (m,i,j,v) =
-  mat_update (mat_update (m,i,j,v),j,i,v)
-
-fun mat_tabulate (n,f) = 
-  Vector.tabulate (n,fn x => Vector.tabulate (n, fn y => f (x,y)))
-
-fun mat_enlarge m size = 
-  let
-    val oldsize = Vector.length m
-    fun f (x,y) = if x >= oldsize orelse y >= oldsize 
-                  then false
-                  else mat_sub (m,x,y)
-  in
-    mat_tabulate (size,f)
-  end
+  (mat_update (m,i,j,v); mat_update (m,j,i,v));
   
-fun mat_crop m size = 
-  let
-    val oldsize = Vector.length m
-    fun f (x,y) = mat_sub (m,x,y)
-  in
-    mat_tabulate (size,f)
-  end
-  
-fun mat_resize m size = 
-  if size = Vector.length m then m 
-  else if size > Vector.length m then mat_enlarge m size   
-  else mat_crop m size
+fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
 
-fun mat_permute m sigma =
+fun mat_copy (m,gsize) =
+  let fun f (x,y) = mat_sub (m,x,y) in
+    mat_tabulate (gsize, f)
+  end
+
+fun mat_permute (m,gsize) sigma =
   let fun f (x,y) = mat_sub (m, sigma x, sigma y) in
-    mat_tabulate (Vector.length m, f)
+    mat_tabulate (gsize, f)
   end
 
 (* -------------------------------------------------------------------------
    Graph operations
    ------------------------------------------------------------------------- *)
   
-val edgel = List.concat (List.tabulate (41, 
+val maxgsize = 41  
+  
+val edgel = List.concat (List.tabulate (maxgsize, 
       fn x => (List.tabulate (x, fn y => (x,y)))));
 val edgev = Vector.fromList edgel  
   
-val starting_graph = 
-  (
-  Vector.fromList [Vector.fromList [false]],
-  Vector.fromList [Vector.fromList [false]],
-  0 (* index of the next edge in the edgev *)
-  )  
-
 fun has_edge m x y = mat_sub (m,x,y)
   
-fun graph_add (mt0,mf0,i) b = 
-  let 
-    val (a1,a2) = Vector.sub (edgev,i)
-    val (mt1,mf1) = (mat_resize mt0 (a1+1), mat_resize mf0 (a1+1))
-    val (mt2,mf2) = (mat_update_sym (mt1,a1,a2,b),
-                     mat_update_sym (mf1,a1,a2,not b))
-  in
-    (mt2,mf2,i+1)
+fun graph_add (mt,mf,i) b = 
+  let val (a1,a2) = Vector.sub (edgev,!i) in
+    if b then mat_update_sym (mt,a1,a2,true) 
+         else mat_update_sym (mf,a1,a2,true);
+    incr i
   end
+  
+fun graph_rm (mt,mf,i) = 
+  if !i <= 0 then raise ERR "graph_rm" "" else
+  let 
+    val _ = decr i
+    val (a1,a2) = Vector.sub (edgev,!i) 
+  in
+    mat_update_sym (mt,a1,a2,false);
+    mat_update_sym (mf,a1,a2,false)
+  end  
+
+fun gsize_of i = if !i <= 0 then 1 else fst (Vector.sub (edgev,!i-1)) + 1
+
+fun mat_to_list (m,i) = map (fn (a,b) => mat_sub (m,a,b)) (first_n i edgel)
+
+fun mat_to_string (m,i) = 
+  String.concat (map (fn x => if x then "+" else "-") (mat_to_list (m,i)))
 
 (* -------------------------------------------------------------------------
    Compute cliques in one graph
    ------------------------------------------------------------------------- *)
 
-fun update_clique m l (clique,i) =
+fun update_clique (m,gsize) l (clique,i) =
   let
     fun f x =
       if all (has_edge m x) clique
       then l := (x :: clique, x+1) :: !l 
       else ()
   in
-    apprange f (i, Vector.length m - 1)
+    apprange f (i, gsize - 1)
   end
 
-fun all_clique m n cliquel = 
+fun all_clique (m,gsize) n cliquel = 
   let 
     fun next_cliquel cliquel =
-      let val l = ref [] in (app (update_clique m l) cliquel; !l) end
+      let val l = ref [] in (app (update_clique (m,gsize) l) cliquel; !l) end
   in
     funpow n next_cliquel cliquel
   end  
 
+fun all_clique_edge (m,gsize) n (a1,a2) = 
+  all_clique (m,gsize) (n - 2) [([a1,a2],0)]
+  handle Subscript => raise ERR "all_clique_edge" ""
+  
 (* -------------------------------------------------------------------------
    Graph normalization
    ------------------------------------------------------------------------- *)
 
-fun more_edge mt i =
-  let  
-    fun f ((x,y),m) =
-      if mat_sub (m,x,y) then m else
-        (
-        let val newm = mat_update_sym (m,x,y,true) in
-          if null (all_clique newm (color1 - 2) [([x,y],0)])
-          then newm
-          else m
-        end
-        )  
-  in
-    foldl f mt (first_n i edgel)  
-  end
-
-fun neighbor_of m x = 
+(*
+fun neighbor_of (m,gsize) x = 
   let fun test y = mat_sub (m,x,y) in
-    filter test (List.tabulate (Vector.length m, I))
+    filter test (List.tabulate (gsize,I))
   end
   
-fun all_neighbor m = 
-  Vector.tabulate (Vector.length m, neighbor_of m)
+fun all_neighbor (m,gsize) = Vector.tabulate (gsize, neighbor_of m)
 
 fun charac nv x =
   let
@@ -152,55 +129,33 @@ fun charac nv x =
     loop [x]; rev (!l)
   end
     
-fun all_charac m =
+fun all_charac (m,gsize) =
   let val nv = all_neighbor m in
-    List.tabulate (Vector.length m, fn x => (x, charac nv x))   
+    List.tabulate (gsize, fn x => (x, charac nv x))   
   end
 
 fun norm_graph (mt0,mf0,i) =
   let
-    (* val newm = more_edge mt0 i *)
-    val cl = all_charac mt0
+    val gsize = gsize_of i
+    val cl = all_charac (mt0,gsize)
     val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
     val cv = Vector.fromList (map fst clsorted)
     fun sigma x = Vector.sub (cv,x)
   in
-    (mat_permute mt0 sigma, i)
+    mat_permute (mt0,gsize_of i) sigma
   end
+*)
 
 (* -------------------------------------------------------------------------
-   Backtracking
+   Caching + counting number of calls
    ------------------------------------------------------------------------- *)
-
 
 val bcache = Vector.tabulate (Vector.length edgev, fn _ => ref NONE)
 fun clean_bcache () = Vector.app (fn x => x := NONE) bcache
 val ncall = ref 0
-val bestgraph = ref starting_graph
-
-fun ramsey_init () = (clean_bcache (); bestgraph := starting_graph; ncall := 0)
-
-fun new_branch (mt,mf,i) =
-  let 
-    val (a1,a2) = Vector.sub (edgev,i-1)
-    val borg = valOf (!(Vector.sub (bcache,i-1)))
-  in
-    if borg = mat_sub (mt,a1,a2) then Avoid else Backtrack
-  end
-  
-(* could downsize one step quicker *)
-fun graph_remove (mt0,mf0,i) =
-  let 
-    val (a1,a2) = Vector.sub (edgev,i-1)
-    val (mt1,mf1) = (mat_resize mt0 (a1+1), mat_resize mf0 (a1+1))
-    val (mt2,mf2) = (mat_update_sym (mt1,a1,a2,false),
-                     mat_update_sym (mf1,a1,a2,false))
-  in
-    (mt2,mf2,i-1)
-  end
-
-fun mat_to_list (m,i) = map (fn (a,b) => mat_sub (m,a,b)) (first_n i edgel)
-
+fun ramsey_init () = (clean_bcache (); ncall := 0)
+val nbacktrack = ref 100
+(*
 fun better_graph (mt1,mf1,i1) (mt2,mf2,i2) =
   if i1 > i2 
     then true else
@@ -208,63 +163,79 @@ fun better_graph (mt1,mf1,i1) (mt2,mf2,i2) =
     then list_compare bool_compare 
       (mat_to_list (mt1,i1), mat_to_list (mt2,i2)) = LESS
   else false
+*)
 
 (* -------------------------------------------------------------------------
-   Compute the largest ramsey graph
+   Compute the largest ramsey graph with backtracking
    ------------------------------------------------------------------------- *)
 
-(* for backtracking *)
-fun ramsey_loop f (graph as (mt0,mf0,i0)) branch = 
-  if !ncall > ((i0+1) * (i0+1) div 100) + 10 then !bestgraph else
+fun get_guide f i = 
   let 
-    val (a1,a2) = Vector.sub (edgev,i0)
-    val bo = 
-      let val boref = (Vector.sub (bcache,i0)) in
-        case !boref of SOME x => SOME x | NONE => 
-          let val r = SOME (f (a1,a2)) 
-            handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
-          in
-            boref := r; r
-          end
-      end  
+    val (a1,a2) = Vector.sub (edgev,i)
+    val boref = Vector.sub (bcache,i) 
   in
-    case bo of NONE => !bestgraph | SOME borg => 
-      (
-      case branch of 
-        Backtrack => 
-          if i0 <= 0 then raise ERR "ramsey_loop" "saturated" else
-            ramsey_loop f (graph_remove graph) (new_branch graph)
-      | _ =>      
-      let
-          (* val _ = print_endline 
-          (its i0 ^ ": " ^ its a1 ^ "-" ^ its a2 ^ ", " ^ bts b) *)
-        val _ = incr ncall
-        val b = case branch of 
-            Follow => borg
-          | Avoid => not borg
-          | Backtrack => raise ERR "" "should not happen"      
-        val (newgraph as (mt1,mf1,i1)) = graph_add graph b
-        val _ = if better_graph newgraph (!bestgraph) 
-                then bestgraph := newgraph
-                else ()
-        val m = if b then mt1 else mf1
-        val color = if b then color1 else color2
+    case !boref of SOME x => SOME x | NONE => 
+      let val r = SOME (f (a2,a1)) 
+        handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
       in
-        case branch of 
-           Follow =>
-           if null (all_clique m (color - 2) [([a1,a2],0)])
-           then ramsey_loop f newgraph Follow
-           else ramsey_loop f graph Avoid
-         | Avoid =>
-           if null (all_clique m (color - 2) [([a1,a2],0)])
-           then ramsey_loop f newgraph Follow
-           else ramsey_loop f graph Backtrack
-         | Backtrack => raise ERR "" "should not happen"
+        boref := r; r
       end
-      )
+  end
+
+fun get_prevguide f i = valOf (get_guide f (i-1))
+
+fun get_prevchoice (mt,mf,i) = (* takes next graph as argument *) 
+  let val (a1,a2) = Vector.sub (edgev,!i-1) in
+    mat_sub (mt,a1,a2)
+  end
+
+fun backtrack f (graph as (mt,mf,i)) =
+  if !i <= 0 then raise ERR "backtrack" "should not happen" else
+  let 
+    val guide = get_prevguide f (!i)
+    val choice = get_prevchoice graph
+    val _ = print_endline
+      ("b " ^ its (!i-1) ^ " " ^ bts guide ^ " " ^ bts choice ^ 
+       "\n" ^ mat_to_string (mt,!i))
+  in
+    graph_rm graph;
+    if guide = choice then not choice else backtrack f graph
+  end 
+  handle Subscript => raise ERR "backtrack" ""
+  
+fun ramsey_loop f (graph as (mt,mf,i)) choice =
+  let
+    val _ = print_endline ("f " ^ its (!i) ^ " " ^ 
+      bts (valOf (get_guide f (!i))) ^ " " ^ bts choice ^
+      "\n" ^ mat_to_string (mt,!i))
+    val edge = Vector.sub (edgev,!i)
+    val _ = graph_add graph choice
+    val m = if choice then mt else mf
+    val color = if choice then color1 else color2
+  in
+    if null (all_clique_edge (m, gsize_of i) color edge) then  
+      case get_guide f (!i) of NONE => () | SOME newchoice =>
+        ramsey_loop f graph newchoice
+    else 
+      let val _ = incr ncall in
+        if !ncall > !nbacktrack + (!i) then () else 
+        ramsey_loop f graph (backtrack f graph)        
+      end
   end
   
-fun ramsey f = (ramsey_init (); ramsey_loop f starting_graph Follow)
+fun ramsey f = 
+  let 
+    val _ = print_endline "start"
+    val graph = 
+    (mat_tabulate (maxgsize, fn _ => false),
+     mat_tabulate (maxgsize, fn _ => false),
+     ref 0 (* index of the next edge in the edgev *))
+  in
+    ramsey_init (); 
+    case get_guide f 0 of NONE => () | SOME newchoice => 
+      ramsey_loop f graph newchoice; 
+    graph
+  end
 
   
 (* -------------------------------------------------------------------------
@@ -272,14 +243,20 @@ fun ramsey f = (ramsey_init (); ramsey_loop f starting_graph Follow)
    ------------------------------------------------------------------------- *)
 
 (*
+PolyML.print_depth 2;
 load "ramsey"; open ramsey;
 load "aiLib"; open aiLib;
+nbacktrack := 10;
 fun frandom (a,b) = random_real () < 0.5;
-fun f () = ramsey frandom;
-val _ = time List.tabulate (1000,fn _ => f ());
-
-PolyML.print_depth 2;
 val r = time ramsey frandom;
+fun f () = ramsey frandom;
+val _ = time List.tabulate (10000,fn _ => f ());
+
+
+
+fun ftrue (a,b) = true;
+nbacktrack := 10;
+val r = time ramsey ftrue;
 *)
 
 

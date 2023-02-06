@@ -612,9 +612,9 @@ fun update_ramseyd (ktop,vtop as (_,_,h,_)) =
   | SOME (k,v) => 
     if compare_ramsey (ktop,k) <> GREATER then () else
     (
-    ramseyh := dadd h (ktop,vtop) (!ramseyh);
     ramseyd := drem k (!ramseyd);
-    ramseyd := dadd ktop vtop (!ramseyd)
+    ramseyd := dadd ktop vtop (!ramseyd);
+    ramseyh := dadd h (ktop,vtop) (!ramseyh)
     )
 
 fun checkinit_ramsey () = 
@@ -622,10 +622,12 @@ fun checkinit_ramsey () =
   
 fun checkonline_ramsey (p,exec) =
   let 
+    val _ = print_endline (humanf p)
     val (sc,humsc,h) = penum_ramsey exec
     val regsc = sc - prog_size p
   in
-    update_ramseyd ((regsc,p),(sc,humsc,h,!abstimer))
+    ()
+    (* update_ramseyd ((regsc,p),(sc,humsc,h,!abstimer)) *)
   end
  
 fun checkfinal_ramsey () = dlist (!ramseyd)

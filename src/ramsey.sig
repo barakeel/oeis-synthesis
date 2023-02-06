@@ -1,17 +1,13 @@
 signature ramsey =
 sig
 
-  type mat = bool vector vector
-  type graph = mat * mat * int
-  datatype branch = Follow | Avoid | Backtrack
+  type mat = bool Array2.array
+  type graph = mat * mat * int ref
   val edgel : (int * int) list
   val edgev : (int * int) vector
-  val starting_graph : graph
+  val nbacktrack : int ref
   val ramsey : (int * int -> bool) -> graph
   
-  val mat_to_list : mat * int -> bool list
-  val mat_sub : mat * int * int -> bool
-  val norm_graph : graph -> mat * int
  (* 
   type board = bool vector vector * bool vector vector * int
   val mall_clique :  bool vector vector -> 
