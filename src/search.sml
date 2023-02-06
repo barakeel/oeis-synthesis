@@ -205,7 +205,8 @@ fun collect_children boarde = case boarde of
     let 
       val _ = if not (!locsearch_flag) 
               then (incr prog_counter; 
-                    if !hadamard_flag then checkonline_hdm (p,exec)
+                    if !ramsey_flag then checkonline_ramsey (p,exec)
+                    else if !hadamard_flag then checkonline_hdm (p,exec)
                     else if !prime_flag then ignore (checkonline_prime (p,exec))
                     else checkonline (p,exec))
               else ()
