@@ -5,8 +5,7 @@ sig
   type graph = mat * mat * int ref
   val edgel : (int * int) list
   val edgev : (int * int) vector
-  val nbacktrack : int ref
-  val ramsey : (int * int -> bool) -> graph
+  val ramsey : (int * int -> bool) -> int * bool list
   
  (* 
   type board = bool vector vector * bool vector vector * int

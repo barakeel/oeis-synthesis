@@ -808,12 +808,7 @@ fun penum_family_hadamard exec =
    Ramsey numbers
    ------------------------------------------------------------------------- *)
 
-fun hash_ramsey (m,i) =
-  let val il = map (fn (x,y) => if mat_sub (m,x,y) then 1 else ~1) 
-    (first_n i edgel)
-  in
-    hash 1 il
-  end
+fun hash_ramsey lin = hash 1 (map (fn x => if x then 1 else ~1) lin)
       
 fun penum_ramsey exec = 
   let
@@ -827,10 +822,10 @@ fun penum_ramsey exec =
       in
         r <= azero
       end
-    val graph as (mt,mf,i) = ramsey f
+    val (i,lin) = ramsey f
     val (a1,a2) = Vector.sub (edgev,i)
   in   
-    (i, a1-1, hash_ramsey (norm_graph graph))
+    (i, a1-1, hash_ramsey lin)
   end
 
 

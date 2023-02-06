@@ -72,10 +72,23 @@ fun graph_rm (mt,mf,i) =
 
 fun gsize_of i = if !i <= 0 then 1 else fst (Vector.sub (edgev,!i-1)) + 1
 
-fun mat_to_list (m,i) = map (fn (a,b) => mat_sub (m,a,b)) (first_n i edgel)
+fun mat_to_lin (m,i) = map (fn (a,b) => mat_sub (m,a,b)) (first_n i edgel)
 
 fun mat_to_string (m,i) = 
-  String.concat (map (fn x => if x then "+" else "-") (mat_to_list (m,i)))
+  String.concat (map (fn x => if x then "+" else "-") (mat_to_lin (m,i)))
+
+val bestlin = ref (0,[])
+
+fun update_bestlin (mt,mf,i) =
+  if !i > fst (!bestlin) then 
+    bestlin := (!i, mat_to_lin (mt,!i))
+  else if !i = fst (!bestlin) then 
+    let val newlin = mat_to_lin (mt,!i) in
+      if list_compare bool_compare (newlin, snd (!bestlin)) = LESS
+      then bestlin := (!i, newlin)
+      else ()
+    end
+  else ()
 
 (* -------------------------------------------------------------------------
    Compute cliques in one graph
@@ -153,17 +166,7 @@ fun norm_graph (mt0,mf0,i) =
 val bcache = Vector.tabulate (Vector.length edgev, fn _ => ref NONE)
 fun clean_bcache () = Vector.app (fn x => x := NONE) bcache
 val ncall = ref 0
-fun ramsey_init () = (clean_bcache (); ncall := 0)
 val nbacktrack = ref 100
-(*
-fun better_graph (mt1,mf1,i1) (mt2,mf2,i2) =
-  if i1 > i2 
-    then true else
-  if i1 = i2 
-    then list_compare bool_compare 
-      (mat_to_list (mt1,i1), mat_to_list (mt2,i2)) = LESS
-  else false
-*)
 
 (* -------------------------------------------------------------------------
    Compute the largest ramsey graph with backtracking
@@ -194,9 +197,9 @@ fun backtrack f (graph as (mt,mf,i)) =
   let 
     val guide = get_prevguide f (!i)
     val choice = get_prevchoice graph
-    val _ = print_endline
+    (* val _ = print_endline
       ("b " ^ its (!i-1) ^ " " ^ bts guide ^ " " ^ bts choice ^ 
-       "\n" ^ mat_to_string (mt,!i))
+       "\n" ^ mat_to_string (mt,!i)) *)
   in
     graph_rm graph;
     if guide = choice then not choice else backtrack f graph
@@ -205,27 +208,31 @@ fun backtrack f (graph as (mt,mf,i)) =
   
 fun ramsey_loop f (graph as (mt,mf,i)) choice =
   let
-    val _ = print_endline ("f " ^ its (!i) ^ " " ^ 
-      bts (valOf (get_guide f (!i))) ^ " " ^ bts choice ^
-      "\n" ^ mat_to_string (mt,!i))
+    (* val _ = print_endline ("f " ^ its (!i) ^ " " ^ 
+      bts (valOf (get_guide f (!i))) ^ " " ^ bts choice ^ 
+      "\n" ^ mat_to_string (mt,!i)) *)
     val edge = Vector.sub (edgev,!i)
     val _ = graph_add graph choice
     val m = if choice then mt else mf
     val color = if choice then color1 else color2
   in
     if null (all_clique_edge (m, gsize_of i) color edge) then  
+      (
+      update_bestlin graph;
       case get_guide f (!i) of NONE => () | SOME newchoice =>
         ramsey_loop f graph newchoice
+      )
     else 
       let val _ = incr ncall in
-        if !ncall > !nbacktrack + (!i) then () else 
+        if !ncall > (!i) then () else 
         ramsey_loop f graph (backtrack f graph)        
       end
   end
   
+fun ramsey_init () = (clean_bcache (); ncall := 0; bestlin := (0,[]))
+ 
 fun ramsey f = 
-  let 
-    val _ = print_endline "start"
+  let
     val graph = 
     (mat_tabulate (maxgsize, fn _ => false),
      mat_tabulate (maxgsize, fn _ => false),
@@ -234,10 +241,10 @@ fun ramsey f =
     ramsey_init (); 
     case get_guide f 0 of NONE => () | SOME newchoice => 
       ramsey_loop f graph newchoice; 
-    graph
+    !bestlin
   end
 
-  
+
 (* -------------------------------------------------------------------------
    Test
    ------------------------------------------------------------------------- *)
@@ -246,17 +253,17 @@ fun ramsey f =
 PolyML.print_depth 2;
 load "ramsey"; open ramsey;
 load "aiLib"; open aiLib;
-nbacktrack := 10;
+fun ftrue (a,b) = true;
+val r = time ramsey ftrue;
+
 fun frandom (a,b) = random_real () < 0.5;
 val r = time ramsey frandom;
 fun f () = ramsey frandom;
-val _ = time List.tabulate (10000,fn _ => f ());
+val _ = time List.tabulate (1000,fn _ => f ());
 
 
 
-fun ftrue (a,b) = true;
-nbacktrack := 10;
-val r = time ramsey ftrue;
+
 *)
 
 

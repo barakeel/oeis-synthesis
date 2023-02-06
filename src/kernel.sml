@@ -335,7 +335,7 @@ val short_compr = 40
 val long_compr = 200
 val max_compr_number = ref (
   if !ramsey_flag then 200 
-  else if !hadamard_flag then 15*4 
+  else if !hadamard_flag then 15*4
   else short_compr)
 val graph = ref []
 val graphb = ref 0

@@ -622,12 +622,11 @@ fun checkinit_ramsey () =
   
 fun checkonline_ramsey (p,exec) =
   let 
-    val _ = print_endline (humanf p)
+    (* val _ = print_endline (humanf p) *)
     val (sc,humsc,h) = penum_ramsey exec
     val regsc = sc - prog_size p
   in
-    ()
-    (* update_ramseyd ((regsc,p),(sc,humsc,h,!abstimer)) *)
+    update_ramseyd ((regsc,p),(sc,humsc,h,!abstimer))
   end
  
 fun checkfinal_ramsey () = dlist (!ramseyd)
