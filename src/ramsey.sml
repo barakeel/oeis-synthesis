@@ -159,13 +159,13 @@ fun all_charac m =
 
 fun norm_graph (mt0,mf0,i) =
   let
-    val newm = more_edge mt0 i
+    (* val newm = more_edge mt0 i *)
     val cl = all_charac mt0
     val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
     val cv = Vector.fromList (map fst clsorted)
     fun sigma x = Vector.sub (cv,x)
   in
-    (mat_permute newm sigma, i)
+    (mat_permute mt0 sigma, i)
   end
 
 (* -------------------------------------------------------------------------
