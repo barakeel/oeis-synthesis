@@ -32,7 +32,7 @@ sig
   val slowcheck_flag : bool ref
   val minimal_flag : bool ref
   val ramsey_flag : bool ref
-  val ramseypred_flag  : bool ref
+
   
   val use_ob : bool ref
   val dim_glob : int ref   
@@ -83,10 +83,11 @@ sig
   val write_iprogl : string -> (int * prog) list -> unit
   val read_itprogl : string -> sol list
   val write_itprogl : string -> sol list -> unit
-  
-  (* errors in prime sequence *)
   val read_primel : string -> (seq * (int * prog)) list
   val write_primel : string -> (seq * (int * prog)) list -> unit
+  type ramsey = (int * prog) * (int * int * int * int)
+  val read_ramseyl : string -> ramsey list
+  val write_ramseyl : string -> ramsey list -> unit
   
   (* operators *)
   val operv : term vector

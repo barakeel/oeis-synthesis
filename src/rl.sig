@@ -49,13 +49,16 @@ sig
   (* searching for primes *)
   type primesol = seq * (int * prog)
   val search_prime : unit -> (prog list * real) list -> primesol list
-  val primespec : 
-    (unit, (prog list * real) list, primesol list) smlParallel.extspec
+  val primespec : (unit, (prog list * real) list, primesol list) smlParallel.extspec
   
   (* searching for hadamard matrices *)
   val search_hdm : unit -> (prog list * real) list -> primesol list
-  val hdmspec : 
-    (unit, (prog list * real) list, primesol list) smlParallel.extspec
+  val hdmspec : (unit, (prog list * real) list, primesol list) smlParallel.extspec
+  
+  (* searching for Ramsey graphs *)
+  val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
+  val ramseyspec : 
+    (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
   
   
 end

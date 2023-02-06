@@ -255,7 +255,7 @@ fun compr_f fl = case fl of
   | _ => raise ERR "compr_f" ""
 
 val execv = 
-  if !hadamard_flag then 
+  if !hadamard_flag orelse !ramsey_flag then 
     if !family_flag then
       Vector.fromList 
       ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
@@ -270,9 +270,7 @@ val execv =
         cond_f,x_f,y_f,z_f] @
       (if !bigvar_flag then [X_f,Y_f,Z_f] else []) @   
       (if !sqrt_flag then [sqrt_f,inv_f,leastdiv_f] else []) @
-      (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else []) @
-      (if !ramseypred_flag then [edge_f] else []))
-      
+      (if !loop_flag then [compr_f, loop_f, loop2_f, loop3_f] else []))
   else if !array_flag then Vector.fromList
     [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,x_f,y_f,array_f,assign_f,loop_f]
@@ -810,14 +808,9 @@ fun penum_family_hadamard exec =
    Ramsey numbers
    ------------------------------------------------------------------------- *)
 
-val color1 = 4
-val color2 = 6
-val maxgraph = 41
-  
-fun hash_ramsey m =
-  let 
-    val pl = all_pairs (List.tabulate (gsize,I))
-    val il = map (fn (x,y) => if mat_sub (m,x,y) then 1 else ~1) pl 
+fun hash_ramsey (m,i) =
+  let val il = map (fn (x,y) => if mat_sub (m,x,y) then 1 else ~1) 
+    (first_n i edgel)
   in
     hash 1 il
   end
@@ -834,17 +827,11 @@ fun penum_ramsey exec =
       in
         r <= azero
       end
-    val (mt,mf,i) = ramsey f
-    val anorm = norm_graph (mt,mf,i) 
+    val graph as (mt,mf,i) = ramsey f
+    val (a1,a2) = Vector.sub (edgev,i)
   in   
-    map IntInf.fromInt [i, hash_ramsey anorm sc]
+    (i, a1-1, hash_ramsey (norm_graph graph))
   end
-
-(* -------------------------------------------------------------------------
-   Ramsey numbers with predicate
-   ------------------------------------------------------------------------- *)
-
-
 
 
 end (* struct *)

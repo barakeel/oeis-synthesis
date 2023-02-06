@@ -4,6 +4,8 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel smlParallel
 val ERR = mk_HOL_ERR "ramsey"
 type mat = bool vector vector
+type graph = mat * mat * int
+datatype branch = Follow | Avoid | Backtrack
 
 (* -------------------------------------------------------------------------
    Global parameters
@@ -158,45 +160,111 @@ fun all_charac m =
 fun norm_graph (mt0,mf0,i) =
   let
     val newm = more_edge mt0 i
-    val cl = all_charac newm
+    val cl = all_charac mt0
     val clsorted = dict_sort (snd_compare (list_compare Int.compare)) cl
     val cv = Vector.fromList (map fst clsorted)
     fun sigma x = Vector.sub (cv,x)
   in
-    mat_permute newm sigma  
+    (mat_permute newm sigma, i)
   end
 
+(* -------------------------------------------------------------------------
+   Backtracking
+   ------------------------------------------------------------------------- *)
+
+
+val bcache = Vector.tabulate (Vector.length edgev, fn _ => ref NONE)
+fun clean_bcache () = Vector.app (fn x => x := NONE) bcache
+val ncall = ref 0
+val bestgraph = ref starting_graph
+
+fun ramsey_init () = (clean_bcache (); bestgraph := starting_graph; ncall := 0)
+
+fun new_branch (mt,mf,i) =
+  let 
+    val (a1,a2) = Vector.sub (edgev,i-1)
+    val borg = valOf (!(Vector.sub (bcache,i-1)))
+  in
+    if borg = mat_sub (mt,a1,a2) then Avoid else Backtrack
+  end
+  
+(* could downsize one step quicker *)
+fun graph_remove (mt0,mf0,i) =
+  let 
+    val (a1,a2) = Vector.sub (edgev,i-1)
+    val (mt1,mf1) = (mat_resize mt0 (a1+1), mat_resize mf0 (a1+1))
+    val (mt2,mf2) = (mat_update_sym (mt1,a1,a2,false),
+                     mat_update_sym (mf1,a1,a2,false))
+  in
+    (mt2,mf2,i-1)
+  end
+
+fun mat_to_list (m,i) = map (fn (a,b) => mat_sub (m,a,b)) (first_n i edgel)
+
+fun better_graph (mt1,mf1,i1) (mt2,mf2,i2) =
+  if i1 > i2 
+    then true else
+  if i1 = i2 
+    then list_compare bool_compare 
+      (mat_to_list (mt1,i1), mat_to_list (mt2,i2)) = LESS
+  else false
 
 (* -------------------------------------------------------------------------
    Compute the largest ramsey graph
    ------------------------------------------------------------------------- *)
 
-fun ramsey_loop f (graph as (mt0,mf0,i0)) = 
+(* for backtracking *)
+fun ramsey_loop f (graph as (mt0,mf0,i0)) branch = 
+  if !ncall > ((i0+1) * (i0+1) div 100) + 10 then !bestgraph else
   let 
     val (a1,a2) = Vector.sub (edgev,i0)
-    val bo = SOME (f (a1,a2)) 
-      handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
+    val bo = 
+      let val boref = (Vector.sub (bcache,i0)) in
+        case !boref of SOME x => SOME x | NONE => 
+          let val r = SOME (f (a1,a2)) 
+            handle Div => NONE | ProgTimeout => NONE | Overflow => NONE
+          in
+            boref := r; r
+          end
+      end  
   in
-    case bo of
-      NONE => graph
-    | SOME b => 
-      let 
-        (* val _ = print_endline 
+    case bo of NONE => !bestgraph | SOME borg => 
+      (
+      case branch of 
+        Backtrack => 
+          if i0 <= 0 then raise ERR "ramsey_loop" "saturated" else
+            ramsey_loop f (graph_remove graph) (new_branch graph)
+      | _ =>      
+      let
+          (* val _ = print_endline 
           (its i0 ^ ": " ^ its a1 ^ "-" ^ its a2 ^ ", " ^ bts b) *)
-        val (newgraph as (mt1,mf1,i1)) = graph_add (mt0,mf0,i0) b
+        val _ = incr ncall
+        val b = case branch of 
+            Follow => borg
+          | Avoid => not borg
+          | Backtrack => raise ERR "" "should not happen"      
+        val (newgraph as (mt1,mf1,i1)) = graph_add graph b
+        val _ = if better_graph newgraph (!bestgraph) 
+                then bestgraph := newgraph
+                else ()
+        val m = if b then mt1 else mf1
+        val color = if b then color1 else color2
       in
-        if b then 
-          if null (all_clique mt1 (color1 - 2) [([a1,a2],0)])
-          then ramsey_loop f newgraph
-          else graph
-        else
-          if null (all_clique mf1 (color2 - 2) [([a1,a2],0)])
-          then ramsey_loop f newgraph
-          else graph
+        case branch of 
+           Follow =>
+           if null (all_clique m (color - 2) [([a1,a2],0)])
+           then ramsey_loop f newgraph Follow
+           else ramsey_loop f graph Avoid
+         | Avoid =>
+           if null (all_clique m (color - 2) [([a1,a2],0)])
+           then ramsey_loop f newgraph Follow
+           else ramsey_loop f graph Backtrack
+         | Backtrack => raise ERR "" "should not happen"
       end
+      )
   end
   
-fun ramsey f = ramsey_loop f starting_graph 
+fun ramsey f = (ramsey_init (); ramsey_loop f starting_graph Follow)
 
   
 (* -------------------------------------------------------------------------
@@ -208,8 +276,10 @@ load "ramsey"; open ramsey;
 load "aiLib"; open aiLib;
 fun frandom (a,b) = random_real () < 0.5;
 fun f () = ramsey frandom;
-val _ = time List.tabulate (100000,fn _ => f ());
+val _ = time List.tabulate (1000,fn _ => f ());
 
+PolyML.print_depth 2;
+val r = time ramsey frandom;
 *)
 
 

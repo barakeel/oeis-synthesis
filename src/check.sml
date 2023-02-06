@@ -520,7 +520,7 @@ fun merge_primesol primesol =
   end 
   
 (* -------------------------------------------------------------------------
-   Check if a program generates hadamard matrices (does ramsey too)
+   Check if a program generates hadamard matrices
    ------------------------------------------------------------------------- *)
 
 val hdmd = ref (dempty seq_compare)
@@ -548,9 +548,8 @@ fun update_hdmd (il,(r,p)) = case dfindo il (!hdmd) of
 fun checkinit_hdm () = hdmd := dempty seq_compare
   
 fun checkonline_hdm (p,exec) =
-  let val il = 
-    if !ramsey_flag then penum_ramsey exec 
-    else if !family_flag then penum_family_hadamard exec
+  let val il =
+    if !family_flag then penum_family_hadamard exec
     else if !convolution_flag then penum_conv_hadamard exec 
     else penum_real_hadamard exec 
   in
@@ -558,14 +557,6 @@ fun checkonline_hdm (p,exec) =
   end
  
 fun checkfinal_hdm () = dlist (!hdmd)
-
-(*
-fun merge_hdmsol hdmsol = 
-  let val _ = checkinit_hdm () in
-    app update_hdmd hdmsol;
-    checkfinal_hdm ()
-  end
-*)
 
 fun merge_hdm_file file =
   let val sol = read_primel file in
@@ -582,9 +573,74 @@ fun merge_hdm fileo =
     checkfinal_hdm ()
   end
 
+(* -------------------------------------------------------------------------
+   Check if a program generates a ramsey graph
+   ------------------------------------------------------------------------- *)
 
+(* data structures 
+ramseyd: contains list of ramsey entries sorted by score then compare_prog_size
+ramseyh: contains the set of hashes from ramsed
+when stored on a file ramsey is a list of key and values.
+*)
 
+val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
+val ramseyd = ref (dempty compare_ramsey)
+val ramseyh = ref (dempty Int.compare)
 
+exception Catchableip of ramsey;
+
+fun smallest_keyval d =
+  (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
+  handle Catchableip r => SOME r
+
+fun filter_ramsey () = 
+  if dlength (!ramseyd) >= 10001 then 
+    let val (k,v) = valOf (smallest_keyval (!ramseyd)) in
+      ramseyd := drem k (!ramseyd);
+      ramseyh := drem (#3 v) (!ramseyh)
+    end
+  else ()
+  
+fun update_ramseyd (ktop,vtop as (_,_,h,_)) = 
+  case dfindo h (!ramseyh) of
+    NONE =>
+    (
+    ramseyd := dadd ktop vtop (!ramseyd); 
+    ramseyh := dadd h (ktop,vtop) (!ramseyh);
+    filter_ramsey ()
+    )
+  | SOME (k,v) => 
+    if compare_ramsey (ktop,k) <> GREATER then () else
+    (
+    ramseyh := dadd h (ktop,vtop) (!ramseyh);
+    ramseyd := drem k (!ramseyd);
+    ramseyd := dadd ktop vtop (!ramseyd)
+    )
+
+fun checkinit_ramsey () = 
+  (ramseyd := dempty compare_ramsey; ramseyh := dempty Int.compare)
+  
+fun checkonline_ramsey (p,exec) =
+  let 
+    val (sc,humsc,h) = penum_ramsey exec
+    val regsc = sc - prog_size p
+  in
+    update_ramseyd ((regsc,p),(sc,humsc,h,!abstimer))
+  end
+ 
+fun checkfinal_ramsey () = dlist (!ramseyd)
+
+fun merge_ramsey_file file = app update_ramseyd (read_ramseyl file)
+
+fun merge_ramsey fileo = 
+  let 
+    val _ = checkinit_ramsey ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_ramsey_file filel
+    val _ = if isSome fileo then merge_ramsey_file (valOf fileo) else ()
+  in
+    checkfinal_ramsey ()
+  end
 
 
 

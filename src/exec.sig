@@ -27,6 +27,6 @@ sig
   val penum_family_hadamard : exec -> IntInf.int list
   val init_array : unit -> unit
   
-  val penum_ramsey : exec -> IntInf.int list
+  val penum_ramsey : exec -> int * int * int
   
 end

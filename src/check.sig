@@ -29,11 +29,13 @@ sig
   val checkinit_hdm : unit -> unit
   val checkonline_hdm : prog * exec.exec -> unit
   val checkfinal_hdm : unit -> (kernel.seq * (int * prog)) list
-  (*
-  val merge_hdmsol : (kernel.seq  * (int * prog)) list -> 
-    (kernel.seq * (int * prog)) list
-  *)
   val merge_hdm : string option -> (kernel.seq * (int * prog)) list
+  
+  (* ramsey *)
+  val checkinit_ramsey : unit -> unit
+  val checkonline_ramsey : prog * exec.exec -> unit
+  val checkfinal_ramsey : unit -> kernel.ramsey list
+  val merge_ramsey : string option -> kernel.ramsey list
   
   (* parallelization *)
   val checkspec : (unit, string, (anum * (int * prog) list) list)

@@ -19,8 +19,9 @@ fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 
 val hadamard_flag = bflag "hadamard_flag"
 val prime_flag = bflag "prime_flag"
+val ramsey_flag = bflag "ramsey_flag"
 
-val notarget_flag = if !hadamard_flag orelse !prime_flag
+val notarget_flag = if !hadamard_flag orelse !prime_flag orelse !ramsey_flag
                     then ref true 
                     else bflag "notarget_flag"
                     
@@ -52,13 +53,10 @@ val loop_flag = bflag "loop_flag"
 val bigvar_flag = bflag "bigvar_flag"
 val convolution_flag = bflag "convolution_flag"
 val family_flag = bflag "family_flag"
-val ramsey_flag = bflag "ramsey_flag"
-val ramseypred_flag = bflag "ramseypred_flag"
 
 (* tnn flag *)
 val use_ob = ref true
-val dim_glob = ref  
-  (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
+val dim_glob = ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -156,12 +154,15 @@ local open HOLsexp in
   val enc_bool = String o bts
   val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
                  o string_decode
-  val enc_aint = String o IntInf.toString               
+  val enc_aint = String o IntInf.toString       
   val dec_aint = Option.mapPartial IntInf.fromString 
                  o string_decode              
   val enc_prime = pair_encode (list_encode enc_aint, enc_iprog) 
   val dec_prime = pair_decode (list_decode dec_aint, dec_iprog)
-  
+  val enc_ramsey = pair_encode (enc_iprog, 
+    pair4_encode (Integer,Integer,Integer,Integer)) 
+  val dec_ramsey = pair_decode (dec_iprog, 
+    pair4_decode (int_decode,int_decode,int_decode,int_decode))
 end
 
 fun write_iprogl file r = write_data enc_iprogl file r
@@ -172,6 +173,10 @@ fun read_itprogl file = read_data dec_itprogl file
 
 fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
 fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
+
+type ramsey = (int * prog) * (int * int * int * int)
+fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
+fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
 
 (* -------------------------------------------------------------------------
    Extra pre-computed instructions
@@ -212,7 +217,7 @@ val leastdivv =
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !hadamard_flag then
+  if !hadamard_flag orelse !ramsey_flag then
     if !family_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -229,9 +234,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("cond",3),("x",0),("y",0),("z",0)] @
      (if (!bigvar_flag) then [("X",0),("Y",0),("Z",0)] else []) @
      (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
-     (if (!loop_flag) then 
-        [("compr",2),("loop",3),("loop2",5),("loop3",7)] else []) @
-     (if (!ramseypred_flag) then [("edge",2)] else [])
+     (if (!loop_flag) then [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
   else if !array_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
@@ -284,10 +287,8 @@ fun contain_arr2 (Ins (id,pl)) =
   (id = arr2_id) orelse exists contain_arr2 pl
 
 val ho_ariv = Vector.fromList (
-  if !hadamard_flag then 
-    if !loop_flag andalso !ramseypred_flag then
-      List.tabulate (Vector.length operv - 5, fn _ => 0) @ [1,1,2,3,0] 
-    else if !loop_flag orelse !family_flag orelse !convolution_flag
+  if !hadamard_flag orelse !ramsey_flag then 
+    if !loop_flag orelse !family_flag orelse !convolution_flag
     then List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3] 
     else List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
@@ -327,14 +328,13 @@ val long_timeincr = 100000
 val timeincr = ref (if !convolution_flag then 5000 
                     else if !hadamard_flag then 10000 
                     else if !ramsey_flag then 100000
-                    else if !ramseypred_flag then 100000
                     else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 40
 val long_compr = 200
 val max_compr_number = ref (
-  if !ramsey_flag orelse !ramseypred_flag then 200 
+  if !ramsey_flag then 200 
   else if !hadamard_flag then 15*4 
   else short_compr)
 val graph = ref []
