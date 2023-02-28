@@ -636,7 +636,8 @@ fun string_of_tp (t,p) =
   "size " ^ its (prog_size p) ^ ", time " ^ its t ^ ": " ^ humanf p
 
 fun string_of_itprog (i,tpl) = 
-  "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
+  (if !fs_flag then String.concatWith "-" (Vector.sub (compv,i)) else
+  ("A" ^ its i)) ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
    String.concatWith "\n" (map string_of_tp tpl)
 
 fun stats_sol prefix itsol =

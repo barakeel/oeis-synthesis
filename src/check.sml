@@ -107,10 +107,9 @@ fun checkf (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
 
-fun checkonline (p,exec) = 
-  (init_fast_test (); checkf (p,exec))
+fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
 
-fun checkinit () = 
+fun checkinit () =
   (wind := dempty Int.compare; partwind := dempty Int.compare)
 
 fun checkfinal () =

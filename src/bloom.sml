@@ -1,7 +1,7 @@
 structure bloom :> bloom =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel smlTimeout;
+open HolKernel Abbrev boolLib aiLib kernel;
 val ERR = mk_HOL_ERR "bloom";
 type anum = int
 
@@ -13,13 +13,92 @@ local open IntInf in
 end 
 
 (* -------------------------------------------------------------------------
+   Findstat data read from disk
+   ------------------------------------------------------------------------- *)
+
+fun enum_perm l = case l of 
+    []  => raise ERR "enum_perm" "empty" 
+  | [a] => [[a]]
+  | _   => List.concat 
+    (map (fn x => enum_perm_one x (filter (fn y => y <> x) l)) l)
+
+and enum_perm_one a l = map (fn x => a :: x) (enum_perm l);
+
+val perml = List.concat (
+List.tabulate (4, fn x =>  enum_perm (List.tabulate (x+1,I))));
+val permlength = length perml
+val permd = dnew (list_compare Int.compare) (number_snd 0 perml)
+val permv = Vector.fromList perml
+
+local open json in
+
+fun is_sep c = mem c [#",",#"[",#"]"]
+fun to_intl x = map ((fn x => x - 1) o string_to_int) (String.tokens is_sep x)
+
+fun rm_ok y = case y of OK x => x | _ => raise ERR "rm_ok" ""
+fun get_maps json = case json of 
+    OBJECT (("included",b) :: m) => get_maps b
+  | OBJECT [("Maps",b)] => get_maps b
+  | OBJECT l => l
+  | _ => raise ERR "get_maps" "";
+fun get_io_one json = case json of
+    ARRAY [STRING s1, STRING s2] => (s1,s2)
+  | _ => raise ERR "get_io_one" ""
+fun get_io json =  case json of 
+    OBJECT [("Values",ARRAY jsonl)] => 
+      let 
+        val (al,bl) = split (map get_io_one (first_n permlength jsonl)) 
+        val (al1,bl1) = (map to_intl al, map to_intl bl)   
+      in
+        if al1 <> perml then raise ERR "get_io" "" else
+        Vector.fromList (map (fn x => dfind x permd) bl1)
+      end
+  | _ => raise ERR "get_io" ""
+
+val fsmap = 
+  if !fs_flag then
+  let
+    val fsraw = hd (readl (selfdir ^ "/data/findstat_maps"))
+    val json0 = parse fsraw
+    val json1 = rm_ok json0
+    val json2 = get_maps json1
+    val json3 = filter (fn x => fst x <> "Mp00252") json2
+    val json4 = map_snd get_io json3
+  in
+    json4
+  end
+  else []
+
+
+val mapl = map fst fsmap
+
+fun apply_map s perml = 
+  let val v = assoc s fsmap in map (fn x => (Vector.sub(v,x))) perml end
+
+fun apply_mapl sl perml = case sl of [] => perml | s :: m =>
+  apply_mapl m (apply_map s perml); 
+
+end
+
+(*
+load "bloom"; open bloom aiLib;
+
+
+
+*)
+
+
+(* -------------------------------------------------------------------------
    OEIS array read from disk
    ------------------------------------------------------------------------- *)
 
 val oraw = 
-  if !prime_flag orelse !hadamard_flag orelse !ramsey_flag then [] else 
-  readl (selfdir ^ "/data/oeis");
-val _ = print_endline ("oeis: " ^ its (length oraw));
+  if !prime_flag orelse !hadamard_flag orelse !ramsey_flag orelse !fs_flag 
+  then [] else 
+    let val r = readl (selfdir ^ "/data/oeis") in
+      print_endline ("oeis: " ^ its (length r)); r
+    end
+
 (* val solved = enew Int.compare 
   (map fst (read_iprogl (selfdir ^ "/model/isol_online"))); *)
 val oseq = Array.tabulate (400000, fn _ => NONE);  
@@ -36,7 +115,24 @@ fun update_oseq s =
     Array.update (oseq, an, SOME seq)
   end 
 
-val _ = app update_oseq oraw
+val mapcompl = if not (!fs_flag) then [] else
+  let fun f x = cartesian_productl (List.tabulate (x + 1, fn _ => mapl)) in
+    List.concat (List.tabulate (4,f)) 
+  end
+val permil = List.tabulate (length perml, I)
+val fs1 = map_assoc (fn x => apply_mapl x permil) mapcompl;
+val fs2 = mk_sameorder_set (snd_compare (list_compare Int.compare)) fs1;
+val compd = dnew (list_compare String.compare) (number_snd 0 (map fst fs2));
+val compv = Vector.fromList (map fst fs2)
+val fsraw = map_fst (fn x => dfind x compd) fs2
+
+fun fs_update_oseq (an,seq) = 
+  Array.update (oseq, an, SOME (map IntInf.fromInt seq)) 
+
+val _ = 
+  if !fs_flag 
+  then app fs_update_oseq fsraw
+  else app update_oseq oraw
 
 val oseql = 
   let fun f (i,x,l) = case x of NONE => l | SOME y => (i,y) :: l in

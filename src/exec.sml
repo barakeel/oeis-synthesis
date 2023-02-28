@@ -171,6 +171,11 @@ local open IntInf in
     then azero
     else Vector.sub (!array_glob, toInt a)
   val array_f = mk_unf array_f_aux
+  fun perm_f_aux a = 
+    let val modn = fromInt (Vector.length (!array_glob)) in
+      Vector.sub (!array_glob, toInt (a mod modn))
+    end
+  val perm_f = mk_unf perm_f_aux  
   fun arr2_f_aux (a,b) =  
     let val v = Vector.sub (!arr2_glob, 
       toInt (a mod fromInt (Vector.length (!arr2_glob))))
@@ -284,7 +289,8 @@ val execv =
      (if !z_flag then [z_f, loop3_f] else []) @
      (if !extranum_flag then 
       [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
-      else []))
+      else []) @
+     (if !fs_flag then [perm_f] else []))
 val _ = if Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"
         else ()
@@ -316,8 +322,30 @@ fun cache_exec exec =
       else exec (x,y,z)   
     end
   end
-  
+ 
 fun coverf_oeis exec = 
+  if !fs_flag then
+  let    
+    fun h permlen permi = 
+      let open IntInf in
+        exec (fromInt permi, fromInt permlen, azero) mod fromInt permlen
+      end
+    fun g x = 
+      let 
+        val perm = Vector.sub (permv, IntInf.toInt x)
+        val _ = array_glob := Vector.fromList (map IntInf.fromInt perm)
+        val permlen = length perm
+        val newperm = List.tabulate (permlen,
+          fn x => IntInf.toInt (h permlen x))
+      in 
+        case dfindo newperm permd of 
+          NONE => IntInf.fromInt (~1)
+        | SOME permi => IntInf.fromInt permi
+      end
+  in
+    cover_oeis g
+  end
+  else
   let
     val _ = graph := []
     val _ = graphb := 0

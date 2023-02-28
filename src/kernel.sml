@@ -58,6 +58,9 @@ val family_flag = bflag "family_flag"
 val use_ob = ref true
 val dim_glob = ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 
+(* findstat flag *)
+val fs_flag = bflag "fs_flag"
+
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
    ------------------------------------------------------------------------- *)
@@ -250,7 +253,9 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !z_flag then [("z",0),("loop3",7)] else []) @
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
-       ("nine",0),("ten",0)] else [])
+       ("nine",0),("ten",0)] else []) @
+     (if !fs_flag then [("perm",1)] else [])  
+     
   )
 
 (* -------------------------------------------------------------------------
@@ -296,7 +301,8 @@ val ho_ariv = Vector.fromList (
   else if !minimal_flag then [0,0,0,0,0,1]
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if !z_flag then [0,3] else []) @
-       (if !extranum_flag then List.tabulate (8, fn _ => 0) else [])
+       (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
+       (if !fs_flag then [0] else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv
@@ -315,7 +321,7 @@ fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p
 fun depend_on_z p = depend_on z_id p
 fun is_constant p = 
- not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
+  not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
 
 (* -------------------------------------------------------------------------
    Timer
@@ -323,7 +329,7 @@ fun is_constant p =
 
 exception ProgTimeout;
 
-val short_timeincr = 1000
+val short_timeincr = if !fs_flag then 10000 else 1000
 val long_timeincr = 100000
 val timeincr = ref (if !convolution_flag then 5000 
                     else if !hadamard_flag then 10000 
