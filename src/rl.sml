@@ -845,7 +845,7 @@ fun rl_search ngen =
 
 and rl_train ngen = 
   (
-  rl_train_only ngen; 
+  rl_train_only ngen;
   PolyML.fullGC ();
   rl_search (ngen + 1)
   )
@@ -865,17 +865,31 @@ fun rl_search_cont () =
   PolyML.fullGC ()
   )
 
-fun wait_itsol () = 
+fun wait_itsol b = 
   if can find_last_itsol () then () else 
-  (OS.Process.sleep (Time.fromReal 1.0); wait_itsol ())
+  (
+  if b then print_endline "waiting for itsol" else (); 
+  OS.Process.sleep (Time.fromReal 1.0); 
+  wait_itsol false
+  )
+
+val prev_itsol = ref (~1)
+
+fun wait_newitsol b =
+  let val n = find_last_itsol () in
+    if n <> !prev_itsol then prev_itsol := n else
+    (
+    if b then print_endline "waiting for new itsol" else (); 
+    OS.Process.sleep (Time.fromReal 1.0); 
+    wait_newitsol false
+    )
+  end
 
 fun rl_train_cont () = 
   (
   ignore (mk_dirs ());
-  if can find_last_itsol () 
-  then () 
-  else (print_endline "waiting for itsol"; wait_itsol ())
-  ;
+  wait_itsol true;
+  wait_newitsol true;
   rl_train_only ((find_last_ob () + 1) handle HOL_ERR _ => 0); 
   rl_train_cont ();
   PolyML.fullGC ()
