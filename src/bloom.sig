@@ -30,6 +30,7 @@ sig
   val perml : int list list
   val permd : (int list, int) Redblackmap.dict
   val permv : int list vector
+  val perminputv : int list vector
   val apply_mapl : string list -> int list -> int list
   val mapl : string list
   val compv : string list vector

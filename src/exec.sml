@@ -258,6 +258,15 @@ fun compr_f fl = case fl of
      end)
   end
   | _ => raise ERR "compr_f" ""
+  
+local open IntInf in
+  fun compr_f_aux_nc x f n0 n =
+     if f (x, azero, azero) <= azero then 
+       (if n0 >= n then x else compr_f_aux_nc (x+aone) f (n0+aone) n)
+    else compr_f_aux_nc (x+aone) f n0 n
+  fun compr_f_aux2_nc (f,n) = compr_f_aux_nc azero f azero n
+  val compr_f_nc = mk_binf1 compr_f_aux2_nc
+end
 
 val execv = 
   if !hadamard_flag orelse !ramsey_flag then 
@@ -285,7 +294,8 @@ val execv =
     Vector.fromList 
     ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
      cond_f,loop_f,x_f,y_f,
-     compr_f, loop2_f] @
+     if !fs_flag then compr_f_nc else compr_f, 
+     loop2_f] @
      (if !z_flag then [z_f, loop3_f] else []) @
      (if !extranum_flag then 
       [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
@@ -323,29 +333,32 @@ fun cache_exec exec =
     end
   end
  
-fun coverf_oeis exec = 
-  if !fs_flag then
+
+fun create_fsf exec =  
   let    
-    fun h permlen permi = 
+    fun h permlen i = 
       let open IntInf in
-        exec (fromInt permi, fromInt permlen, azero) mod fromInt permlen
+        exec (fromInt i, fromInt permlen, azero) mod fromInt permlen
       end
-    fun g x = 
+    fun g x =     
       let 
-        val perm = Vector.sub (permv, IntInf.toInt x)
+        val perm = Vector.sub (perminputv, IntInf.toInt x)
         val _ = array_glob := Vector.fromList (map IntInf.fromInt perm)
         val permlen = length perm
         val newperm = List.tabulate (permlen,
-          fn x => IntInf.toInt (h permlen x))
+          fn i => IntInf.toInt (h permlen i))
       in 
         case dfindo newperm permd of 
           NONE => IntInf.fromInt (~1)
         | SOME permi => IntInf.fromInt permi
       end
   in
-    cover_oeis g
+    g
   end
-  else
+          
+      
+fun coverf_oeis exec = 
+  if !fs_flag then cover_oeis (create_fsf exec) else
   let
     val _ = graph := []
     val _ = graphb := 0
@@ -989,5 +1002,35 @@ val (l1,t) = add_time (penum p) 7;
 val l = penum_prime p;
 !abstimer;
 
+
+
+
+
 *)
+
+
+(* 
+load "kernel"; open kernel aiLib;
+load "exec"; open exec;
+load "human";  open human;
+load "bloom"; open bloom;
+
+val itsol20 = read_itprogl "itsol20";
+length itsol20;
+
+val progl = map (snd o singleton_of_list o snd) itsol20;
+val l = 
+  first_n 4 (
+  dict_sort compare_imax (dlist (count_dict (dempty prog_compare)  progl)));
+
+val prog = fst (List.nth (l,1));
+
+val f = create_fsf (mk_exec prog);
+List.tabulate (33, fn x =>  IntInf.toInt (f (IntInf.fromInt x)));
+
+
+
+*)
+
+
      

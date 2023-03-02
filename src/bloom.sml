@@ -25,10 +25,35 @@ fun enum_perm l = case l of
 and enum_perm_one a l = map (fn x => a :: x) (enum_perm l);
 
 val perml = List.concat (
-List.tabulate (4, fn x =>  enum_perm (List.tabulate (x+1,I))));
+List.tabulate (7, fn x =>  enum_perm (List.tabulate (x+1,I))));
 val permlength = length perml
 val permd = dnew (list_compare Int.compare) (number_snd 0 perml)
 val permv = Vector.fromList perml
+
+
+(* 
+val perminput40 =
+random_subset 10 (enum_perm (List.tabulate (4,I))) @
+random_subset 10 (enum_perm (List.tabulate (5,I))) @
+random_subset 10 (enum_perm (List.tabulate (6,I))) @
+random_subset 10 (enum_perm (List.tabulate (7,I)));
+*)
+val perminput40  =  
+   [[0, 3, 1, 2], [3, 2, 0, 1], [3, 0, 1, 2], [1, 3, 0, 2], [2, 1, 3, 0],
+    [0, 1, 2, 3], [2, 0, 3, 1], [1, 0, 3, 2], [3, 1, 0, 2], [2, 1, 0, 3],
+    [3, 1, 0, 2, 4], [3, 1, 4, 2, 0], [4, 2, 0, 3, 1], [2, 0, 3, 4, 1],
+    [4, 2, 3, 1, 0], [0, 2, 1, 3, 4], [3, 0, 2, 1, 4], [1, 4, 0, 3, 2],
+    [4, 3, 1, 2, 0], [4, 3, 0, 2, 1], [3, 0, 1, 2, 4, 5], [0, 4, 2, 3, 5, 1],
+    [5, 3, 0, 1, 4, 2], [5, 2, 1, 4, 3, 0], [1, 5, 0, 2, 3, 4],
+    [4, 0, 5, 1, 2, 3], [2, 4, 1, 0, 5, 3], [4, 3, 2, 0, 1, 5],
+    [1, 5, 2, 4, 3, 0], [0, 2, 3, 4, 5, 1], [1, 4, 5, 2, 0, 3, 6],
+    [4, 1, 6, 0, 2, 3, 5], [5, 3, 4, 2, 1, 6, 0], [2, 4, 5, 1, 3, 6, 0],
+    [6, 0, 1, 2, 3, 4, 5], [6, 0, 4, 2, 1, 5, 3], [2, 4, 0, 6, 5, 1, 3],
+    [3, 2, 1, 6, 5, 0, 4], [5, 2, 3, 1, 0, 4, 6], [6, 2, 1, 3, 0, 4, 5]];
+
+val perminputl = tl (first_n 9 perml) @ perminput40;
+val perminputv = Vector.fromList permintputl
+
 
 local open json in
 
@@ -80,13 +105,7 @@ fun apply_mapl sl perml = case sl of [] => perml | s :: m =>
 
 end
 
-(*
-load "bloom"; open bloom aiLib;
-
-
-
-*)
-
+(* load "bloom"; open bloom aiLib; *)
 
 (* -------------------------------------------------------------------------
    OEIS array read from disk
@@ -101,7 +120,10 @@ val oraw =
 
 (* val solved = enew Int.compare 
   (map fst (read_iprogl (selfdir ^ "/model/isol_online"))); *)
-val oseq = Array.tabulate (400000, fn _ => NONE);  
+val oseq = 
+  if !fs_flag 
+  then Array.tabulate (500654, fn _ => NONE)
+  else Array.tabulate (400000, fn _ => NONE)
 
 fun update_oseq s = 
   let 
@@ -119,7 +141,7 @@ val mapcompl = if not (!fs_flag) then [] else
   let fun f x = cartesian_productl (List.tabulate (x + 1, fn _ => mapl)) in
     List.concat (List.tabulate (4,f)) 
   end
-val permil = List.tabulate (length perml, I)
+val permil = map (fn x => dfind x permd) perminputl
 val fs1 = map_assoc (fn x => apply_mapl x permil) mapcompl;
 val fs2 = mk_sameorder_set (snd_compare (list_compare Int.compare)) fs1;
 val compd = dnew (list_compare String.compare) (number_snd 0 (map fst fs2));

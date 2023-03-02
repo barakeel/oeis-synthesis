@@ -28,5 +28,7 @@ sig
   val init_array : unit -> unit
   
   val penum_ramsey : exec -> int * int * int
+  val create_fsf : exec -> (IntInf.int -> IntInf.int)
+  
   
 end
