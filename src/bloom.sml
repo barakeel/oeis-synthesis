@@ -52,7 +52,7 @@ val perminput40  =
     [3, 2, 1, 6, 5, 0, 4], [5, 2, 3, 1, 0, 4, 6], [6, 2, 1, 3, 0, 4, 5]];
 
 val perminputl = tl (first_n 9 perml) @ perminput40;
-val perminputv = Vector.fromList permintputl
+val perminputv = Vector.fromList perminputl
 
 
 local open json in
