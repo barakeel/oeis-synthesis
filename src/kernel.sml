@@ -58,6 +58,7 @@ val family_flag = bflag "family_flag"
 (* tnn flag *)
 val use_ob = ref true
 val dim_glob = ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
+val extra_flag = bflag "extra_flag"
 
 (* findstat flag *)
 val fs_flag = bflag "fs_flag"
