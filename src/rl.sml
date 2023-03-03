@@ -635,11 +635,11 @@ fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
 val abillion = 1000 * 1000 * 1000
 
 fun string_of_tp (t,p) =
-  "size " ^ its (prog_size p) ^
+  "size " ^ its (prog_size p) ^ " " ^
   (
   if t < abillion
-  then ("correct on all selected input with time " ^ its t)
-  else ("correct on first " ^ its (abillion + 10000 - t) ^ " inputs")
+  then ("correct all, time " ^ its t)
+  else ("correct " ^ its (abillion + 10000 - t))
   ) 
   ^ ": " ^ humanf p
 
