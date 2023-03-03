@@ -157,7 +157,8 @@ fun trainf_start () =
   end
   else
   let
-    val itsol = read_itsol (find_last_itsol ())
+    val itsol = read_itsol (find_last_itsol ()) @ 
+      (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
     val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
     val isol = distrib isolaux
