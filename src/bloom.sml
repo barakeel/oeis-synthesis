@@ -122,7 +122,7 @@ val oraw =
   (map fst (read_iprogl (selfdir ^ "/model/isol_online"))); *)
 val oseq = 
   if !fs_flag 
-  then Array.tabulate (500654, fn _ => NONE)
+  then Array.tabulate (30000, fn _ => NONE)
   else Array.tabulate (400000, fn _ => NONE)
 
 fun update_oseq s = 
