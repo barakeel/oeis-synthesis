@@ -632,8 +632,16 @@ fun compute_freq f sol1 =
 
 fun human_progfreq (p,freq) = its freq ^ ": " ^ humanf p
 
+val abillion = 1000 * 1000 * 1000
+
 fun string_of_tp (t,p) =
-  "size " ^ its (prog_size p) ^ ", time " ^ its t ^ ": " ^ humanf p
+  "size " ^ its (prog_size p) ^
+  (
+  if t < abillion
+  then ("correct on all selected input with time " ^ its t)
+  else ("correct on first " ^ its (abillion + 10000 - t) ^ " inputs")
+  ) 
+  ^ ": " ^ humanf p
 
 fun string_of_itprog (i,tpl) = 
   (if !fs_flag then String.concatWith "o" (rev (Vector.sub (compv,i))) else

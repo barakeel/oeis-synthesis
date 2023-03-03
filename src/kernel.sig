@@ -33,6 +33,7 @@ sig
   val minimal_flag : bool ref
   val ramsey_flag : bool ref
   val fs_flag : bool ref
+  val partial_flag : bool ref
   
   val use_ob : bool ref
   val dim_glob : int ref   

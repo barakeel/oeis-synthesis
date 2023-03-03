@@ -139,7 +139,7 @@ fun update_oseq s =
 
 val mapcompl = if not (!fs_flag) then [] else
   let fun f x = cartesian_productl (List.tabulate (x + 1, fn _ => mapl)) in
-    List.concat (List.tabulate (4,f)) 
+    List.concat (List.tabulate (3,f)) 
   end
 val permil = map (fn x => dfind x permd) perminputl
 val fs1 = map_assoc (fn x => apply_mapl x permil) mapcompl;

@@ -33,7 +33,7 @@ local open IntInf in
   val minint = fromInt (valOf (Int.minInt))
   fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
-end 
+end
 
 val verylargeint = int_pow 2 40
 val smallcost_flag = ref false

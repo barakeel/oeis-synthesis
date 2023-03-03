@@ -38,6 +38,7 @@ val halfnoise_flag = bflag "halfnoise_flag"
 val subprog_flag = bflag "subprog_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
+val partial_flag = bflag "partial_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
