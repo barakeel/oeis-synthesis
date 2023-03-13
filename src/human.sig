@@ -12,5 +12,6 @@ sig
   val parse_human : string -> prog
   val parse_prog : string -> prog
   val human_gpt : string -> unit
-  
+  val find_fsname : string -> string
+
 end

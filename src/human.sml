@@ -31,12 +31,14 @@ fun decrs s = s ^ " = " ^ s ^ " - 1";
 fun mk_def vn wn prog =
   let
     val fs = "f" ^ its wn
-    fun f an =  
-      if depend_on_z prog 
-        then fs ^ "(" ^ mk_xn an ^ "," ^ mk_yn an ^ "," ^ mk_zn an ^ ")"
+    val fsperm = if !fs_flag then fs ^ "(perm," else fs ^ "("
+    fun f an = fsperm ^  
+      (if depend_on_z prog 
+        then mk_xn an ^ "," ^ mk_yn an ^ "," ^ mk_zn an ^ ")"
       else if depend_on_y prog 
-        then fs ^ "(" ^ mk_xn an ^ "," ^ mk_yn an ^ ")"
-      else fs ^ "(" ^ mk_xn an ^ ")"
+        then mk_xn an ^ "," ^ mk_yn an ^ ")"
+      else mk_xn an ^ ")"
+      )
       val fprev1 = f wn
       val fprev2 = f vn
       val fs_head = "def " ^ fprev1 ^ ":"
@@ -103,7 +105,7 @@ fun human vn prog =
         ["  x,i = 0,0"] @
         (if depend_on_y p1 then ["  y = 0"]  else []) @
         (if depend_on_z p1 then ["  z = 0"]  else []) @
-        ["  while i <= " ^ s2 ^ ":",
+        ["  while i <= max(" ^ s2 ^ ",0):",
          "    if " ^ s1 ^ " <= 0:",
          "      i = i + 1",
          "    x = x + 1",
@@ -145,7 +147,7 @@ fun human vn prog =
     end
   | Ins (id,[]) => name_of_oper id
   | Ins (id,l) => 
-    "(" ^ String.concatWith " "  (name_of_oper id :: map h l) ^ ")"
+    name_of_oper id ^ "(" ^ String.concatWith ", " (map rh l) ^ ")"
   end
 
 fun human_python ntop p =
@@ -158,12 +160,14 @@ fun human_python ntop p =
         val wn = !funn
         val _ = incr funn
         val fs = "f" ^ its wn
+        val fsperm = if !fs_flag then fs ^ "(perm," else fs ^ "("
         val xs = mk_xn wn
         val s = rm_par (human wn p)
-        val head = "def " ^ fs ^ "(" ^ xs ^ "):\n  return " ^ s ^ "\n"
+        val head = "def " ^ fsperm ^ xs ^ "):\n  return " ^ s ^ "\n"
         val test = "for x in range(" ^ its ntop ^ 
           "):\n  print (" ^ fs ^ "(x))"    
-        val ps' = String.concatWith "\n" (!ctxt @ [head,test])
+        val ps' = String.concatWith "\n" (!ctxt @ [head] @ 
+          (if !fs_flag then [] else [test]))
       in ps' end
       else
       let
@@ -172,7 +176,8 @@ fun human_python ntop p =
         val s = rm_par (human wn p)
         val test = "for x in range(" ^ its ntop ^ 
           "):\n  print (" ^ fs ^ "(x))"    
-        val ps' = String.concatWith "\n" (!ctxt @ [test])
+        val ps' = String.concatWith "\n" (!ctxt @ 
+          (if !fs_flag then [] else [test]))
       in ps' end
     val _ = ctxt := []
   in
@@ -317,6 +322,44 @@ fun human_gpt s =
     print_endline (its i1 ^ "does not have arity" ^ its i2)
 
 
+val fsmapnamel = [
+("cactus evacuation",126),
+("Lehmer code rotation",149),
+("Demazure product with inverse",159),
+("inverse Foata bijection",175),
+("runsort",223),
+("descent views to invisible inversion bottoms",235),
+("Clarke-Steingrimsson-Zeng inverse",236),
+("descent views to invisible inversion bottoms",237),
+("Clarke-Steingrimsson-Zeng",238),
+("Corteel",239),
+("invert Laguerre heap",241),
+("restriction",252),
+("Inverse fireworks map",254),
+("Alexandersson Kebede",257),
+("conjugation by long cycle",265),
+("catalanization",277),
+("Backward Rotation",279),
+("Lehmer-code to major-code bijection",62),
+("reverse",64),
+("inverse",66),
+("Foata bijection",67),
+("Simion-Schmidt map",68),
+("complement",69),
+("major-index to inversion-number bijection",73),
+("first fundamental transformation",86),
+("inverse first fundamental transformation",87),
+("Kreweras complement",88),
+("Inverse Kreweras complement",89),
+("cycle-as-one-line notation",90)
+];
+
+
+val fsmapnamed = dnew Int.compare (map swap fsmapnamel);
+fun find_fsname s = dfind (string_to_int (tl_string (tl_string s)))  
+  fsmapnamed 
+  handle NotFound => raise ERR "find_fsname" s
+
 (*
 load "rl"; open aiLib kernel human rl;
 val p = game.random_prog 20;
@@ -329,5 +372,49 @@ print_endline (sexpr p);
 human_gpt s;
 *)
 
+(* 
+load "rl"; open aiLib kernel human rl bloom;
+
+val itsol20 = read_itprogl "itsol20";
+val fs3_itsol15 = read_itprogl "fs3_itsol15";
+val abillion = 1000 * 1000 * 1000
+fun string_of_tp (t,p) =
+  "size " ^ its (prog_size p) ^ ", " ^
+  (
+  if t < abillion
+  then ("correct all, time " ^ its t)
+  else ("correct " ^ its (abillion + 10000 - t))
+  ) 
+  ^ ": " ^ humanf p ^ "\n\n" ^ human_python 10 p ^ "\n\n";
+  
+fun string_of_itprog (i,tpl) = 
+  let 
+    val out1 = valOf (Array.sub (oseq,i)) 
+    val out2 = map (fn x => Vector.sub (permv,IntInf.toInt x)) out1
+    val perminputl = vector_to_list perminputv
+    val io = combine (perminputl,out2)
+    val mapsl = rev (Vector.sub (compv,i))
+    val mapslh = map find_fsname mapsl
+    fun f (a,b) = 
+      "[" ^ String.concatWith "," (map its a) ^ "]" ^ " -> " ^
+      "[" ^ String.concatWith "," (map its b) ^ "]"
+  in
+    String.concatWith "o" mapsl ^ "\n" ^ 
+    String.concatWith "  o  " mapslh ^ "\n" ^ 
+    String.concatWith "\n" (map f io) ^ "\n" ^
+    String.concatWith "\n" (map string_of_tp tpl)
+  end
+
+fun stats_sol itsol =
+  let
+    val itsolsort = dict_sort 
+      (snd_compare (list_compare (snd_compare prog_compare_size))) itsol
+  in
+    writel "fs3_itsol15_human" (map string_of_itprog itsolsort)
+  end;
+
+stats_sol fs3_itsol15;
+
+*)
 
 end (* struct *)

@@ -77,7 +77,7 @@ fun smt prog = case prog of
       val _ = app smtdef [(fs,p1),(gs,p2)]
      in
        smtdefspec ts 1 (site (natarg fs n1 [xs,"0"]) xs (sapp ts ixs));
-       smtdefspec us 1 (site xs (sapp ts "0") (sapp ts (sapp us dxs)));
+       smtdefspec us 1 (site xs (sapp ts "0") (sapp ts (sincr (sapp us dxs))));
        smtdefspec vs n0 (sapp us (natapp gs n2));
        natapp vs n0
      end
@@ -152,12 +152,101 @@ fun export_smt2 flag dir file =
     app (export_smt2_one flag dir) l5
   end
 
+(* -------------------------------------------------------------------------
+   Command to export to SMTlib (not compatible with z_flag)
+   ------------------------------------------------------------------------- *)
 
 (*
 load "smt"; open kernel aiLib human smt;
 export_smt2 true "oeis-smt/pb" "model/itsol209";
 *)
 
+(* -------------------------------------------------------------------------
+   Listing problems that likely require induction:
+   ------------------------------------------------------------------------- *)
+
+(* 
+load "exec"; load "kernel"; open aiLib kernel;
+val l1 = read_itprogl "model/itsol209";
+val l2 = List.mapPartial (fn (x,l) => 
+  if length l <> 2 then NONE else SOME (x, pair_of_list 
+  (dict_sort prog_compare_size (map snd l)))) l1;   
+
+  
+fun is_loop (Ins (id,pl)) = mem (name_of_oper id) ["loop","loop2","compr"];   
+fun all_loop p = 
+  filter is_loop (all_subprog p);
+
+fun all_loop p = case p of 
+    Ins (9,_) => [p]
+  | Ins (12,_) => [p]
+  | Ins (13,_) => [p]
+  | Ins (_,pl) => List.concat (map all_loop pl)
+
+
+fun is_constant_list l = 
+  case l of [] => true 
+  | [a] => true
+  | a :: b :: m => a = b andalso is_constant_list (b :: m)
+
+fun has_cycle_list l = 
+  exists is_constant_list (List.tabulate (15, fn x => mk_batch (x + 1) l))
+
+fun not_cyclic p = 
+  let val l = exec.penum p 40 in
+    not (has_cycle_list (snd (part_n 10 l)))
+  end
+  handle _ => true
+  
+
+
+fun not_bounded_constant p = 
+  let val l = exec.penum p 20 in
+    list_imax (map IntInf.toInt l) >= 10
+  end
+  handle _ => true
+  
+
+(* orelse depend_on_y p *)
+fun non_constant p = 
+  depend_on_x p andalso not_bounded_constant p
+                     
+fun both_xy p = depend_on_x p andalso depend_on_y p
+
+fun non_constant_bound p = case p of
+    Ins (9,[p1,p2,p3]) => 
+      non_constant p2 andalso (depend_on_x p1) andalso not_cyclic p1
+  | Ins (12,[p1,p2]) => non_constant p2
+  | Ins (13,[p1,p2,p3,p4,p5]) => 
+    non_constant p3 andalso 
+    ((non_constant p1 andalso both_xy p2) orelse
+     (both_xy p1 andalso non_constant p2))
+  | _ => false
+
+
+fun test p = non_constant_bound p andalso not_cyclic p
+
+fun likely_ind (p1,p2) = 
+  let 
+    val d = count_dict (dempty prog_compare) (all_loop p1 @ all_loop p2)
+    val l = filter (fn x => snd x <= 1) (dlist d)
+  in
+    exists test (map fst l) 
+  end
+  
+val l3 = filter (likely_ind o snd) l2; 
+val l4 = map fst l3;
+val l5 = readl "oeis-smt/all_pb";
+val l6 = map (fn x => hd (String.tokens (fn x => x = #".") x)) l5;
+val l7 = map (string_to_int o tl_string) l6;
+val l8 = filter (fn x => mem x l7) l4;
+
+writel "oeis-smt/all_ind8" (map (fn x => "A" ^ its x ^ ".smt2") l8);
+
+
+
+
+*)
 
 
 end (* struct *)
