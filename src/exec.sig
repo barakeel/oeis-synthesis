@@ -13,6 +13,8 @@ sig
   val cache_exec : exec -> exec
   val coverf_oeis : exec -> (int * int) list * int * int list
   val coverp_target : prog -> kernel.seq -> bool * int
+  
+  val penum2_list : prog -> (IntInf.int * IntInf.int) list -> kernel.seq
   val penum : prog -> int -> kernel.seq
   val penum_limit : IntInf.int -> prog -> int -> kernel.seq
   val penum_wtime : int -> prog -> int -> kernel.seq

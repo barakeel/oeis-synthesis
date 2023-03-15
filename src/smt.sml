@@ -152,8 +152,11 @@ fun export_smt2 flag dir file =
     app (export_smt2_one flag dir) l5
   end
 
+
+
 (* -------------------------------------------------------------------------
-   Command to export to SMTlib (not compatible with z_flag)
+   Command to export problems from the files 
+   "model/itsol209" to SMTlib (not compatible with z_flag)
    ------------------------------------------------------------------------- *)
 
 (*
@@ -165,86 +168,104 @@ export_smt2 true "oeis-smt/pb" "model/itsol209";
    Listing problems that likely require induction:
    ------------------------------------------------------------------------- *)
 
-(* 
-load "exec"; load "kernel"; open aiLib kernel;
-val l1 = read_itprogl "model/itsol209";
-val l2 = List.mapPartial (fn (x,l) => 
-  if length l <> 2 then NONE else SOME (x, pair_of_list 
-  (dict_sort prog_compare_size (map snd l)))) l1;   
-
-  
-fun is_loop (Ins (id,pl)) = mem (name_of_oper id) ["loop","loop2","compr"];   
-fun all_loop p = 
-  filter is_loop (all_subprog p);
-
-fun all_loop p = case p of 
+fun all_toploop p = case p of 
     Ins (9,_) => [p]
   | Ins (12,_) => [p]
   | Ins (13,_) => [p]
-  | Ins (_,pl) => List.concat (map all_loop pl)
+  | Ins (_,pl) => List.concat (map all_toploop pl)
 
+(* semantic test *)                 
+fun both_xy p = depend_on_x p andalso depend_on_y p
+fun either_xy p = depend_on_x p andalso depend_on_y p
 
+fun test_syn p = case p of
+    Ins (9,[p1,p2,p3]) => (depend_on_x p2) andalso (depend_on_x p1)
+  | Ins (12,[p1,p2]) => depend_on_x p2
+  | Ins (13,[p1,p2,p3,p4,p5]) => 
+    depend_on_x p3 andalso (both_xy p1 orelse both_xy p2)
+  | _ => false
+
+(* semantic test *)
 fun is_constant_list l = 
   case l of [] => true 
   | [a] => true
   | a :: b :: m => a = b andalso is_constant_list (b :: m)
 
-fun has_cycle_list l = 
-  exists is_constant_list (List.tabulate (15, fn x => mk_batch (x + 1) l))
+fun cyclic l = 
+  exists is_constant_list (List.tabulate (10, fn x => mk_batch (x + 1) l))
 
-fun not_cyclic p = 
-  let val l = exec.penum p 40 in
-    not (has_cycle_list (snd (part_n 10 l)))
+val xl = 
+  List.tabulate (10, fn y => 
+    List.tabulate (40, fn x => (IntInf.fromInt x, IntInf.fromInt y)));
+
+val yl = 
+  List.tabulate (10, fn x => 
+    List.tabulate (40, fn y => (IntInf.fromInt x, IntInf.fromInt y)));
+
+val strict_flag = ref true
+
+fun noncyclic_inl p inl =
+  let 
+    val l = penum2_list p inl in
+    not (cyclic (snd (part_n 10 l)))
   end
-  handle _ => true
+  handle Div => not (!strict_flag)
+       | ProgTimeout => not (!strict_flag)
+       | Overflow => not (!strict_flag)
+
+fun noncyclic_x p = 
+  if not (depend_on_y p) 
+  then noncyclic_inl p (hd xl)
+  else all (noncyclic_inl p) xl
   
-
-
-fun not_bounded_constant p = 
-  let val l = exec.penum p 20 in
-    list_imax (map IntInf.toInt l) >= 10
-  end
-  handle _ => true
+fun noncyclic_y p = 
+  if not (depend_on_x p) 
+  then noncyclic_inl p (hd yl)
+  else all (noncyclic_inl p) yl  
   
-
-(* orelse depend_on_y p *)
-fun non_constant p = 
-  depend_on_x p andalso not_bounded_constant p
-                     
-fun both_xy p = depend_on_x p andalso depend_on_y p
-
-fun non_constant_bound p = case p of
-    Ins (9,[p1,p2,p3]) => 
-      non_constant p2 andalso (depend_on_x p1) andalso not_cyclic p1
-  | Ins (12,[p1,p2]) => non_constant p2
+fun noncyclic_xy p = noncyclic_x p andalso noncyclic_y p 
+  
+fun test_sem p = 
+  noncyclic_x p andalso
+  case p of
+    Ins (9,[p1,p2,p3]) => (noncyclic_x p2) andalso (noncyclic_x p1)
+  | Ins (12,[p1,p2]) => depend_on_x p2
   | Ins (13,[p1,p2,p3,p4,p5]) => 
-    non_constant p3 andalso 
-    ((non_constant p1 andalso both_xy p2) orelse
-     (both_xy p1 andalso non_constant p2))
+    noncyclic_x p3 andalso (noncyclic_xy p1 orelse noncyclic_xy p2)
   | _ => false
 
-
-fun test p = non_constant_bound p andalso not_cyclic p
-
-fun likely_ind (p1,p2) = 
+fun test_pp test (p1,p2) = 
   let 
-    val d = count_dict (dempty prog_compare) (all_loop p1 @ all_loop p2)
+    val d = count_dict (dempty prog_compare) (all_toploop p1 @ all_toploop p2)
     val l = filter (fn x => snd x <= 1) (dlist d)
   in
     exists test (map fst l) 
   end
-  
-val l3 = filter (likely_ind o snd) l2; 
-val l4 = map fst l3;
-val l5 = readl "oeis-smt/all_pb";
-val l6 = map (fn x => hd (String.tokens (fn x => x = #".") x)) l5;
-val l7 = map (string_to_int o tl_string) l6;
-val l8 = filter (fn x => mem x l7) l4;
+    
+fun ind_pb test l = map fst (filter (test_pp test o snd) l);
 
-writel "oeis-smt/all_ind8" (map (fn x => "A" ^ its x ^ ".smt2") l8);
+(*
+load "smt"; open aiLib kernel smt;
 
+val smt1 = map 
+  (fn x => hd (String.tokens (fn x => x = #".") x)) (readl "oeis-smt/all_pb");
+length smt1;
+val org = read_itprogl "model/itsol209"; 
+length org;
+val smt2 = List.mapPartial (fn (x,l) => 
+  if length l <> 2 orelse (not (mem x smtpb1)) 
+  then NONE 
+  else SOME (x, pair_of_list (dict_sort prog_compare_size (map snd l)))) 
+    orgp;  
+length smt2;
 
-
+val pbsyn = ind_pb test_syn smtpb2; 
+writel "oeis-smt/aind_syn" (map (fn x => "A" ^ its x ^ ".smt2") pbsyn);
+strict_flag := true;
+val pbsem = ind_pb test_sem smtpb2;
+val pbsynsem = ind_pb (fn x => test_syn x andalso test_sem x) smtpb2;
+writel "oeis-smt/aind_sem" (map (fn x => "A" ^ its x ^ ".smt2") pbsem);
+writel "oeis-smt/aind_synsem" (map (fn x => "A" ^ its x ^ ".smt2") pbsynsem);
 
 *)
 
