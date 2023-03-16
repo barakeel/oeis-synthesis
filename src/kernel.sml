@@ -339,7 +339,7 @@ val timeincr = ref (if !convolution_flag then 5000
                     else short_timeincr)
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
-val short_compr = 40
+val short_compr = 20
 val long_compr = 200
 val max_compr_number = ref (
   if !ramsey_flag then 200 

@@ -459,7 +459,9 @@ fun verify_eq (r,n) (p1,p2) =
     val seq1 = penum_wtime r p1 n
     val seq2 = penum_wtime r p2 n
   in
-    is_prefix seq2 seq1 orelse is_prefix seq1 seq2
+    if length seq1 <> n orelse length seq2 <> n
+    then (is_prefix seq2 seq1 orelse is_prefix seq1 seq2, false)
+    else (seq1 = seq2, true)
   end
 
 (* -------------------------------------------------------------------------

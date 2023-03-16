@@ -2,6 +2,7 @@ signature smt =
 sig
 
   type prog = kernel.prog
+  val write_anuml : string -> int list -> unit
   val export_smt2 : bool -> string -> string -> unit
   
   (* looking for inductive problems *)

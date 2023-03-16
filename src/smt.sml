@@ -133,7 +133,10 @@ fun export_smt2_one flag dir ((p1,p2),anumltop) =
   in
     writel file (header @ !decl @ !defl @ footer)
   end
-  
+ 
+fun write_anuml file il = 
+  writel file (map (fn x => "A" ^ its x ^ ".smt2") (dict_sort Int.compare il))
+
 fun export_smt2 flag dir file =
   let
     val l1 = read_itprogl file
@@ -145,14 +148,24 @@ fun export_smt2 flag dir file =
     val l3 = map swap l2
     val l4 = dlist (dregroup (cpl_compare prog_compare prog_compare) l3)
     val _ = print_endline ("unique program pairs: " ^ its (length l4))
-    val l5 = filter (fn (pp,_) => verify_eq (1000000,100) pp) l4
+    val lver = ref []
+    val lnonver = ref []
+    fun test (pp,anuml) = 
+      let val (b1,b2) =  verify_eq (1000000,100) pp in
+        if b2 
+        then lver := hd (dict_sort Int.compare anuml) :: !lver
+        else lnonver := hd (dict_sort Int.compare anuml) :: !lnonver;
+        b1
+      end
+    val l5 = filter test l4
     val _ = print_endline ("further verification: " ^ its (length l5))
   in
-    clean_dir dir;
-    app (export_smt2_one flag dir) l5
+    mkDir_err dir; clean_dir dir;
+    mkDir_err (dir ^ "/pb"); clean_dir (dir ^ "/pb");
+    write_anuml (OS.Path.dir dir ^ "/all_verified100") (!lver);
+    write_anuml (OS.Path.dir dir ^ "/all_nonverified100") (!lnonver);
+    app (export_smt2_one flag (dir ^ "/pb")) l5
   end
-
-
 
 (* -------------------------------------------------------------------------
    Command to export problems from the files 
@@ -161,7 +174,7 @@ fun export_smt2 flag dir file =
 
 (*
 load "smt"; open kernel aiLib human smt;
-export_smt2 true "oeis-smt/pb" "model/itsol209";
+export_smt2 true "oeis-smt" "model/itsol209";
 *)
 
 (* -------------------------------------------------------------------------
@@ -260,11 +273,17 @@ fun test_pp test (p1,p2) =
     exists test (map fst l) 
   end
     
-fun ind_pb test l = map fst (filter (test_pp test o snd) l);
+fun ind_pb test l = dict_sort Int.compare 
+  (map fst (filter (test_pp test o snd) l));
+
+(* -------------------------------------------------------------------------
+   Command to create the subbenchmarks
+   ------------------------------------------------------------------------- *)
 
 (*
 load "smt"; open aiLib kernel smt;
 
+cmd_in_dir "oeis-smt" "ls pb | wc -l > all_pb";
 val smt1 = map 
   (fn x => (string_to_int o tl_string) (hd (String.tokens (fn x => x = #".") x))) (readl "oeis-smt/all_pb");
 length smt1;
@@ -278,9 +297,9 @@ val smt2 = List.mapPartial (fn (x,l) =>
 length smt2;
 
 val pbsyn = ind_pb test_syn smt2; 
-writel "oeis-smt/aind_syn" (map (fn x => "A" ^ its x ^ ".smt2") pbsyn);
+write_anuml "oeis-smt/aind_syn" pbsyn;
 val pbsynsem = ind_pb (fn x => test_syn x andalso test_sem x) smt2;
-writel "oeis-smt/aind_synsem" (map (fn x => "A" ^ its x ^ ".smt2") pbsynsem);
+write_anuml "oeis-smt/aind_sem" pbsynsem;
 
 *)
 
