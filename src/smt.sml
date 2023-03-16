@@ -191,8 +191,16 @@ fun is_constant_list l =
   | [a] => true
   | a :: b :: m => a = b andalso is_constant_list (b :: m)
 
+fun is_almost_constant l = case l of 
+    [] => raise ERR "is_almost_constant" ""
+  | [a] => raise ERR "is_almost_constant" ""
+  | _ => 
+     let val r = last l in 
+       is_constant_list (butlast l) andalso first_n (length r) (hd l) = r
+     end 
+  
 fun cyclic l = 
-  exists is_constant_list (List.tabulate (10, fn x => mk_batch (x + 1) l))
+  exists is_almost_constant (List.tabulate (15, fn x => mk_batch (x + 1) l))
 
 val xl = 
   List.tabulate (10, fn y => 
@@ -203,11 +211,16 @@ val yl =
     List.tabulate (40, fn y => (IntInf.fromInt x, IntInf.fromInt y)));
 
 val strict_flag = ref true
-
+val bound_flag = ref false
 fun noncyclic_inl p inl =
   let 
-    val l = penum2_list p inl in
-    not (cyclic (snd (part_n 10 l)))
+    val l = penum2_list p inl 
+    val l' = 
+      if !bound_flag 
+      then List.map (fn x => if IntInf.<= (x,0) then IntInf.fromInt 0 else x) l
+      else l
+  in
+    not (cyclic (snd (part_n 10 l')))
   end
   handle Div => not (!strict_flag)
        | ProgTimeout => not (!strict_flag)
@@ -217,21 +230,26 @@ fun noncyclic_x p =
   if not (depend_on_y p) 
   then noncyclic_inl p (hd xl)
   else all (noncyclic_inl p) xl
+ 
+fun noncyclicb_x p =
+  let val r = (bound_flag := true; noncyclic_x p) in
+    bound_flag := false; r
+  end  
   
 fun noncyclic_y p = 
   if not (depend_on_x p) 
   then noncyclic_inl p (hd yl)
   else all (noncyclic_inl p) yl  
-  
+
 fun noncyclic_xy p = noncyclic_x p andalso noncyclic_y p 
   
 fun test_sem p = 
   noncyclic_x p andalso
   case p of
-    Ins (9,[p1,p2,p3]) => (noncyclic_x p2) andalso (noncyclic_x p1)
-  | Ins (12,[p1,p2]) => depend_on_x p2
+    Ins (9,[p1,p2,p3]) => (noncyclicb_x p2) andalso (noncyclic_x p1)
+  | Ins (12,[p1,p2]) => noncyclicb_x p2
   | Ins (13,[p1,p2,p3,p4,p5]) => 
-    noncyclic_x p3 andalso (noncyclic_xy p1 orelse noncyclic_xy p2)
+    noncyclicb_x p3 andalso (noncyclic_xy p1 orelse noncyclic_xy p2)
   | _ => false
 
 fun test_pp test (p1,p2) = 
@@ -248,23 +266,20 @@ fun ind_pb test l = map fst (filter (test_pp test o snd) l);
 load "smt"; open aiLib kernel smt;
 
 val smt1 = map 
-  (fn x => hd (String.tokens (fn x => x = #".") x)) (readl "oeis-smt/all_pb");
+  (fn x => (string_to_int o tl_string) (hd (String.tokens (fn x => x = #".") x))) (readl "oeis-smt/all_pb");
 length smt1;
 val org = read_itprogl "model/itsol209"; 
 length org;
 val smt2 = List.mapPartial (fn (x,l) => 
-  if length l <> 2 orelse (not (mem x smtpb1)) 
+  if length l <> 2 orelse (not (mem x smt1)) 
   then NONE 
   else SOME (x, pair_of_list (dict_sort prog_compare_size (map snd l)))) 
-    orgp;  
+    org;  
 length smt2;
 
-val pbsyn = ind_pb test_syn smtpb2; 
+val pbsyn = ind_pb test_syn smt2; 
 writel "oeis-smt/aind_syn" (map (fn x => "A" ^ its x ^ ".smt2") pbsyn);
-strict_flag := true;
-val pbsem = ind_pb test_sem smtpb2;
-val pbsynsem = ind_pb (fn x => test_syn x andalso test_sem x) smtpb2;
-writel "oeis-smt/aind_sem" (map (fn x => "A" ^ its x ^ ".smt2") pbsem);
+val pbsynsem = ind_pb (fn x => test_syn x andalso test_sem x) smt2;
 writel "oeis-smt/aind_synsem" (map (fn x => "A" ^ its x ^ ".smt2") pbsynsem);
 
 *)
