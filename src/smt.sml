@@ -152,18 +152,18 @@ fun export_smt2 flag dir file =
     val lnonver = ref []
     fun test (pp,anuml) = 
       let val (b1,b2) =  verify_eq (1000000,100) pp in
+        if (not b1) then b1 else
         if b2 
-        then lver := hd (dict_sort Int.compare anuml) :: !lver
-        else lnonver := hd (dict_sort Int.compare anuml) :: !lnonver;
-        b1
+        then (lver := hd (dict_sort Int.compare anuml) :: !lver; b1)
+        else (lnonver := hd (dict_sort Int.compare anuml) :: !lnonver; b1)
       end
     val l5 = filter test l4
     val _ = print_endline ("further verification: " ^ its (length l5))
   in
     mkDir_err dir; clean_dir dir;
     mkDir_err (dir ^ "/pb"); clean_dir (dir ^ "/pb");
-    write_anuml (OS.Path.dir dir ^ "/all_verified100") (!lver);
-    write_anuml (OS.Path.dir dir ^ "/all_nonverified100") (!lnonver);
+    write_anuml (dir ^ "/all_verified100") (!lver);
+    write_anuml (dir ^ "/all_nonverified100") (!lnonver);
     app (export_smt2_one flag (dir ^ "/pb")) l5
   end
 
@@ -208,9 +208,9 @@ fun is_almost_constant l = case l of
     [] => raise ERR "is_almost_constant" ""
   | [a] => raise ERR "is_almost_constant" ""
   | _ => 
-     let val r = last l in 
-       is_constant_list (butlast l) andalso first_n (length r) (hd l) = r
-     end 
+  let val r = last l in 
+    is_constant_list (butlast l) andalso first_n (length r) (hd l) = r
+  end 
   
 fun cyclic l = 
   exists is_almost_constant (List.tabulate (15, fn x => mk_batch (x + 1) l))
@@ -300,7 +300,6 @@ val pbsyn = ind_pb test_syn smt2;
 write_anuml "oeis-smt/aind_syn" pbsyn;
 val pbsynsem = ind_pb (fn x => test_syn x andalso test_sem x) smt2;
 write_anuml "oeis-smt/aind_sem" pbsynsem;
-
 *)
 
 

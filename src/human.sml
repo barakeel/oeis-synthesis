@@ -214,7 +214,7 @@ fun human_simple p =
       "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
     | Ins (id,[]) => name_of_oper id
     | Ins (id,pl) => 
-      "(" ^ String.concatWith " "  (name_of_oper id :: map h pl) ^ ")"
+      name_of_oper id ^  "(" ^ String.concatWith ", "  (map h pl) ^ ")"
   end
 
 fun humanf p = 
