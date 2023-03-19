@@ -199,6 +199,7 @@ fun human_trivial p =
 fun human_simple p = 
   let   
     fun h p = human_simple p
+    fun rh p = rm_par (human_simple p)
     fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
   in
     case p of
@@ -214,7 +215,7 @@ fun human_simple p =
       "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
     | Ins (id,[]) => name_of_oper id
     | Ins (id,pl) => 
-      name_of_oper id ^  "(" ^ String.concatWith ", "  (map h pl) ^ ")"
+      name_of_oper id ^  "(" ^ String.concatWith ", "  (map rh pl) ^ ")"
   end
 
 fun humanf p = 
