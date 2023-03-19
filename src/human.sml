@@ -212,7 +212,7 @@ fun human_simple p =
     | Ins (6,[p1,p2]) => sbinop "div" (p1,p2)
     | Ins (7,[p1,p2]) => sbinop "mod" (p1,p2)
     | Ins (8,[p1,p2,p3]) => 
-      "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+      "(if " ^ rh p1 ^ " <= 0 then " ^ rh p2  ^ " else " ^ rh p3 ^ ")"
     | Ins (id,[]) => name_of_oper id
     | Ins (id,pl) => 
       name_of_oper id ^  "(" ^ String.concatWith ", "  (map rh pl) ^ ")"
