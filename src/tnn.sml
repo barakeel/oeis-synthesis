@@ -294,7 +294,7 @@ fun random_nstep board =
  
 fun create_exl iprogl =
   let
-    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
+    val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
     fun create_ex (i,p) = 
       let
         val _ = target_glob := valOf (Array.sub (oseq,i))
@@ -321,7 +321,7 @@ fun create_exl iprogl =
 
 fun create_exl_prime progl =
   let
-    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
+    val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
     fun create_ex p = 
       let
         val bml = linearize_safe p
@@ -365,170 +365,6 @@ fun export_traindata ex =
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
 
-(* -------------------------------------------------------------------------
-   XGboost featurizers
-   ------------------------------------------------------------------------- *)
-
-fun short_term_of_stack stack =
-  let 
-    val _ = nocap_flag := true
-    val r = term_of_stack stack
-    val _ = nocap_flag := false
-  in
-    r
-  end
-
-fun path_of_len2 tm = 
-  let 
-    val (oper,argl) = strip_comb tm 
-    val sl = map (fst o dest_var o fst o strip_comb) argl
-    val s = fst (dest_var oper)
-  in
-    map (fn x => s :: [x]) sl 
-  end
-  
-fun path_of_len3 tm =
-  let 
-    val (oper,argl) = strip_comb tm     
-    val s = fst (dest_var oper)
-    val l = List.concat (map path_of_len2 argl)
-  in
-    map (fn x => s :: x) l 
-  end
- 
-fun all_path3 tm =
-  let val (oper,argl) = strip_comb tm in
-    [[fst (dest_var oper)]] @ path_of_len2 tm @ path_of_len3 tm @ 
-    List.concat (map all_path3 argl)
-  end
-  
-fun fea_of_stack stack = 
-  let fun f x = String.concatWith "-" x in 
-    map f (all_path3 (short_term_of_stack stack))
-  end
-  
-fun fea_of_prog p = mk_fast_set String.compare (fea_of_stack [p])
-
-fun suc x = x + 1
-local open IntInf in
-  val ten = fromInt 10
-  fun string_of_nat i n =
-    if n < azero then "~" :: string_of_nat i (~n)
-    else if n > amillion then ["big"]
-    else if n < ten then [toString n ^ "@" ^ its i]
-    else (toString (n mod ten) ^ "@" ^ its i) :: 
-         string_of_nat (suc i) (n div ten)
-end
-
-val progfead = ref (dempty IntInf.compare)
-
-fun init_progfead iprogl =
-  let 
-    fun compute_freq sol =
-      let val freql = dlist 
-        (count_dict (dempty prog_compare) (List.concat (map all_subprog sol)))
-      in
-        dict_sort compare_imax freql
-      end
-    val l1 = map fst (compute_freq (map snd iprogl))
-    val l2 = first_n 5000 (filter (not o depend_on_y) l1) 
-    val _ = print_endline 
-      ("start evaluation of " ^ its (length l2) ^ " programs")
-    val l3 = map_assoc (fn x => exec.penum_limit amillion x 1000) l2
-    val _ = print_endline "end evaluation"
-    val l4 = number_snd 0 l3
-    fun g ((p,seq),n) =
-      "p" ^ its n ^ ": " ^ humanf p ^ "\n" ^ 
-      string_of_seq (first_n 20 seq) ^ (if length seq > 20 then "..." else "")
-    val _ = writel "progfea" (map g l4)
-    fun f ((p,seq),(n:int)) = 
-      let 
-        fun g i = 
-          if IntInf.<= (amillion, i) then () else 
-          let 
-            val oldset = dfind i (!progfead) 
-              handle NotFound => eempty Int.compare
-            val newset = eadd n oldset
-          in
-            progfead := dadd i newset (!progfead) 
-          end
-      in
-        app g seq
-      end
-  in
-    progfead := dempty IntInf.compare;
-    app f l4
-  end
-
-fun fea_of_seq seq = 
-  let fun f (a,b) = map (fn x => its a ^ "i-" ^ x) (string_of_nat 0 b) in
-    List.concat (map f (number_fst 0 (first_n 16 seq)))
-  end
-
-fun export_fea file iprogl =
-  let    
-    val _ = print_endline "initalizing program features"
-    (* val _ = init_progfead iprogl *)
-    val _ = print_endline (its (dlength (!progfead)) ^ 
-      " numbers with program features")
-    val feand = ref (dempty String.compare)
-    fun daddf s = if dmem s (!feand) then () else
-      feand := dadd s (dlength (!feand)) (!feand)
-    val _ = app daddf (map its (#movel game))
-    val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
-    fun create_ex (i,p) = 
-      let
-        val _ = target_glob := valOf (Array.sub (oseq,i))
-        val bml = linearize_safe p
-        fun f (board,move) =
-           let 
-             val amovel = #available_movel game board
-             val feal = fea_of_seq (!target_glob) @ fea_of_stack board 
-             val feac1 = count_dict (dempty String.compare) feal
-             val _ = app daddf (dkeys feac1)
-             val feac2 = map (fn (a,b) => its (dfind a (!feand)) ^ ":" ^ 
-               its b) (dlist feac1) 
-             val feac3 = String.concatWith " " feac2 
-             fun g m = (if m = move then "1.0" else "0.0") ^ " " ^ 
-               its (dfind (its m) (!feand)) ^ ":1 " ^ feac3 
-           in
-             map g amovel
-           end
-      in
-        List.concat (map f bml)
-      end
-    val _ = use_cache := true
-    val r = map create_ex iprogl
-    val _ = use_cache := false
-    val sl = List.concat (map create_ex iprogl)
-  in
-    writel file sl
-  end
- 
-(* -------------------------------------------------------------------------
-   Program features for sequences
-   ------------------------------------------------------------------------- *)
-  
-fun pfea_of_seq seq = 
-  let 
-    fun pfea x = IntInf.toString x ^ " " ^ 
-      String.concatWith " " (map (fn y => "p" ^ its y) 
-        (elist (dfind x (!progfead)) handle NotFound => []))
-  in
-    String.concatWith " " (map pfea (first_n 16 seq))
-  end  
-  
-fun export_seqfea file iprogl =  
-  let
-    val _ = init_progfead iprogl
-    val _ = print_endline "printing program features for each sequence"
-    fun create_ex (i,p) = "A" ^ its i ^ ": " ^ 
-      pfea_of_seq (valOf (Array.sub (oseq,i)))
-  in
-    app (fn x => append_endline file 
-                 (String.concatWith "\n" (map create_ex x))) 
-    (mk_batch_full 100 iprogl)
-  end  
   
 end (* struct *)
 

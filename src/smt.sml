@@ -174,7 +174,7 @@ fun export_smt2 flag dir file =
 
 (*
 load "smt"; open kernel aiLib human smt;
-export_smt2 true "oeis-smt" "model/itsol209";
+export_smt2 true "oeis-smt-updcom" "model/itsol209";
 *)
 
 (* -------------------------------------------------------------------------

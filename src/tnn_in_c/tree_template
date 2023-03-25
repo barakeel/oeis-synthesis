@@ -47,25 +47,7 @@ void read(const char* File, long A[]) {
   free (line);
   }
 
-// Warning: does scaling too
 void read_double(const char* File, double A[]) {
-  FILE *myFile;
-  myFile = fopen(File, "r");
-  long i = 0;
-  char *line; 
-  line = (char*)malloc (BUFFER);
-  while (myFile && fgets(line,BUFFER,myFile)) {
-    char* token = strtok(line, " ");
-    while (token) {
-      double d;
-      if (sscanf(token, "%lf", &d) == 1) {A[i] = 2.0 * d - 1.0; i++;}
-     token = strtok(NULL, " ");
-    }
-  }
-  free (line);
-  }
-  
-void read_double_noscaling(const char* File, double A[]) {
   FILE *myFile;
   myFile = fopen(File, "r");
   long i = 0;
@@ -80,9 +62,8 @@ void read_double_noscaling(const char* File, double A[]) {
     }
   }
   free (line);
-  }  
+  }
   
-
 // Printing functions
 void print_vecti (char *s, long size, long X[]) {
   printf("%s\n",s);
