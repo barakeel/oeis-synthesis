@@ -291,10 +291,11 @@ fun random_step board =
 fun random_nstep board = 
   if random_real () < 0.5 then board else random_nstep (random_step board)
 
+val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
  
 fun create_exl iprogl =
   let
-    val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
+    
     fun create_ex (i,p) = 
       let
         val _ = target_glob := valOf (Array.sub (oseq,i))
@@ -321,7 +322,6 @@ fun create_exl iprogl =
 
 fun create_exl_prime progl =
   let
-    val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
     fun create_ex p = 
       let
         val bml = linearize_safe p
