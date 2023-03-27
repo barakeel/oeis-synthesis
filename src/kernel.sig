@@ -22,9 +22,8 @@ sig
   val convolution_flag : bool ref
   val family_flag : bool ref
   val beam_flag : bool ref
-  val newseq_flag : bool ref
   val stop_flag : bool ref
-  val simple_flag : bool ref
+  val newseq_flag : bool ref
   val extranum_flag : bool ref
   val locsearch_flag : bool ref
   val halfnoise_flag : bool ref

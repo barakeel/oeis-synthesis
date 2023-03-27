@@ -38,12 +38,5 @@ sig
   val create_exl_prime : kernel.prog list -> (term * real list) list list
   val export_traindata : (term * real list) list list -> unit
   val read_ctnn : string list -> tnn
-
-  (* export features for feature-based machine learners *)
-  val export_seqfea : string -> (int * kernel.prog) list -> unit
-  val export_fea : string -> (int * kernel.prog) list -> unit
-  
-  (* used for determining similarity between two programs *)
-  val fea_of_prog : kernel.prog -> string list
   
 end

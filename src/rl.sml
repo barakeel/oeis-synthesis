@@ -211,43 +211,6 @@ fun wrap_trainf ngen =
   end
 
 (* -------------------------------------------------------------------------
-   Initialize counting tree
-   ------------------------------------------------------------------------- *)
-
-fun macro_of_prog_aux (Ins (id,pl)) = 
-  id :: List.concat (map macro_of_prog_aux (rev pl));
-fun macro_of_prog p = rev (macro_of_prog_aux p);
-
-fun mk_ctree macrol =
-  let 
-    val ct = ref search.ctempty
-    fun loop macro = 
-      if null macro then () 
-      else (ct := search.cadd macro (!ct); loop (tl macro)) 
-    fun f macro = loop (rev macro)
-  in
-    app f macrol; !ct
-  end
-
-fun mk_ctree_sol sol = 
-  let 
-    val progl = List.concat (map (map snd o snd) sol)
-    val macrol = map macro_of_prog progl
-  in
-    mk_ctree macrol
-  end
-  
-fun init_ct () = 
-  if !ngen_glob = 0 orelse not (!simple_flag) then () else
-  let 
-    val sol = read_itsol (!ngen_glob - 1)
-    val ct = mk_ctree_sol sol
-  in
-    search.ct_glob := ct         
-  end   
-
-
-(* -------------------------------------------------------------------------
    Search
    ------------------------------------------------------------------------- *)
 
@@ -267,13 +230,10 @@ fun halfnoise () =
 fun init_cube () =
   let
     val _ = print_endline "initialization"
-    val _ = if !ngen_glob <= 0
-            then search.randsearch_flag := true
-            else (init_ct (); search.randsearch_flag := false) 
+    val _ = search.randsearch_flag := (!ngen_glob <= 0)
     val _ = use_ob := true
     val _ = halfnoise ()
-    val _ = if !ngen_glob = 0 orelse !simple_flag then () 
-            else update_fp_op (tnndir ^ "/ob.so")
+    val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
   in
     ()
   end
@@ -361,10 +321,8 @@ fun get_boardsc tree =
     
 fun start_cube n =
   let    
-    val _ = init_ct ()
     val _ = 
       if !ngen_glob = 0 then player_glob := player_random 
-      else if !simple_flag then player_glob := search.cplayer (!search.ct_glob)
       else (update_fp_op (tnndir ^ "/ob.so"); player_glob := player_wtnn_cache)
     val _ = halfnoise ()
     val _ = game.nsim_opt := SOME n
@@ -726,7 +684,7 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
     val _ =
-      if !ngen_glob = 0 orelse !simple_flag then () else
+      if !ngen_glob = 0 then () else
       let 
         val tnngen = find_last_ob ()
         val obfile = histdir () ^ "/ob" ^ its tnngen
@@ -788,7 +746,7 @@ fun rl_search_only ngen =
       else      
       let
         val (itsoll,t) = 
-          if !notarget_flag orelse !simple_flag then add_time cube ()
+          if !notarget_flag then add_time cube ()
           else add_time
             (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
         val _ = log ("search time: " ^ rts_round 6 t)

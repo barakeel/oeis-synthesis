@@ -7,108 +7,7 @@ type emb = real vector
 
 (* first embedding is prog embedding, second is stack *)
 type boarde = (kernel.prog * exec.exec * emb * emb) list
-
-(* type boarde = (kernel.prog * exec.exec * emb * emb) list * emb list *)
-
 val randsearch_flag = ref false
-
-(* -------------------------------------------------------------------------
-   Counting tree
-   ------------------------------------------------------------------------- *)
-
-fun update_vector v n k =
-  if n >= Vector.length v 
-  then Vector.concat [v, 
-    Vector.tabulate (n - Vector.length v, fn _ => NONE), 
-    Vector.fromList [SOME k]]
-  else Vector.update (v,n,SOME k)
-
-datatype ctree = 
-  Cleaf of int list |
-  Cvect of int * ctree option vector 
-
-val vempty = Vector.fromList []
-val ctempty = Cvect (0,vempty)
-val ct_glob = ref ctempty 
- 
-fun cadd seq ct = case (ct,seq) of
-    (Cleaf [], _) => 
-    cadd seq (Cvect (1, vempty))
-  | (Cleaf (a2 :: m2), _) => 
-    cadd seq (Cvect (1, update_vector vempty a2 (Cleaf m2)))
-  | (Cvect (n,v), []) => Cvect (n+1, v)
-  | (Cvect (n,v), a1 :: m1) =>
-    let val cto = Vector.sub (v,a1) handle Subscript => NONE in
-      case cto of
-        NONE => Cvect (n+1, update_vector v a1 (Cleaf m1)) 
-      | SOME newct => Cvect (n+1, update_vector v a1 (cadd m1 newct))
-    end
-  
-fun crm seq ct = case (ct,seq) of
-    (Cleaf seq2, _) => 
-    if seq <> seq2 
-    then raise ERR "crm" "sequence not found 1" 
-    else ctempty
-  | (Cvect (n,v), []) => 
-    if n-1 < 0 
-    then raise ERR "crm" "sequence not found 2"
-    else if n-1 <= 0 then ctempty else Cvect (n-1,v)
-  | (Cvect (n,v), a1 :: m1) =>
-    let val cto = Vector.sub (v,a1) handle Subscript => NONE in
-      case cto of
-        NONE => raise ERR "crm" "sequence not found 3"
-      | SOME newct => Cvect (n-1, update_vector v a1 (crm m1 newct))
-    end
-
-fun clist ct =
-  let 
-    val acc = ref [] 
-    fun clist_aux revprefix ct = case ct of
-      Cleaf _ => ()
-    | Cvect (n,v) => if n < 20 then () else
-      let 
-        val _ = acc := (rev revprefix, n) :: !acc
-        val l1 = number_snd 0 (vector_to_list v)
-        fun f (newcto,a) = case newcto of
-            NONE => () 
-          | SOME newct => clist_aux (a :: revprefix) newct
-      in
-        app f l1   
-      end
-  in 
-    clist_aux [] ct; !acc 
-  end
-
-fun cfind seq ct = case (ct,seq) of
-    (Cleaf _, _) => raise ERR "cfind" "unexpected"
-  | (Cvect (n,v), []) => ct
-  | (Cvect (n,v), a1 :: m1) =>
-    let val cto = Vector.sub (v,a1) handle Subscript => NONE in
-      case cto of
-        NONE => ct
-      | SOME (Cleaf _) => ct
-      | SOME (newct as Cvect (n,_)) => 
-        if n < 100 then ct else cfind m1 newct  
-    end
-
-fun cnum cto = case cto of
-    NONE => 0
-  | SOME (Cleaf _) => 1
-  | SOME (Cvect (n,v)) => n
-  
-fun cproba ct = case ct of
-    Cleaf _ => raise ERR "cproba" "unexpected"
-  | Cvect (n,v) => Vector.map (fn x => int_div (cnum x) n) v
-    
-fun cplayer ct board =
-  let 
-    val ml = map snd (rev (game.linearize_board board))
-    val v = cproba (cfind ml ct)
-    fun f x = (x, Vector.sub (v,x) handle Subscript => 0.0)
-  in
-    (0.0, map f (#available_movel game.game board))
-  end
-
 
 (* -------------------------------------------------------------------------
    Noise
@@ -153,8 +52,7 @@ fun exec_fun (move,exec) l1 l2 =
     val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
   in
-    if !randsearch_flag orelse !simple_flag 
-      then (p,exec,empty_emb,empty_emb) :: l2 else
+    if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
     let
       val oper = Vector.sub (operv,move)
       val emb1 = 
@@ -285,18 +183,6 @@ fun create_pol targete boarde mfl =
   if !randsearch_flag 
     then normalize_distrib (map (fn x => (x, random_real ())) mfl)
   else
-  if !simple_flag then
-    let 
-      val ml = map snd (rev (game.linearize_board (map #1 boarde)))
-      val v = cproba (cfind ml (!ct_glob))
-      fun f x = (x, (Vector.sub (v,fst x) handle Subscript => 0.0))
-      val pol2 = map f mfl
-      val pol3 = normalize_distrib pol2
-      val pol4 = if !game.noise_flag then add_noise pol3 else pol3
-    in
-      pol4
-    end
-  else
     let  
       val f = fp_emb_either
       val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
@@ -363,7 +249,7 @@ fun search (vis,tinc) =
 (* -------------------------------------------------------------------------
    Search using the RNN
    ------------------------------------------------------------------------- *)
-  
+(* 
 val search_time_flag = ref false
 
 fun search_move_vis rt depth targete boarde ((move,f),vis) =
@@ -406,7 +292,7 @@ fun search_rnn (vis,tinc) =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end  
-  
+*)
   
 (* -------------------------------------------------------------------------
    Search starting from a particular goal (use in cube)
@@ -458,7 +344,7 @@ fun exec_fun move l1 l2 =
     val p = (Ins (move, map #1 (rev l1)))
     val _ = progd := eadd p (!progd)
   in
-    if !randsearch_flag orelse !simple_flag then (p,empty_emb,empty_emb) :: l2 else
+    if !randsearch_flag then (p,empty_emb,empty_emb) :: l2 else
     let
       val oper = Vector.sub (operv,move)
       val emb1 = 
