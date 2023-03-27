@@ -8,6 +8,7 @@ type emb = real vector
 (* first embedding is prog embedding, second is stack *)
 type boarde = (kernel.prog * exec.exec * emb * emb) list
 
+(* type boarde = (kernel.prog * exec.exec * emb * emb) list * emb list *)
 
 val randsearch_flag = ref false
 
@@ -285,32 +286,32 @@ fun create_pol targete boarde mfl =
     then normalize_distrib (map (fn x => (x, random_real ())) mfl)
   else
   if !simple_flag then
-  let 
-    val ml = map snd (rev (game.linearize_board (map #1 boarde)))
-    val v = cproba (cfind ml (!ct_glob))
-    fun f x = (x, (Vector.sub (v,fst x) handle Subscript => 0.0))
-    val pol2 = map f mfl
-    val pol3 = normalize_distrib pol2
-    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
-  in
-    pol4
-  end
-  else 
-  let  
-    val f = fp_emb_either
-    val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
-    val preboarde = 
-       if !notarget_flag then progle else
-       f pair_progseq [progle,targete]
-    val prepolie = f prepoli [preboarde]
-    val ende = f head_poli [prepolie]
-    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
-    val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
-    val pol3 = normalize_distrib pol2
-    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
-  in
-    pol4
-  end
+    let 
+      val ml = map snd (rev (game.linearize_board (map #1 boarde)))
+      val v = cproba (cfind ml (!ct_glob))
+      fun f x = (x, (Vector.sub (v,fst x) handle Subscript => 0.0))
+      val pol2 = map f mfl
+      val pol3 = normalize_distrib pol2
+      val pol4 = if !game.noise_flag then add_noise pol3 else pol3
+    in
+      pol4
+    end
+  else
+    let  
+      val f = fp_emb_either
+      val progle = if null boarde then f stack_empty [] else #4 (hd boarde)
+      val preboarde = 
+         if !notarget_flag then progle else
+         f pair_progseq [progle,targete]
+      val prepolie = f prepoli [preboarde]
+      val ende = f head_poli [prepolie]
+      val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
+      val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
+      val pol3 = normalize_distrib pol2
+      val pol4 = if !game.noise_flag then add_noise pol3 else pol3
+    in
+      pol4
+    end
 
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout
@@ -358,6 +359,54 @@ fun search (vis,tinc) =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
+  
+(* -------------------------------------------------------------------------
+   Search using the RNN
+   ------------------------------------------------------------------------- *)
+  
+val search_time_flag = ref false
+
+fun search_move_vis rt depth targete boarde ((move,f),vis) =
+  if vis <= 0 then () else
+  search_aux rt depth (vis,(0.0,0.0)) targete (apply_move (move,f) boarde)
+
+and search_move_tim rt depth targete boarde ((move,f),(torg,tinc)) =
+  if torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else
+  search_aux rt depth (0,(torg,tinc)) targete (apply_move (move,f) boarde)
+
+and search_move rt depth (vis,tim) targete boarde pol =
+  if !search_time_flag 
+  then 
+    app (search_move_tim rt depth targete boarde) (split_tim tim pol)
+  else 
+    if vis - 1 <= 0 then () else
+    app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
+
+and search_aux rt depth (vis,tim) targete boarde = 
+  if depth >= 10000 then () else
+  let  
+    val (newboarde, mfl) = collect_children boarde 
+      handle NotFound => raise ERR "collect_children" ""         
+    val pol = create_pol targete newboarde mfl
+  in
+    search_move rt (depth + 1) (vis,tim) targete newboarde pol
+  end
+
+fun search_rnn (vis,tinc) = 
+  let 
+    val _ = search_time_flag := (vis <= 0)
+    val _ = node_counter := 0  
+    val _ = prog_counter := 0
+    val _ = checkinit ()
+    val targete = tokenize_seq (!target_glob)
+    val rt = Timer.startRealTimer ()
+    val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
+  in
+    print_endline ("nodes: " ^ its (!node_counter));
+    print_endline ("programs: " ^ its (!prog_counter));
+    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
+  end  
+  
   
 (* -------------------------------------------------------------------------
    Search starting from a particular goal (use in cube)

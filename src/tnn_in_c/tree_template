@@ -455,11 +455,9 @@ int main()
       if (DBG) {print_vect ("diff",HEAD[op],GTYcur);}
       if (HEAD[op] == 1) 
         {valueerr += sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1));}
-      else  {
-           polierr += 
+      else {polierr += 
              sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1) / HEAD[op]);
-           polierr2 += cblas_dasum (HEAD[op],GTYcur,1) / HEAD[op];
-           }
+            polierr2 += cblas_dasum (HEAD[op],GTYcur,1) / HEAD[op];}
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
       tmv_head (HEAD[op], Acur, GYcur, GXcur);
       a1 = bY * D[opi+1];
@@ -475,13 +473,19 @@ int main()
       for (argi = 1; argi <= ARITY[op]; ++argi) 
         {
         a1 = bY * D[opi+argi];
-        vdAdd (bY, GTY + a1, GXcur + bY * (argi - 1) , GTY + a1);
+        vdAdd (bY, GTY + a1, GXcur + bY * (argi - 1), GTY + a1);
         }
       }
   }//end backward pass
   
+/* 
+todo: implement batches
+use UA to accumulate gradients from U
+instead of updating the matrix right away 
+create a for loop and use pragma op parallel
+*/
   //updates
-  zero_ivect (nop,UPD);
+  zero_ivect (nop,UPD); // detect if a operator was updated
   for (sub = SIZE[ex] - 1; sub >= 0; --sub) {
     opi = dago + DI[exo + sub];
     op = D[opi];
@@ -505,7 +509,7 @@ int main()
   }
 
  //clipping
-  if (ep % 10 == 9) {
+  if (tmpex % 10 == 9) {
   for (op = 0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];

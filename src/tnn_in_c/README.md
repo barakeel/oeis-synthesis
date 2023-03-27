@@ -6,15 +6,18 @@ separated by a line break:
   Line 1: number of operators
   
 
-- `arity.txt`: Arity of each operators
-- `dag.txt`,`dagi.txt`,`dago.txt`: This file contain the trees.
-- `size.txt`: deprecated this contains the size of each tree.
-- `obj.txt`,`obji.txt`,`objo.txt`: 
-   This file contain objectives that each head must achieve.
+- `arity.txt`: The arity of each operators
+- `dag.txt`: 
+  This file contains one example per line. 
+  Each example is a list of tokens where each token is followed 
+  by the indices of its arguments.
+- `size.txt`: The size of each example in number of tokens (excluding arguments).
+- `obj.txt`: This file contain objectives that each head must achieve in the order they appear in the dag file.
 
 
-
-
+Given a token number, the "i" files tells the argument offset 
+necessary to reach that token. 
+Given an example, the "o" files tells the offset necessary to reach that example.
 
 
 
