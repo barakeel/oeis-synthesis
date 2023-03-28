@@ -83,9 +83,8 @@ fun check_sl sl =
   then (print_endline "line too big"; raise ERR "check_sl" "")
   else sl
   
-fun export_traindata (maxmove,dim,opernd,operlext) ex =
+fun export_traindata datadir (maxmove,dim,opernd,operlext) ex =
   let
-    val datadir = kernel.selfdir ^ "/tnn_in_c/data"
     val _ = mkDir_err datadir
     val _ =
       (

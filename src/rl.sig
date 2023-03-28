@@ -21,20 +21,16 @@ sig
   (* functions *)
   val search : unit -> int -> sol list
   val parspec : (unit, int, sol list) smlParallel.extspec
-  val trainf_start : unit -> unit
-  val trainf_end : unit -> unit
+  val trainf_start : int -> unit
+  val trainf_end : int -> unit
   
-  (* reinforcement learning *)
+  (* reinforcement learning wrappers *)
   val rl_search_only : int -> unit
   val rl_train_only : int -> unit
   val rl_search : int -> unit
   val rl_train : int -> unit
- 
-  (* continuous training and searching *)
   val rl_search_cont : unit -> unit
   val rl_train_cont : unit -> unit
-
-  val rl_search_simple : unit -> unit
 
   (* interactive search *)
   val search_target : IntInf.int list -> kernel.prog option
@@ -45,20 +41,5 @@ sig
   val cubespec : (unit, (prog list * real) list, sol list) smlParallel.extspec
   val init_cube : unit -> unit
   val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
-  
-  (* searching for primes *)
-  type primesol = seq * (int * prog)
-  val search_prime : unit -> (prog list * real) list -> primesol list
-  val primespec : (unit, (prog list * real) list, primesol list) smlParallel.extspec
-  
-  (* searching for hadamard matrices *)
-  val search_hdm : unit -> (prog list * real) list -> primesol list
-  val hdmspec : (unit, (prog list * real) list, primesol list) smlParallel.extspec
-  
-  (* searching for Ramsey graphs *)
-  val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
-  val ramseyspec : 
-    (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
-  
   
 end

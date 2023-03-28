@@ -21,15 +21,7 @@ sig
   val verify_wtime : int -> int * prog -> bool * bool 
   val verify_eq : int * int -> prog * prog -> bool * bool
   
-  val prime_found : bool ref
-  val penum_prime_exec : exec -> (IntInf.int list * exec)
-  val penum_hadamard : exec -> IntInf.int list
-  val penum_real_hadamard : exec -> IntInf.int list
-  val penum_conv_hadamard : exec -> IntInf.int list
-  val penum_family_hadamard : exec -> IntInf.int list
-  val init_array : unit -> unit
-  
-  val penum_ramsey : exec -> int * int * int
+  (* fs experiment *)
   val create_fsf : exec -> (IntInf.int -> IntInf.int)
   
   

@@ -8,19 +8,12 @@ sig
   (* flags *)
   val configd : (string ,string) Redblackmap.dict
   val bflag : string -> bool ref
-  val t_flag : bool ref (* optimize for time instead of size *)
   val z_flag : bool ref (* functions of arity 3 *)
+  val t_flag : bool ref (* optimize for time instead of size *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val notarget_flag : bool ref (* train without looking at the target *)
-  val prime_flag : bool ref (* train targeting only prime approximations *)
-  val hadamard_flag : bool ref
   val local_flag : bool ref
   val array_flag : bool ref
-  val sqrt_flag : bool ref
-  val loop_flag : bool ref
-  val bigvar_flag : bool ref
-  val convolution_flag : bool ref
-  val family_flag : bool ref
   val beam_flag : bool ref
   val stop_flag : bool ref
   val newseq_flag : bool ref
@@ -30,14 +23,13 @@ sig
   val subprog_flag : bool ref
   val slowcheck_flag : bool ref
   val minimal_flag : bool ref
-  val ramsey_flag : bool ref
-  val fs_flag : bool ref
   val partial_flag : bool ref
   val extra_flag : bool ref
-  
-  val use_ob : bool ref
   val dim_glob : int ref   
-
+  val fs_flag : bool ref (* experiment with find_stat *)
+  val rnn_flag : bool ref (* experiment using a rnn architecture *)
+  val train_multi : int ref (* train multiple tnn at the same time *)
+  
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
@@ -74,21 +66,10 @@ sig
   type sol = anum * (int * prog) list
    
   (* I/O *)
-  val read_progl : string -> prog list
-  val write_progl : string -> prog list -> unit
-  val read_proglr : string -> (prog list * real)
-  val write_proglr : string -> (prog list * real) -> unit
   val read_proglrl : string -> (prog list * real) list
   val write_proglrl : string -> (prog list * real) list -> unit
-  val read_iprogl : string -> (int * prog) list
-  val write_iprogl : string -> (int * prog) list -> unit
   val read_itprogl : string -> sol list
   val write_itprogl : string -> sol list -> unit
-  val read_primel : string -> (seq * (int * prog)) list
-  val write_primel : string -> (seq * (int * prog)) list -> unit
-  type ramsey = (int * prog) * (int * int * int * int)
-  val read_ramseyl : string -> ramsey list
-  val write_ramseyl : string -> ramsey list -> unit
   
   (* operators *)
   val operv : term vector
@@ -120,9 +101,5 @@ sig
   val movel_of_gpt : string -> id list
   val prog_of_gpt : string -> prog
   
-  (* hadamard matrices *)
-  val sqrtv : int vector vector
-  val invv : int vector vector
-  val leastdivv : int vector  
 
 end

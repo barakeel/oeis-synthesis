@@ -43,7 +43,6 @@ fun log s = (print_endline s; append_endline (expdir () ^ "/log") s)
 fun traindir () = expdir () ^ "/train"
 fun searchdir () = expdir () ^ "/search"
 fun histdir () = expdir () ^ "/hist"
-fun tnn_file ngen = histdir () ^ "/tnn" ^ its ngen
 fun itsol_file ngen = histdir () ^ "/itsol" ^ its ngen
 
 fun mk_dirs () = 
@@ -53,6 +52,12 @@ fun mk_dirs () =
   mkDir_err (expdir ());
   app mkDir_err [traindir (),searchdir (), histdir ()]
   ) 
+  
+fun cp_atomic filein fileout =
+  let val fileout_temp = fileout ^ "_temp" in
+    cmd_in_dir (OS.Path.dir filein) ("cp " ^ filein ^ " " ^ fileout_temp);
+    OS.FileSys.rename {old = fileout_temp, new = fileout}   
+  end
 
 fun write_itsol_atomic ngen itprogl = 
   let
@@ -63,28 +68,7 @@ fun write_itsol_atomic ngen itprogl =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
-fun write_primesol_atomic ngen primesol = 
-  let
-    val newfile = itsol_file ngen
-    val oldfile = newfile ^ "_temp"
-  in
-    write_primel oldfile primesol;
-    OS.FileSys.rename {old = oldfile, new = newfile}
-  end
-  
-fun write_ramseysol_atomic ngen ramseysol = 
-  let
-    val newfile = itsol_file ngen
-    val oldfile = newfile ^ "_temp"
-  in
-    write_ramseyl oldfile ramseysol;
-    OS.FileSys.rename {old = oldfile, new = newfile}
-  end 
-
 fun read_itsol ngen = read_itprogl (itsol_file ngen)
-fun read_primesol ngen = read_primel (itsol_file ngen)
-fun read_ramseysol ngen = read_ramseyl (itsol_file ngen)
-
 
 fun is_number s = all Char.isDigit (explode s)
 
@@ -108,15 +92,6 @@ fun find_last_ob () = find_last "ob"
    Training
    ------------------------------------------------------------------------- *)
 
-fun write_tnn_atomic ngen tnn =
-  let 
-    val newfile = tnn_file ngen
-    val oldfile = newfile ^ "_temp"
-  in
-    write_tnn oldfile tnn;
-    OS.FileSys.rename {old = oldfile, new = newfile}
-  end
-
 val extra_file = 
   if !local_flag then selfdir ^ "/model/itsol209" else 
   selfdir ^ "/exp/paper-small/hist/itsol20"
@@ -127,36 +102,15 @@ fun add_extra () =
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
-fun trainf_start () =
-  if !prime_flag orelse !hadamard_flag then
-  let
-    val primesol = read_primesol (find_last_itsol ())
-    val _ = print_endline ("reading primesol " ^ its (length primesol))
-    val progl = map (snd o snd) primesol
-    val progset = shuffle (mk_fast_set prog_compare (progl @ add_extra ()))
-    val _ = print_endline ("programs " ^ its (length progset))
-    val ex = create_exl_prime progset
-    val _ = print_endline (its (length ex) ^ " examples created")
-  in
-    (print_endline "exporting training data";
-     export_traindata ex;
-     print_endline "exporting end")
-  end
-  else if !ramsey_flag then
-  let
-    val ramseysol = read_ramseysol (find_last_itsol ())
-    val progl = map (snd o fst) ramseysol
-    val progset = shuffle (mk_fast_set prog_compare progl)
-    val _ = print_endline ("programs " ^ its (length progset))
-    val ex = create_exl_prime progset
-    val _ = print_endline (its (length ex) ^ " examples created")
-  in
-    (print_endline "exporting training data";
-     export_traindata ex;
-     print_endline "exporting end")
-  end
-  else
-  let
+fun trainf_start pid =
+  let 
+    val execdir = if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
+    val datadir = execdir ^ "/data"
+    val _ = 
+      if pid >= 0 
+      then (app mkDir_err [tnndir ^ "/para", execdir, datadir];
+            cmd_in_dir tnndir ("cp tree " ^ datadir))
+      else ()
     val itsol = read_itsol (find_last_itsol ()) @ 
       (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
@@ -166,31 +120,26 @@ fun trainf_start () =
     val _ = print_endline (its (length ex) ^ " examples created")
   in
     (print_endline "exporting training data";
-     export_traindata ex;
+     export_traindata datadir ex;
      print_endline "exporting end")
   end
 
-fun trainf_end () =
+fun trainf_end pid =
   let
-    (* sml *)  
-    val tnnsml_file = tnndir ^ "/out_sml"
-    val tnn = read_ctnn (readl tnnsml_file)
-    val _ = write_tnn_atomic (!ngen_glob) tnn
-    (* openblas *)
-    val obfile = histdir () ^ "/ob" ^ its (!ngen_glob)
-    val obfile_temp = obfile ^ "_temp"
-    val catcmd = "cat ob_fst.c out_ob ob_snd.c > "  
+    val execdir = if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
+    val obfile = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
+    val catcmd = "cat ob_fst.c out_ob ob_snd.c > " ^ obfile  
   in
-    cmd_in_dir tnndir (catcmd ^ obfile_temp);
-    OS.FileSys.rename {old = obfile_temp, new = obfile}
+    cmd_in_dir execdir catcmd
   end
 
-fun wrap_trainf ngen =
+fun wrap_trainf ngen pid =
   let
+    val execdir =  if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
     val makefile = !buildheap_dir ^ "/Holmakefile"
     val script1 = !buildheap_dir ^ "/train_start.sml" 
     val script2 = !buildheap_dir ^ "/train_end.sml" 
-    val tnnlog_file = tnn_file (!ngen_glob) ^ "_log"
+    val tnnlog_file = !buildheap_dir ^ "/log_tnn" 
     val sbin = "./tree"
     val preambule = 
       [
@@ -198,16 +147,18 @@ fun wrap_trainf ngen =
        "rl.expname := " ^ mlquote (!expname) ^ ";",
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
        "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
-       "kernel.dim_glob := " ^ its (!dim_glob) ^ ";",
-       "kernel.use_ob := " ^ bts (!use_ob) ^ ";"
+       "kernel.dim_glob := " ^ its (!dim_glob) ^ ";"
        ]
+    val _ =
+      (writel makefile ["INCLUDES = " ^ selfdir]; 
+       writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
+       writel script2 (preambule @ ["trainf_end (" ^ its pid ^ ");"]))
+    fun f () = 
+      (exec_script script1;
+       cmd_in_dir execdir (sbin ^ " > " ^ tnnlog_file);
+       exec_script script2)
   in
-    writel makefile ["INCLUDES = " ^ selfdir]; 
-    writel script1 (preambule @ ["trainf_start ();"]);
-    writel script2 (preambule @ ["trainf_end ();"]);
-    exec_script script1;
-    cmd_in_dir tnndir (sbin ^ " > " ^ tnnlog_file);
-    exec_script script2
+    f ()
   end
 
 (* -------------------------------------------------------------------------
@@ -231,7 +182,6 @@ fun init_cube () =
   let
     val _ = print_endline "initialization"
     val _ = search.randsearch_flag := (!ngen_glob <= 0)
-    val _ = use_ob := true
     val _ = halfnoise ()
     val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
   in
@@ -249,7 +199,6 @@ fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
 
-
 val parspec : (unit, int, sol list) extspec =
   {
   self_dir = selfdir,
@@ -261,7 +210,6 @@ val parspec : (unit, int, sol list) extspec =
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "kernel.dim_glob := " ^ its (!dim_glob),
-     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -288,7 +236,7 @@ fun search_target target =
     val _ = if not (exists_file fileso) 
             then raise ERR "search_target" ""
             else ()
-    val _ = if !use_ob then update_fp_op fileso else ()
+    val _ = update_fp_op fileso
     val _ = player_glob := player_wtnn_cache
     val _ = target_glob := target
     val _ = online_flag := true
@@ -355,7 +303,6 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "kernel.dim_glob := " ^ its (!dim_glob),
-     "kernel.use_ob := " ^ bts (!use_ob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -380,7 +327,7 @@ fun regroup_cube buf tot l = case l of
 fun sort_cube l1 =
   let val l2 = map_assoc (fn l => sum_real (map snd l)) l1 in
     map fst (dict_sort compare_rmax l2)
-  end;
+  end
   
 fun cube () = 
   let
@@ -388,7 +335,7 @@ fun cube () =
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1
-  end;
+  end
 
 
 (* 
@@ -402,180 +349,7 @@ PolyML.print_depth 40;
 t1; t2; t3;
 *)
 
-(* -------------------------------------------------------------------------
-   Searching for prime approximations
-   ------------------------------------------------------------------------- *)
 
-type primesol = seq * (int * prog)
-
-fun search_prime () btiml =
-  (
-  search.randsearch_flag := (!ngen_glob = 0); 
-  checkinit_prime ();
-  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
-  checkfinal_prime ()
-  )
-
-val primespec : (unit, (prog list * real) list, primesol list) extspec =
-  {
-  self_dir = selfdir,
-  self = "rl.primespec",
-  parallel_dir = selfdir ^ "/cube_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
-     "kernel.use_ob := " ^ bts (!use_ob),
-     "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"] 
-    ^ ")"),
-  function = search_prime,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
-  write_arg = write_proglrl,
-  read_arg = read_proglrl,
-  write_result = write_primel,
-  read_result = read_primel
-  }
-
-fun prime () = 
-  let
-    val tree = start_cube (ncore * 2)
-    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
-  in
-    smlParallel.parmap_queue_extern ncore primespec () l1
-  end
-
-fun string_of_np (n,p) = 
-  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p 
-
-fun stats_prime dir primesol =
-  let 
-    val primesol_small = dict_sort (snd_compare prog_compare_size) primesol 
-    val primesol_fast = dict_sort (fst_compare Int.compare) primesol 
-  in
-    writel (dir ^ "/best_small") (map string_of_np primesol_small);
-    writel (dir ^ "/best_fast") (map string_of_np primesol_fast)  
-  end
-
-(* -------------------------------------------------------------------------
-   Searching for hadamard matrices
-   ------------------------------------------------------------------------- *)
-
-fun search_hdm () btiml =
-  (
-  search.randsearch_flag := (!ngen_glob = 0); 
-  checkinit_hdm ();
-  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
-  checkfinal_hdm ()
-  )
-
-val hdmspec : (unit, (prog list * real) list, primesol list) extspec =
-  {
-  self_dir = selfdir,
-  self = "rl.hdmspec",
-  parallel_dir = selfdir ^ "/cube_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
-     "kernel.use_ob := " ^ bts (!use_ob),
-     "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"] 
-    ^ ")"),
-  function = search_hdm,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
-  write_arg = write_proglrl,
-  read_arg = read_proglrl,
-  write_result = write_primel,
-  read_result = let fun f file = 
-    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
-     incr mergen; 
-     [])
-    in f end
-  }
-
-fun hdm () = 
-  let
-    val tree = start_cube (ncore * 2)
-    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
-  in
-    smlParallel.parmap_queue_extern ncore hdmspec () l1
-  end
-
-
-fun string_of_snp (seq,(n,p)) = 
-  "time " ^ its n ^ ", size " ^ its (prog_size p) ^ ": " ^ humanf p ^ ".   " ^ 
-  string_of_seq seq
-  
-fun stats_hdm dir primesol =
-  writel (dir ^ "/best") (map string_of_snp (rev primesol))
-
-
-(* -------------------------------------------------------------------------
-   Searching for Ramsey graph
-   ------------------------------------------------------------------------- *)
-
-fun search_ramsey () btiml =
-  (
-  search.randsearch_flag := (!ngen_glob = 0); 
-  checkinit_ramsey ();
-  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
-  checkfinal_ramsey ()
-  )
-
-val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
-  {
-  self_dir = selfdir,
-  self = "rl.ramseyspec",
-  parallel_dir = selfdir ^ "/cube_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
-     "kernel.use_ob := " ^ bts (!use_ob),
-     "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"] 
-    ^ ")"),
-  function = search_ramsey,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
-  write_arg = write_proglrl,
-  read_arg = read_proglrl,
-  write_result = write_ramseyl,
-  read_result = let fun f file = 
-    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
-     incr mergen; 
-     [])
-    in f end
-  }
-
-fun ramsey () = 
-  let
-    val tree = start_cube (ncore * 8)
-    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
-  in
-    smlParallel.parmap_queue_extern ncore ramseyspec () l1
-  end
-
-
-fun string_of_ramseysol ((regsc,p),(sc,humsc,h,t)) = 
-  "reg: " ^ its regsc ^ ", " ^
-  "hum: " ^ its humsc ^ ", " ^
-  "sc: " ^ its sc ^ ", " ^
-  "size: " ^ its (prog_size p) ^ ", " ^
-  "time: " ^ its t ^ ": " ^
-  humanf p
-  
-fun stats_ramsey dir ramseysol =
-  writel (dir ^ "/best") (map string_of_ramseysol (rev ramseysol))
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -632,11 +406,6 @@ fun stats_ngen dir ngen =
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
 
-fun mk_partial (anum,p) = 
-  let fun f x = (length (valOf (Array.sub (oseq, x))), NONE) in
-    (anum,[(f anum,p)])
-  end
-  
 fun count_newsol olditsol itsoll =
   let 
     val d = ref (enew Int.compare (map fst olditsol))
@@ -656,22 +425,6 @@ fun count_newsol olditsol itsoll =
          String.concatWith " " (map its il)) 
   end
 
-fun worst_prime bl = 
-  let
-    val (good,tot) = (ref 1, ref 1) 
-    val worst = ref 1.0
-    fun f b = 
-      (if b then incr good else (); 
-       incr tot;
-       let val proba = int_div (!good) (!tot) in 
-         if proba < !worst then worst := proba else () end)
-  in
-    app f bl;
-    !worst
-  end
-
-fun number_of_errors (bn,badl) = (997 - bn) + length badl
-
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -683,6 +436,7 @@ fun rl_search_only ngen =
       "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
+    (* change that *) 
     val _ =
       if !ngen_glob = 0 then () else
       let 
@@ -694,112 +448,61 @@ fun rl_search_only ngen =
         cmd_in_dir tnndir cpcmd;
         cmd_in_dir tnndir "sh compile_ob.sh ob.c"
       end
-    in
-      if !prime_flag then 
-      let 
-        val (primesoll,t) = add_time prime ()
-        val _ = log ("search time: " ^ rts_round 6 t)
-        val oldprimesol = if ngen = 0 then [] else read_primesol (ngen - 1)
-        val newprimesol = 
-          merge_primesol (List.concat (oldprimesol :: primesoll))
-        val allprog = map (snd o snd) newprimesol
-        val _ = log ("programs: " ^ (its (length allprog)))
-        val sizel = dict_sort Int.compare (map prog_size allprog)
-        val _ = log ("average best size: " ^ String.concatWith " "
-          (map (rts_round 2 o average_int) 
-           [sizel, first_n 1000 sizel, first_n 100 sizel, first_n 10 sizel]))
-        val speedl = dict_sort Int.compare (map (fst o snd) newprimesol)  
-        val _ = log ("average best speed: " ^  String.concatWith " "
-          (map (rts_round 2 o average_int) 
-          [speedl, first_n 1000 speedl, first_n 100 speedl, first_n 10 speedl]))
-      in  
-        write_primesol_atomic ngen newprimesol;
-        stats_prime (!buildheap_dir) (map snd newprimesol)
-      end
-      else if !hadamard_flag then 
-      let 
-        val _ = init_merge ()
-        val (primesoll,t) = add_time hdm ()
-        val _ = log ("search time: " ^ rts_round 6 t)
-        val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
-        val newprimesol = merge_hdm oldfileo
-        val _ = init_merge ()
-        val allprog = map (snd o snd) newprimesol
-        val _ = log ("programs: " ^ (its (length allprog)))
-      in  
-        write_primesol_atomic ngen newprimesol;
-        stats_hdm (!buildheap_dir) newprimesol
-      end
-      else if !ramsey_flag then 
-      let 
-        val _ = init_merge ()
-        val (ramseysol,t) = add_time ramsey ()
-        val _ = log ("search time: " ^ rts_round 6 t)
-        val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
-        val newramseysol = merge_ramsey oldfileo
-        val _ = init_merge ()
-        val _ = log ("ramsey solutions: " ^ (its (length newramseysol)))
-      in 
-        write_ramseysol_atomic ngen newramseysol;
-        stats_ramsey (!buildheap_dir) newramseysol
-      end
-      else      
-      let
-        val (itsoll,t) = 
-          if !notarget_flag then add_time cube ()
-          else add_time
-            (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
-        val _ = log ("search time: " ^ rts_round 6 t)
-        val _ = log ("average number of solutions per search: " ^
-                      rts_round 2 (average_int (map length itsoll)))
-        val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
-        val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
-        val _ = log ("solutions: " ^ (its (length newitsol)))
-        val allprog = List.concat (map (map snd o snd) newitsol)
-        val allsize = List.concat (map (map fst o snd) newitsol)
-        val _ = log ("programs: " ^ (its (length allprog)))
-        val _ = log ("average size: " ^ rts_round 2 
-          (average_int (map prog_size allprog)))
-        val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
-        val _ = count_newsol olditsol itsoll
-        val _ = write_itsol_atomic ngen newitsol
-      in
-        stats_ngen (!buildheap_dir) ngen
-      end
+    val (itsoll,t) = 
+      if !notarget_flag then add_time cube ()
+      else add_time
+        (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
+    val _ = log ("search time: " ^ rts_round 6 t)
+    val _ = log ("average number of solutions per search: " ^
+                  rts_round 2 (average_int (map length itsoll)))
+    val olditsol = if ngen = 0 then [] else read_itsol (ngen - 1)
+    val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
+    val _ = log ("solutions: " ^ (its (length newitsol)))
+    val allprog = List.concat (map (map snd o snd) newitsol)
+    val allsize = List.concat (map (map fst o snd) newitsol)
+    val _ = log ("programs: " ^ (its (length allprog)))
+    val _ = log ("average size: " ^ rts_round 2 
+      (average_int (map prog_size allprog)))
+    val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
+    val _ = count_newsol olditsol itsoll
+    val _ = write_itsol_atomic ngen newitsol
+  in
+    stats_ngen (!buildheap_dir) ngen
   end
 
 fun rl_train_only ngen =
   let
     val _ = mk_dirs ()
     val _ = log ("Train " ^ its ngen)
-    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen
-    val _ = mkDir_err (!buildheap_dir)
-    val _ = buildheap_options :=
-      "--maxheap " ^ its 
-      (string_to_int (dfind "train_memory" configd) 
-         handle NotFound => 50000) 
-    val _ = ngen_glob := ngen
-    val (_,t) = add_time wrap_trainf ngen
+    fun f i = 
+      let 
+        val suffix = if i < 0 then "" else "_" ^ its i
+        val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
+        val _ = mkDir_err (!buildheap_dir)
+        val _ = buildheap_options :=
+          "--maxheap " ^ its 
+          (string_to_int (dfind "train_memory" configd) 
+             handle NotFound => 50000) 
+        val _ = ngen_glob := ngen
+      in
+        wrap_trainf ngen i
+      end
+    fun g () = 
+      if !train_multi <= 1 
+      then f (~1)
+      else ignore (parmap_exact (!train_multi) f 
+        (List.tabulate (!train_multi, I)))
+    val (_,t) = add_time g ()
     val _ = log ("train time: " ^ rts_round 6 t)
+    val obfilein = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
+    val obfileout = histdir () ^ "/ob" ^ its (!ngen_glob)
   in
-    ()
+    cp_atomic obfilein obfileout
   end
 
-fun rl_search_simple_aux ngen = 
-  (
-  rl_search_only ngen;
-  PolyML.fullGC ();
-  if isSome (!maxgen) andalso ngen >= valOf (!maxgen) then () else 
-  rl_search_simple_aux (ngen + 1)
-  )
-
-fun rl_search_simple () =
-  let 
-    val _ = ignore (mk_dirs ())  
-    val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0)
-  in
-    rl_search_simple_aux n
-  end
+(* -------------------------------------------------------------------------
+   Reinforcement learning loop wrappers
+   ------------------------------------------------------------------------- *)
 
 fun rl_search ngen = 
   (

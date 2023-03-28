@@ -6,6 +6,10 @@ val ERR = mk_HOL_ERR "kernel";
                
 val selfdir = dir.selfdir 
 
+(* -------------------------------------------------------------------------
+   Reading flags from config file
+   ------------------------------------------------------------------------- *)
+
 val configd = 
   let 
     val sl = readl (selfdir ^ "/config")
@@ -16,16 +20,6 @@ val configd =
   end
 
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
-
-val hadamard_flag = bflag "hadamard_flag"
-val prime_flag = bflag "prime_flag"
-val ramsey_flag = bflag "ramsey_flag"
-
-val notarget_flag = if !hadamard_flag orelse !prime_flag orelse !ramsey_flag
-                    then ref true 
-                    else bflag "notarget_flag"
-                    
-val local_flag = bflag "local_flag"
 
 (* main_experiment flags *)
 val z_flag = bflag "z_flag"
@@ -38,27 +32,20 @@ val subprog_flag = bflag "subprog_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
-
+val array_flag = bflag "array_flag"
+val local_flag = bflag "local_flag" (* local search *)
+val notarget_flag = bflag "notarget_flag"
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
-
-(* side experiments flags *)
-val array_flag = bflag "array_flag"
-
-(* hadamard flags *)
-val sqrt_flag = bflag "sqrt_flag"
-val loop_flag = bflag "loop_flag"
-val bigvar_flag = bflag "bigvar_flag"
-val convolution_flag = bflag "convolution_flag"
-val family_flag = bflag "family_flag"
-
 (* tnn flag *)
-val use_ob = ref true
-val dim_glob = ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
+val dim_glob = 
+  ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
 val extra_flag = bflag "extra_flag"
-
+val train_multi = 
+  ref (string_to_int (dfind "train_multi" configd) handle NotFound => 1)
+val rnn_flag = bflag "rnn_flag"
 (* findstat flag *)
 val fs_flag = bflag "fs_flag"
 
@@ -135,11 +122,6 @@ local open HOLsexp in
   val dec_progl = list_decode dec_prog
   val dec_proglr = pair_decode (dec_progl, dec_real)
 end
-
-fun write_progl file r = write_data enc_progl file r
-fun read_progl file = read_data dec_progl file
-fun write_proglr file r = write_data enc_proglr file r
-fun read_proglr file = read_data dec_proglr file
  
 fun write_proglrl file r = write_data (HOLsexp.list_encode enc_proglr) file r
 fun read_proglrl file = read_data (HOLsexp.list_decode dec_proglr) file
@@ -169,51 +151,9 @@ local open HOLsexp in
     pair4_decode (int_decode,int_decode,int_decode,int_decode))
 end
 
-fun write_iprogl file r = write_data enc_iprogl file r
-fun read_iprogl file = read_data dec_iprogl file
-
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
 
-fun write_primel file r = write_data (HOLsexp.list_encode enc_prime) file r
-fun read_primel file = read_data (HOLsexp.list_decode dec_prime) file
-
-type ramsey = (int * prog) * (int * int * int * int)
-fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
-fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
-
-(* -------------------------------------------------------------------------
-   Extra pre-computed instructions
-   ------------------------------------------------------------------------- *)
-
-val maxprecomp = if !hadamard_flag andalso !sqrt_flag then 1000 else 10
-
-fun sqrt_aux i (c,a) = 
-  if i >= c then 0 else
-  if (i * i) mod c = a then i else sqrt_aux (i+1) (c,a)
-  
-fun sqrt (c,a) = if c <= 0 then 0 else sqrt_aux 0 (c,a)
-  
-val sqrtv =
-  Vector.tabulate (maxprecomp, fn c => Vector.tabulate (c, fn a => sqrt (c,a)))
-
-fun inv_aux i (c,a) = 
-  if i >= c then 0 else
-  if (i * a) mod c = 1 then i else inv_aux (i+1) (c,a)
-  
-fun inv (c,a) = if c <= 0 then 0 else inv_aux 0 (c,a)
-  
-val invv =
-  Vector.tabulate (maxprecomp, fn c => Vector.tabulate (c, fn a => inv (c,a)))
-
-fun leastdiv_aux i c =
-  if i >= c then c else 
-  if c mod i = 0 then i else leastdiv_aux (i+1) c
-
-fun leastdiv a = leastdiv_aux 2 a
-  
-val leastdivv = 
-  Vector.tabulate (maxprecomp, fn x => if x = 0 then 0 else leastdiv x)
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -221,25 +161,7 @@ val leastdivv =
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !hadamard_flag orelse !ramsey_flag then
-    if !family_flag then
-    [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0),("arr1",1),
-     ("compr",2),("loop",3),("loop2",5),("loop3",7)]
-    else if !convolution_flag then
-    [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0),("arr2",2),
-     ("compr",2),("loop",3),("loop2",5),("loop3",7)]
-    else
-    [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),("z",0)] @
-     (if (!bigvar_flag) then [("X",0),("Y",0),("Z",0)] else []) @
-     (if (!sqrt_flag) then [("sqrt",2),("inv",2),("leastdiv",1)] else []) @
-     (if (!loop_flag) then [("compr",2),("loop",3),("loop2",5),("loop3",7)] else [])
-  else if !array_flag then
+  if !array_flag then
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
      ("cond",3),("x",0),("y",0),
@@ -255,8 +177,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
        ("nine",0),("ten",0)] else []) @
-     (if !fs_flag then [("perm",1)] else [])  
-     
+     (if !fs_flag then [("perm",1)] else [])
   )
 
 (* -------------------------------------------------------------------------
@@ -293,11 +214,7 @@ fun contain_arr2 (Ins (id,pl)) =
   (id = arr2_id) orelse exists contain_arr2 pl
 
 val ho_ariv = Vector.fromList (
-  if !hadamard_flag orelse !ramsey_flag then 
-    if !loop_flag orelse !family_flag orelse !convolution_flag
-    then List.tabulate (Vector.length operv - 4, fn _ => 0) @ [1,1,2,3] 
-    else List.tabulate (Vector.length operv, fn _ => 0)
-  else if !array_flag
+  if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else if !minimal_flag then [0,0,0,0,0,1]
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
@@ -330,44 +247,31 @@ fun is_constant p =
 
 exception ProgTimeout;
 
-val short_timeincr = if !fs_flag then 10000 else 1000
+val short_timeincr = 1000
 val long_timeincr = 100000
-val timeincr = ref (if !convolution_flag then 5000 
-                    else if !hadamard_flag then 10000 
-                    else if !ramsey_flag then 100000
-                    else short_timeincr)
+val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
 val short_compr = 20
 val long_compr = 200
-val max_compr_number = ref (
-  if !ramsey_flag then 200 
-  else if !hadamard_flag then 15*4
-  else short_compr)
+val max_compr_number = ref short_compr
 val graph = ref []
 val graphb = ref 0
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
 fun init_timer () = (abstimer := 0; timelimit := !timeincr)
 fun init_fast_test () = 
-  (
-  max_compr_number := short_compr; 
-  timeincr := short_timeincr
-  )
+  (max_compr_number := short_compr; timeincr := short_timeincr)
 fun init_slow_test () = 
-  (
-  max_compr_number := long_compr;
-  timeincr := long_timeincr
-  )
+  (max_compr_number := long_compr; timeincr := long_timeincr)
 
 fun catch_perror f x g =
   f x handle Div => g () 
            | ProgTimeout => g () 
            | Overflow => g ()
-  
-  
+ 
 (* -------------------------------------------------------------------------
-   Gpt interface
+   NMT interface
    ------------------------------------------------------------------------- *)
 
 (* printer *)
@@ -389,7 +293,7 @@ fun apply_move move board =
     val (l1,l2) = part_n arity board 
   in
     if length l1 <> arity 
-    then raise ERR "prog_of_gpt" "arity"
+    then raise ERR "apply_move" "arity"
     else Ins (move, rev l1) :: l2
   end
 
@@ -401,8 +305,5 @@ fun prog_of_gpt s =
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
  
-    
-    
-  
-  
+
 end (* struct *)

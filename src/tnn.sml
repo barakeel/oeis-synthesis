@@ -211,10 +211,7 @@ end (* local *)
 
 val maxembn = 100000
 
-fun fp_emb_either oper newembl = 
-  if !use_ob
-  then (!fp_op_glob) oper newembl
-  else fp_emb (!tnn_glob) oper newembl 
+fun fp_emb_either oper newembl = (!fp_op_glob) oper newembl
 
 fun infer_emb_nocache tm =
   let
@@ -355,12 +352,13 @@ fun revamp ex =
   in
     map (map f) ex
   end
+  
 (* -------------------------------------------------------------------------
    MKL I/O
    ------------------------------------------------------------------------- *)
 
-fun export_traindata ex = 
-  mkl.export_traindata (maxmove,!dim_glob,opernd,operlext) 
+fun export_traindata datadir ex = 
+  mkl.export_traindata datadir (maxmove,!dim_glob,opernd,operlext) 
   (if !notarget_flag then revamp ex else ex)
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
