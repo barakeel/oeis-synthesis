@@ -487,7 +487,7 @@ fun rl_train_only ngen =
         app trainw_start pidl;
         ignore (parmap_exact (!train_multi) trainw_export pidl);
         ignore (parmap_exact (!train_multi) trainw_middle pidl);
-        app trainw_end pidl
+        ignore (parmap_exact (!train_multi) trainw_end pidl)
       end 
     val (_,t) = add_time f ()
     val _ = log ("train time: " ^ rts_round 6 t)
