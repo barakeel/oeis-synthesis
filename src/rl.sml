@@ -134,7 +134,9 @@ fun trainf_end pid =
   let
     val execdir = if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
     val obfile = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
-    val catcmd = "cat ob_fst.c out_ob ob_snd.c > " ^ obfile  
+    val obfst = tnndir ^ "/ob_fst.c"
+    val obsnd = tnndir ^ "/ob_snd.c"
+    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]  
   in
     cmd_in_dir execdir catcmd;
     cmd_in_dir execdir ("cp " ^ obfile ^ " " ^ obfile ^ ".c");
