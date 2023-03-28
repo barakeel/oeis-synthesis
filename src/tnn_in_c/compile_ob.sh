@@ -1,7 +1,7 @@
 TOPDIR=$(dirname $(dirname $PWD))
 OBDIR=$TOPDIR/OpenBLAS
 OBFILE=$OBDIR/libopenblas.a
-BASE=$(basename $1 .c)
+BASE=$(dirname $1)/$(basename $1 .c)
 if [ -f $TOPDIR/openlibm/libopenlibm.a ]
 then 
   echo "using locally installed libopenlibm"

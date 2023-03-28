@@ -6,9 +6,5 @@ rtim 600.0
 time_opt 600.0
 search_memory 12000
 train_memory 50000
-z_flag false
-t_flag false
 sol2_flag true
-notarget_flag false
-prime_flag false
-partial_flag false
+

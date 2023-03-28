@@ -130,7 +130,9 @@ fun trainf_end pid =
     val obfile = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
     val catcmd = "cat ob_fst.c out_ob ob_snd.c > " ^ obfile  
   in
-    cmd_in_dir execdir catcmd
+    cmd_in_dir execdir catcmd;
+    cmd_in_dir execdir ("cp " ^ obfile ^ " " ^ obfile ^ ".c");
+    cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile ^ ".c")
   end
 
 fun wrap_trainf ngen pid =
@@ -177,13 +179,25 @@ fun halfnoise () =
     )
   else noise_flag := false
   
+
+fun load_ob () =
+  if !ngen_glob = 0 then () else  
+    let 
+      val ns = its (find_last_ob ()) 
+      val suffix = if !train_multi <= 1 then "" else
+                   "_" ^ its (random_int (0,!train_multi - 1))
+      val fileso = traindir () ^ "/" ^ ns ^ suffix ^ "/ob" ^ ns ^ ".so"
+    in
+      update_fp_op fileso
+    end
+
 (* also used in non-cubing *)
 fun init_cube () =
   let
     val _ = print_endline "initialization"
     val _ = search.randsearch_flag := (!ngen_glob <= 0)
     val _ = halfnoise ()
-    val _ = if !ngen_glob = 0 then () else update_fp_op (tnndir ^ "/ob.so")
+    val _ = load_ob ()
   in
     ()
   end
@@ -232,7 +246,7 @@ fun mctsobj () =
 fun search_target target =
   let
     val _ = clean_dicts ()
-    val fileso = tnndir ^ "/ob_online.so"
+    val fileso = modeldir ^ "/ob_online.so"
     val _ = if not (exists_file fileso) 
             then raise ERR "search_target" ""
             else ()
@@ -269,9 +283,11 @@ fun get_boardsc tree =
     
 fun start_cube n =
   let    
+    val _ = load_ob ()
     val _ = 
-      if !ngen_glob = 0 then player_glob := player_random 
-      else (update_fp_op (tnndir ^ "/ob.so"); player_glob := player_wtnn_cache)
+      if !ngen_glob = 0 
+      then player_glob := player_random 
+      else player_glob := player_wtnn_cache
     val _ = halfnoise ()
     val _ = game.nsim_opt := SOME n
     val _ = game.time_opt := NONE
@@ -336,20 +352,6 @@ fun cube () =
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1
   end
-
-
-(* 
-load "rl"; open rl mcts aiLib kernel;
-rtim := 200.0;
-PolyML.print_depth 0;
-val (_,t1) = add_time test_cube 1;
-val (_,t2) = add_time test_cube 2;
-val (_,t3) = add_time test_cube 3;
-PolyML.print_depth 40;
-t1; t2; t3;
-*)
-
-
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -425,6 +427,8 @@ fun count_newsol olditsol itsoll =
          String.concatWith " " (map its il)) 
   end
 
+
+  
 fun rl_search_only ngen =
   let 
     val _ = mk_dirs ()
@@ -436,18 +440,6 @@ fun rl_search_only ngen =
       "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
-    (* change that *) 
-    val _ =
-      if !ngen_glob = 0 then () else
-      let 
-        val tnngen = find_last_ob ()
-        val obfile = histdir () ^ "/ob" ^ its tnngen
-        val obc = tnndir ^ "/ob.c"
-        val cpcmd = String.concatWith " " ["cp",obfile,obc]
-      in
-        cmd_in_dir tnndir cpcmd;
-        cmd_in_dir tnndir "sh compile_ob.sh ob.c"
-      end
     val (itsoll,t) = 
       if !notarget_flag then add_time cube ()
       else add_time
