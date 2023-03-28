@@ -100,7 +100,7 @@ fun collect_child boarde move =
   end
 
 fun collect_children boarde = case boarde of
-    [(p,exec,a,b)] => 
+    [(p,exec,a,b)] =>
     let 
       val _ = if not (!locsearch_flag) 
               then (incr prog_counter; checkonline (p,exec))
@@ -227,7 +227,7 @@ and search_aux rt depth (vis,tim) targete boarde =
     search_move rt (depth + 1) (vis,tim) targete newboarde pol
   end
 
-fun search (vis,tinc) = 
+fun search (vis,tinc) =
   let 
     val _ = search_time_flag := (vis <= 0)
     val _ = node_counter := 0  
