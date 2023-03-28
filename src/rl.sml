@@ -52,12 +52,6 @@ fun mk_dirs () =
   mkDir_err (expdir ());
   app mkDir_err [traindir (),searchdir (), histdir ()]
   ) 
-  
-fun cp_atomic filein fileout =
-  let val fileout_temp = fileout ^ "_temp" in
-    cmd_in_dir (OS.Path.dir filein) ("cp " ^ filein ^ " " ^ fileout_temp);
-    OS.FileSys.rename {old = fileout_temp, new = fileout}   
-  end
 
 fun write_itsol_atomic ngen itprogl = 
   let
@@ -104,13 +98,10 @@ fun add_extra () =
 
 fun trainf_start pid =
   let 
-    val execdir = if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
+    val execdir = tnndir ^ "/para/" ^ its pid
     val datadir = execdir ^ "/data"
-    val _ = 
-      if pid >= 0 
-      then (app mkDir_err [tnndir ^ "/para", execdir, datadir];
-            cmd_in_dir tnndir ("cp tree " ^ execdir))
-      else ()
+    val _ = app mkDir_err [tnndir ^ "/para", execdir, datadir]
+    val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val itsol = read_itsol (find_last_itsol ()) @ 
       (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
@@ -132,27 +123,22 @@ fun trainf_start pid =
 
 fun trainf_end pid =
   let
-    val execdir = if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
-    val obfile = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
+    val execdir = tnndir ^ "/para/" ^ its pid
+    val obfile = !buildheap_dir ^ "/ob" ^ 
+                 its (!ngen_glob) ^ "_" ^ its pid ^ ".c"
     val obfst = tnndir ^ "/ob_fst.c"
     val obsnd = tnndir ^ "/ob_snd.c"
     val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]  
   in
     cmd_in_dir execdir catcmd;
-    cmd_in_dir execdir ("cp " ^ obfile ^ " " ^ obfile ^ ".c");
-    cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile ^ ".c")
+    cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
   end
 
-fun trainw_start ngen pid =
+fun trainw_start pid =
   let
-    val suffix = if pid < 0 then "" else "_" ^ its pid
-    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
-    val _ = mkDir_err (!buildheap_dir)
-    val execdir =  if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
-    val makefile = !buildheap_dir ^ "/Holmakefile"
-    val script1 = !buildheap_dir ^ "/train_start.sml" 
-    val script2 = !buildheap_dir ^ "/train_end.sml" 
-    val logfile = !buildheap_dir ^ "/log"
+    val script1 = !buildheap_dir ^ "/train_start" ^ its pid ^ ".sml" 
+    val script2 = !buildheap_dir ^ "/train_end" ^ its pid ^ ".sml" 
+    val logfile = !buildheap_dir ^ "/log" ^ its pid
     val preambule = 
       [
        "open rl;",
@@ -162,26 +148,27 @@ fun trainw_start ngen pid =
        "kernel.dim_glob := " ^ its (!dim_glob) ^ ";"
        ]
   in
-    writel makefile ["INCLUDES = " ^ selfdir]; 
     writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
-    writel script2 (preambule @ ["trainf_end (" ^ its pid ^ ");"]);
-    exec_script script1;
-    (execdir,logfile)
+    writel script2 (preambule @ ["trainf_end (" ^ its pid ^ ");"])
   end
 
-fun trainw_middle (execdir,logfile) =
-  (cmd_in_dir execdir ("./tree" ^ " > " ^ logfile))
-  
-fun trainw_end ngen pid =   
+fun trainw_export pid =
+  let val script1 = !buildheap_dir ^ "/train_start" ^ its pid ^ ".sml" in
+    exec_script script1
+  end
+ 
+fun trainw_middle pid =
   let 
-    val suffix = if pid < 0 then "" else "_" ^ its pid
-    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
-    val script2 = !buildheap_dir ^ "/train_end.sml"
+    val execdir = tnndir ^ "/para/" ^ its pid
+    val logfile = !buildheap_dir ^ "/log" ^ its pid
   in
+    cmd_in_dir execdir ("./tree" ^ " > " ^ logfile)
+  end
+  
+fun trainw_end pid =   
+  let val script2 = !buildheap_dir ^ "/train_end" ^ its pid ^ ".sml" in
     exec_script script2
   end
-
-
 
 (* -------------------------------------------------------------------------
    Search
@@ -204,9 +191,8 @@ fun load_ob () =
   if !ngen_glob = 0 then () else  
     let 
       val ns = its (find_last_ob ()) 
-      val suffix = if !train_multi <= 1 then "" else
-                   "_" ^ its (random_int (0,!train_multi - 1))
-      val fileso = traindir () ^ "/" ^ ns ^ suffix ^ "/ob" ^ ns ^ ".so"
+      val suffix = its (random_int (0,!train_multi - 1))
+      val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       update_fp_op fileso
     end
@@ -492,26 +478,22 @@ fun rl_train_only ngen =
              handle NotFound => 50000) 
     val _ = ngen_glob := ngen
     val _ = log ("Train " ^ its ngen)
+    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen
+    val _ = mkDir_err (!buildheap_dir)
+    val makefile = !buildheap_dir ^ "/Holmakefile"
+    val _ = writel makefile ["INCLUDES = " ^ selfdir]
     fun f () = 
-      if !train_multi <= 1 
-      then (
-           trainw_middle (trainw_start ngen (~1));
-           trainw_end ngen (~1)
-           )
-      else 
-        let 
-          val pidl = List.tabulate (!train_multi, I)
-          val l = map (trainw_start ngen) pidl 
-        in
-          ignore (parmap_exact (!train_multi) trainw_middle l);
-          app (trainw_end ngen) pidl
-        end 
+      let val pidl = List.tabulate (!train_multi, I) in
+        app trainw_start pidl;
+        ignore (parmap_exact (!train_multi) trainw_export pidl);
+        ignore (parmap_exact (!train_multi) trainw_middle pidl);
+        app trainw_end pidl
+      end 
     val (_,t) = add_time f ()
     val _ = log ("train time: " ^ rts_round 6 t)
-    val obfilein = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
     val obfileout = histdir () ^ "/ob" ^ its (!ngen_glob)
   in
-    cp_atomic obfilein obfileout
+    writel_atomic obfileout []
   end
 
 (* -------------------------------------------------------------------------
@@ -568,7 +550,7 @@ fun wait_newitsol b =
     )
   end
 
-fun rl_train_cont () = 
+fun rl_train_cont () =
   (
   ignore (mk_dirs ());
   wait_itsol true;
