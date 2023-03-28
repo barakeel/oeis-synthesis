@@ -26,14 +26,14 @@ val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val extranum_flag = bflag "extranum_flag"
-val locsearch_flag = bflag "locsearch_flag"
+val locsearch_flag = bflag "locsearch_flag" (* local search *)
 val halfnoise_flag = bflag "halfnoise_flag"
 val subprog_flag = bflag "subprog_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
-val local_flag = bflag "local_flag" (* local search *)
+val local_flag = bflag "local_flag"
 val notarget_flag = bflag "notarget_flag"
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

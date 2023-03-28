@@ -191,7 +191,8 @@ fun load_ob () =
   if !ngen_glob = 0 then () else  
     let 
       val ns = its (find_last_ob ()) 
-      val suffix = its (random_int (0,!train_multi - 1))
+      val suffix = "0" 
+         (* its (random_int (0,!train_multi - 1)) *)
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       update_fp_op fileso
