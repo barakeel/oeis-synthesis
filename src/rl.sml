@@ -141,14 +141,16 @@ fun trainf_end pid =
     cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile ^ ".c")
   end
 
-fun wrap_trainf ngen pid =
+fun trainw_start ngen pid =
   let
+    val suffix = if pid < 0 then "" else "_" ^ its pid
+    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
+    val _ = mkDir_err (!buildheap_dir)
     val execdir =  if pid >= 0 then tnndir ^ "/para/" ^ its pid else tnndir
     val makefile = !buildheap_dir ^ "/Holmakefile"
     val script1 = !buildheap_dir ^ "/train_start.sml" 
     val script2 = !buildheap_dir ^ "/train_end.sml" 
-    val tnnlog_file = !buildheap_dir ^ "/log_tnn" 
-    val sbin = "./tree"
+    val logfile = !buildheap_dir ^ "/log"
     val preambule = 
       [
        "open rl;",
@@ -157,17 +159,27 @@ fun wrap_trainf ngen pid =
        "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
        "kernel.dim_glob := " ^ its (!dim_glob) ^ ";"
        ]
-    val _ =
-      (writel makefile ["INCLUDES = " ^ selfdir]; 
-       writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
-       writel script2 (preambule @ ["trainf_end (" ^ its pid ^ ");"]))
-    fun f () = 
-      (exec_script script1;
-       cmd_in_dir execdir (sbin ^ " > " ^ tnnlog_file);
-       exec_script script2)
   in
-    f ()
+    writel makefile ["INCLUDES = " ^ selfdir]; 
+    writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
+    writel script2 (preambule @ ["trainf_end (" ^ its pid ^ ");"]);
+    exec_script script1;
+    (execdir,logfile)
   end
+
+fun trainw_middle (execdir,logfile) =
+  (cmd_in_dir execdir ("./tree" ^ " > " ^ logfile))
+  
+fun trainw_end ngen pid =   
+  let 
+    val suffix = if pid < 0 then "" else "_" ^ its pid
+    val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
+    val script2 = !buildheap_dir ^ "/train_end.sml"
+  in
+    exec_script script2
+  end
+
+
 
 (* -------------------------------------------------------------------------
    Search
@@ -468,29 +480,31 @@ fun rl_search_only ngen =
     stats_ngen (!buildheap_dir) ngen
   end
 
+
 fun rl_train_only ngen =
   let
     val _ = mk_dirs ()
-    val _ = log ("Train " ^ its ngen)
-    fun f i = 
-      let 
-        val suffix = if i < 0 then "" else "_" ^ its i
-        val _ = buildheap_dir := traindir () ^ "/" ^ its ngen ^ suffix
-        val _ = mkDir_err (!buildheap_dir)
-        val _ = buildheap_options :=
+    val _ = buildheap_options :=
           "--maxheap " ^ its 
           (string_to_int (dfind "train_memory" configd) 
              handle NotFound => 50000) 
-        val _ = ngen_glob := ngen
-      in
-        wrap_trainf ngen i
-      end
-    fun g () = 
+    val _ = ngen_glob := ngen
+    val _ = log ("Train " ^ its ngen)
+    fun f () = 
       if !train_multi <= 1 
-      then f (~1)
-      else ignore (parmap_exact (!train_multi) f 
-        (List.tabulate (!train_multi, I)))
-    val (_,t) = add_time g ()
+      then (
+           trainw_middle (trainw_start ngen (~1));
+           trainw_end ngen (~1)
+           )
+      else 
+        let 
+          val pidl = List.tabulate (!train_multi, I)
+          val l = map (trainw_start ngen) pidl 
+        in
+          ignore (parmap_exact (!train_multi) trainw_middle l);
+          app (trainw_end ngen) pidl
+        end 
+    val (_,t) = add_time f ()
     val _ = log ("train time: " ^ rts_round 6 t)
     val obfilein = !buildheap_dir ^ "/ob" ^ its (!ngen_glob)
     val obfileout = histdir () ^ "/ob" ^ its (!ngen_glob)
