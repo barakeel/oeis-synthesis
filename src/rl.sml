@@ -109,7 +109,7 @@ fun trainf_start pid =
     val _ = 
       if pid >= 0 
       then (app mkDir_err [tnndir ^ "/para", execdir, datadir];
-            cmd_in_dir tnndir ("cp tree " ^ datadir))
+            cmd_in_dir tnndir ("cp tree " ^ execdir))
       else ()
     val itsol = read_itsol (find_last_itsol ()) @ 
       (if !extra_flag then read_itprogl extra_file else [])
