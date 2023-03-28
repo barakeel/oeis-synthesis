@@ -117,11 +117,17 @@ fun trainf_start pid =
     val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
     val isol = distrib isolaux
     val ex = create_exl (shuffle isol)
-    val _ = print_endline (its (length ex) ^ " examples created")
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val nep = if nex < 20000 then 100 
+              else Real.round (int_div nex 20000) * 100
+    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
   in
-    (print_endline "exporting training data";
-     export_traindata datadir ex;
-     print_endline "exporting end")
+    (
+    print_endline "exporting training data";
+    export_traindata datadir nep newex;
+    print_endline "exporting end"
+    )
   end
 
 fun trainf_end pid =

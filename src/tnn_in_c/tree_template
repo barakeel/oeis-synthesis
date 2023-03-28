@@ -219,8 +219,8 @@ int main()
   double polierr, polierr2, valueerr;
   long a1, argi;
   long max_threads;
-  // main arguments
-  long ARG[7];
+  // main arguments adding nepoch as an arg 7
+  long ARG[8];
 
   // operators
   long *ARITY, *HEAD;
@@ -391,7 +391,7 @@ int main()
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
-  long EP = 100; //nex=20;
+  long EP = ARG[7];
   double lr = 0.0008;
   for (ep = 0; ep < EP; ++ep) {
   if (ep == 25) {lr = 0.0004;}

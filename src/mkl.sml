@@ -83,7 +83,7 @@ fun check_sl sl =
   then (print_endline "line too big"; raise ERR "check_sl" "")
   else sl
   
-fun export_traindata datadir (maxmove,dim,opernd,operlext) ex =
+fun export_traindata datadir (maxmove,dim,opernd,operlext,nep) ex =
   let
     val _ = mkDir_err datadir
     val _ =
@@ -114,7 +114,7 @@ fun export_traindata datadir (maxmove,dim,opernd,operlext) ex =
     fun mk_offset l = map its (cumul_il 0 (map length l))
   in
     writel (datadir ^ "/arg.txt") (map its   
-      [noper,nex,dim,dagn,dagin,objn,objin]);
+      [noper,nex,dim,dagn,dagin,objn,objin,nep]);
     writel (datadir ^ "/dag.txt") (check_sl (map ilts dagl));
     writel (datadir ^ "/dago.txt") (mk_offset dagl);
     writel (datadir ^ "/dagi.txt") (check_sl (map ilts dagil));

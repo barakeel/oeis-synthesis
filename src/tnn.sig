@@ -36,7 +36,7 @@ sig
   (* training I/O *)
   val create_exl : (int * kernel.prog) list -> (term * real list) list list
   val create_exl_prime : kernel.prog list -> (term * real list) list list
-  val export_traindata : string -> (term * real list) list list -> unit
+  val export_traindata : string -> int -> (term * real list) list list -> unit
   val read_ctnn : string list -> tnn
   
 end
