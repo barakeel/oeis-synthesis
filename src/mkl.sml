@@ -128,7 +128,7 @@ fun export_traindata datadir (maxmove,dim,opernd,operlext,nep) ex =
 
 
 (* -------------------------------------------------------------------------
-   Reading TNN produced by MKL
+   Reading TNN produced by MKL in Standard ML
    ------------------------------------------------------------------------- *)
 
 fun read_mat acc sl = case sl of

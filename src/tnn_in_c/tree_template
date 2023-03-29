@@ -345,7 +345,8 @@ int main()
   //check if an operator was updated
   long *UPD;
   UPD = (long*)mkl_malloc(nop*sizeof( long ),ALIGN);
-
+  zero_ivect (nop,UPD);
+    
   //computation trace for each example
   long bY = DIM;
   double *X, *Y, *TY; 
@@ -486,7 +487,6 @@ instead of updating the matrix right away
 create a for loop and use pragma op parallel
 */
   //updates
-  zero_ivect (nop,UPD); // detect if a operator was updated
   for (sub = SIZE[ex] - 1; sub >= 0; --sub) {
     opi = dago + DI[exo + sub];
     op = D[opi];
@@ -509,7 +509,8 @@ create a for loop and use pragma op parallel
       }
   }
 
- //clipping
+  //clipping every 10 examples since not vectorized
+  if (tmpex % 10 == 9) {
   for (op=0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];
@@ -520,7 +521,8 @@ create a for loop and use pragma op parallel
       if (DBG) {print_mat ("A",ARITY[op]*DIM+1,DIM,Acur);}
       }
     }
-  }//end clipping
+  zero_ivect (nop,UPD);  
+  }}//end clipping
 
   }//end epoch
   

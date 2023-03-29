@@ -91,10 +91,9 @@ fun add_arg tokenl =
    Exporting ot MKL
    ------------------------------------------------------------------------- *)
 
-fun myrts s = if hd_string s = #"~" then "-" ^ tl_string s else s
 fun ilts x = String.concatWith " " (map its x)
 fun stil x = map string_to_int (String.tokens Char.isSpace x)
-fun rlts x = String.concatWith " " (map (myrts o rts) x)
+fun rlts x = String.concatWith " " (map rts x)
 
 
 fun cumul_il c il = case il of
