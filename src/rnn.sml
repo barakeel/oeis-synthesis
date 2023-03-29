@@ -51,9 +51,9 @@ fun tokenize_join (seq,board) =
    Todo: add all policy heads at the end instead
    create objectives + Remove last move.
    ------------------------------------------------------------------------- *) 
-TODO
+
 fun mk_obj move = 
-  List.tabulate (maxmove, fn x => if x = move then 1.0 else ~1.0)
+  List.tabulate (maxmove, fn x => if x = move then 1.0 else 0.0)
 val onev = Vector.tabulate (maxmove, mk_obj)
   
 fun add_tokhead tokenl = case tokenl of 

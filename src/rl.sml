@@ -193,8 +193,7 @@ fun load_ob () =
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       print_endline ("loading " ^ fileso);
-      (* update_fp_op fileso *)
-      update_fp_op (selfdir ^ "/model/ob_online.so")
+      update_fp_op fileso
     end
 
 (* also used in non-cubing *)
