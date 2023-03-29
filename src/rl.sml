@@ -194,7 +194,7 @@ fun load_ob () =
     in
       print_endline ("loading " ^ fileso);
       (* update_fp_op fileso *)
-      update_fp_op (selfdir ^ "/model/ob_online.so");
+      update_fp_op (selfdir ^ "/model/ob_online.so")
     end
 
 (* also used in non-cubing *)
