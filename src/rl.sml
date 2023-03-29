@@ -97,7 +97,7 @@ fun add_extra () =
 fun trainf_start pid =
   let 
     val execdir = tnndir ^ "/para/" ^ its pid
-    val datadir =fr execdir ^ "/data"
+    val datadir = execdir ^ "/data"
     val _ = app mkDir_err [tnndir ^ "/para", execdir, datadir]
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val itsol = read_itsol (find_last_itsol ()) @ 
@@ -202,7 +202,7 @@ fun init_cube () =
   let
     val _ = print_endline "initialization"
     val _ = search.randsearch_flag := (!ngen_glob <= 0)
-    val _ = if search.randsearch_flag 
+    val _ = if !search.randsearch_flag 
             then print_endline "random search"
             else print_endline "tnn-guided search"
     val _ = halfnoise ()
