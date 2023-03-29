@@ -47,6 +47,7 @@ void read(const char* File, long A[]) {
   free (line);
   }
 
+// also scales
 void read_double(const char* File, double A[]) {
   FILE *myFile;
   myFile = fopen(File, "r");
@@ -57,7 +58,7 @@ void read_double(const char* File, double A[]) {
     char* token = strtok(line, " ");
     while (token) {
       double d;
-      if (sscanf(token, "%lf", &d) == 1) {A[i] = d; i++;}
+      if (sscanf(token, "%lf", &d) == 1) {A[i] = 2.0 * d - 1.0; i++;}
      token = strtok(NULL, " ");
     }
   }
@@ -509,8 +510,7 @@ create a for loop and use pragma op parallel
   }
 
  //clipping
-  if (tmpex % 10 == 9) {
-  for (op = 0; op < nop; ++op) {
+  for (op=0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];
     if (HEAD [op] > 0) {clip_head (HEAD[op],Acur);
@@ -521,9 +521,8 @@ create a for loop and use pragma op parallel
       }
     }
   }//end clipping
-  }
 
-  }//end example
+  }//end epoch
   
   if (nvaluehead != 0) {printf("%li(v): %f\n", ep, valueerr / nvaluehead);}
   if (npolihead != 0) 
@@ -535,7 +534,7 @@ create a for loop and use pragma op parallel
   }//end training
 
   FILE *fp;
-  // export to standard ml
+  /*
   fp = fopen("out_sml", "w");
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
@@ -544,7 +543,7 @@ create a for loop and use pragma op parallel
     else {fprint_mat (fp,"A",ARITY[op]*DIM+1,DIM,Acur);}
   }
   fclose(fp);
-
+  */
   //export to openblas
   long i;
 
@@ -579,7 +578,7 @@ create a for loop and use pragma op parallel
     }
   fclose(fp);
 
-  //export to mkl
+  /*
   fp = fopen("out_mkl", "w");
   for (i = 0; i < mtot; i++)
     {
@@ -587,7 +586,7 @@ create a for loop and use pragma op parallel
     if (i < mtot - 1) {fprintf(fp, " ");}
     }
   fclose(fp);
-
+  */
 
 
 return 0;

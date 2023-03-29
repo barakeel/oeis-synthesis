@@ -288,11 +288,10 @@ fun random_step board =
 fun random_nstep board = 
   if random_real () < 0.5 then board else random_nstep (random_step board)
 
-val zerov = Vector.tabulate (maxmove, fn _ => ~1.0)
+val zerov = Vector.tabulate (maxmove, fn _ => 0.0)
  
 fun create_exl iprogl =
   let
-    
     fun create_ex (i,p) = 
       let
         val _ = target_glob := valOf (Array.sub (oseq,i))
@@ -317,31 +316,8 @@ fun create_exl iprogl =
     r
   end
 
-fun create_exl_prime progl =
-  let
-    fun create_ex p = 
-      let
-        val bml = linearize_safe p
-        fun f (board,move) =
-           let 
-             val newv = Vector.update (zerov, move, 1.0)
-             val newl = vector_to_list newv
-           in
-             (poli_of_board board, newl)
-           end
-      in
-        map f bml
-      end
-    val _ = use_cache := true
-    val r = map create_ex progl
-    val _ = use_cache := false
-  in
-    r
-  end
-
-
-fun merge_distrib disl = 
-  map average_real (list_combine disl)
+(* no target *)
+fun merge_distrib disl = map average_real (list_combine disl)
 
 fun revamp ex = 
   let 
