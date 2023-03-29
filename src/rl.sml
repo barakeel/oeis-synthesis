@@ -86,9 +86,7 @@ fun find_last_ob () = find_last "ob"
    Training
    ------------------------------------------------------------------------- *)
 
-val extra_file = 
-  if !local_flag then selfdir ^ "/model/itsol209" else 
-  selfdir ^ "/exp/paper-small/hist/itsol20"
+val extra_file = selfdir ^ "/model/itsol209"
 
 fun add_extra () =
   if not (!extra_flag) then [] else 
@@ -99,7 +97,7 @@ fun add_extra () =
 fun trainf_start pid =
   let 
     val execdir = tnndir ^ "/para/" ^ its pid
-    val datadir = execdir ^ "/data"
+    val datadir =fr execdir ^ "/data"
     val _ = app mkDir_err [tnndir ^ "/para", execdir, datadir]
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val itsol = read_itsol (find_last_itsol ()) @ 
@@ -188,13 +186,15 @@ fun halfnoise () =
   
 
 fun load_ob () =
-  if !ngen_glob = 0 then () else  
+  if !ngen_glob <= 0 then () else  
     let 
       val ns = its (find_last_ob ()) 
       val suffix = its (random_int (0,!train_multi - 1))
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
-      update_fp_op fileso
+      print_endline ("loading " ^ fileso);
+      (* update_fp_op fileso *)
+      update_fp_op (selfdir ^ "/model/ob_online.so");
     end
 
 (* also used in non-cubing *)
@@ -202,6 +202,9 @@ fun init_cube () =
   let
     val _ = print_endline "initialization"
     val _ = search.randsearch_flag := (!ngen_glob <= 0)
+    val _ = if search.randsearch_flag 
+            then print_endline "random search"
+            else print_endline "tnn-guided search"
     val _ = halfnoise ()
     val _ = load_ob ()
   in

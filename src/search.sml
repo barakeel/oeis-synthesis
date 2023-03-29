@@ -211,7 +211,7 @@ and search_move_tim rt depth targete boarde ((move,f),(torg,tinc)) =
 
 and search_move rt depth (vis,tim) targete boarde pol =
   if !search_time_flag 
-  then 
+  then
     app (search_move_tim rt depth targete boarde) (split_tim tim pol)
   else 
     if vis - 1 <= 0 then () else
@@ -435,10 +435,10 @@ end (* struct *)
 (* 
 PolyML.print_depth 3;
 load "search"; open kernel aiLib search;
-tnn.update_fp_op (selfdir ^ "/tnn_in_c/ob_online.so");
+tnn.update_fp_op (selfdir ^ "/model/ob_online.so");
 bloom.select_random_target ();
 randsearch_flag := false;
-val sol = beamsearch ();
+
 
 check.checkinit ();
 search (0, 60.0);

@@ -33,7 +33,6 @@ val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
-val local_flag = bflag "local_flag"
 val notarget_flag = bflag "notarget_flag"
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
@@ -42,7 +41,7 @@ val stop_flag = bflag "stop_flag"
 (* tnn flag *)
 val dim_glob = 
   ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
-val extra_flag = bflag "extra_flag"
+val extra_flag = bflag "extra_flag" (* add extra data for the training *)
 val train_multi = 
   ref (string_to_int (dfind "train_multi" configd) handle NotFound => 1)
 val rnn_flag = bflag "rnn_flag"
@@ -171,8 +170,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   else
     [("zero",0),("one",0),("two",0),
      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("loop",3),("x",0),("y",0),
-     ("compr",2),("loop2",5)] @
+     ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)] @
      (if !z_flag then [("z",0),("loop3",7)] else []) @
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
