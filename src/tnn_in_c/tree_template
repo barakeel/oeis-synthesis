@@ -479,13 +479,7 @@ int main()
         }
       }
   }//end backward pass
-  
-/* 
-todo: implement batches
-use UA to accumulate gradients from U
-instead of updating the matrix right away 
-create a for loop and use pragma op parallel
-*/
+
   //updates
   for (sub = SIZE[ex] - 1; sub >= 0; --sub) {
     opi = dago + DI[exo + sub];
@@ -509,8 +503,7 @@ create a for loop and use pragma op parallel
       }
   }
 
-  //clipping every 10 examples since not vectorized
-  if (tmpex % 10 == 9) {
+  //clipping
   for (op=0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];
@@ -523,7 +516,7 @@ create a for loop and use pragma op parallel
     }
   }
   zero_ivect (nop,UPD); 
-  }//end clipping
+  //end clipping
 
   }//end epoch
   
