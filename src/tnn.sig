@@ -11,9 +11,7 @@ sig
   val operlext : term list
   val get_tnndim : unit -> (term * int list) list
   val tnn_glob : tnn ref (* for debugging *)
-  val fp_op_glob : (term -> real vector list -> real vector) ref
-  val update_fp_op : string -> unit
-  
+
   (* for search *) 
   val stack_cat : term
   val stack_empty : term
@@ -39,5 +37,9 @@ sig
   
   (* deprecated *)
   val read_ctnn : string list -> tnn
+  
+  (* inference *)
+  val fp_op_glob : (term -> real vector list -> real vector) ref
+  val update_fp_op : string -> unit  
   
 end

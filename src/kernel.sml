@@ -302,6 +302,7 @@ fun prog_of_gpt s =
   in
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
- 
+  
 
+  
 end (* struct *)

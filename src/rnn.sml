@@ -48,43 +48,46 @@ fun tokenize_join (seq,board) =
     tokenize_stack board
 
 (* -------------------------------------------------------------------------
-   Todo: add all policy heads at the end instead
-   create objectives + Remove last move.
+   Create objectives and remove last move
    ------------------------------------------------------------------------- *) 
 
 fun mk_obj move = 
   List.tabulate (maxmove, fn x => if x = move then 1.0 else 0.0)
 val onev = Vector.tabulate (maxmove, mk_obj)
-  
-fun add_tokhead tokenl = case tokenl of 
-    [] => raise ERR "add_tokhead" "empty"
-  | [a] => if a < maxmove then [] else raise ERR "add_tokhead" ""
+ 
+fun add_obj tokenl = case tokenl of 
+    [] => raise ERR "add_obj" "empty"
+  | [a] => if a < maxmove 
+           then [] 
+           else raise ERR "add_obj" ""
   | a :: b :: m => 
     if a < maxmove 
     then if b < maxmove andalso b >= 0 
-      then (a,[]) :: (tokhead, Vector.sub (onev,b)) :: add_tokhead (b :: m)
-      else raise ERR "add_tokhead" "move"
-    else (a,[]) :: add_tokhead (b :: m)
+      then (a,SOME b) :: add_obj (b :: m)
+      else raise ERR "add_obj" "move"
+    else (a,NONE) :: add_obj (b :: m)
 
 (* -------------------------------------------------------------------------
-   Number tokens and add arguments (here arguments are skip connections)
+   Add arguments and heads (here arguments are skip connections)
    ------------------------------------------------------------------------- *)
+
+val skipl = [1,5,25]
 
 fun add_arg tokenl =
   let
     val tokenl1 = number_snd 0 tokenl 
-    val tokenl2 = map snd (filter (fn (oper,x) => oper <> tokhead) tokenl1)
-    val tokenv = Vector.fromList tokenl2
-    val tokend = dnew Int.compare (number_snd 0 tokenl2) 
-    fun gety x = dfind x tokend
-    fun getx y = Vector.sub (tokenv,y)
-    fun g y = if y < 0 then getx 0 else getx y
-    fun f (oper,x) =
-      if oper = tokseq then [] else
-      if oper = tokhead then [x-1] else 
-      let val y = gety x in map g [y-1,y-5,y-25] end
+    val headl = ref []
+    fun g i skip = if i-skip <= 0 then 0 else i-skip
+    fun f ((a,bo),i) = if a = tokseq then ([a],[]) else 
+      (
+      case bo of NONE => ()
+               | SOME b => headl := ([tokhead,i], mk_obj b) :: (!headl)
+      ;
+      (a :: map (g i) skipl, [])
+      )
+    val r = map f tokenl1
   in
-    map (fn (oper,x) => oper :: f (oper,x)) tokenl1
+    r @ rev (!headl)
   end 
 
 (* -------------------------------------------------------------------------
@@ -95,7 +98,6 @@ fun ilts x = String.concatWith " " (map its x)
 fun stil x = map string_to_int (String.tokens Char.isSpace x)
 fun rlts x = String.concatWith " " (map rts x)
 
-
 fun cumul_il c il = case il of
     [] => raise ERR "cumul_il" ""
   | [a] => [c]
@@ -103,12 +105,14 @@ fun cumul_il c il = case il of
 
 fun create_ex (seq,p) =
   let
-    val (tokenl,objl) = split ((add_tokhead o tokenize_join) (seq,[p])) 
-    val dag = add_arg tokenl
+    val tokenl = tokenize_join (seq,[p])
+    val (dag,obj) = split (add_arg (add_obj tokenl))
   in
-    (List.concat dag, cumul_il 0 (map length dag),
-     List.concat objl, cumul_il 0 (map length objl),
-     length dag)
+    (
+    List.concat dag, cumul_il 0 (map length dag),
+    List.concat obj, cumul_il 0 (map length obj),
+    length dag
+    )
   end
 
 fun split_quintuple l = case l of
@@ -119,7 +123,6 @@ fun split_quintuple l = case l of
     end
 
 (* should have a datal for heads and their outputs *)
-
 val buffer_limit = 10000000 - 1 (* same as in tree_template *)
 
 fun check_sl sl = 
@@ -129,11 +132,10 @@ fun check_sl sl =
   
 fun wsafe file sl = writel file (check_sl sl)  
   
-fun export_traindata itsol =
+fun export_traindata datadir nep itsol =
   let
     fun f (a,bl) = (valOf (Array.sub (bloom.oseq,a)),map snd bl)
     val seqprogl = distrib (map f itsol)
-    val datadir = kernel.selfdir ^ "/tnn_in_c/data"
     val _ = clean_dir datadir
     val noper = maxmove + 16
     val operlext = List.tabulate (noper,I)
@@ -150,7 +152,7 @@ fun export_traindata itsol =
     fun mk_offset l = map its (cumul_il 0 (map length l))
   in
     wsafe (datadir ^ "/arg.txt") (map its   
-      [noper,nex,!dim_glob,dagn,dagin,objn,objin]);
+      [noper,nex,!dim_glob,dagn,dagin,objn,objin,nep]);
     wsafe (datadir ^ "/dag.txt") (map ilts dagl);
     wsafe (datadir ^ "/dago.txt") (mk_offset dagl);
     wsafe (datadir ^ "/dagi.txt") (map ilts dagil);
@@ -168,9 +170,60 @@ fun export_traindata itsol =
    do one forward propagation and add to the list of available indices
    ------------------------------------------------------------------------- *)
 
-fun fp_one tok tokenl = 
-  
-  
+fun fp_op_default tok embl = Vector.fromList [100.0]
+val fp_op_glob = ref fp_op_default
+val biais = Vector.fromList ([1.0])
+
+local open Foreign in
+
+fun update_fp_op fileso =
+  let
+    val lib = loadLibrary fileso
+    val fp_op_sym =  getSymbol lib "fp_op"
+    val cra = cArrayPointer cDouble;
+    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid)
+    fun fp_op tok embl =
+      let 
+        val dimout = if tok = tokhead then maxmove else (!dim_glob)
+        val Xv = Vector.concat (embl @ [biais])
+        val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
+        val Y = Array.array (dimout, 0.0)
+        val _ = fp_op0 (tok,X,Y)
+      in 
+        Array.vector Y
+      end
+  in
+    fp_op_glob := fp_op
+  end  
+
+end (* local *)
+
+
+fun fp_tok tok revembl = 
+  let 
+    val l = first_n 25 revembl 
+    val maxi = length l - 1
+    fun f skip = List.nth (l, Int.min (skip-1,maxi))
+    val newembl = 
+      if tok = tokseq then []
+      else if tok = tokhead then [hd l]
+      else map f skipl
+  in    
+    (!fp_op_glob) tok newembl
+  end
+
+fun fp_tokl tokl =
+  let
+    fun loop revembl l = case l of 
+        [] => revembl
+      | tok :: m => 
+        let val newemb = fp_tok tok revembl in
+          loop (newemb :: revembl) m
+        end
+  in
+    loop [] tokl
+  end
+    
 end (* struct *)
 
 (*

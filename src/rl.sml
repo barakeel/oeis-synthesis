@@ -103,20 +103,25 @@ fun trainf_start pid =
     val itsol = read_itsol (find_last_itsol ()) @ 
       (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
-    val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
-    val isol = distrib isolaux
-    val ex = create_exl (shuffle isol)
-    val nex = length ex
-    val _ = print_endline (its nex ^ " examples created")
-    val nep = if nex < 20000 then 100 
-              else Real.round (int_div nex 20000) * 100
-    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
   in
-    (
     print_endline "exporting training data";
-    export_traindata datadir nep newex;
+    if !rnn_flag 
+    then rnn.export_traindata datadir 100 itsol
+    else
+      let
+        val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
+        val isol = distrib isolaux
+        val ex = create_exl (shuffle isol)
+        val nex = length ex
+        val _ = print_endline (its nex ^ " examples created")
+        val nep = if nex < 20000 then 100 
+              else Real.round (int_div nex 20000) * 100
+        val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+      in
+        export_traindata datadir nep newex
+      end
+    ;
     print_endline "exporting end"
-    )
   end
 
 fun trainf_end pid =
@@ -193,7 +198,7 @@ fun load_ob () =
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       print_endline ("loading " ^ fileso);
-      update_fp_op fileso
+      (if !rnn_flag then rnn.update_fp_op else update_fp_op) fileso
     end
 
 (* also used in non-cubing *)
@@ -214,7 +219,11 @@ fun search () targetn =
   let val _ = print_endline "search start" in
     if !beam_flag 
     then search.beamsearch ()
-    else (select_random_target (); search.search (!nvis,!rtim); checkfinal ())
+    else (select_random_target (); 
+          if !rnn_flag 
+          then search.search_rnn (!rtim)
+          else search.search (!nvis,!rtim); 
+          checkfinal ())
   end
 
 fun string_of_timeo () = (case !time_opt of
@@ -258,7 +267,7 @@ fun search_target target =
     val _ = if not (exists_file fileso) 
             then raise ERR "search_target" ""
             else ()
-    val _ = update_fp_op fileso
+    val _ = (if !rnn_flag then rnn.update_fp_op else update_fp_op) fileso
     val _ = player_glob := player_wtnn_cache
     val _ = target_glob := target
     val _ = online_flag := true

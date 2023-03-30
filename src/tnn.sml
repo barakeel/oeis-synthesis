@@ -201,7 +201,7 @@ fun update_fp_op fileso =
       end
   in
     fp_op_glob := fp_op
-  end
+  end  
 
 end (* local *)
 

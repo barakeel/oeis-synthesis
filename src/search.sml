@@ -52,7 +52,8 @@ fun exec_fun (move,exec) l1 l2 =
     val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
   in
-    if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
+    if !randsearch_flag orelse !rnn_flag 
+      then (p,exec,empty_emb,empty_emb) :: l2 else
     let
       val oper = Vector.sub (operv,move)
       val emb1 = 
@@ -110,7 +111,6 @@ fun collect_children boarde = case boarde of
       (newboarde, List.mapPartial (collect_child newboarde) movelg)
     end
   | _ => (boarde, List.mapPartial (collect_child boarde) movelg)
-   
 
 (* -------------------------------------------------------------------------
    Distributing visits in advance according to policy part of MCTS formula
@@ -194,7 +194,7 @@ fun create_pol targete boarde mfl =
     in
       pol4
     end
-
+    
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout
    ------------------------------------------------------------------------- *)
@@ -245,50 +245,61 @@ fun search (vis,tinc) =
 (* -------------------------------------------------------------------------
    Search using the RNN
    ------------------------------------------------------------------------- *)
-(* 
-val search_time_flag = ref false
 
-fun search_move_vis rt depth targete boarde ((move,f),vis) =
-  if vis <= 0 then () else
-  search_aux rt depth (vis,(0.0,0.0)) targete (apply_move (move,f) boarde)
+fun create_pol_rnn embl mfl =
+  if !randsearch_flag 
+    then normalize_distrib (map (fn x => (x, random_real ())) mfl)
+  else
+  let
+    val ende = rnn.fp_tok rnn.tokhead embl
+    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
+    val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
+    val pol3 = normalize_distrib pol2
+    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
+  in
+    pol4
+  end     
 
-and search_move_tim rt depth targete boarde ((move,f),(torg,tinc)) =
-  if torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else
-  search_aux rt depth (0,(torg,tinc)) targete (apply_move (move,f) boarde)
+fun search_move rt depth embl boarde ((move,f),(torg,tinc)) =
+  if depth >= 10000 orelse 
+     torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else 
+  let 
+    val newembl = if !randsearch_flag 
+                  then empty_emb :: embl
+                  else rnn.fp_tok move embl :: embl
+    val newboarde = apply_move (move,f) boarde
+    val newdepth = depth + 1
+  in 
+    search_movel rt newdepth newembl newboarde (torg,tinc)
+  end
 
-and search_move rt depth (vis,tim) targete boarde pol =
-  if !search_time_flag 
-  then 
-    app (search_move_tim rt depth targete boarde) (split_tim tim pol)
-  else 
-    if vis - 1 <= 0 then () else
-    app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
-
-and search_aux rt depth (vis,tim) targete boarde = 
-  if depth >= 10000 then () else
+and search_movel rt depth embl boarde tim =
   let  
     val (newboarde, mfl) = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
-    val pol = create_pol targete newboarde mfl
+    val pol = create_pol_rnn embl mfl
   in
-    search_move rt (depth + 1) (vis,tim) targete newboarde pol
+    app (search_move rt depth embl newboarde) (split_tim tim pol)
   end
 
-fun search_rnn (vis,tinc) = 
+fun search_rnn tinc =
   let 
-    val _ = search_time_flag := (vis <= 0)
+    val _ = search_time_flag := true
     val _ = node_counter := 0  
     val _ = prog_counter := 0
     val _ = checkinit ()
-    val targete = tokenize_seq (!target_glob)
+    val embl = 
+      if !randsearch_flag then [] else
+      rnn.fp_tokl
+      ([rnn.tokseq] @ rnn.tokenize_seq (!target_glob) @ [rnn.tokprog])
     val rt = Timer.startRealTimer ()
-    val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
+    val (_,t) = add_time (search_movel rt 0 embl []) (0.0,tinc)
   in
     print_endline ("nodes: " ^ its (!node_counter));
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end  
-*)
+
   
 (* -------------------------------------------------------------------------
    Search starting from a particular goal (use in cube)
