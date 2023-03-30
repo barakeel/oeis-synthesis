@@ -30,7 +30,6 @@ val sol2_flag = bflag "sol2_flag"
 val extranum_flag = bflag "extranum_flag"
 val locsearch_flag = bflag "locsearch_flag" (* local search *)
 val halfnoise_flag = bflag "halfnoise_flag"
-val subprog_flag = bflag_true "subprog_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"

@@ -23,10 +23,5 @@ sig
     smlParallel.extspec
   val write_gptsol : string -> (anum * (int * prog) list) list -> unit
   val parallel_check : string -> unit
-  
-  (* subprograms *)
-  val random_candfile : string -> int -> unit
-  val subprogspec : (unit, string, string list) smlParallel.extspec
-  val dedupl: string -> unit
  
 end

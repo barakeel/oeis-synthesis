@@ -181,52 +181,22 @@ fun next_boardl_aux board =
   List.mapPartial (next_board board) movel
   
 fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
-  
-val error = ref 0  
-
-val localsearch_flag = ref false
-
-fun checkml d board movel =
-  (
-  if !localsearch_flag then
-    let
-      val boardl = next_boardl [board]    
-      fun f board = case board of p :: m => d := eadd p (!d) | _ => ()
-    in
-      app f boardl
-    end
-  else (case board of p :: m => d := eadd p (!d) | _ => ())
-  ;
-  case movel of [] => () | move :: m => 
-    (case next_board board move of
-      SOME newboard => checkml d newboard m 
-    | NONE => incr error)    
-  )
-
-fun apply_movel board movel = case movel of [] => board | move :: m => 
-  let 
-    val arity = arity_of_oper move
-    val (l1,l2) = part_n arity board 
-  in
-    if length l1 <> arity 
-    then []
-    else apply_movel (Ins (move, rev l1) :: l2) m
-  end
-
-fun prog_of_ml lr ml = 
-  let val progl = apply_movel [] ml in
-    case progl of [p] => lr := p :: !lr | _ => incr error
-  end
 
 fun checkmll mll = 
   let 
     val d = ref (eempty prog_compare)
     val lr = ref []
+    val error = ref 0 
     val counter = ref 0
-    val (_,t) = 
-      if !subprog_flag 
-      then add_time (app (checkml d [])) mll
-      else add_time (app (prog_of_ml lr)) mll
+    fun checkml board movel = 
+        (
+        (case board of p :: m => d := eadd p (!d) | _ => ());
+        case movel of [] => () | move :: m => 
+          (case next_board board move of
+            SOME newboard => checkml newboard m 
+          | NONE => incr error)    
+        )
+    val (_,t) = add_time (app (checkml [])) mll
     val _ = print_endline ("parse errors: " ^ its (!error))
     val _ = print_endline ("parsed programs: " ^ its (elength (!d))
       ^ " in " ^ rts_round 2 t)
@@ -234,10 +204,7 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_fast_test (); checkf (p, mk_exec p))
-    val (_,t) = 
-      if !subprog_flag 
-      then add_time (Redblackset.app f) (!d)
-      else add_time (app f) (!lr)
+    val (_,t) = add_time (Redblackset.app f) (!d) 
   in
     print_endline ("fast check: " ^ rts_round 2 t)
   end
@@ -246,7 +213,6 @@ fun check_file file =
   let 
     val mll = map (rev o movel_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
-    val _ = error := 0
   in
     checkmll mll; 
     if !slowcheck_flag then checkfinal () else 
@@ -310,109 +276,6 @@ val checkspec : (unit, string, (anum * (int * prog) list) list) extspec =
      [])
     in f end
     }
-
-(* -------------------------------------------------------------------------
-   Parallel subprograms merge
-   ------------------------------------------------------------------------- *)
-
-fun random_cand () = List.tabulate (random_int (10,200), fn _ =>
-  random_int (0,Vector.length operv - 1))
-
-fun random_candfile file n = 
-  let 
-    val candl = List.tabulate (n, fn _ => random_cand ())
-    fun f cand = String.concatWith " " (map gpt_of_id cand)
-    val sl = map f candl
-  in
-    writel file sl
-  end
-
-fun merge_subprog_file d file =
-  app (fn s => d := eadd s (!d)) (readl file) 
-
-fun gpt_of_prog_rev p = implode (rev (explode (gpt_of_prog p)))
-
-fun merge_subprog_default dir = 
-  let 
-    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
-    val d = ref (eempty String.compare)
-    val _ = app (merge_subprog_file d) filel
-    val _ = log ("subprograms: " ^ its (elength (!d)))
-  in
-    elist (!d)
-  end
-
-fun parsemll mll = 
-  let 
-    val d = ref (eempty prog_compare)
-    val counter = ref 0
-    val (_,t) = add_time (app (checkml d [])) mll
-    val _ = print_endline ("parse errors: " ^ its (!error))
-    val _ = print_endline ("parse programs: " ^ its (elength (!d)))
-    val _ = print_endline ("parse time: " ^ rts_round 2 t)
-  in
-    map gpt_of_prog_rev (elist (!d))
-  end
-
-fun parse_file file =
-  let 
-    val mll = map (rev o movel_of_gpt) (readl file)
-    val _ = print_endline (file ^ ":" ^ its (length mll))
-    val _ = error := 0
-  in
-    parsemll mll
-  end
-
-val subprogspec : (unit, string, string list) extspec =
-  {
-  self_dir = selfdir,
-  self = "check.subprogspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote 
-      (!smlExecScripts.buildheap_dir)] 
-    ^ ")"),
-  function = let fun f () file = parse_file file in f end,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
-  write_arg = let fun f file arg = writel file [arg] in f end,
-  read_arg = let fun f file = hd (readl file) in f end,
-  write_result = writel,
-  read_result = let fun f file = 
-    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
-     incr mergen; 
-     [])
-    in f end
-  }
-
-fun dedupl expname = 
-  let 
-    val dir = selfdir ^ "/exp/" ^ expname
-    val candfile = dir ^ "/cand"
-    val _ = mkDir_err (selfdir ^ "/exp")
-    val _ = mkDir_err dir
-    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
-    val _ = smlExecScripts.buildheap_dir := dir
-    val splitdir = dir ^ "/split"
-    val _ = mkDir_err splitdir
-    val _ = cmd_in_dir dir "split -l 100000 cand split/cand"
-    val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
-    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val _ = init_merge ()
-    val (_,t) = add_time (parmap_queue_extern ncore subprogspec ()) filel
-    val _ = log ("subprogram detection time: " ^ rts_round 6 t)
-    val _ = OS.FileSys.rename {old = candfile, new = candfile ^ "_org"}
-    val (_,t) = add_time (cmd_in_dir selfdir) 
-      ("find ./merge -type f | xargs cat | sort -u > " ^ candfile)
-    val _ = log ("merging time: " ^ rts_round 6 t)
-    val _ = (init_merge (); clean_dir splitdir)
-  in
-    ()
-  end
-
 
 (* -------------------------------------------------------------------------
    Statistics
