@@ -144,7 +144,7 @@ fun export_traindata datadir nep itsol =
       (map create_ex seqprogl);
     fun find_head tok = if tok = tokhead then maxmove else 0 
     fun find_arity tok = 
-      if tok = tokseq then 0 else if tok = tokhead then 1 else 3
+      if tok = tokseq then 0 else if tok = tokhead then 1 else length skipl
     val dagn = length (List.concat dagl)
     val dagin = length (List.concat dagil)
     val objn = length (List.concat objl)

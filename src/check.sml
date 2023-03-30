@@ -489,9 +489,4 @@ fun parallel_check expname =
     OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
   end
 
-
-
-
-  
-
 end (* struct *)
