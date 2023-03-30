@@ -188,15 +188,15 @@ fun checkmll mll =
     val lr = ref []
     val error = ref 0 
     val counter = ref 0
-    fun checkml board movel = 
+    fun collect board movel = 
         (
         (case board of p :: m => d := eadd p (!d) | _ => ());
         case movel of [] => () | move :: m => 
           (case next_board board move of
-            SOME newboard => checkml newboard m 
+            SOME newboard => collect newboard m 
           | NONE => incr error)    
         )
-    val (_,t) = add_time (app (checkml [])) mll
+    val (_,t) = add_time (app (collect [])) mll
     val _ = print_endline ("parse errors: " ^ its (!error))
     val _ = print_endline ("parsed programs: " ^ its (elength (!d))
       ^ " in " ^ rts_round 2 t)
