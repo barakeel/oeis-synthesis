@@ -174,12 +174,12 @@ val oempty = Odict ([], dempty IntInf.compare)
 fun oadd (seq,an) ot = case (ot,seq) of
     (Oleaf (an2,[]),_) => 
     oadd (seq,an) (Odict ([an2],dempty IntInf.compare))
-  | (Oleaf (an2,a2 :: m2),_) => 
+  | (Oleaf (an2, a2 :: m2),_) => 
     oadd (seq,an) (Odict ([], dnew IntInf.compare [(a2,(Oleaf (an2,m2)))]))
-  | (Odict (anl,d), []) => Odict (anl, d)
+  | (Odict (anl,d), []) => Odict (an :: anl, d)
   | (Odict (anl,d), a1 :: m1) =>
     let val oto = SOME (dfind a1 d) handle NotFound => NONE in
-      case oto of 
+      case oto of
         NONE => Odict (anl, dadd a1 (Oleaf (an,m1)) d) 
       | SOME newot => Odict (anl, dadd a1 (oadd (m1,an) newot) d)
     end
@@ -188,6 +188,14 @@ fun oaddo (i,seqo,ot) =
   case seqo of NONE => ot | SOME seq => oadd (seq,i) ot
 
 val otree = Array.foldli oaddo oempty oseq
+
+datatype otreen = 
+  Oleafn of anum * IntInf.int list |
+  Odictn of anum list * (IntInf.int * otreen) list
+
+fun rm_dict ot = case ot of
+    Oleaf x => Oleafn x
+  | Odict (anl,d) => Odictn (anl, map_snd rm_dict (dlist d))
 
 (* -------------------------------------------------------------------------
    Collecting partial sequences stopped because of timeout

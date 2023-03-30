@@ -418,6 +418,7 @@ int main()
   if (ep == 25) {lr = 0.0004;}
   if (ep == 50) {lr = 0.0002;}  
   if (ep == 75) {lr = 0.0001;}
+  if (PREV) {lr = 0.0001;}
   shuffle (nex,SHF);
   polierr = 0; polierr2 = 0; valueerr = 0;
   for (tmpex = 0; tmpex < nex; ++tmpex) {

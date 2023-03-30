@@ -157,9 +157,8 @@ fun checkpl pl =
   let 
     val i = ref 0 
     fun f p = (
-      init_fast_test (); 
-      incr i; 
-      if !i mod 10000 = 0 then print "."  else ();
+      init_fast_test (); incr i; 
+      if !i mod 10000 = 0 then print "." else ();
       checkf (p, mk_exec p)
       )
   in

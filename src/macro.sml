@@ -553,22 +553,8 @@ fun boot expname ngen nmacro =
     boot expname (ngen + 1) nmacro
   end
 
-(* -------------------------------------------------------------------------
-   Beam search
-   ------------------------------------------------------------------------- *)
-
-val stopmove = maxop + 1
-
 end (* struct *)
 
-(* 
-take a function that converts macro into terms
-1,5,25
-every functions
-
-take the n most likely element after each step 
-given a function that give you the probability for the next move (including the stop move).
-*)
 
 (* 
 PolyML.print_depth 10;
@@ -597,12 +583,8 @@ fun term_of_macro macro = term_of_macro_aux [] macro;
 val macro = random_macro 10;
 fun string_of_macro il = String.concatWith " " (map gpt_of_id il);
 val s = string_of_macro macro;
-
 val tm = term_of_macro macro;
-
 *)
-
-
 
 (*
 PolyML.print_depth 10;
