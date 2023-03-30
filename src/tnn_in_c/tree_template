@@ -9,6 +9,7 @@
 #define ALIGN 64
 #define DBG 0
 #define FIXED 0
+#define PREV 0
 
 // M is the number of lines (output), N is the number of column (input)
 // DIM has to be bigger than maximum output dimension of heads
@@ -47,8 +48,7 @@ void read(const char* File, long A[]) {
   free (line);
   }
 
-// also scales
-void read_double(const char* File, double A[]) {
+void read_double_scale(const char* File, double A[]) {
   FILE *myFile;
   myFile = fopen(File, "r");
   long i = 0;
@@ -65,6 +65,23 @@ void read_double(const char* File, double A[]) {
   free (line);
   }
   
+void read_double(const char* File, double A[]) {
+  FILE *myFile;
+  myFile = fopen(File, "r");
+  long i = 0;
+  char *line; 
+  line = (char*)malloc (BUFFER);
+  while (myFile && fgets(line,BUFFER,myFile)) {
+    char* token = strtok(line, " ");
+    while (token) {
+      double d;
+      if (sscanf(token, "%lf", &d) == 1) {A[i] = d; i++;}
+     token = strtok(NULL, " ");
+    }
+  }
+  free (line);
+  }
+
 // Printing functions
 void print_vecti (char *s, long size, long X[]) {
   printf("%s\n",s);
@@ -306,7 +323,7 @@ int main()
   // potential objectives for each head in the dag
   printf("reading objectives\n");
   OBJ = (double*)mkl_malloc(ARG[5]*sizeof(double),ALIGN);
-  read_double("data/obj.txt",OBJ);
+  read_double_scale("data/obj.txt",OBJ);
   OBJO = (long*)mkl_malloc(nex*sizeof(long),ALIGN);
   read("data/objo.txt",OBJO);
   OBJI = (long*)mkl_malloc(ARG[6]*sizeof(long),ALIGN);
@@ -320,6 +337,8 @@ int main()
   double *A, *Acur;
   A = (double*)mkl_malloc(mtot*sizeof( double ),ALIGN);
   
+  if (PREV) {read_double("data/model.txt",OBJ);}
+  else {
   for (op=0; op < nop; ++op) {
     if (HEAD[op] > 0) {
       if (FIXED) {fixed_head (HEAD[op],A+MO[op]);} else {rand_head (HEAD[op],A+MO[op]);}
@@ -327,7 +346,7 @@ int main()
     else {
       if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else {rand_mat (ARITY[op],A+MO[op]);}
       }
-  }
+  }}
   //printf("%li matrix initalized\n", nop);
 
   //update matrix for each operator
@@ -574,15 +593,15 @@ int main()
     }
   fclose(fp);
 
-  /*
-  fp = fopen("out_mkl", "w");
+  if (PREV) {
+  fp = fopen("data/model.txt", "w");
   for (i = 0; i < mtot; i++)
     {
     fprintf(fp, "%.16f", A[i]);
     if (i < mtot - 1) {fprintf(fp, " ");}
     }
   fclose(fp);
-  */
+  }
 
 
 return 0;
