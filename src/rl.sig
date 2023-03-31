@@ -42,4 +42,9 @@ sig
   val init_cube : unit -> unit
   val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
   
+  (* pgen experiment *)
+  val search_pgen : unit -> (prog list * real) list -> kernel.pgen list
+  val pgenspec : 
+    (unit, (prog list * real) list, kernel.pgen list) smlParallel.extspec
+  
 end
