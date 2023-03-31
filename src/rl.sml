@@ -116,6 +116,7 @@ fun trainf_rnn datadir pid =
     val newitsol = 
       if pid = 0 then (shuffle itsol) else first_n 20000 (shuffle itsol)
   in
+    if nex < 10 then raise ERR "too few examples" "" else
     rnn.export_traindata datadir nep newitsol
   end
 
@@ -132,6 +133,7 @@ fun trainf_pgen datadir pid =
             else Real.round (int_div nex 20000) * 100
     val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
   in
+    if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
   end
   
@@ -148,6 +150,7 @@ fun trainf_tnn datadir pid =
           else Real.round (int_div nex 20000) * 100
     val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
   in
+    if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
   end  
 
@@ -449,7 +452,7 @@ val pgenspec : (unit, (prog list * real) list, pgen list) extspec =
 
 fun pgen () = 
   let
-    val tree = start_cube (ncore * 8)
+    val tree = start_cube (ncore * 2)
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore pgenspec () l1

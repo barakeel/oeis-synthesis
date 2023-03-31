@@ -371,7 +371,7 @@ fun penum_pgenf f target =
       )
     val _ = catch_perror loop 0 (fn () => ())
     val po =  
-      if not (not (null (!l)) andalso hd (!l) = maxmove) 
+      if not (null (!l)) andalso hd (!l) = maxmove
       then SOME (prog_of_movel (rev (tl (!l)))) handle HOL_ERR _ => NONE
       else NONE
   in  
@@ -380,16 +380,12 @@ fun penum_pgenf f target =
        then SOME p else NONE)
   end
 
-(* Generating programs may take a long time
-   since it's only guessing one *)
-   
-(* target sequences from model/itsol209 *)
-(* Select maximal elements/ tie break sum of the sizes of
-   the correct programs *)
-
-val anuml_itsol209 = dict_sort Int.compare 
-  (map fst (read_itprogl (selfdir ^ "/model/itsol209")))
-
+val anuml_itsol209 = 
+  if !pgen_flag 
+  then dict_sort Int.compare 
+    (map fst (read_itprogl (selfdir ^ "/model/itsol209")))
+  else []
+  
 fun penum_pgen exec = 
   let 
     val _ = init_fast_test ()
