@@ -316,6 +316,29 @@ fun create_exl iprogl =
     r
   end
 
+fun create_exl_progset progl =
+  let
+    fun create_ex p = 
+      let
+        val bml = linearize_safe p
+        fun f (board,move) =
+           let 
+             val newv = Vector.update (zerov, move, 1.0)
+             val newl = vector_to_list newv
+           in
+             (poli_of_board board, newl)
+           end
+      in
+        map f bml
+      end
+    val _ = use_cache := true
+    val r = map create_ex progl
+    val _ = use_cache := false
+  in
+    r
+  end
+
+
 (* no target *)
 fun merge_distrib disl = map average_real (list_combine disl)
 

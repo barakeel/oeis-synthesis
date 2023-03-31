@@ -33,6 +33,8 @@ sig
 
   (* training I/O *)
   val create_exl : (int * kernel.prog) list -> (term * real list) list list
+  val create_exl_progset : kernel.prog list -> (term * real list) list list
+  
   val export_traindata : string -> int -> (term * real list) list list -> unit
   
   (* deprecated *)

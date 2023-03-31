@@ -404,14 +404,10 @@ fun filter_pgen () =
     pgenS := drem kS (!pgenS);
     pgenA := drem kA (!pgenA)
   end 
-  
-fun find_covered newkA =
-  
-  
+
 fun insert_pgen pgen =
   if not (test_pgen pgen) then () else
-  let 
-    val 
+  let
     val newkS = (length (snd pgen), fst pgen)
     val newkA = map fst (snd pgen)
     val coveredl = filter (fn (kA,_) => included_in kA newkA) (dlist (!pgenA))
@@ -420,16 +416,16 @@ fun insert_pgen pgen =
   in
     pgenS := dadd newkS pgen (!pgenS);
     pgenA := dadd newkA pgen (!pgenA);
-    app (fn x => drem x (!pgenS)) kSl;
-    app (fn x => drem x (!pgenA)) kAl;
+    app (fn x => pgenS := drem x (!pgenS)) kSl;
+    app (fn x => pgenA := drem x (!pgenA)) kAl;
     filter_pgen ()
   end
 
 fun checkinit_pgen () = 
   (pgenS := dempty compare_scp; pgenA := dempty (list_compare Int.compare))
   
-fun checkonline_pgen (p,_) =
-  let val ipl = penum_pgen p in
+fun checkonline_pgen (p,exec) =
+  let val ipl = penum_pgen exec in
     insert_pgen (p,ipl)
   end
  

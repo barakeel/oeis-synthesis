@@ -48,6 +48,7 @@ val train_multi =
 val rnn_flag = bflag "rnn_flag"
 (* experiments *)
 val pgen_flag = bflag "pgen_flag"
+val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
 
 (* -------------------------------------------------------------------------

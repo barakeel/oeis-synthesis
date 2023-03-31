@@ -104,7 +104,12 @@ fun collect_children boarde = case boarde of
     [(p,exec,a,b)] =>
     let 
       val _ = if not (!locsearch_flag) 
-              then (incr prog_counter; checkonline (p,exec))
+              then (
+                   incr prog_counter; 
+                   if !pgen_flag 
+                   then checkonline_pgen (p,exec)
+                   else checkonline (p,exec)
+                   )
               else ()
       val newboarde = boarde
     in

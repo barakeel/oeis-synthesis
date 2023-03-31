@@ -26,6 +26,6 @@ sig
   val create_fsf : exec -> (IntInf.int -> IntInf.int)
   
   (* pgen experiment *)
-  val penum_pgen : prog -> (int * kernel.prog) list
+  val penum_pgen : exec -> (int * kernel.prog) list
   
 end

@@ -82,6 +82,17 @@ fun find_last s =
 fun find_last_itsol () = find_last "itsol"
 fun find_last_ob () = find_last "ob"
 
+(* pgen experiment *)
+fun read_pgensol ngen = read_pgen (itsol_file ngen)
+fun write_pgensol_atomic ngen pgensol = 
+  let
+    val newfile = itsol_file ngen
+    val oldfile = newfile ^ "_temp"
+  in
+    write_pgen oldfile pgensol;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end  
+
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
@@ -94,41 +105,63 @@ fun add_extra () =
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
+fun trainf_rnn datadir pid =
+  let 
+    val itsol = read_itsol (find_last_itsol ()) @ 
+       (if !extra_flag then read_itprogl extra_file else [])
+    val _ = print_endline ("reading itsol " ^ (its (length itsol)))
+    val nex = length itsol 
+    val nep = if nex < 20000 then 100 
+          else Real.round (int_div nex 20000) * 100
+    val newitsol = 
+      if pid = 0 then (shuffle itsol) else first_n 20000 (shuffle itsol)
+  in
+    rnn.export_traindata datadir nep newitsol
+  end
+
+fun trainf_pgen datadir pid =
+  let
+    val pgensol = read_pgensol (find_last_itsol ())
+    val progl = map fst pgensol
+    val progset = shuffle (mk_fast_set prog_compare progl)
+    val _ = print_endline ("programs " ^ its (length progset))
+    val ex = create_exl_progset progset
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val nep = if nex < 20000 then 100 
+            else Real.round (int_div nex 20000) * 100
+    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+  in
+    export_traindata datadir nep newex
+  end
+  
+fun trainf_tnn datadir pid =
+  let
+    val itsol = read_itsol (find_last_itsol ()) @ 
+       (if !extra_flag then read_itprogl extra_file else [])
+    val _ = print_endline ("reading itsol " ^ (its (length itsol)))
+    val isol = distrib (map (fn (a,bl) => (a,map snd bl)) itsol)
+    val ex = create_exl (shuffle isol)
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val nep = if nex < 20000 then 100 
+          else Real.round (int_div nex 20000) * 100
+    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+  in
+    export_traindata datadir nep newex
+  end  
+
 fun trainf_start pid =
   let 
     val execdir = tnndir ^ "/para/" ^ its pid
     val datadir = execdir ^ "/data"
     val _ = app mkDir_err [tnndir ^ "/para", execdir, datadir]
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
-    val itsol = read_itsol (find_last_itsol ()) @ 
-      (if !extra_flag then read_itprogl extra_file else [])
-    val _ = print_endline ("reading itsol " ^ (its (length itsol)))
+    val _ = print_endline "exporting training data"
   in
-    print_endline "exporting training data";
-    if !rnn_flag 
-    then 
-      let 
-        val nex = length itsol 
-        val nep = if nex < 20000 then 100 
-              else Real.round (int_div nex 20000) * 100
-        val newitsol = 
-          if pid = 0 then (shuffle itsol) else first_n 20000 (shuffle itsol)
-      in
-        rnn.export_traindata datadir nep newitsol
-      end
-    else
-      let
-        val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol
-        val isol = distrib isolaux
-        val ex = create_exl (shuffle isol)
-        val nex = length ex
-        val _ = print_endline (its nex ^ " examples created")
-        val nep = if nex < 20000 then 100 
-              else Real.round (int_div nex 20000) * 100
-        val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
-      in
-        export_traindata datadir nep newex
-      end
+    if !rnn_flag then trainf_rnn datadir pid
+    else if !pgen_flag then trainf_pgen datadir pid
+    else trainf_tnn datadir pid
     ;
     print_endline "exporting end"
   end
@@ -183,7 +216,7 @@ fun trainw_end pid =
   end
 
 (* -------------------------------------------------------------------------
-   Search
+   Parallel search
    ------------------------------------------------------------------------- *)
 
 fun clean_dicts () = 
@@ -344,8 +377,6 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "rl.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
-     "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
   function = search_cube,
@@ -377,6 +408,51 @@ fun cube () =
     val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
   in
     smlParallel.parmap_queue_extern ncore cubespec () l1
+  end
+
+(* -------------------------------------------------------------------------
+   Parallel search for pgen experiment
+   ------------------------------------------------------------------------- *)
+
+fun search_pgen () btiml =
+  (
+  search.randsearch_flag := (!ngen_glob = 0); 
+  checkinit_pgen ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  checkfinal_pgen ()
+  )
+
+val pgenspec : (unit, (prog list * real) list, pgen list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.pgenspec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "rl.expname := " ^ mlquote (!expname),
+     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "rl.init_cube ()"] 
+    ^ ")"),
+  function = search_pgen,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
+  write_result = write_pgen,
+  read_result = let fun f file = 
+    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
+     incr mergen; 
+     [])
+    in f end
+  }
+
+fun pgen () = 
+  let
+    val tree = start_cube (ncore * 8)
+    val l1 = sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore pgenspec () l1
   end
 
 (* -------------------------------------------------------------------------
@@ -430,6 +506,20 @@ fun stats_ngen dir ngen =
     stats_sol (dir ^ "/diff_") soldiff
   end
 
+(* pgen statistics *)
+fun string_of_pgensol (ptop,ipl) = 
+  let fun f (i,p) = 
+    "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
+    humanf p
+  in
+    "cover:" ^ its (length ipl) ^ ", size: " ^ its (prog_size ptop) ^ ", " ^    
+    humanf ptop ^ "\n" ^
+    String.concatWith "\n" (map f ipl) 
+  end
+  
+fun stats_pgen dir pgensol =
+  writel (dir ^ "/stats") (map string_of_pgensol (rev pgensol))
+
 (* -------------------------------------------------------------------------
    Reinforcement learning loop
    ------------------------------------------------------------------------- *)
@@ -454,18 +544,9 @@ fun count_newsol olditsol itsoll =
   end
 
 
-  
-fun rl_search_only ngen =
-  let 
-    val _ = mk_dirs ()
-    val _ = log ("Search " ^ its ngen)
-    val _ = buildheap_dir := searchdir () ^ "/" ^ its ngen;
-    val _ = mkDir_err (!buildheap_dir)
-    val _ = ngen_glob := ngen
-    val _ = buildheap_options := 
-      "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) 
-         handle NotFound => 8000) 
+ 
+fun rl_search_only_default ngen =
+  let
     val (itsoll,t) = 
       if !notarget_flag then add_time cube ()
       else add_time
@@ -487,7 +568,37 @@ fun rl_search_only ngen =
   in
     stats_ngen (!buildheap_dir) ngen
   end
+  
+fun rl_search_only_pgen ngen =
+  let 
+    val _ = init_merge ()
+    val (pgensol,t) = add_time pgen ()
+    val _ = log ("search time: " ^ rts_round 6 t)
+    val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
+    val newpgensol = merge_pgen oldfileo
+    val _ = init_merge ()
+    val _ = log ("pgen solutions: " ^ (its (length newpgensol)))
+  in 
+    write_pgensol_atomic ngen newpgensol;
+    stats_pgen (!buildheap_dir) newpgensol
+  end
 
+fun rl_search_only ngen =
+  let 
+    val _ = mk_dirs ()
+    val _ = log ("Search " ^ its ngen)
+    val _ = buildheap_dir := searchdir () ^ "/" ^ its ngen;
+    val _ = mkDir_err (!buildheap_dir)
+    val _ = ngen_glob := ngen
+    val _ = buildheap_options := 
+      "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) 
+         handle NotFound => 8000) 
+  in
+    if !pgen_flag 
+    then rl_search_only_pgen ngen
+    else rl_search_only_default ngen
+  end
 
 fun rl_train_only ngen =
   let
