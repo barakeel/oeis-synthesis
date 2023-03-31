@@ -99,5 +99,8 @@ sig
   val movel_of_gpt : string -> id list
   val prog_of_gpt : string -> prog
   
+  (* other *)
+  val prog_of_movel : int list -> prog
+  
 
 end

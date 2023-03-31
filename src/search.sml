@@ -290,8 +290,8 @@ fun search_rnn tinc =
     val _ = checkinit ()
     val embl = 
       if !randsearch_flag then [] else
-      rnn.fp_tokl
-      ([rnn.tokseq] @ rnn.tokenize_seq (!target_glob) @ [rnn.tokprog])
+      rnn.fp_tokl ([rnn.tokseq] @ 
+                    rnn.tokenize_seq (!target_glob) @ [rnn.tokprog])
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_movel rt 0 embl []) (0.0,tinc)
   in

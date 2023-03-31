@@ -32,20 +32,17 @@ fun tokenize_aint n =
   else if n > amillion then [tokbig]
   else tokenize_nat (IntInf.toInt n)
 
-fun tokenize_seq seq = case seq of
+fun tokenize_seq_aux seq = case seq of
     [] => []
   | [a] => tokenize_aint a  
-  | a :: m => tokenize_aint a @ [toksep] @ tokenize_seq m
+  | a :: m => tokenize_aint a @ [toksep] @ tokenize_seq_aux m
+
+fun tokenize_seq seq = tokenize_seq_aux (rev (first_n 16 seq))
 
 fun tokenize_stack stack = map snd (linearize_board stack)
 
 fun tokenize_join (seq,board) =
-  if !notarget_flag then tokenize_stack board
-  else 
-    [tokseq] @
-    tokenize_seq (rev (first_n 16 seq)) @ 
-    [tokprog] @ 
-    tokenize_stack board
+  [tokseq] @ tokenize_seq seq @ [tokprog] @ tokenize_stack board
 
 (* -------------------------------------------------------------------------
    Create objectives and remove last move

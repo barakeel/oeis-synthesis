@@ -46,7 +46,8 @@ val extra_flag = bflag "extra_flag" (* add extra data for the training *)
 val train_multi = 
   ref (string_to_int (dfind "train_multi" configd) handle NotFound => 1)
 val rnn_flag = bflag "rnn_flag"
-(* findstat flag *)
+(* experiments *)
+val pgen_flag = bflag "pgen_flag"
 val fs_flag = bflag "fs_flag"
 
 (* -------------------------------------------------------------------------
@@ -176,7 +177,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
        ("nine",0),("ten",0)] else []) @
-     (if !fs_flag then [("perm",1)] else [])
+     (if !fs_flag then [("perm",1)] else []) @
+     (if !pgen_flag then [("seq",1)] else [])
   )
 
 (* -------------------------------------------------------------------------
@@ -219,7 +221,8 @@ val ho_ariv = Vector.fromList (
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
-       (if !fs_flag then [0] else [])
+       (if !fs_flag then [0] else []) @
+       (if !pgen_flag then [0] else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv
@@ -304,6 +307,14 @@ fun prog_of_gpt s =
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
   
+(* -------------------------------------------------------------------------
+   Other
+   ------------------------------------------------------------------------- *)
+   
+fun prog_of_movel ml = 
+  let val progl = foldl (uncurry apply_move) [] ml in
+    case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
+  end
 
   
 end (* struct *)
