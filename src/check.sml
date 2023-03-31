@@ -48,7 +48,7 @@ fun update_fastest d anum tpl =
   end  
    
 fun update_sol2 d anum tpl =
-  let val newtpl = mk_fast_set (snd_compare prog_compare) 
+  let val newtpl = mk_fast_set (snd_compare prog_compare_size) 
     [find_min is_smaller tpl, find_min is_faster tpl]
   in
     d := dadd anum newtpl (!d)
@@ -373,24 +373,25 @@ fun included_in l1 l2 = case (l1,l2) of
     if a2 = a1 then included_in m1 m2
     else false
     
-exception Catchableip of pgen;
+exception Catchableip of ((int * kernel.prog) * pgen);
 fun smallest_keyval d =
   (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
   handle Catchableip r => SOME r
 
 (* determining if a new candidate is worth inserting *)
 fun test_pgen (p,ipl) =
-  if null ipl then () else 
+  if null ipl then false else
+  if dlength (!pgenS) <= 0 then true else 
   let 
     val newkS = (length ipl, p)
     val newkA = map fst ipl
-    val (kS,vS) = valOf (smallest_keyval (!pgenS)) 
+    val (kS,_) = valOf (smallest_keyval (!pgenS)) 
   in
     if compare_scp (newkS,kS) <> GREATER then false else  
     (
     case dfindo newkA (!pgenA) of
-        NONE => all (not o (included_in anuml)) (dkeys (!pgenA))  
-      | SOME vA => (compare_prog p (fst vA) <> LESS)  
+        NONE => all (not o (included_in newkA)) (dkeys (!pgenA))
+      | SOME vA => prog_compare_size (p, fst vA) <> LESS
     )
   end
   
@@ -404,28 +405,37 @@ fun filter_pgen () =
     pgenA := drem kA (!pgenA)
   end 
   
-fun insert_pgen (pgen as (p,ipl)) =
-  if not (test_pgen (p,ipl)) then () else
+fun find_covered newkA =
+  
+  
+fun insert_pgen pgen =
+  if not (test_pgen pgen) then () else
   let 
-    val newkS = (length ipl, p)
-    val newkA = map fst ipl
+    val 
+    val newkS = (length (snd pgen), fst pgen)
+    val newkA = map fst (snd pgen)
+    val coveredl = filter (fn (kA,_) => included_in kA newkA) (dlist (!pgenA))
+    val kAl = map fst coveredl
+    val kSl = map (fn (_,(p,ipl)) => (length ipl, p)) coveredl
   in
     pgenS := dadd newkS pgen (!pgenS);
     pgenA := dadd newkA pgen (!pgenA);
+    app (fn x => drem x (!pgenS)) kSl;
+    app (fn x => drem x (!pgenA)) kAl;
     filter_pgen ()
   end
 
 fun checkinit_pgen () = 
   (pgenS := dempty compare_scp; pgenA := dempty (list_compare Int.compare))
   
-fun checkonline_pgen (p,exec) =
-  let val ipl = penum_pgen exec in
+fun checkonline_pgen (p,_) =
+  let val ipl = penum_pgen p in
     insert_pgen (p,ipl)
   end
  
 fun checkfinal_pgen () = map snd (dlist (!pgenS))
 
-fun merge_pgen_file file = app insert_pgen (read_pgenl file)
+fun merge_pgen_file file = app insert_pgen (read_pgen file)
 
 fun merge_pgen fileo = 
   let 
@@ -436,21 +446,6 @@ fun merge_pgen fileo =
   in
     checkfinal_pgen ()
   end  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
 
 
 end (* struct *)

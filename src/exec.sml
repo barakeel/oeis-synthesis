@@ -395,7 +395,9 @@ fun penum_pgen p =
     val f = mk_exec_zerov p
     fun g anum = 
       let val target = valOf (Array.sub (oseq,anum)) in
-        if penum_pgenf f target then l := anum :: !l else ()
+        case penum_pgenf f target of
+            SOME newp => l := (anum,newp) :: !l 
+          | NONE => ()
       end
   in 
     app g (anuml_itsol209);
