@@ -350,6 +350,107 @@ fun parallel_check expname =
     OS.FileSys.rename {old = newsolfile ^ "_temp", new = newsolfile};
     OS.FileSys.rename {old = gptfile ^ "_temp", new = gptfile}
   end
+  
+(* -------------------------------------------------------------------------
+   Check if a program generate OEIS programs
+   ------------------------------------------------------------------------- *)
+
+(* data structures 
+pgenS: contains list of pgen entries keyed by score (and program size)
+pgenA: contains list of pgen entries with keys being a list of A numbers
+checks if a new entry is strictly subsumed by existing entries 
+*)
+
+val compare_scp = cpl_compare Int.compare (inv_cmp prog_compare_size)
+val pgenS = ref (dempty compare_scp)
+val pgenA = ref (dempty (list_compare Int.compare))
+
+fun included_in l1 l2 = case (l1,l2) of
+    ([],_) => true
+  | (_,[]) => false
+  | (a1 :: m1, a2 :: m2) => 
+    if a2 < a1 then included_in l1 m2 else
+    if a2 = a1 then included_in m1 m2
+    else false
+    
+exception Catchableip of pgen;
+fun smallest_keyval d =
+  (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
+  handle Catchableip r => SOME r
+
+(* determining if a new candidate is worth inserting *)
+fun test_pgen (p,ipl) =
+  if null ipl then () else 
+  let 
+    val newkS = (length ipl, p)
+    val newkA = map fst ipl
+    val (kS,vS) = valOf (smallest_keyval (!pgenS)) 
+  in
+    if compare_scp (newkS,kS) <> GREATER then false else  
+    (
+    case dfindo newkA (!pgenA) of
+        NONE => all (not o (included_in anuml)) (dkeys (!pgenA))  
+      | SOME vA => (compare_prog p (fst vA) <> LESS)  
+    )
+  end
+  
+fun filter_pgen () = 
+  if dlength (!pgenS) <= 10000 then () else 
+  let 
+    val (kS,vS) = valOf (smallest_keyval (!pgenS)) 
+    val kA = map fst (snd vS)
+  in
+    pgenS := drem kS (!pgenS);
+    pgenA := drem kA (!pgenA)
+  end 
+  
+fun insert_pgen (pgen as (p,ipl)) =
+  if not (test_pgen (p,ipl)) then () else
+  let 
+    val newkS = (length ipl, p)
+    val newkA = map fst ipl
+  in
+    pgenS := dadd newkS pgen (!pgenS);
+    pgenA := dadd newkA pgen (!pgenA);
+    filter_pgen ()
+  end
+
+fun checkinit_pgen () = 
+  (pgenS := dempty compare_scp; pgenA := dempty (list_compare Int.compare))
+  
+fun checkonline_pgen (p,exec) =
+  let val ipl = penum_pgen exec in
+    insert_pgen (p,ipl)
+  end
+ 
+fun checkfinal_pgen () = map snd (dlist (!pgenS))
+
+fun merge_pgen_file file = app insert_pgen (read_pgenl file)
+
+fun merge_pgen fileo = 
+  let 
+    val _ = checkinit_pgen ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_pgen_file filel
+    val _ = if isSome fileo then merge_pgen_file (valOf fileo) else ()
+  in
+    checkfinal_pgen ()
+  end  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
 
 end (* struct *)

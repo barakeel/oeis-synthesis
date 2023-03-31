@@ -225,13 +225,9 @@ end (* struct *)
 
 (*
 load "rnn"; open kernel aiLib rnn;
-
 val itsol = read_itprogl "model/itsol209";
 val _ = print_endline ("reading itsol " ^ (its (length itsol)));
-
 val _ = print_endline (its (length seqprogl) ^ " examples created");
-
-
 export_traindata seqprogl;
 *)
 

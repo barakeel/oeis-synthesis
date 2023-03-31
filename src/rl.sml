@@ -106,7 +106,16 @@ fun trainf_start pid =
   in
     print_endline "exporting training data";
     if !rnn_flag 
-    then rnn.export_traindata datadir 100 itsol
+    then 
+      let 
+        val nex = length itsol 
+        val nep = if nex < 20000 then 100 
+              else Real.round (int_div nex 20000) * 100
+        val newitsol = 
+          if pid = 0 then (shuffle itsol) else first_n 20000 (shuffle itsol)
+      in
+        rnn.export_traindata datadir nep newitsol
+      end
     else
       let
         val isolaux = map (fn (a,bl) => (a,map snd bl)) itsol

@@ -28,7 +28,7 @@ sig
   val rnn_flag : bool ref (* experiment using a rnn architecture *)
   val train_multi : int ref (* train multiple tnn at the same time *)
   val pgen_flag : bool ref
-  
+    
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
@@ -103,5 +103,11 @@ sig
   (* other *)
   val prog_of_movel : int list -> prog
   
+  (* pgen experiment *)
+  type pgen = (prog * (int * prog) list)
+  val read_pgen : string -> pgen list
+  val write_pgen : string -> pgen list -> unit
+  
+
 
 end

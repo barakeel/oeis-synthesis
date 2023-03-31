@@ -14,6 +14,7 @@ sig
   val coverf_oeis : exec -> (int * int) list * int * int list
   val coverp_target : prog -> kernel.seq -> bool * int
   
+  (* mostly for SMT export *)
   val penum2_list : prog -> (IntInf.int * IntInf.int) list -> kernel.seq
   val penum : prog -> int -> kernel.seq
   val penum_limit : IntInf.int -> prog -> int -> kernel.seq
@@ -23,6 +24,8 @@ sig
   
   (* fs experiment *)
   val create_fsf : exec -> (IntInf.int -> IntInf.int)
+  
+  (* pgen experiment *)
   
   
 end

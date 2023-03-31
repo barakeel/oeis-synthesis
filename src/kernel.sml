@@ -144,18 +144,18 @@ local open HOLsexp in
   val enc_aint = String o IntInf.toString       
   val dec_aint = Option.mapPartial IntInf.fromString 
                  o string_decode              
-  val enc_prime = pair_encode (list_encode enc_aint, enc_iprog) 
-  val dec_prime = pair_decode (list_decode dec_aint, dec_iprog)
-  val enc_ramsey = pair_encode (enc_iprog, 
-    pair4_encode (Integer,Integer,Integer,Integer)) 
-  val dec_ramsey = pair_decode (dec_iprog, 
-    pair4_decode (int_decode,int_decode,int_decode,int_decode))
+  val enc_pgen = pair_encode (enc_prog, 
+    list_encode (pair_encode (Integer,enc_prog))) 
+  val dec_pgen = pair_decode (dec_prog, 
+    list_decode (pair_decode (int_decode,dec_prog))) 
 end
 
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
 
-
+fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
+fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
+ 
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)
@@ -315,6 +315,8 @@ fun prog_of_movel ml =
   let val progl = foldl (uncurry apply_move) [] ml in
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
+ 
+type pgen = (prog * (int * prog) list)
 
   
 end (* struct *)
