@@ -506,24 +506,6 @@ fun stats_ngen dir ngen =
     stats_sol (dir ^ "/diff_") soldiff
   end
 
-(* pgen statistics *)
-fun string_of_pgensol (ptop,ipl) = 
-  let fun f (i,p) = 
-    "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
-    humanf p
-  in
-    "cover:" ^ its (length ipl) ^ ", size: " ^ its (prog_size ptop) ^ ", " ^    
-    humanf ptop ^ "\n" ^
-    String.concatWith "\n" (map f ipl) 
-  end
-  
-fun stats_pgen dir pgensol =
-  writel (dir ^ "/stats") (map string_of_pgensol (rev pgensol))
-
-(* -------------------------------------------------------------------------
-   Reinforcement learning loop
-   ------------------------------------------------------------------------- *)
-
 fun count_newsol olditsol itsoll =
   let 
     val d = ref (enew Int.compare (map fst olditsol))
@@ -544,7 +526,24 @@ fun count_newsol olditsol itsoll =
   end
 
 
- 
+(* pgen statistics *)
+fun string_of_pgensol (ptop,ipl) = 
+  let fun f (i,p) = 
+    "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
+    humanf p
+  in
+    "cover:" ^ its (length ipl) ^ ", size: " ^ its (prog_size ptop) ^ ", " ^    
+    humanf ptop ^ "\n" ^
+    String.concatWith "\n" (map f ipl) 
+  end
+  
+fun stats_pgen dir pgensol =
+  writel (dir ^ "/stats") (map string_of_pgensol (rev pgensol))
+
+(* -------------------------------------------------------------------------
+   Reinforcement learning loop
+   ------------------------------------------------------------------------- *)
+
 fun rl_search_only_default ngen =
   let
     val (itsoll,t) = 
