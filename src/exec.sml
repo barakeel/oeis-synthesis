@@ -364,7 +364,7 @@ fun penum_pgenf f target =
       if i >= pgen_limit then raise Div else 
       if not (null (!l)) andalso hd (!l) = maxmove then () else
       (
-      l := f x mod (IntInf.fromint maxmove + 1) :: !l; 
+      l := IntInf.toInt (IntInf.mod (f x, IntInf.fromInt (maxmove + 1))) :: !l; 
       incr_timer ();
       loop (i+1) (aincr x)
       )
@@ -385,7 +385,7 @@ fun penum_pgen p =
     fun g (anum,target) = 
       if penum_pgenf f target then l := anum :: !l else ()
   in 
-    app g targetl
+    app g []
   end
   
 (* -------------------------------------------------------------------------
