@@ -161,6 +161,19 @@ fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
    Instructions
    ------------------------------------------------------------------------- *)
 
+val pgen_operl = map (fn x => (x,1))
+  ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
+   "mcond","mloop","mx","my","mcompr","mloop2"]
+
+val pgen_operln = length pgen_operl
+
+val org_operl =
+   [("zero",0),("one",0),("two",0),
+     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+     ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)]
+
+val org_operln = length org_operl
+ 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !array_flag then
@@ -170,16 +183,13 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      ("array",1),("assign",2),("loop",3)]
   else if !minimal_flag then
     [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
-  else
-    [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)] @
+  else org_operl @
      (if !z_flag then [("z",0),("loop3",7)] else []) @
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
        ("nine",0),("ten",0)] else []) @
      (if !fs_flag then [("perm",1)] else []) @
-     (if !pgen_flag then [("seq",1)] else [])
+     (if !pgen_flag then [("seq",1)] @ pgen_operl else [])
   )
 
 (* -------------------------------------------------------------------------
@@ -223,7 +233,7 @@ val ho_ariv = Vector.fromList (
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
        (if !fs_flag then [0] else []) @
-       (if !pgen_flag then [0] else [])
+       (if !pgen_flag then List.tabulate (pgen_operln + 1,fn _ => 0) else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv

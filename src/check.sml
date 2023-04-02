@@ -385,14 +385,15 @@ fun test_pgen (p,ipl) =
   let 
     val newkS = (length ipl, p)
     val newkA = map fst ipl
-    val (kS,_) = valOf (smallest_keyval (!pgenS)) 
+    val (smallkS,_) = valOf (smallest_keyval (!pgenS)) 
   in
-    if compare_scp (newkS,kS) <> GREATER then false else  
-    (
-    case dfindo newkA (!pgenA) of
-        NONE => all (not o (included_in newkA)) (dkeys (!pgenA))
-      | SOME vA => prog_compare_size (p, fst vA) <> LESS
-    )
+    if compare_scp (smallkS,newkS) = LESS then  
+      (
+      case dfindo newkA (!pgenA) of
+          NONE => all (not o (included_in newkA)) (dkeys (!pgenA))
+        | SOME vA => prog_compare_size (p, fst vA) = LESS
+      )
+    else false
   end
   
 fun filter_pgen () = 
@@ -408,17 +409,23 @@ fun filter_pgen () =
 fun insert_pgen pgen =
   if not (test_pgen pgen) then () else
   let
-    val newkS = (length (snd pgen), fst pgen)
     val newkA = map fst (snd pgen)
+    val newkS = (length (snd pgen), fst pgen)
     val coveredl = filter (fn (kA,_) => included_in kA newkA) (dlist (!pgenA))
     val kAl = map fst coveredl
     val kSl = map (fn (_,(p,ipl)) => (length ipl, p)) coveredl
   in
-    pgenS := dadd newkS pgen (!pgenS);
-    pgenA := dadd newkA pgen (!pgenA);
-    app (fn x => pgenS := drem x (!pgenS)) kSl;
+    (* removing *)
     app (fn x => pgenA := drem x (!pgenA)) kAl;
-    filter_pgen ()
+    app (fn x => pgenS := drem x (!pgenS)) kSl;
+    (* adding *)
+    pgenA := dadd newkA pgen (!pgenA);
+    pgenS := dadd newkS pgen (!pgenS);
+    (* removing *)
+    filter_pgen ();
+    if dlength (!pgenA) <> dlength (!pgenS) 
+      then raise ERR "insert_pgen" "assumption"
+      else ()
   end
 
 fun checkinit_pgen () = 

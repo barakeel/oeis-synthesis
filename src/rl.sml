@@ -535,7 +535,8 @@ fun string_of_pgensol (ptop,ipl) =
     "A" ^ its i ^ ": " ^ string_of_seq (valOf (Array.sub (oseq,i))) ^ "\n" ^
     humanf p
   in
-    "cover:" ^ its (length ipl) ^ ", size: " ^ its (prog_size ptop) ^ ", " ^    
+    "cover: " ^ its (length ipl) ^ ", " ^
+    "size: " ^ its (prog_size ptop) ^ ", " ^    
     humanf ptop ^ "\n" ^
     String.concatWith "\n" (map f ipl) 
   end

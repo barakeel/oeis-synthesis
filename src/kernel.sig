@@ -27,7 +27,7 @@ sig
   val fs_flag : bool ref (* experiment with find_stat *)
   val rnn_flag : bool ref (* experiment using a rnn architecture *)
   val train_multi : int ref (* train multiple tnn at the same time *)
-  val pgen_flag : bool ref
+  
     
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
@@ -71,6 +71,7 @@ sig
   val write_itprogl : string -> sol list -> unit
   
   (* operators *)
+  val org_operln : int
   val operv : term vector
   val maxmove : int
   val arity_of_oper : int -> int
@@ -105,6 +106,8 @@ sig
   
   (* pgen experiment *)
   type pgen = (prog * (int * prog) list)
+  val pgen_flag : bool ref
+  val pgen_operln : int
   val read_pgen : string -> pgen list
   val write_pgen : string -> pgen list -> unit
   

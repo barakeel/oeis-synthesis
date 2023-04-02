@@ -165,6 +165,7 @@ val oseql =
    OEIS tree
    ------------------------------------------------------------------------- *)
 
+
 datatype otree = 
   Oleaf of anum * IntInf.int list |
   Odict of anum list * (IntInf.int, otree) Redblackmap.dict
@@ -174,7 +175,7 @@ val oempty = Odict ([], dempty IntInf.compare)
 fun oadd (seq,an) ot = case (ot,seq) of
     (Oleaf (an2,[]),_) => 
     oadd (seq,an) (Odict ([an2],dempty IntInf.compare))
-  | (Oleaf (an2, a2 :: m2),_) => 
+  | (Oleaf (an2, a2 :: m2),_) =>  
     oadd (seq,an) (Odict ([], dnew IntInf.compare [(a2,(Oleaf (an2,m2)))]))
   | (Odict (anl,d), []) => Odict (an :: anl, d)
   | (Odict (anl,d), a1 :: m1) =>
@@ -187,6 +188,19 @@ fun oadd (seq,an) ot = case (ot,seq) of
 fun oaddo (i,seqo,ot) = 
   case seqo of NONE => ot | SOME seq => oadd (seq,i) ot
 
+(* 
+Option: remove sequences that are prefix of another sequence in 
+the OEIS tree and keep only the smallest A-number if two sequences are equal.
+*)
+
+fun rm_prefix ot = 
+  case ot of Oleaf _ => ot 
+  | Odict (anl,d) => 
+    if dlength d <= 0 then 
+      if null anl then ot else 
+        Odict ([list_imin anl], dmap (fn (k,v) => rm_prefix v) d)
+    else Odict ([], dmap (fn (k,v) => rm_prefix v) d)
+
 val otree = Array.foldli oaddo oempty oseq
 
 datatype otreen = 
@@ -196,6 +210,7 @@ datatype otreen =
 fun rm_dict ot = case ot of
     Oleaf x => Oleafn x
   | Odict (anl,d) => Odictn (anl, map_snd rm_dict (dlist d))
+
 
 (* -------------------------------------------------------------------------
    Collecting partial sequences stopped because of timeout

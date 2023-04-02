@@ -85,7 +85,8 @@ fun init_arr2 dim =
 val arr2_glob = ref (init_arr2 41)
 fun init_arr1 dim = Vector.tabulate (dim, fn _ => azero)
 val arr1_glob = ref (init_arr1 28)
-
+val resl_glob = ref []
+val resn_glob = ref 0
 (* end global data *)
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test opf x))
@@ -122,9 +123,17 @@ fun mk_septf3 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3, f4 x, f5 x, f6 x, f7 x)))
   | _ => raise ERR "mk_septf3" ""
 
-(* hadamard functions *)
-val compute_flag = ref false (* dangerous only turn on for verification *)
+val pgen_limit = 240
 
+fun mf i = mk_unf (fn x => 
+  (
+  incr resn_glob; 
+  resl_glob := i :: !resl_glob; 
+  if !resn_glob >= pgen_limit then raise Div else x)
+  )
+
+val mfl = List.tabulate (pgen_operln, mf) 
+  
 local open IntInf in
   val zero_f = mk_nullf (fn _ => azero)
   val one_f = mk_nullf (fn _ => aone)
@@ -259,7 +268,7 @@ val execv =
       [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
       else []) @
      (if !fs_flag then [perm_f] else []) @
-     (if !pgen_flag then [seq_f] else [])
+     (if !pgen_flag then [seq_f] @ mfl else [])
      )
 val _ = if Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"
@@ -353,31 +362,47 @@ fun coverp_target p target = cover_target (mk_exec_onev p) target
    the stop token maxmove 
    ------------------------------------------------------------------------- *)
 
-val pgen_limit = 100
 
+
+fun apply_move_err move board =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board 
+  in
+    if length l1 <> arity 
+    then board
+    else Ins (move, rev l1) :: l2
+  end
+
+fun apply_movel_err movel board = 
+  case movel of [] => board | move :: m => 
+  apply_movel_err m (apply_move_err move board)
+  
 fun penum_pgenf f target = 
   let
+   
+    val _ = array_glob := Vector.fromList 
+      (first_n (Int.min (10, length target div 2)) target)
+    val _ = resn_glob := 0
+    val _ = resl_glob := []
+    val _ = init_fast_test ()
     val _ = init_timer ()
-    val _ = array_glob := Vector.fromList target
-    val l = ref []
-    fun loop i = 
-      if i >= pgen_limit then () else 
-      if not (null (!l)) andalso hd (!l) = maxmove then () else
-      (
-      l := IntInf.toInt 
-        (IntInf.mod (f (), IntInf.fromInt (maxmove + 1))) :: !l; 
-      incr_timer ();
-      loop (i+1) 
-      )
-    val _ = catch_perror loop 0 (fn () => ())
-    val po =  
-      if not (null (!l)) andalso hd (!l) = maxmove
-      then SOME (prog_of_movel (rev (tl (!l)))) handle HOL_ERR _ => NONE
-      else NONE
+    val _ = catch_perror f () (fn () => ())
+    val movel = !resl_glob
+    val po =
+      let 
+        val board = apply_movel_err movel []
+        val pil = map_assoc prog_size board
+      in
+        if null pil 
+        then NONE 
+        else SOME (fst (hd (dict_sort compare_imax pil)))
+      end
+    val _ = init_fast_test ()
+    val _ = init_timer ()
   in  
     case po of NONE => NONE | SOME p => 
-      (if (init_slow_test (); fst (coverp_target p target)) 
-       then SOME p else NONE)
+      (if fst (coverp_target p target) then SOME p else NONE)
   end
 
 val anuml_itsol209 = 
@@ -387,10 +412,9 @@ val anuml_itsol209 =
   else []
   
 fun penum_pgen exec = 
-  let 
-    val _ = init_fast_test ()
+  let
     val l = ref []
-    fun f () = exec (azero, azero, azero)  
+    fun f () = ignore (exec (azero, azero, azero))
     fun g anum = 
       let val target = valOf (Array.sub (oseq,anum)) in
         case penum_pgenf f target of
@@ -398,8 +422,8 @@ fun penum_pgen exec =
           | NONE => ()
       end
   in 
-    app g (anuml_itsol209);
-    rev (!l)
+    app g anuml_itsol209;
+    dict_sort Int.compare (!l)
   end  
   
 (* -------------------------------------------------------------------------
