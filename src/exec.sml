@@ -73,7 +73,7 @@ fun testcache costn y =
    ------------------------------------------------------------------------- *)
 
 (* array and turing *)
-val array_glob = Array.tabulate (10000,fn _ => azero)
+val array_glob = Array.tabulate (1000,fn _ => azero)
 val arrayi_glob = ref 0
 fun init_array () = app (fn i => Array.update (array_glob, i, azero))
   (List.tabulate (Array.length array_glob, I))
@@ -199,7 +199,7 @@ val seq_f = array_f
 
 (* turing *)
 val next_f = mk_unf (fn x => 
-  (if !arrayi_glob >= Array.length array_glob 
+  (if !arrayi_glob >= Array.length array_glob - 1 
      then raise Div 
      else incr arrayi_glob; 
    x))
@@ -378,11 +378,16 @@ fun create_fsf exec =
 fun coverf_oeis exec = 
   if !fs_flag then cover_oeis (create_fsf exec) else
   let
+    val _ = if !turing_flag then init_array () else ()
     val _ = graph := []
     val _ = graphb := 0
     val i = ref 0
     fun g x = 
       let
+        val _ = 
+          if !turing_flag then 
+            (arrayi_glob := 0; Array.update (array_glob,0,x))
+          else ()
         val r = exec (x, azero, azero)
         val loctime = !abstimer - !i
       in
