@@ -50,6 +50,7 @@ val rnn_flag = bflag "rnn_flag"
 val pgen_flag = bflag "pgen_flag"
 val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
+val turing_flag = bflag "turing_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -161,28 +162,29 @@ fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
    Instructions
    ------------------------------------------------------------------------- *)
 
+val org_operl = [("zero",0),("one",0),("two",0),
+  ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+  ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)]
+
+val minimal_operl = [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
+
+val array_operl = [("zero",0),("one",0),("two",0),
+  ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+  ("cond",3),("loop",3),("x",0),("y",0),("array",1),("assign",2)]
+
+val turing_operl = [("zero",0),("one",0),("two",0),
+  ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+  ("cond",3),("loope",2),("next",1),("prev",1),("write",1),("read",0)]
+
 val pgen_operl = map (fn x => (x,1))
   ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
-   "mcond","mloop","mx","my","mcompr","mloop2"]
+   "mcond","mloop","mx","my","mcompr","mloop2"] 
 
-val pgen_operln = length pgen_operl
-
-val org_operl =
-   [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)]
-
-val org_operln = length org_operl
- 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !array_flag then
-    [("zero",0),("one",0),("two",0),
-     ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-     ("cond",3),("x",0),("y",0),
-     ("array",1),("assign",2),("loop",3)]
-  else if !minimal_flag then
-    [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
+  if !array_flag then array_operl
+  else if !turing_flag then turing_operl
+  else if !minimal_flag then minimal_operl
   else org_operl @
      (if !z_flag then [("z",0),("loop3",7)] else []) @
      (if !extranum_flag then
@@ -191,6 +193,9 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !fs_flag then [("perm",1)] else []) @
      (if !pgen_flag then [("seq",1)] @ pgen_operl else [])
   )
+
+val pgen_operln = length pgen_operl
+val org_operln = length org_operl
 
 (* -------------------------------------------------------------------------
    All operators
@@ -226,7 +231,8 @@ fun contain_arr2 (Ins (id,pl)) =
   (id = arr2_id) orelse exists contain_arr2 pl
 
 val ho_ariv = Vector.fromList (
-  if !array_flag
+  if !turing_flag then List.tabulate (Vector.length operv, fn _ => 0)
+  else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else if !minimal_flag then [0,0,0,0,0,1]
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @

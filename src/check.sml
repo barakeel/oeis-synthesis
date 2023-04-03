@@ -365,6 +365,7 @@ val compare_scp = cpl_compare Int.compare (inv_cmp prog_compare_size)
 val pgenS = ref (dempty compare_scp)
 val pgenA = ref (dempty (list_compare Int.compare))
 
+(* assumes increasing list *)
 fun included_in l1 l2 = case (l1,l2) of
     ([],_) => true
   | (_,[]) => false

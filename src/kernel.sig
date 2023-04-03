@@ -24,10 +24,10 @@ sig
   val partial_flag : bool ref
   val extra_flag : bool ref
   val dim_glob : int ref   
+  val train_multi : int ref (* train multiple tnn at the same time *)
   val fs_flag : bool ref (* experiment with find_stat *)
   val rnn_flag : bool ref (* experiment using a rnn architecture *)
-  val train_multi : int ref (* train multiple tnn at the same time *)
-  
+  val turing_flag : bool ref (* experiment using a turing machine *)
     
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

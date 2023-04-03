@@ -24,7 +24,6 @@ local open IntInf in
   val aten = fromInt 10  
   fun aincr x = x + aone
   fun adecr x = x - aone
-  fun aleq a b = a <= b
   fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
   fun pow2 b = arb_pow atwo (fromInt b)
   val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
@@ -70,24 +69,26 @@ fun testcache costn y =
   end
 
 (* -------------------------------------------------------------------------
-   Instructions
+   Global memory
    ------------------------------------------------------------------------- *)
- 
-(* global data *)
-val x_current = ref azero
-val y_current = ref azero
-val z_current = ref azero
-val ainit = Vector.tabulate (10000,fn _ => azero)
-val array_glob = ref ainit
-fun init_array () = array_glob := ainit
-fun init_arr2 dim = 
-  Vector.tabulate (dim, fn x => Vector.tabulate (dim, fn y => azero))
-val arr2_glob = ref (init_arr2 41)
-fun init_arr1 dim = Vector.tabulate (dim, fn _ => azero)
-val arr1_glob = ref (init_arr1 28)
+
+(* array and turing *)
+val array_glob = Array.tabulate (10000,fn _ => azero)
+val arrayi_glob = ref 0
+fun init_array () = app (fn i => Array.update (array_glob, i, azero))
+  (List.tabulate (Array.length array_glob, I))
+
+(* fs *)
+val vector_glob = ref (Vector.fromList [])
+
+(* pgen *)
 val resl_glob = ref []
 val resn_glob = ref 0
-(* end global data *)
+
+(* -------------------------------------------------------------------------
+   Time limit wrappers
+   ------------------------------------------------------------------------- *)
+
 fun mk_nullf opf fl = case fl of
    [] => (fn x => (test opf x))
   | _ => raise ERR "mk_nullf" ""
@@ -123,73 +124,96 @@ fun mk_septf3 opf fl = case fl of
    (fn x => (test opf (f1, f2, f3, f4 x, f5 x, f6 x, f7 x)))
   | _ => raise ERR "mk_septf3" ""
 
-val pgen_limit = 240
+fun cond_f fl = case fl of
+   [f1,f2,f3] => 
+      (fn x =>
+       let 
+         val y = if f1 x <= azero then f2 x else f3 x
+         val _ = abstimer := !abstimer + 1  
+       in
+         if !abstimer > !timelimit then raise ProgTimeout else y
+       end)
+  | _ => raise ERR "mk_condf" ""
 
+(* -------------------------------------------------------------------------
+   Basic intructions
+   ------------------------------------------------------------------------- *)
+ 
+val zero_f = mk_nullf (fn _ => azero)
+val one_f = mk_nullf (fn _ => aone)
+val two_f = mk_nullf (fn _ => atwo)
+val three_f = mk_nullf (fn _ => athree)
+val four_f = mk_nullf (fn _ => afour)
+val five_f = mk_nullf (fn _ => afive)
+val six_f = mk_nullf (fn _ => asix)
+val seven_f = mk_nullf (fn _ => aseven)
+val eight_f = mk_nullf (fn _ => aeight)
+val nine_f = mk_nullf (fn _ => anine)
+val ten_f = mk_nullf (fn _ => aten)
+val x_f = mk_nullf (fn (x,y,z) => x)
+val y_f = mk_nullf (fn (x,y,z) => y)
+val z_f = mk_nullf (fn (x,y,z) => z)
+val suc_f = mk_unf (fn x => x + 1)
+val pred_f = mk_unf (fn x => x - 1)
+val addi_f = mk_binf 1 (op +)
+val diff_f = mk_binf 1 (op -)
+val mult_f = mk_binf 1 (op *)
+val divi_f = mk_binf 5 (op div)
+val modu_f = mk_binf 5 (op mod)
+
+(* -------------------------------------------------------------------------
+   Memory instructions
+   ------------------------------------------------------------------------- *)
+
+(* array *)
+fun array_f_aux a = 
+  if a < azero orelse a >= IntInf.fromInt (Array.length array_glob) 
+  then azero
+  else Array.sub (array_glob, IntInf.toInt a)
+val array_f = mk_unf array_f_aux
+fun assign_f_aux (a,b) =
+  (
+  if a < azero orelse a >= IntInf.fromInt (Array.length array_glob) then ()
+  else Array.update (array_glob, IntInf.toInt a, b);
+  azero
+  )
+val assign_f = mk_binf 1 assign_f_aux
+
+(* fs *)
+fun perm_f_aux a = 
+  let val modn = IntInf.fromInt (Vector.length (!vector_glob)) in
+    Vector.sub (!vector_glob, IntInf.toInt (a mod modn))
+  end
+val perm_f = mk_unf perm_f_aux
+
+(* pgen *)
+val pgen_limit = 240
 fun mf i = mk_unf (fn x => 
   (
   incr resn_glob; 
   resl_glob := i :: !resl_glob; 
   if !resn_glob >= pgen_limit then raise Div else x)
   )
-
 val mfl = List.tabulate (pgen_operln, mf) 
-  
-local open IntInf in
-  val zero_f = mk_nullf (fn _ => azero)
-  val one_f = mk_nullf (fn _ => aone)
-  val two_f = mk_nullf (fn _ => atwo)
-  val three_f = mk_nullf (fn _ => athree)
-  val four_f = mk_nullf (fn _ => afour)
-  val five_f = mk_nullf (fn _ => afive)
-  val six_f = mk_nullf (fn _ => asix)
-  val seven_f = mk_nullf (fn _ => aseven)
-  val eight_f = mk_nullf (fn _ => aeight)
-  val nine_f = mk_nullf (fn _ => anine)
-  val ten_f = mk_nullf (fn _ => aten)
-  val x_f = mk_nullf (fn (x,y,z) => x)
-  val y_f = mk_nullf (fn (x,y,z) => y)
-  val z_f = mk_nullf (fn (x,y,z) => z)
-  val X_f = mk_nullf (fn (x,y,z) => !x_current)
-  val Y_f = mk_nullf (fn (x,y,z) => !y_current)
-  val Z_f = mk_nullf (fn (x,y,z) => !z_current) 
-  val suc_f = mk_unf (fn x => x + 1)
-  val pred_f = mk_unf (fn x => x - 1)
-  val addi_f = mk_binf 1 (op +)
-  val diff_f = mk_binf 1 (op -)
-  val mult_f = mk_binf 1 (op *)
-  val divi_f = mk_binf 5 (op div)
-  val modu_f = mk_binf 5 (op mod)
-  fun cond_f_aux (a,b,c) = if a <= azero then b else c
-  val cond_f = mk_ternf cond_f_aux
-  fun array_f_aux a = 
-    if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
-    then azero
-    else Vector.sub (!array_glob, toInt a)
-  val array_f = mk_unf array_f_aux
-  val seq_f = array_f
-  fun perm_f_aux a = 
-    let val modn = fromInt (Vector.length (!array_glob)) in
-      Vector.sub (!array_glob, toInt (a mod modn))
-    end
-  val perm_f = mk_unf perm_f_aux
-  fun arr1_f_aux a =  
-    Vector.sub (!arr1_glob, toInt (a mod fromInt (Vector.length (!arr1_glob))))
-  val arr1_f = mk_unf arr1_f_aux 
-  fun assign_f_aux (a,b) =
-    (
-    if a < azero orelse a >= fromInt (Vector.length (!array_glob)) 
-      then ()
-      else array_glob := Vector.update (!array_glob, toInt a, b);
-    azero
-    )
-  val assign_f = mk_binf 1 assign_f_aux
+val seq_f = array_f
 
-    
-end (* local *)
+(* turing *)
+val next_f = mk_unf (fn x => 
+  (if !arrayi_glob >= Array.length array_glob 
+     then raise Div 
+     else incr arrayi_glob; 
+   x))
+val prev_f = mk_unf (fn x => 
+  (if !arrayi_glob <= 0 then () else decr arrayi_glob; x))
+val write_f = mk_unf (fn x => (Array.sub (array_glob, !arrayi_glob); x))
+val read_f = mk_nullf (fn _ => Array.sub (array_glob, !arrayi_glob))
 
-(* loops *)
+(* -------------------------------------------------------------------------
+   Loops
+   ------------------------------------------------------------------------- *)
+   
 fun loop3_f_aux f1 f2 f3 n x1 x2 x3 = 
-  if aleq n azero then x1 else 
+  if n <= azero then x1 else 
   loop3_f_aux f1 f2 f3 (adecr n) 
   (f1 (x1,x2,x3)) (f2 (x1,x2,x3)) (f3 (x1,x2,x3))
 fun loop3_f_aux2 (f1,f2,f3,n,x1,x2,x3) = loop3_f_aux f1 f2 f3 n x1 x2 x3
@@ -203,7 +227,17 @@ fun loop_f_aux (f1,n,x1) =
   loop3_f_aux f1 (fn (x1,x2,x3) => aincr x2) (fn (x1,x2,x3) => x3) n x1 aone x1
 val loop_f = mk_ternf1 loop_f_aux
 
-(* comprehension *)
+fun loope_f_aux (f,n) = 
+  if n <= azero 
+  then azero 
+  else (f (azero,azero,azero); loope_f_aux (f, adecr n))
+  
+val loope_f = mk_binf1 loope_f_aux
+
+(* -------------------------------------------------------------------------
+   Comprehension
+   ------------------------------------------------------------------------- *)
+   
 fun create_compr f =
   let
     val _ = init_timer ()
@@ -211,7 +245,7 @@ fun create_compr f =
     val l = ref []
     fun loop i x =
       if i >= !max_compr_number then () else
-      if aleq (f (x, azero, azero)) azero
+      if f (x, azero, azero) <= azero
       then (
            l := (x,!abstimer - !prevtime) :: !l; 
            prevtime := !abstimer;
@@ -251,21 +285,38 @@ local open IntInf in
   val compr_f_nc = mk_binf1 compr_f_aux2_nc
 end
 
+(* -------------------------------------------------------------------------
+   Instruction sets
+   ------------------------------------------------------------------------- *)
+
+val org_execl = 
+  [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
+   loop_f,x_f,y_f,
+   if !fs_flag orelse !pgen_flag then compr_f_nc else compr_f, 
+   loop2_f]
+
+val array_execv = Vector.fromList
+  [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
+   cond_f,x_f,y_f,array_f,assign_f,loop_f]
+
+val minimal_execv = Vector.fromList 
+  [zero_f, x_f, y_f, suc_f, pred_f, loop_f]
+
+val turing_execv = Vector.fromList 
+  [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
+   loope_f,next_f,prev_f,write_f,read_f]
+ 
 val execv = 
-  if !array_flag then Vector.fromList
-    [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-     cond_f,x_f,y_f,array_f,assign_f,loop_f]
-  else if !minimal_flag 
-    then Vector.fromList [zero_f, x_f, y_f, suc_f, pred_f, loop_f]
+  if !array_flag then array_execv
+  else if !minimal_flag then minimal_execv 
+  else if !turing_flag then turing_execv
   else
     Vector.fromList 
-    ([zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,
-     cond_f,loop_f,x_f,y_f,
-     if !fs_flag orelse !pgen_flag then compr_f_nc else compr_f, 
-     loop2_f] @
+    (
+     org_execl @
      (if !z_flag then [z_f, loop3_f] else []) @
-     (if !extranum_flag then 
-      [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
+     (if !extranum_flag 
+      then [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
       else []) @
      (if !fs_flag then [perm_f] else []) @
      (if !pgen_flag then [seq_f] @ mfl else [])
@@ -311,7 +362,7 @@ fun create_fsf exec =
     fun g x =     
       let 
         val perm = Vector.sub (perminputv, IntInf.toInt x)
-        val _ = array_glob := Vector.fromList (map IntInf.fromInt perm)
+        val _ = vector_glob := Vector.fromList (map IntInf.fromInt perm)
         val permlen = length perm
         val newperm = List.tabulate (permlen,
           fn i => IntInf.toInt (h permlen i))
@@ -380,9 +431,10 @@ fun apply_movel_err movel board =
   
 fun penum_pgenf f target = 
   let
-   
-    val _ = array_glob := Vector.fromList 
-      (first_n (Int.min (10, length target div 2)) target)
+    val _ = init_array ()
+    val _ = app (fn (i,x) => Array.update (array_glob,i,x))
+      (number_fst 0 (
+      (first_n (Int.min (10, length target div 2)) target)))
     val _ = resn_glob := 0
     val _ = resl_glob := []
     val _ = init_fast_test ()
@@ -422,8 +474,7 @@ fun penum_pgen exec =
           | NONE => ()
       end
   in 
-    app g anuml_itsol209;
-    dict_sort Int.compare (!l)
+    app g anuml_itsol209; rev (!l)
   end  
   
 (* -------------------------------------------------------------------------
@@ -467,7 +518,7 @@ fun penum_limit_aux m p n =
     val f = mk_exec_onev p
     val _ = init_timer ()
     val l = ref []
-    fun loop i x = if aleq m x orelse i >= n then () else
+    fun loop i x = if m <= x orelse i >= n then () else
       (
       l := f x :: !l; 
       incr_timer ();
