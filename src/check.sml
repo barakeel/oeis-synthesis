@@ -123,12 +123,14 @@ fun checkf (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
 
-fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
 
 fun checkinit () =
   (wind := dempty Int.compare; partwind := dempty Int.compare)
+  
+fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
 
 fun checkfinal () =
+  if !her_flag then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); checkf (p, mk_exec p))
@@ -139,10 +141,9 @@ fun checkfinal () =
     val _ = print_endline ("checkb: " ^ its (length bestpl1))
     val (_,t) = add_time (app checkb) bestpl1
     val _ = print_endline ("checkb time: "  ^ rts_round 2 t ^ " seconds")
-    val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))  
-    val r = dlist (!wind)
+    val _ = print_endline ("more solutions: " ^ its (dlength (!wind)))
   in
-    checkinit (); r
+    dlist (!wind)
   end
   
 fun collect_candidate () = 

@@ -51,6 +51,7 @@ val pgen_flag = bflag "pgen_flag"
 val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
 val turing_flag = bflag "turing_flag"
+val her_flag = bflag "her_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -174,7 +175,7 @@ val array_operl = [("zero",0),("one",0),("two",0),
 
 val turing_operl = [("zero",0),("one",0),("two",0),
   ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-  ("cond",3),("loope",2),("next",1),("prev",1),("write",1),("read",0)]
+  ("cond",3),("loope",2),("next",0),("prev",0),("write",1),("read",0)]
 
 val pgen_operl = map (fn x => (x,1))
   ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
