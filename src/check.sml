@@ -183,7 +183,7 @@ fun checkpl pl =
     fun f p = (
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
-      checkf (p, mk_exec p)
+      if !intl_flag then checkf_intl p else checkf (p, mk_exec p)
       )
   in
     checkinit (); app f pl; checkfinal ()
@@ -227,7 +227,8 @@ fun checkmll mll =
     fun f p =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
-       init_fast_test (); checkf (p, mk_exec p))
+       init_fast_test (); 
+       if !intl_flag then checkf_intl p else checkf (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
     print_endline ("fast check: " ^ rts_round 2 t)

@@ -586,12 +586,22 @@ end (* struct *)
    ------------------------------------------------------------------------- *)
 
 (*
-val isol = read_iprogl "model-old/isol100"; length isol;
+PolyML.print_depth 10;
+load "exec"; open kernel aiLib exec;
+
+val itsol = read_itprogl "model/itsol209"; 
+val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol); 
+length isol;
+
 init_slow_test ();
-val bbl = map_assoc (verify_wtime 1000000) isol;
+val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
+
+length lbad1; length lbad2; t;
+
+
 fun f (i,p) = its i ^ ": " ^ humanf p;
 map f lbad;
 write_iprogl "lbad" lbad;

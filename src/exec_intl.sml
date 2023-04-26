@@ -4,8 +4,9 @@ struct
 open HolKernel boolLib aiLib kernel bloom
 val ERR = mk_HOL_ERR "exec_intl"
 type prog = kernel.prog
-type exec = IntInf.int list * IntInf.int list * IntInf.int list -> 
-  IntInf.int list
+type exec = (IntInf.int * IntInf.int list) *
+            (IntInf.int * IntInf.int list) -> 
+            (IntInf.int * IntInf.int list)
 
 (* -------------------------------------------------------------------------
    Time limit
@@ -48,8 +49,8 @@ fun cost costn x =
 
 fun testn costn f x =
   let 
-    val y = f x 
-    val _ = abstimer := !abstimer + cost costn (hd y)   
+    val (y as (hdy,tly)) = f x 
+    val _ = abstimer := !abstimer + cost costn hdy   
   in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
@@ -107,8 +108,8 @@ fun mk_septf3 opf fl = case fl of
 val zero_f = mk_nullf (fn _ => [azero])
 val one_f = mk_nullf (fn _ => [aone])
 val two_f = mk_nullf (fn _ => [atwo])
-val x_f = mk_nullf (fn (x,y,z) => x)
-val y_f = mk_nullf (fn (x,y,z) => y)
+val x_f = mk_nullf (fn (x,y) => x)
+val y_f = mk_nullf (fn (x,y) => y)
 
 fun mk_e f (l1,l2) = case (l1,l2) of
     ([],_) => raise Div
@@ -156,19 +157,15 @@ fun pop_f fl = case fl of
    Loops
    ------------------------------------------------------------------------- *)
    
-fun loop3_f_aux f1 f2 f3 n x1 x2 x3 = 
-  if n <= azero then x1 else loop3_f_aux f1 f2 f3 (adecr n) 
-  (f1 (x1,x2,x3)) (f2 (x1,x2,x3)) (f3 (x1,x2,x3))
-fun loop3_f_aux2 (f1,f2,f3,n,x1,x2,x3) = loop3_f_aux f1 f2 f3 (hd n) x1 x2 x3
-val loop3_f = mk_septf3 loop3_f_aux2
+fun helper f1 f2 n x1 x2 = 
+  if n <= azero then x1 else 
+  helper f1 f2 (adecr n) (f1 (x1,x2)) (f2 (x1,x2))
 
-fun loop2_f_aux (f1,f2,n,x1,x2) = 
-  loop3_f_aux f1 f2 (fn (x1,x2,x3) => [aincr (hd x3)]) (hd n) x1 x2 [aone]
+fun loop2_f_aux (f1,f2,n,x1,x2) = helper f1 f2 (hd n) x1 x2
 val loop2_f = mk_quintf2 loop2_f_aux
 
 fun loop_f_aux (f1,n,x1) = 
-  loop3_f_aux f1 (fn (x1,x2,x3) => [aincr (hd x2)]) (fn (x1,x2,x3) => x3) 
-    (hd n) x1 [aone] x1
+  helper f1 (fn (x1,x2) => [aincr (hd x2)]) (hd n) x1 [aone]
 val loop_f = mk_ternf1 loop_f_aux
 
 fun create_compr f =
@@ -178,7 +175,7 @@ fun create_compr f =
     val l = ref []
     fun loop i x =
       if i >= !max_compr_number then () else
-      if hd (f (x,[azero], [azero])) <= azero
+      if hd (f (x,[azero])) <= azero
       then (
            l := (x,!abstimer - !prevtime) :: !l; 
            prevtime := !abstimer;
@@ -234,12 +231,10 @@ fun mk_exec (p as (Ins (id,pl))) =
   let val fl = map mk_exec pl in mk_exec_move id fl end
 
 fun coverf_oeis exec = 
-  let fun g x = hd (exec ([x], [azero], [azero])) in
-    cover_oeis g
-  end
+  let fun g x = hd (exec ([x], [azero])) in cover_oeis g end
 
 fun mk_exec_onev p = 
-  let val f = mk_exec p in (fn x => hd (f ([x],[azero],[azero]))) end
+  let val f = mk_exec p in (fn x => hd (f ([x],[azero]))) end
   
 (* -------------------------------------------------------------------------
    Verifiy cover
@@ -281,16 +276,19 @@ end (* struct *)
 (*
 load "exec_intl";  open kernel aiLib exec_intl;
 
+PolyML.print_depth 10;
 val itsol = read_itprogl "model/itsol209"; 
-val isol = random_subset 2000 (map (fn (x,(_,y)) => (x,y)) (distrib itsol)); 
+val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol); 
 length isol;
 
 init_slow_test ();
-val bbl = map_assoc (verify_wtime 1000000) isol;
+val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
 length lbad;
+length lbad2;
+t;
 
 fun f (i,p) = its i ^ ": " ^ humanf p;
 map f lbad;
