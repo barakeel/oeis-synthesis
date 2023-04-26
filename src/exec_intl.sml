@@ -141,13 +141,13 @@ fun cond_f fl = case fl of
   | _ => raise ERR "mk_condf" ""
 
 
-fun cat_f fl = case fl of
+fun push_f fl = case fl of
    [f1,f2] => 
       (fn x =>
        let 
          val y1 = f1 x 
          val y2 = f2 x
-         val y = y1 @ y2
+         val y = (hd y1) :: y2
          val yn = length y
          val _ = abstimer := !abstimer + yn  
        in
@@ -155,7 +155,7 @@ fun cat_f fl = case fl of
          then raise ProgTimeout 
          else if yn >= 100 then raise Div else y 
        end)
-  | _ => raise ERR "mk_catf" ""
+  | _ => raise ERR "mk_pushf" ""
 
 fun pop_f fl = case fl of
    [f] => 
@@ -236,7 +236,7 @@ val org_execl =
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
    loop_f,x_f,y_f, compr_f,loop2_f]
 
-val execv = Vector.fromList (org_execl @ [cat_f, pop_f])
+val execv = Vector.fromList (org_execl @ [push_f, pop_f])
 
 val _ = if Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"

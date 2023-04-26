@@ -194,7 +194,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
        ("nine",0),("ten",0)] else []) @
      (if !fs_flag then [("perm",1)] else []) @
      (if !pgen_flag then [("seq",1)] @ pgen_operl else []) @
-     (if !intl_flag then [("cat",2),("pop",1)] else [])
+     (if !intl_flag then [("push",2),("pop",1)] else [])
   )
 
 val pgen_operln = length pgen_operl
