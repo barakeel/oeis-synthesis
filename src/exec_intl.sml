@@ -15,14 +15,6 @@ local open IntInf in
   val azero = fromInt 0
   val aone = fromInt 1
   val atwo = fromInt 2
-  val athree = fromInt 3
-  val afour = fromInt 4
-  val afive = fromInt 5
-  val asix = fromInt 6
-  val aseven = fromInt 7
-  val aeight = fromInt 8
-  val anine = fromInt 9
-  val aten = fromInt 10  
   fun aincr x = x + aone
   fun adecr x = x - aone
   fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
@@ -144,28 +136,18 @@ fun cond_f fl = case fl of
 fun push_f fl = case fl of
    [f1,f2] => 
       (fn x =>
-       let 
-         val y1 = f1 x 
-         val y2 = f2 x
-         val y = (hd y1) :: y2
-         val yn = length y
-         val _ = abstimer := !abstimer + yn  
-       in
+        (incr abstimer;
          if !abstimer > !timelimit 
-         then raise ProgTimeout 
-         else if yn >= 100 then raise Div else y 
-       end)
+           then raise ProgTimeout else hd (f1 x) :: (f2 x)
+        ))
   | _ => raise ERR "mk_pushf" ""
 
 fun pop_f fl = case fl of
    [f] => 
       (fn x =>
-       let 
-         val y = f x
-         val _ = abstimer := !abstimer + 1  
-       in
+       let val _ = incr abstimer in
          if !abstimer > !timelimit then raise ProgTimeout else 
-           (case y of [] => raise Empty | [a] => [a] | a :: m => m)
+           (case f x of [] => raise Empty | [a] => [a] | a :: m => m)
        end)
   | _ => raise ERR "mk_popf" ""
 
