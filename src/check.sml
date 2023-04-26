@@ -105,6 +105,8 @@ fun create_anumlpart (anumtl,n,anumlpart) =
 val wind = ref (dempty Int.compare)
 val partwind = ref (dempty Int.compare)  
 
+
+
 fun checkf (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
@@ -122,18 +124,39 @@ fun checkf (p,exec) =
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
+  
+fun checkf_intl p = 
+  let
+    val (anumtl,cov,anumlpart) = exec_intl.coverf_oeis (exec_intl.mk_exec p)
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+    fun g (anum,n) = 
+      if n <= 2 then () else
+      (
+      if !partial_flag andalso n >= 8
+      then update_wind wind (anum, [(abillion + 10000 - n, p)])
+      else ()
+      ;
+      update_partwind partwind (anum,(n,p))
+      )
+  in
+    app f anumtl;
+    app g (create_anumlpart (anumtl,cov,anumlpart))
+  end
+  
 
 
 fun checkinit () =
   (wind := dempty Int.compare; partwind := dempty Int.compare)
   
-fun checkonline (p,exec) = (init_fast_test (); checkf (p,exec))
+fun checkonline (p,exec) = (init_fast_test (); 
+  if !intl_flag then checkf_intl p else checkf (p,exec))
 
 fun checkfinal () =
   if !her_flag then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
-    fun checkb p = (init_slow_test (); checkf (p, mk_exec p))
+    fun checkb p = (init_slow_test (); 
+      if !intl_flag then checkf_intl p else checkf (p, mk_exec p))
     val bestpl0 = dlist (!partwind)
     val bestpl1 = mk_fast_set prog_compare_size 
       (map snd (List.concat (map snd bestpl0)))

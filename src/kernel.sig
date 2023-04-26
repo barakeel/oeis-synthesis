@@ -29,6 +29,7 @@ sig
   val rnn_flag : bool ref (* experiment using a rnn architecture *)
   val turing_flag : bool ref (* experiment using a turing machine *)
   val her_flag : bool ref  
+  val intl_flag : bool ref 
     
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

@@ -321,7 +321,7 @@ val execv =
      (if !fs_flag then [perm_f] else []) @
      (if !pgen_flag then [seq_f] @ mfl else [])
      )
-val _ = if Vector.length execv <> Vector.length operv
+val _ = if Vector.length execv <> Vector.length operv andalso not (!intl_flag)
         then raise ERR "execv" "mismatch with operv"
         else ()
 

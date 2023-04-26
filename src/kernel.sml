@@ -52,6 +52,7 @@ val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
 val turing_flag = bflag "turing_flag"
 val her_flag = bflag "her_flag"
+val intl_flag = bflag "intl_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -192,7 +193,8 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
        ("nine",0),("ten",0)] else []) @
      (if !fs_flag then [("perm",1)] else []) @
-     (if !pgen_flag then [("seq",1)] @ pgen_operl else [])
+     (if !pgen_flag then [("seq",1)] @ pgen_operl else []) @
+     (if !intl_flag then [("cat",2),("pop",1)] else [])
   )
 
 val pgen_operln = length pgen_operl
@@ -240,7 +242,8 @@ val ho_ariv = Vector.fromList (
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
        (if !fs_flag then [0] else []) @
-       (if !pgen_flag then List.tabulate (pgen_operln + 1,fn _ => 0) else [])
+       (if !pgen_flag then List.tabulate (pgen_operln + 1, fn _ => 0) else []) @
+       (if !intl_flag then List.tabulate (2, fn _ => 0) else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv
@@ -286,7 +289,9 @@ fun init_slow_test () =
   (max_compr_number := long_compr; timeincr := long_timeincr)
 
 fun catch_perror f x g =
-  f x handle Div => g () 
+  f x handle 
+             Empty => g ()
+           | Div => g () 
            | ProgTimeout => g () 
            | Overflow => g ()
  
