@@ -121,7 +121,7 @@ val y_f = mk_nullf (fn (x,y,z) => y)
 fun mk_e f (l1,l2) = case (l1,l2) of
     ([],_) => raise Div
   | (_,[]) => raise Div
-  | (a1 :: m1, a2 :: m2) => [f (a1,a2)]
+  | (a1 :: m1, a2 :: m2) => (f (a1,a2) :: m1)
   
 val addi_f = mk_binf 1 (mk_e (op +))
 val diff_f = mk_binf 1 (mk_e (op -))
