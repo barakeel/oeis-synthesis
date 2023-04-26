@@ -4,9 +4,7 @@ struct
 open HolKernel boolLib aiLib kernel bloom
 val ERR = mk_HOL_ERR "exec_intl"
 type prog = kernel.prog
-type exec = (IntInf.int * IntInf.int list) *
-            (IntInf.int * IntInf.int list) -> 
-            (IntInf.int * IntInf.int list)
+type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 
 (* -------------------------------------------------------------------------
    Time limit
@@ -49,8 +47,8 @@ fun cost costn x =
 
 fun testn costn f x =
   let 
-    val (y as (hdy,tly)) = f x 
-    val _ = abstimer := !abstimer + cost costn hdy   
+    val y = f x 
+    val _ = abstimer := !abstimer + cost costn (hd y)   
   in
     if !abstimer > !timelimit then raise ProgTimeout else y
   end
@@ -274,9 +272,10 @@ end (* struct *)
    ------------------------------------------------------------------------- *)
 
 (*
+PolyML.print_depth 10;
 load "exec_intl";  open kernel aiLib exec_intl;
 
-PolyML.print_depth 10;
+
 val itsol = read_itprogl "model/itsol209"; 
 val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol); 
 length isol;
@@ -286,9 +285,8 @@ val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
-length lbad;
-length lbad2;
-t;
+
+length lbad; length lbad2; t;
 
 fun f (i,p) = its i ^ ": " ^ humanf p;
 map f lbad;
