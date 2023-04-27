@@ -27,6 +27,7 @@ fun bflag_true s =
 val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
+val solm_flag = bflag "solm_flag"
 val extranum_flag = bflag "extranum_flag"
 val locsearch_flag = bflag "locsearch_flag" (* local search *)
 val halfnoise_flag = bflag "halfnoise_flag"

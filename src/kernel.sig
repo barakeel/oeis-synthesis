@@ -11,6 +11,7 @@ sig
   val z_flag : bool ref (* functions of arity 3 *)
   val t_flag : bool ref (* optimize for time instead of size *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
+  val solm_flag : bool ref
   val notarget_flag : bool ref (* train without looking at the target *)
   val array_flag : bool ref
   val beam_flag : bool ref

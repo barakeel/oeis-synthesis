@@ -14,6 +14,16 @@ val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
    Update set of solutions
    ------------------------------------------------------------------------- *)
 
+fun prog_size_kid kid (Ins(id,pl)) = 
+  (if id = kid then 100 else 1) + sum_int (map prog_size pl)
+fun prog_compare_size_kid kid (p1,p2) =
+  cpl_compare Int.compare prog_compare 
+   ((prog_size_kid kid p1,p1),(prog_size_kid kid p2,p2))
+fun is_smaller_kid kid (t1,p1) (t2,p2) =
+  prog_compare_size_kid kid (p1,p2) = LESS
+
+
+
 fun is_faster (t1,p1) (t2,p2) =   
   cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
 
@@ -37,32 +47,31 @@ fun find_min cmpf l = case l of
     [] => raise ERR "find_min" ""
   | a :: m => find_min_loop cmpf a m
 
-fun update_smallest d anum tpl =
-  let val newtpl = [find_min is_smaller tpl] in
-    d := dadd anum newtpl (!d)
-  end
-  
-fun update_fastest d anum tpl =
-  let val newtpl = [find_min is_faster tpl] in
-    d := dadd anum newtpl (!d)
-  end  
-   
-fun update_sol2 d anum tpl =
+
+fun update_solcmp lessfl d anum tpl = 
   let val newtpl = mk_fast_set (snd_compare prog_compare_size) 
-    [find_min is_smaller tpl, find_min is_faster tpl]
+    (map (fn x => find_min x tpl) lessfl)
   in
     d := dadd anum newtpl (!d)
   end
 
+val update_smallest = update_solcmp [is_smaller]
+val update_fastest = update_solcmp [is_faster]
+val update_sol2 = update_solcmp [is_smaller, is_faster]
+val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
+  is_smaller_kid 12, is_smaller_kid 13]
+
+val update_f =
+       if !solm_flag then update_solm
+  else if !sol2_flag then update_sol2
+  else if !t_flag    then update_fastest
+  else update_smallest
+  
+  
 fun update_wind d (anum,toptpl) =
   case dfindo anum (!d) of 
     NONE => d := dadd anum toptpl (!d)
-  | SOME oldtpl =>
-    let val tpl = toptpl @ oldtpl in
-      if !sol2_flag then update_sol2 d anum tpl
-      else if !t_flag then update_fastest d anum tpl
-      else update_smallest d anum tpl
-    end
+  | SOME oldtpl => update_f d anum (toptpl @ oldtpl)
 
 fun merge_itsol itsol = 
   let val d = ref (dempty Int.compare) in
