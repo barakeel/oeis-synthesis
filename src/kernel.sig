@@ -31,6 +31,7 @@ sig
   val turing_flag : bool ref (* experiment using a turing machine *)
   val her_flag : bool ref  
   val intl_flag : bool ref 
+  val num_epoch : int ref
     
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

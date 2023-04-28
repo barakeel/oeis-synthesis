@@ -22,6 +22,8 @@ val configd =
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 fun bflag_true s = 
   ref (string_to_bool (dfind s configd) handle NotFound => true)
+fun iflag s i = ref (string_to_int (dfind s configd) handle NotFound => i) 
+
 
 (* main_experiment flags *)
 val z_flag = bflag "z_flag"
@@ -41,12 +43,12 @@ val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
 (* tnn flag *)
-val dim_glob = 
-  ref (string_to_int (dfind "dim_glob" configd) handle NotFound => 96)
+val dim_glob = iflag "dim_glob" 96
 val extra_flag = bflag "extra_flag" (* add extra data for the training *)
-val train_multi = 
-  ref (string_to_int (dfind "train_multi" configd) handle NotFound => 1)
+val train_multi = iflag "train_multi" 1
 val rnn_flag = bflag "rnn_flag"
+val num_epoch = iflag "num_epoch" 100
+
 (* experiments *)
 val pgen_flag = bflag "pgen_flag"
 val _ = if !pgen_flag then notarget_flag := true else ()
