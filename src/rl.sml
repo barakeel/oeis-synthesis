@@ -476,13 +476,9 @@ val abillion = 1000 * 1000 * 1000
 fun string_of_tp (t,p) =
   "size " ^ its (prog_size p) ^ ", " ^
   (
-  if !partial_flag then
-  (
-  if t < abillion
-  then ("correct all, time " ^ its t)
-  else ("correct " ^ its (abillion + 10000 - t))
-  )
-  else ""
+  if !partial_flag andalso t >= abillion
+  then ("correct " ^ its (abillion + 10000 - t)) 
+  else "time " ^ its t
   )
   ^ ": " ^ humanf p
 

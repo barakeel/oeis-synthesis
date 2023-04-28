@@ -15,14 +15,12 @@ val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
    ------------------------------------------------------------------------- *)
 
 fun prog_size_kid kid (Ins(id,pl)) = 
-  (if id = kid then 100 else 1) + sum_int (map prog_size pl)
+  (if id = kid then 100 else 1) + sum_int (map (prog_size_kid kid) pl)
 fun prog_compare_size_kid kid (p1,p2) =
   cpl_compare Int.compare prog_compare 
    ((prog_size_kid kid p1,p1),(prog_size_kid kid p2,p2))
 fun is_smaller_kid kid (t1,p1) (t2,p2) =
   prog_compare_size_kid kid (p1,p2) = LESS
-
-
 
 fun is_faster (t1,p1) (t2,p2) =   
   cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
