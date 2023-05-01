@@ -113,9 +113,8 @@ fun trainf_rnn datadir pid =
     val ex = itsol
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = if pid = 0 then !num_epoch
-      else Real.round (int_div nex 20000 * Real.fromInt (!num_epoch))
-    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+    val nep = !num_epoch
+    val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
     rnn.export_traindata datadir nep newex
@@ -130,9 +129,8 @@ fun trainf_pgen datadir pid =
     val ex = create_exl_progset progset
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = if pid = 0 then !num_epoch
-      else Real.round (int_div nex 20000 * Real.fromInt (!num_epoch))
-    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+    val nep = !num_epoch
+    val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
@@ -155,11 +153,8 @@ fun trainf_tnn datadir pid =
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = 
-      if pid = 0 then !num_epoch 
-      else Real.round (int_div nex 20000 * Real.fromInt (!num_epoch))
-    val newex =
-       if pid = 0 then ex else first_n 20000 (shuffle ex)
+    val nep = !num_epoch
+    val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
