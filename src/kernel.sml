@@ -208,6 +208,9 @@ val org_operln = length org_operl
    ------------------------------------------------------------------------- *)
 
 val operv = Vector.fromList base_operl
+
+
+val opersd = map swap
 val maxmove = Vector.length operv
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
@@ -216,25 +219,25 @@ fun name_of_oper i =
   then its i
   else fst (dest_var (Vector.sub (operv,i)))  
 
+val operisl = map_assoc name_of_oper (List.tabulate (Vector.length operv,I))
+val opersd = dnew String.compare (map swap operisl)
+
 (* -------------------------------------------------------------------------
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
-fun find_id s = case List.find (fn i => name_of_oper i = s) 
-    (List.tabulate (Vector.length operv,I)) of
-    SOME id => id
-  | NONE => ~1
+fun find_id s = case dfindo s opersd of SOME id => id | NONE => ~1
 
-val arr1_id = find_id "arr1"
-val arr2_id = find_id "arr2"
 val x_id = find_id "x"
 val y_id = find_id "y"
 val z_id = find_id "z"
 
-fun contain_arr1 (Ins (id,pl)) = 
-  (id = arr1_id) orelse exists contain_arr1 pl
-fun contain_arr2 (Ins (id,pl)) = 
-  (id = arr2_id) orelse exists contain_arr2 pl
+fun contain_id i (Ins (id,pl)) = 
+  i = id orelse exists (contain_id i) pl
+
+fun contain_opers s p = case dfindo s opersd of 
+    SOME i => contain_id i p 
+  | NONE => false
 
 val ho_ariv = Vector.fromList (
   if !turing_flag then List.tabulate (Vector.length operv, fn _ => 0)

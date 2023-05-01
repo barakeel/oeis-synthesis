@@ -143,13 +143,23 @@ fun trainf_tnn datadir pid =
     val itsol = read_itsol (find_last_itsol ()) @ 
        (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
-    val isol = distrib (map (fn (a,bl) => (a,map snd bl)) itsol)
+    val isol0 = distrib (map (fn (a,bl) => (a,map snd bl)) itsol)
+    val isol = if not (!intl_flag) then isol0 else
+      let
+        val (isolpos,isolneg) = 
+          partition (fn (_,p) => contain_opers "pop" p andalso 
+                                 contain_opers "push" p) isol0
+      in
+        isolpos @ first_n (pid * length isolpos) (shuffle isolneg)
+      end
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = if pid = 0 then !num_epoch 
+    val nep = 
+      if pid = 0 then !num_epoch 
       else Real.round (int_div nex 20000 * Real.fromInt (!num_epoch))
-    val newex = if pid = 0 then ex else first_n 20000 (shuffle ex)
+    val newex =
+       if pid = 0 then ex else first_n 20000 (shuffle ex)
   in
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
