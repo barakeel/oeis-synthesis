@@ -24,8 +24,9 @@ sig
   
   (* fs experiment *)
   val create_fsf : exec -> (IntInf.int -> IntInf.int)
-  
   (* pgen experiment *)
   val penum_pgen : exec -> (int * kernel.prog) list
+  (* seq experiment *)
+  val match_seq : kernel.seq -> exec -> bool * int
   
 end

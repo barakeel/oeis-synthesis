@@ -8,6 +8,7 @@ sig
   (* flags *)
   val configd : (string ,string) Redblackmap.dict
   val bflag : string -> bool ref
+  val seq_flag : bool ref (* allow to call the sequence *)
   val z_flag : bool ref (* functions of arity 3 *)
   val t_flag : bool ref (* optimize for time instead of size *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
@@ -45,6 +46,7 @@ sig
   type seq = IntInf.int list
   type anum = int
   val target_glob : seq ref
+  val targetn_glob : int ref
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
   val is_prefix : seq -> seq -> bool
@@ -76,7 +78,6 @@ sig
   val write_itprogl : string -> sol list -> unit
   
   (* operators *)
-  val org_operln : int
   val operv : term vector
   val maxmove : int
   val arity_of_oper : int -> int
@@ -110,9 +111,9 @@ sig
   val prog_of_movel : int list -> prog
   
   (* pgen experiment *)
-  type pgen = (prog * (int * prog) list)
+  type pgen = prog * (int * prog) list
   val pgen_flag : bool ref
-  val pgen_operln : int
+  val pgen_operl : (string * int) list
   val read_pgen : string -> pgen list
   val write_pgen : string -> pgen list -> unit
   

@@ -215,7 +215,7 @@ val org_execl =
 
 val execv = Vector.fromList (org_execl @ [push_f, pop_f])
 
-val _ = if Vector.length execv <> Vector.length operv
+val _ = if !intl_flag andalso Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"
         else ()
 

@@ -26,6 +26,7 @@ fun iflag s i = ref (string_to_int (dfind s configd) handle NotFound => i)
 
 
 (* main_experiment flags *)
+val seq_flag = bflag "seq_flag"
 val z_flag = bflag "z_flag"
 val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
@@ -91,6 +92,7 @@ fun is_prefix seq1 seq2 = case (seq1,seq2) of
   | (a1 :: m1, a2 :: m2) => if a1 = a2 then is_prefix m1 m2 else false
 
 val target_glob = ref []
+val targetn_glob = ref (~1)
 
 (* -------------------------------------------------------------------------
    Program
@@ -197,19 +199,15 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
        ("nine",0),("ten",0)] else []) @
      (if !fs_flag then [("perm",1)] else []) @
      (if !pgen_flag then [("seq",1)] @ pgen_operl else []) @
-     (if !intl_flag then [("push",2),("pop",1)] else [])
+     (if !intl_flag then [("push",2),("pop",1)] else []) @
+     (if !seq_flag then [("seq",1)] else [])
   )
-
-val pgen_operln = length pgen_operl
-val org_operln = length org_operl
 
 (* -------------------------------------------------------------------------
    All operators
    ------------------------------------------------------------------------- *)
 
 val operv = Vector.fromList base_operl
-
-
 val opersd = map swap
 val maxmove = Vector.length operv
 val operav = Vector.map arity_of operv
@@ -223,14 +221,8 @@ val operisl = map_assoc name_of_oper (List.tabulate (Vector.length operv,I))
 val opersd = dnew String.compare (map swap operisl)
 
 (* -------------------------------------------------------------------------
-   Detect dependencies: ho_ariv should match operv
+   Simple syntactic test
    ------------------------------------------------------------------------- *)
-
-fun find_id s = case dfindo s opersd of SOME id => id | NONE => ~1
-
-val x_id = find_id "x"
-val y_id = find_id "y"
-val z_id = find_id "z"
 
 fun contain_id i (Ins (id,pl)) = 
   i = id orelse exists (contain_id i) pl
@@ -238,6 +230,10 @@ fun contain_id i (Ins (id,pl)) =
 fun contain_opers s p = case dfindo s opersd of 
     SOME i => contain_id i p 
   | NONE => false
+
+(* -------------------------------------------------------------------------
+   Detect dependencies: ho_ariv should match operv
+   ------------------------------------------------------------------------- *)
 
 val ho_ariv = Vector.fromList (
   if !turing_flag then List.tabulate (Vector.length operv, fn _ => 0)
@@ -248,8 +244,10 @@ val ho_ariv = Vector.fromList (
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
        (if !fs_flag then [0] else []) @
-       (if !pgen_flag then List.tabulate (pgen_operln + 1, fn _ => 0) else []) @
-       (if !intl_flag then List.tabulate (2, fn _ => 0) else [])
+       (if !pgen_flag then 
+          List.tabulate (length pgen_operl + 1, fn _ => 0) else []) @
+       (if !intl_flag then List.tabulate (2, fn _ => 0) else []) @
+       (if !seq_flag then [0] else [])
   )
   
 val _ = if Vector.length ho_ariv <> Vector.length operv
@@ -263,6 +261,12 @@ fun depend_on v (Ins (id,pl)) =
     then exists (depend_on v) pl
     else exists (depend_on v) (snd (part_n hari pl))
   end
+
+fun find_id s = case dfindo s opersd of SOME id => id | NONE => ~1
+
+val x_id = find_id "x"
+val y_id = find_id "y"
+val z_id = find_id "z"
 
 fun depend_on_x p = depend_on x_id p
 fun depend_on_y p = depend_on y_id p

@@ -149,17 +149,25 @@ fun checkf_intl p =
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
-  
-
 
 fun checkinit () =
   (wind := dempty Int.compare; partwind := dempty Int.compare)
+
+fun checkf_seq (p,exec) =
+  let 
+    val _ = (max_compr_number := 100; timeincr := 20000)
+    val (b,t) = match_seq (!target_glob) exec 
+  in
+    if not b then () else update_wind wind (!targetn_glob,[(t,p)])          
+  end
   
-fun checkonline (p,exec) = (init_fast_test (); 
-  if !intl_flag then checkf_intl p else checkf (p,exec))
+fun checkonline (p,exec) = 
+  if !seq_flag then checkf_seq (p,exec)
+  else if !intl_flag then checkf_intl p 
+  else checkf (p,exec)
 
 fun checkfinal () =
-  if !her_flag then dlist (!wind) else
+  if !seq_flag orelse !her_flag then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); 

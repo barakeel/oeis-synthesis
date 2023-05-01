@@ -309,10 +309,10 @@ fun select_random_target () =
       let val i = random_int (0, Array.length oseq - 1) in
         case Array.sub (oseq, i) of NONE => loop () | SOME seq => (seq,i)
       end
-    val (targetseq,seqname) = loop ()
-    val _ = target_glob := targetseq
+    val (target,targetn) = loop ()
+    val _ = (target_glob := target; targetn_glob := targetn)
     val _ = print_endline 
-      ("target " ^ its seqname ^ ": " ^ string_of_seq (!target_glob))
+      ("target " ^ its targetn ^ ": " ^ string_of_seq target)
   in
     ()
   end
