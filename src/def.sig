@@ -48,4 +48,8 @@ sig
   val init_itcand : string -> int ->  (int * (int * cand) list) list -> unit 
   val init_itprog : string -> int ->  (int * (int * prog) list) list -> unit
 
+  (* loda *)
+  val loda_flag : bool ref
+  val mk_def_loda : string -> int -> string -> unit
+
 end

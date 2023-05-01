@@ -7,12 +7,13 @@ val ERR = mk_HOL_ERR "def"
 type macro = int list
 type cand = prog * (int * macro)
 val reverse_flag = ref true
+val loda_flag = ref false
 
 (* -------------------------------------------------------------------------
    Macros
    ------------------------------------------------------------------------- *) 
 
-val minop = Vector.length operv
+val minop = if !loda_flag then 20 else Vector.length operv
 val maxop = minop + 9
 val sepop = maxop + 1
 fun is_id x = x >= minop
@@ -506,6 +507,26 @@ fun mk_def n progl =
   in
     mk_def_aux n ct (map (fn x => ([],x)) macrol)
   end
+  
+
+fun read_loda file = []
+
+fun mk_def_loda dir n lodafile =
+  let 
+    val _ = mkDir_err dir
+    val newdeffile = dir ^ "/" ^ "defnew"
+    val newsolfile = dir ^ "/" ^ "solnew"
+    val ct = ref ctempty
+    val macrol = read_loda lodafile
+    val _ = mk_def_aux n ct (map (fn x => ([],x)) macrol)
+    val defidl = defidl_of_defv (!defv)
+    val newmacrol = map (expand_all_id o fold_def defidl) macrol
+  in
+    write_def newdeffile;
+    writel newsolfile (map string_of_macro newmacrol)
+  end
+  
+
 
 (* -------------------------------------------------------------------------
    Recompute macro the set of solutions
@@ -523,6 +544,8 @@ fun recompute_macro sol =
     map f sol
   end
   
+
+
 (* -------------------------------------------------------------------------
    Candidates I/O
    ------------------------------------------------------------------------- *)
@@ -773,8 +796,6 @@ fun init_itcand dir n itcandl =
 fun init_itprog dir n itprogl =
   init_itcand dir n (map itcand_of_itprog itprogl)
 
-
-
 end (* struct *)  
 
 
@@ -799,5 +820,17 @@ init_itprog (selfdir ^ "/initgreedy4") 20 (read_itprogl "sol0");
 init_itprog (selfdir ^ "/initgreedy6") 20 (read_itprogl "sol0");
 
 *)
+
+(* Loda 
+
+
+
+
+
+*)
+
+
+
+
 
 
