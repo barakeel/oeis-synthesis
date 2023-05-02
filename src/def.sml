@@ -507,26 +507,6 @@ fun mk_def n progl =
   in
     mk_def_aux n ct (map (fn x => ([],x)) macrol)
   end
-  
-
-fun read_loda file = []
-
-fun mk_def_loda dir n lodafile =
-  let 
-    val _ = mkDir_err dir
-    val newdeffile = dir ^ "/" ^ "defnew"
-    val newsolfile = dir ^ "/" ^ "solnew"
-    val ct = ref ctempty
-    val macrol = read_loda lodafile
-    val _ = mk_def_aux n ct (map (fn x => ([],x)) macrol)
-    val defidl = defidl_of_defv (!defv)
-    val newmacrol = map (expand_all_id o fold_def defidl) macrol
-  in
-    write_def newdeffile;
-    writel newsolfile (map string_of_macro newmacrol)
-  end
-  
-
 
 (* -------------------------------------------------------------------------
    Recompute macro the set of solutions
@@ -648,7 +628,7 @@ fun stats_sol file itsol =
     val _ = writel file (map string_of_itprog itsolsort)
     fun f (id,n) = 
       its n ^ ": " ^ string_of_macro (expand_id id) ^ ", " ^ 
-      string_of_macro (Vector.sub (!defv, id - minop))
+      string_of_macro (expand_all_id (Vector.sub (!defv, id - minop)))
     val l = dict_sort compare_imax (dlist (!freqd))
   in
     writel (file ^ "_deffreq") (map f l) 
@@ -699,8 +679,8 @@ fun write_gptsol file sol =
         fun g (t,(p,(n,macro))) = macro
         val macrol = map g tpl
         fun h macro =
-          seqs ^ ">" ^ string_of_macro 
-            (if !reverse_flag then rev macro else macro)
+          seqs ^ ">" ^ string_of_macro
+          (if !reverse_flag then rev macro else macro)
       in
         map h macrol
       end
@@ -795,6 +775,27 @@ fun init_itcand dir n itcandl =
        
 fun init_itprog dir n itprogl =
   init_itcand dir n (map itcand_of_itprog itprogl)
+
+(* -------------------------------------------------------------------------
+   Todo: experiments with LODA
+   ------------------------------------------------------------------------- *)
+
+fun read_loda file = []
+
+fun mk_def_loda dir n lodafile =
+  let 
+    val _ = mkDir_err dir
+    val newdeffile = dir ^ "/" ^ "defnew"
+    val newsolfile = dir ^ "/" ^ "solnew"
+    val ct = ref ctempty
+    val macrol = read_loda lodafile
+    val _ = mk_def_aux n ct (map (fn x => ([],x)) macrol)
+    val defidl = defidl_of_defv (!defv)
+    val newmacrol = map (fold_def defidl) macrol
+  in
+    write_def newdeffile;
+    writel newsolfile (map (string_of_macro o expand_all_id) newmacrol)
+  end
 
 end (* struct *)  
 

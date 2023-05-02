@@ -335,6 +335,7 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
   
+(* limited to programs that do not depend on y *)  
 fun cache_exec exec = 
   let 
     val v = Vector.fromList (rev (!graph))
