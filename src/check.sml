@@ -285,7 +285,8 @@ fun merge_itsol_default dir =
     val _ = app (merge_itsol_file d) filel
     val _ = log ("sol: " ^ its (dlength (!d)))
     val oldsolfile = dir ^ "/" ^ "solold"
-    val _ = merge_itsol_file d oldsolfile
+    val _ = if not (exists_file oldsolfile) then ()
+            else merge_itsol_file d oldsolfile
   in
     dlist (!d)
   end
