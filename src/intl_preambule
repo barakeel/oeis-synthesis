@@ -1,0 +1,22 @@
+def hd(l):
+    return l[0]
+def tl(l):
+    return l[1:]   
+
+class A:
+    def __init__(self, a):
+        self.a = a
+    def hd(self):
+        return hd(self.a)
+    def tl(self):
+        return tl(self.a)
+    def __add__(self, other):
+        return A([hd(self.a)+hd(other.a)] + tl(self.a))
+    def __sub__(self, other):
+        return A([hd(self.a)-hd(other.a)] + tl(self.a))  
+    def __mul__(self, other):
+        return A([hd(self.a)*hd(other.a)] + tl(self.a))  
+    def __floordiv__(self, other):
+        return A([hd(self.a)//hd(other.a)] + tl(self.a))
+    def __mod__(self, other):
+        return A([hd(self.a)%hd(other.a)] + tl(self.a))

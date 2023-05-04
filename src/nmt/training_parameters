@@ -1,0 +1,29 @@
+Here are some reasonable NMT training params. 
+$TRDIR is where the training data live and MODDIR is where the model lives. As mentioned before, the params can be varied quite a bit. 
+
+export CUDA_VISIBLE_DEVICES=0
+time python -m nmt.nmt \
+  --encoder_type=bi \
+  --learning_rate=0.4 \
+  --max_gradient_norm=3.0 \
+  --attention=scaled_luong \
+  --num_units=512 \
+  --num_gpus=1 \
+  --batch_size=512 \
+  --src=miz --tgt=ferp \
+  --vocab_prefix=$TRDIR/vocab \
+  --train_prefix=$TRDIR/train1 \
+  --dev_prefix=$TRDIR/dev \
+  --test_prefix=$TRDIR/test \
+  --out_dir=$MODDIR/model \
+  --num_train_steps=20000 \
+  --steps_per_stats=20000 \
+  --steps_per_external_eval=20000 \
+  --tgt_max_len=180 \
+  --tgt_max_len_infer=280 \
+  --src_max_len=100 \
+  --num_layers=2 \
+  --dropout=0.2 \
+  --metrics=bleu \
+  --beam_width=240 \
+  --num_translations_per_input=240 > $TRDIR/train.log-tr-1 
