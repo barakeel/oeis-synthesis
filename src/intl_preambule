@@ -20,3 +20,7 @@ class A:
         return A([hd(self.a)//hd(other.a)] + tl(self.a))
     def __mod__(self, other):
         return A([hd(self.a)%hd(other.a)] + tl(self.a))
+    def pop(self):
+        return A(self.a) if len(self.a) <= 1 else A(tl(self.a))
+    def push(self,other):
+        return A([hd(self.a)] + other.a)

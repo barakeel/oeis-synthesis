@@ -67,7 +67,7 @@ sig
   val is_constant : prog -> bool
   val contain_id : int -> prog -> bool
   val contain_opers : string -> prog -> bool 
-   
+  val zeroy : prog -> prog
   (* solutions *)
   type sol = anum * (int * prog) list
    

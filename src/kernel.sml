@@ -274,6 +274,17 @@ fun depend_on_z p = depend_on z_id p
 fun is_constant p = 
   not (depend_on_x p orelse depend_on_y p orelse depend_on_z p)
 
+fun zeroy (Ins (id,pl)) =
+  if id = y_id then (Ins(0,[])) else
+  let val hari = Vector.sub (ho_ariv,id) in
+    if hari = 0 
+    then Ins(id, map zeroy pl)
+    else 
+      let val (pl1,pl2) = part_n hari pl in
+        Ins(id, pl1 @ map zeroy pl2)
+      end
+  end
+  
 (* -------------------------------------------------------------------------
    Timer
    ------------------------------------------------------------------------- *)
