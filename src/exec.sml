@@ -1,7 +1,7 @@
 structure exec :> exec =
 struct
 
-open HolKernel boolLib aiLib kernel bloom
+open HolKernel boolLib aiLib kernel bloom smlParallel
 val ERR = mk_HOL_ERR "exec"
 type prog = kernel.prog
 type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
@@ -605,7 +605,72 @@ fun verify_eq (r,n) (p1,p2) =
   end
 
 
+(* -------------------------------------------------------------------------
+   Parallel execution
+   ------------------------------------------------------------------------- *)
+
+fun execspec_fun pl =
+  let  
+    val i = ref 0;
+    fun f p = (
+      max_compr_number := 1000;
+      incr i; 
+      print_endline (its (!i)); 
+      penum_wtime 10000000 p 1000);
+  in
+    map f pl
+  end
+
+val execspec : (unit, prog list, seq list) extspec =
+  {
+  self_dir = selfdir,
+  self = "exec.execspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () pl = execspec_fun pl in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_progl,
+  read_arg = read_progl,
+  write_result = write_seql,
+  read_result = read_seql
+  }
+
+fun parallel_exec ncore expname pl =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sl = readl (dir ^ "/input")
+    val pl = map prog_of_gpt sl
+    val pll = cut_n ncore pl
+    val (ill,t) = add_time (parmap_queue_extern ncore execspec ()) pll
+    val il = List.concat ill
+    val pseql = combine (pl,il)
+    fun g (p,seq) = its (length seq) ^ ", " ^ 
+      gpt_of_prog p ^ ", " ^ string_of_seq seq;
+  in
+    writel (dir ^ "/output") (map g pseql)
+  end
+
+(*  
+load "exec"; open aiLib kernel exec;
+parallel_exec "lmfdb";
+*)  
+
+
+
+
 end (* struct *)
+
+
 
 
 (* -------------------------------------------------------------------------

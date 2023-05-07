@@ -152,7 +152,9 @@ local open HOLsexp in
                  o string_decode
   val enc_aint = String o IntInf.toString       
   val dec_aint = Option.mapPartial IntInf.fromString 
-                 o string_decode              
+                 o string_decode
+  val enc_seql = list_encode (list_encode enc_aint)
+  val dec_seql = list_decode (list_decode dec_aint)                             
   val enc_pgen = pair_encode (enc_prog, 
     list_encode (pair_encode (Integer,enc_prog))) 
   val dec_pgen = pair_decode (dec_prog, 
@@ -164,7 +166,13 @@ fun read_itprogl file = read_data dec_itprogl file
 
 fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
 fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
- 
+
+fun write_progl file r = write_data enc_progl file r
+fun read_progl file = read_data dec_progl file
+
+fun write_seql file r = write_data enc_seql file r
+fun read_seql file = read_data dec_seql file
+
 (* -------------------------------------------------------------------------
    Instructions
    ------------------------------------------------------------------------- *)

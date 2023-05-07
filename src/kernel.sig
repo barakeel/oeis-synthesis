@@ -77,6 +77,11 @@ sig
   val read_itprogl : string -> sol list
   val write_itprogl : string -> sol list -> unit
   
+  val read_progl : string -> prog list
+  val write_progl : string -> prog list -> unit
+  val read_seql : string -> seq list
+  val write_seql : string -> seq list -> unit
+  
   (* operators *)
   val operv : term vector
   val maxmove : int

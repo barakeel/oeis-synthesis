@@ -413,6 +413,14 @@ print_endline (sexpr p);
 human_gpt s;
 *)
 
+(*
+load "human"; open aiLib kernel human;
+val s = "K L O L P P P P P C G P E K D K K B E B B N P P P P P C G P";
+human_gpt s;
+
+
+*)
+
 (* 
 load "rl"; open aiLib kernel human rl bloom;
 

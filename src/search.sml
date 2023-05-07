@@ -219,15 +219,14 @@ and search_move_tim rt depth targete boarde ((move,f),(torg,tinc)) =
 
 and search_move rt depth (vis,tim) targete boarde pol =
   if !search_time_flag 
-  then
-    app (search_move_tim rt depth targete boarde) (split_tim tim pol)
+  then app (search_move_tim rt depth targete boarde) (split_tim tim pol)
   else 
     if vis - 1 <= 0 then () else
     app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
 
 and search_aux rt depth (vis,tim) targete boarde = 
   if depth >= 10000 then () else
-  let  
+  let
     val (newboarde, mfl) = collect_children boarde 
       handle NotFound => raise ERR "collect_children" ""         
     val pol = create_pol targete newboarde mfl
