@@ -1,7 +1,7 @@
 def hd(l):
     return l[0]
 def tl(l):
-    return l[1:]   
+    return l[1]   
 
 class A:
     def __init__(self, a):
@@ -11,16 +11,25 @@ class A:
     def tl(self):
         return tl(self.a)
     def __add__(self, other):
-        return A([hd(self.a)+hd(other.a)] + tl(self.a))
+        return A((hd(self.a)+hd(other.a),tl(self.a)))
     def __sub__(self, other):
-        return A([hd(self.a)-hd(other.a)] + tl(self.a))  
+        return A((hd(self.a)-hd(other.a),tl(self.a)))  
     def __mul__(self, other):
-        return A([hd(self.a)*hd(other.a)] + tl(self.a))  
+        return A((hd(self.a)*hd(other.a),tl(self.a)))  
     def __floordiv__(self, other):
-        return A([hd(self.a)//hd(other.a)] + tl(self.a))
+        return A((hd(self.a)//hd(other.a),tl(self.a)))
     def __mod__(self, other):
-        return A([hd(self.a)%hd(other.a)] + tl(self.a))
+        return A((hd(self.a)%hd(other.a),tl(self.a)))
     def pop(self):
-        return A(self.a) if len(self.a) <= 1 else A(tl(self.a))
+        return A(self.a) if tl(self.a) == None else A(tl(self.a))
     def push(self,other):
-        return A([hd(self.a)] + other.a)
+        return A((hd(self.a), other.a))
+        
+def S(a):
+   return A((a,None))
+def H(a):
+   return a.hd()
+def pop(a):
+   return a.pop()
+def push(a,b):
+   return a.push(b)

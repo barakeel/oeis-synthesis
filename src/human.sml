@@ -9,7 +9,7 @@ type prog = kernel.prog
 
 val use_list = ref false
 
-fun rm_par s = if !use_list then s else
+fun rm_par s = (* if !use_list then s else *)
   if String.size s = 0 then s else
   if String.sub (s,0) = #"(" andalso String.sub (s,String.size s - 1) =  #")" 
   then String.substring (s,1,String.size s - 2)
@@ -28,11 +28,10 @@ val funn = ref 0
    Push and pop operations 
    ------------------------------------------------------------------------- *)
 
-
-fun aconst s = if !use_list then "A(["^ s ^ "])" else s
-fun dothead s = if !use_list then s ^ ".hd()" else s
-fun dotpop s = s ^ ".pop()"
-fun dotpush s1 s2 = s1 ^ ".push(" ^ s2 ^ ")"
+fun aconst s = if !use_list then "S(" ^ s ^ ")" else s
+fun dothead s = if !use_list then "H(" ^ s ^ ")" else s
+fun dotpop s = "pop(" ^ s ^ ")"
+fun dotpush s1 s2 = "push(" ^ s1 ^ "," ^ s2 ^ ")"
 
 (* -------------------------------------------------------------------------
    Printing to Python 
@@ -104,7 +103,7 @@ fun human vn prog =
         rhuman wn p3) 
       in
         ["  x = " ^ s3] @
-        (if !use_list then [  "i = 1"] else []) @
+        (if !use_list then ["  i = 1"] else []) @
         (if depend_on_z p1 then ["  z = x"]  else []) @
         (if !use_list
          then
@@ -112,7 +111,7 @@ fun human vn prog =
           "    y = " ^ aconst "i",
           "    i = i + 1",
           "    x = " ^ s1,
-          "  return x - 1"]
+          "  return x - " ^ aconst "1"]
          else
         ["  for y in range (1," ^ s2 ^ "):",
          "    x = " ^ s1,
@@ -202,10 +201,7 @@ fun human_python ntop ptop =
         val ys = mk_yn wn
         val s = rm_par (human wn p)
         val head = "def " ^ fsperm ^ xs ^ "):\n  return " ^ s ^ "\n"
-        val prints = 
-          if !use_list 
-          then "print((" ^ fs ^ "(" ^ aconst "x" ^ ")).hd())"  
-          else "print(" ^ fs ^ "(x))" 
+        val prints = "print(" ^ dothead (fs ^ "(" ^ aconst "x" ^ ")") ^ ")"
         val test = 
           "for x in range(" ^ its ntop ^ "):\n  " ^ prints 
         val ps' = String.concatWith "\n" (preamb @ !ctxt @ [head] @ 
@@ -218,7 +214,7 @@ fun human_python ntop ptop =
         val s = rm_par (human wn p)
         val prints = 
           if !use_list 
-          then "print((" ^ fs ^ "(" ^ aconst "x" ^ ")).hd())"  
+          then "print(" ^ dothead (fs ^ "(" ^ aconst "x" ^ ")") ^ ")"
           else "print(" ^ fs ^ "(x))" 
         val test = 
           "for x in range(" ^ its ntop ^ "):\n  " ^ prints 
@@ -407,7 +403,7 @@ fun find_fsname s = dfind (string_to_int (tl_string (tl_string s)))
 
 (*
 load "rl"; open aiLib kernel human rl;
-val p = game.random_prog 10;
+val p = game.random_prog 20;
 print_endline (humanf p ^ "\n"); 
 print_endline (human_python 32 p) ;
 val s = gpt_of_prog p;
