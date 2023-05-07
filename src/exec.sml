@@ -650,7 +650,7 @@ fun parallel_exec ncore expname =
     val _ = smlExecScripts.buildheap_dir := dir
     val sl = readl (dir ^ "/input")
     val pl = map prog_of_gpt sl
-    val pll = cut_n ncore pl
+    val pll = cut_n (10*ncore) pl
     val (ill,t) = add_time (parmap_queue_extern ncore execspec ()) pll
     val il = List.concat ill
     val pseql = combine (pl,il)
@@ -668,7 +668,7 @@ val sl = readl (dir ^ "/input")
 val pl = map prog_of_gpt sl;
 length pl;
 
-parallel_exec 16 "lmfdb" pl;
+parallel_exec 30 "lmfdb0";
 *)  
 
 
