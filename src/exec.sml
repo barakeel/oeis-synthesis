@@ -657,6 +657,7 @@ fun parallel_exec ncore expname =
     fun g (p,seq) = its (length seq) ^ ", " ^ 
       gpt_of_prog p ^ ", " ^ string_of_seq seq;
   in
+    writel (dir ^ "/log") ("time: " ^ rts t);
     writel (dir ^ "/output") (map g pseql)
   end
 
