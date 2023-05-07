@@ -640,7 +640,7 @@ val execspec : (unit, prog list, seq list) extspec =
   read_result = read_seql
   }
 
-fun parallel_exec ncore expname pl =
+fun parallel_exec ncore expname =
   let  
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
@@ -662,7 +662,13 @@ fun parallel_exec ncore expname pl =
 
 (*  
 load "exec"; open aiLib kernel exec;
-parallel_exec "lmfdb";
+val expname = "lmfdb0";
+val dir = selfdir ^ "/exp/" ^ expname;
+val sl = readl (dir ^ "/input")
+val pl = map prog_of_gpt sl;
+length pl;
+
+parallel_exec 16 "lmfdb" pl;
 *)  
 
 

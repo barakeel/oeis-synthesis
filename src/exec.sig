@@ -31,5 +31,5 @@ sig
    
   (* parallel execution (wip) *)
   val execspec : (unit, kernel.prog list, kernel.seq list) smlParallel.extspec
-  val parallel_exec : int -> string -> kernel.prog list -> unit
+  val parallel_exec : int -> string -> unit
 end
