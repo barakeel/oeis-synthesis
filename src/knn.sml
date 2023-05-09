@@ -43,9 +43,11 @@ fun knn (symweight,feav) n p =
 fun knn_gpt_one dir (symweight,feav) n i s =
   let 
     val p = prog_of_gpt s
-    val pl = knn_sortu prog_compare_size (n+1) (symweight,feav) (fea_of_prog p) 
+    val pl = knn_sortu prog_compare (n+1) (symweight,feav) (fea_of_prog p) 
   in
     if i mod 100 = 0 then append_endline (dir ^ "/log") (its i) else ();
+    if hd pl = p then () else 
+      raise ERR "knn_gpt_one" ("not closest to itself: " ^ gpt_of_prog p)
     String.concatWith " : " (s :: map gpt_of_prog (tl pl))
   end
   
