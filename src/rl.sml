@@ -148,7 +148,7 @@ fun trainf_tnn datadir pid =
         val feav = map_assoc fea_of_prog progl 
         val symweight = mlFeature.learn_tfidf feav 
         val (_,p') = random_elem isol0
-        val l = knn (symweight,feav) (random_int (500,10000)) p'
+        val l = knn (symweight,feav) (random_int (2000,20000)) p'
         val d = enew prog_compare l
       in
         filter (fn (i,p) => emem p d) isol0 
