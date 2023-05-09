@@ -67,7 +67,8 @@ fun knn_gpt expname n =
     append_endline (dir ^ "/log") ("time: " ^ rts t);
     writel (dir ^ "/output") r
   end  
-   
+
+
 end
 
 (*
@@ -78,8 +79,10 @@ val progl = mk_fast_set prog_compare_size (map snd (List.concat (map snd sol)));
 val feav = map_assoc fea_of_prog progl; 
 val symweight = learn_tfidf feav;
 val p = random_elem progl;
-val l = knn (symweight,feav) 10 p;
+val l = knn (symweight,feav) (random_int (500,5000)) p;
 
+
+val d = dnew prog_compare (p,pl)
 
 val gptl = map gpt_of_prog progl;
 writel "aatest" gptl;

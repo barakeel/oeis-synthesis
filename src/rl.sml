@@ -2,7 +2,7 @@ structure rl :> rl =
 struct
 
 open HolKernel Abbrev boolLib aiLib smlParallel smlExecScripts 
-  mlTreeNeuralNetwork mcts kernel human bloom exec game check tnn
+  mlTreeNeuralNetwork mcts kernel human bloom exec game check tnn knn
   
 
 val ERR = mk_HOL_ERR "rl"
@@ -143,13 +143,24 @@ fun trainf_tnn datadir pid =
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
     val isol0 = distrib (map (fn (a,bl) => (a,map snd bl)) itsol)
     val isol = if not (!intl_flag) then isol0 else
-      let
+      let 
+        val progl = mk_fast_set prog_compare_size (map snd isol0)
+        val feav = map_assoc fea_of_prog progl 
+        val symweight = mlFeature.learn_tfidf feav 
+        val (_,p') = random_elem isol0
+        val l = knn (symweight,feav) (random_int (500,10000)) p'
+        val d = enew prog_compare l
+      in
+        filter (fn (i,p) => emem p d) isol0 
+      end
+      (* let
         val (isolpos,isolneg) = 
           partition (fn (_,p) => contain_opers "pop" p andalso 
                                  contain_opers "push" p) isol0
       in
         isolpos @ first_n (pid * length isolpos) (shuffle isolneg)
       end
+      *)
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
