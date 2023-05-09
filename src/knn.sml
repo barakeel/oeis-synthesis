@@ -47,7 +47,7 @@ fun knn_gpt_one dir (symweight,feav) n i s =
   in
     if i mod 100 = 0 then append_endline (dir ^ "/log") (its i) else ();
     if hd pl = p then () else 
-      raise ERR "knn_gpt_one" ("not closest to itself: " ^ gpt_of_prog p)
+      raise ERR "knn_gpt_one" ("not closest to itself: " ^ gpt_of_prog p);
     String.concatWith " : " (s :: map gpt_of_prog (tl pl))
   end
   
