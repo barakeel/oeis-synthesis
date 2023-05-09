@@ -251,12 +251,20 @@ fun halfnoise () =
     )
   else noise_flag := false
   
-
+fun find_train_multi ns =
+  let 
+    fun f i = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ its i ^ ".so"
+    fun loop i = if exists_file (f i) then loop (i+1) else i 
+  in  
+    loop 0
+  end
+  
 fun load_ob () =
   if !ngen_glob <= 0 then () else  
     let 
       val ns = its (find_last_ob ()) 
-      val suffix = its (random_int (0,!train_multi - 1))
+      val inferred_train_multi = find_train_multi ns
+      val suffix = its (random_int (0,inferred_train_multi - 1))
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       print_endline ("loading " ^ fileso);
