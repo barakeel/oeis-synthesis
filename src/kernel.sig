@@ -33,11 +33,9 @@ sig
   val her_flag : bool ref  
   val intl_flag : bool ref 
   val num_epoch : int ref
-  val short_timeincr : int ref
-  val long_timeincr : int ref
-  val short_compr : int ref
-  val long_compr : int ref
-  
+  val short_timeincr : int
+  val long_timeincr : int
+   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
@@ -100,9 +98,7 @@ sig
   val max_compr_number : int ref
   val timeincr : int ref
   val timelimit : int ref
-  val short_timeincr : int
   val init_fast_test : unit -> unit
-  val long_timeincr : int
   val init_slow_test : unit -> unit
   val incr_timer : unit -> unit
   val init_timer : unit -> unit

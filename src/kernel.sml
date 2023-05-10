@@ -23,7 +23,7 @@ fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 fun bflag_true s = 
   ref (string_to_bool (dfind s configd) handle NotFound => true)
 fun iflag s i = ref (string_to_int (dfind s configd) handle NotFound => i) 
-
+fun iflagnoref s i = string_to_int (dfind s configd) handle NotFound => i
 
 (* main_experiment flags *)
 val seq_flag = bflag "seq_flag"
@@ -39,10 +39,10 @@ val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
-val short_timeincr = iflag "short_timeincr" 1000
-val long_timeincr = iflag "long_timeincr" 100000
-val short_compr = iflag "short_compr" 20
-val long_compr = iflag "long_compr" 200
+val short_timeincr = iflagnoref "short_timeincr" 1000
+val long_timeincr = iflagnoref "long_timeincr" 100000
+val short_compr = iflagnoref "short_compr" 20
+val long_compr = iflagnoref "long_compr" 200
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
@@ -303,14 +303,9 @@ fun zeroy (Ins (id,pl)) =
    ------------------------------------------------------------------------- *)
 
 exception ProgTimeout;
-
-val short_timeincr = 1000
-val long_timeincr = 100000
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
-val short_compr = 20
-val long_compr = 200
 val max_compr_number = ref short_compr
 val graph = ref []
 val graphb = ref 0
