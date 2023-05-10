@@ -39,6 +39,11 @@ val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
+val short_timeincr = iflag "short_timeincr" 1000
+val long_timeincr = iflag "long_timeincr" 100000
+val short_compr = iflag "short_compr" 20
+val long_compr = iflag "long_compr" 200
+
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"

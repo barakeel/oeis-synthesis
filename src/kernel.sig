@@ -33,7 +33,11 @@ sig
   val her_flag : bool ref  
   val intl_flag : bool ref 
   val num_epoch : int ref
-    
+  val short_timeincr : int ref
+  val long_timeincr : int ref
+  val short_compr : int ref
+  val long_compr : int ref
+  
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option
