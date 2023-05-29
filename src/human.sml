@@ -111,7 +111,7 @@ fun human vn prog =
           "    y = " ^ aconst "i",
           "    i = i + 1",
           "    x = " ^ s1,
-          "  return x - " ^ aconst "1"]
+          "  return x"]
          else
         ["  for y in range (1," ^ s2 ^ "):",
          "    x = " ^ s1,
