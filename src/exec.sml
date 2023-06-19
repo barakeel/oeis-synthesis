@@ -663,13 +663,7 @@ fun parallel_exec ncore expname =
 
 (*  
 load "exec"; open aiLib kernel exec;
-val expname = "lmfdb0";
-val dir = selfdir ^ "/exp/" ^ expname;
-val sl = readl (dir ^ "/input")
-val pl = map prog_of_gpt sl;
-length pl;
-
-parallel_exec 30 "lmfdb0";
+parallel_exec 30 "lmfdb1";
 *)  
 
 

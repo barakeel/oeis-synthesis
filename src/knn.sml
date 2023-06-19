@@ -1,7 +1,7 @@
 structure knn :> knn =
 struct
 
-open HolKernel Abbrev boolLib aiLib kernel mlFeature
+open HolKernel Abbrev boolLib aiLib kernel mlFeature smlParallel
 val ERR = mk_HOL_ERR "knn"
 
 (* features *)
@@ -45,7 +45,7 @@ fun knn_gpt_one dir (symweight,feav) n i s =
     val p = prog_of_gpt s
     val pl = knn_sortu prog_compare (n+1) (symweight,feav) (fea_of_prog p) 
   in
-    if i mod 100 = 0 then append_endline (dir ^ "/log") (its i) else ();
+    if i mod 100 = 0 then print_endline (its i) else ();
     if hd pl = p then () else 
       raise ERR "knn_gpt_one" ("not closest to itself: " ^ gpt_of_prog p);
     String.concatWith " : " (s :: map gpt_of_prog (tl pl))
@@ -68,29 +68,71 @@ fun knn_gpt expname n =
     writel (dir ^ "/output") r
   end  
 
+(* -------------------------------------------------------------------------
+   Parallel execution
+   ------------------------------------------------------------------------- *)
+
+fun knnspec_fun (n,expname) localsl =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val sl = readl (dir ^ "/input")
+    val sl' = mk_fast_set String.compare sl
+    val progl = map prog_of_gpt sl'
+    val feav = map_assoc fea_of_prog progl
+    val symweight = learn_tfidf feav
+    val (newsl,t) = add_time 
+      (mapi (knn_gpt_one dir (symweight,feav) n)) localsl
+  in
+    print_endline ("time: " ^ rts t);
+    newsl
+  end
+
+val knnspec : (int * string, string list, string list) extspec =
+  {
+  self_dir = selfdir,
+  self = "knn.knnspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = knnspec_fun,
+  write_param = let fun f file (i,s) = writel file [its i, s] in f end,
+  read_param = let fun f file = 
+      let val sl = readl file in (string_to_int (hd sl), hd (tl sl)) end 
+    in f end,
+  write_arg = writel,
+  read_arg = readl,
+  write_result = writel,
+  read_result = readl
+  }
+
+fun parallel_knn_gpt ncore expname n =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = erase_file (dir ^ "/log")
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sl = readl (dir ^ "/input")
+    val sl' = mk_fast_set String.compare sl
+    val sll = cut_n (3*ncore) sl'
+    val (newsll,t) = 
+      add_time (parmap_queue_extern ncore knnspec (n,expname)) sll
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    writel (dir ^ "/output") (List.concat newsll)
+  end
 
 end
 
 (*
-load "knn"; load "human"; open mlFeature aiLib kernel knn human;
-
-val sol = read_itprogl "model/itsol209";
-val progl = mk_fast_set prog_compare_size (map snd (List.concat (map snd sol)));
-val feav = map_assoc fea_of_prog progl; 
-val symweight = learn_tfidf feav;
-val p = random_elem progl;
-val l = knn (symweight,feav) (random_int (500,5000)) p;
-
-
-val d = dnew prog_compare (p,pl)
-
-val gptl = map gpt_of_prog progl;
-writel "aatest" gptl;
-
 load "knn"; 
 knn.knn_gpt "knn" 1;
-
-
-
-
+knn.parallel_knn_gpt 2 "knn1" 1;
 *)
+
+
+

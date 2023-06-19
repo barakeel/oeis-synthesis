@@ -62,6 +62,7 @@ val fs_flag = bflag "fs_flag"
 val turing_flag = bflag "turing_flag"
 val her_flag = bflag "her_flag"
 val intl_flag = bflag "intl_flag"
+val rps_flag = bflag "rps_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -206,6 +207,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   else if !turing_flag then turing_operl
   else if !minimal_flag then minimal_operl
   else org_operl @
+     (if !rps_flag then [("hist1",1),("hist2",1)] else []) @
      (if !z_flag then [("z",0),("loop3",7)] else []) @
      (if !extranum_flag then
        [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
