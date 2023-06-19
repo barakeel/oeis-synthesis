@@ -51,7 +51,7 @@ fi
 cd tnn_in_c
 
 sh compile_ob.sh ../model/ob_online.c
-if [ -f "ob_online.so" ]; then
+if [ -f "../model/ob_online.so" ]; then
   echo "ob_online.so produced by compile_ob.sh"
 else
   echo "Failure when compiling ob_online.c with 
