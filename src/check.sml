@@ -132,7 +132,7 @@ fun checkf nnvalue (p,exec) =
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
-  
+
 fun checkf_intl (nnvalue:real) p = 
   let
     val (anumtl,cov,anumlpart) = exec_intl.coverf_oeis (exec_intl.mk_exec p)
@@ -155,7 +155,10 @@ fun checkf_intl (nnvalue:real) p =
   end
 
 fun checkinit () =
-  (wind := dempty Int.compare; partwind := dempty Int.compare)
+  (
+  wind := dempty Int.compare; 
+  partwind := dempty Int.compare;
+  )
 
 fun checkf_seq (p,exec) =
   let 
@@ -171,7 +174,7 @@ fun checkonline nnvalue (p,exec) =
   else checkf nnvalue (p,exec)
 
 fun checkfinal () =
-  if !seq_flag orelse !her_flag then dlist (!wind) else
+  if !seq_flag orelse !her_flag orelse !think_flag then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); 
@@ -294,6 +297,7 @@ fun merge_itsol_default dir =
   in
     dlist (!d)
   end
+
 
 (* -------------------------------------------------------------------------
    Parallel checking (two phases)
