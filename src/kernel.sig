@@ -31,6 +31,7 @@ sig
   val rnn_flag : bool ref (* experiment using a rnn architecture *)
   val turing_flag : bool ref (* experiment using a turing machine *)
   val rps_flag : bool ref (* rock-paper-scissor experiment *)
+  val think_flag : bool ref (* experiments with thinking tokens *)
   val her_flag : bool ref  
   val intl_flag : bool ref 
   val num_epoch : int ref

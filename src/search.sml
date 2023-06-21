@@ -97,13 +97,13 @@ fun collect_child boarde move =
     in 
       if !locsearch_flag andalso null l2 andalso not (depend_on_y p)
       then (incr prog_counter; 
-            checkonline (p,exec); 
+            checkonline 0.0 (p,exec); 
             SOME (move, cache_exec exec))
       else SOME (move,exec)
     end
   end
 
-fun collect_children boarde = case boarde of
+fun collect_children nnvalue boarde = case boarde of
     [(p,exec,a,b)] =>
     let 
       val _ = if not (!locsearch_flag) 
@@ -111,13 +111,13 @@ fun collect_children boarde = case boarde of
                    incr prog_counter; 
                    if !pgen_flag 
                    then checkonline_pgen (p,exec)
-                   else checkonline (p,exec)
+                   else checkonline nnvalue (p,exec)
                    )
               else ()
       val newboarde = boarde
     in
       (newboarde, List.mapPartial (collect_child newboarde) movelg)
-    end
+    end  
   | _ => (boarde, List.mapPartial (collect_child boarde) movelg)
 
 (* -------------------------------------------------------------------------
@@ -227,8 +227,7 @@ and search_move rt depth (vis,tim) targete boarde pol =
 and search_aux rt depth (vis,tim) targete boarde = 
   if depth >= 10000 then () else
   let
-    val (newboarde, mfl) = collect_children boarde 
-      handle NotFound => raise ERR "collect_children" ""         
+    val (newboarde, mfl) = collect_children (snd tim) boarde       
     val pol = create_pol targete newboarde mfl
   in
     search_move rt (depth + 1) (vis,tim) targete newboarde pol
@@ -282,8 +281,7 @@ fun search_move rt depth embl boarde ((move,f),(torg,tinc)) =
 
 and search_movel rt depth embl boarde tim =
   let  
-    val (newboarde, mfl) = collect_children boarde 
-      handle NotFound => raise ERR "collect_children" ""         
+    val (newboarde, mfl) = collect_children (snd tim) boarde         
     val pol = create_pol_rnn embl mfl
   in
     app (search_move rt depth embl newboarde) (split_tim tim pol)

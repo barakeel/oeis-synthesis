@@ -112,13 +112,14 @@ fun create_anumlpart (anumtl,n,anumlpart) =
 val wind = ref (dempty Int.compare)
 val partwind = ref (dempty Int.compare)  
 
-
-
-fun checkf (p,exec) = 
+fun checkf nnvalue (p,exec) = 
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
-    fun f (anum,t) = update_wind wind (anum,[(t,p)])
-    fun g (anum,n) = 
+    fun f (anum,t) = 
+      if !think_flag 
+      then update_wind wind (anum,[(Real.round (~nnvalue * 1000000000.0),p)])
+      else update_wind wind (anum,[(t,p)])
+    fun g (anum,n) =
       if n <= 2 then () else
       (
       if !partial_flag andalso n >= 8
@@ -132,10 +133,13 @@ fun checkf (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
   
-fun checkf_intl p = 
+fun checkf_intl (nnvalue:real) p = 
   let
     val (anumtl,cov,anumlpart) = exec_intl.coverf_oeis (exec_intl.mk_exec p)
-    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+    fun f (anum,t) = 
+      if !think_flag 
+      then update_wind wind (anum,[(Real.round (~nnvalue * 1000000000.0),p)])
+      else update_wind wind (anum,[(t,p)])
     fun g (anum,n) = 
       if n <= 2 then () else
       (
@@ -161,17 +165,17 @@ fun checkf_seq (p,exec) =
     if not b then () else update_wind wind (!targetn_glob,[(t,p)])          
   end
   
-fun checkonline (p,exec) = 
+fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
-  else if !intl_flag then checkf_intl p 
-  else checkf (p,exec)
+  else if !intl_flag then checkf_intl nnvalue p 
+  else checkf nnvalue (p,exec)
 
 fun checkfinal () =
   if !seq_flag orelse !her_flag then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); 
-      if !intl_flag then checkf_intl p else checkf (p, mk_exec p))
+      if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val bestpl0 = dlist (!partwind)
     val bestpl1 = mk_fast_set prog_compare_size 
       (map snd (List.concat (map snd bestpl0)))
@@ -198,7 +202,7 @@ fun checkpl pl =
     fun f p = (
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
-      if !intl_flag then checkf_intl p else checkf (p, mk_exec p)
+      if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p)
       )
   in
     checkinit (); app f pl; checkfinal ()
@@ -243,7 +247,7 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_fast_test (); 
-       if !intl_flag then checkf_intl p else checkf (p, mk_exec p))
+       if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
     print_endline ("fast check: " ^ rts_round 2 t)

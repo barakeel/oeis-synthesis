@@ -161,6 +161,14 @@ val mult_f = mk_binf 1 (op *)
 val divi_f = mk_binf 5 (op div)
 val modu_f = mk_binf 5 (op mod)
 
+
+(* -------------------------------------------------------------------------
+   Thinking tokens
+   ------------------------------------------------------------------------- *)
+
+val think1_f = mk_unf (fn x => x)
+val think2_f = mk_unf (fn x => x)
+
 (* -------------------------------------------------------------------------
    Memory instructions
    ------------------------------------------------------------------------- *)
@@ -320,6 +328,7 @@ val execv =
       else []) @
      (if !fs_flag then [perm_f] else []) @
      (if !pgen_flag then [seq_f] @ mfl else []) @
+     (if !think_flag then [think1_f,think2_f] else []) @
      (if !seq_flag then [seq_f] else [])
      )
 val _ = if Vector.length execv <> Vector.length operv andalso not (!intl_flag)

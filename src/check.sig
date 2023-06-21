@@ -7,7 +7,7 @@ sig
   
   (* functions used in search.sml and rl.sml *)
   val checkinit : unit -> unit
-  val checkonline : prog * exec.exec -> unit
+  val checkonline : real -> prog * exec.exec -> unit
   val checkfinal : unit -> (anum * (int * prog) list) list
   
   (* other functions *)
