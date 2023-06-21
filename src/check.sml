@@ -157,7 +157,7 @@ fun checkf_intl (nnvalue:real) p =
 fun checkinit () =
   (
   wind := dempty Int.compare; 
-  partwind := dempty Int.compare;
+  partwind := dempty Int.compare
   )
 
 fun checkf_seq (p,exec) =

@@ -264,6 +264,7 @@ val ho_ariv = Vector.fromList (
        (if !pgen_flag then 
           List.tabulate (length pgen_operl + 1, fn _ => 0) else []) @
        (if !intl_flag then List.tabulate (2, fn _ => 0) else []) @
+       (if !think_flag then List.tabulate (2, fn _ => 0) else []) @
        (if !seq_flag then [0] else [])
   )
   
