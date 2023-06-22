@@ -75,8 +75,8 @@ val natbase = IntInf.fromInt 10
 val azero = IntInf.fromInt 0
 
 fun movel_of_execr r =
-  if r < azero then runoffset + 10 :: movel_of_execr (~r) else
-  if r < natbase then [runoffset + IntInf.toInt r]
+  if r < azero then 10 :: movel_of_execr (~r) else
+  if r < natbase then [IntInf.toInt r]
   else IntInf.toInt (r mod natbase) :: movel_of_execr (r div natbase)
 
 fun expand_run (move,exec) boarde =
@@ -89,10 +89,10 @@ fun expand_run (move,exec) boarde =
       handle _ => IntInf.fromInt 1000000
     val ml =    
       if r > IntInf.fromInt 999999 then []
-      else if r < IntInf.fromInt (~ 999999) then []
+      else if r < IntInf.fromInt (~999999) then []
       else movel_of_execr r
   in
-    (move,exec) :: map (fn x => (x,(fn (a,b,c) => a))) ml
+    (move,exec) :: map (fn x => (x + runoffset, (fn (a,b,c) => a))) ml
   end
 
 fun apply_move_one ((move,exec),boarde) =
@@ -101,7 +101,7 @@ fun apply_move_one ((move,exec),boarde) =
     val (l1,l2) = part_n arity boarde
   in
     if length l1 <> arity 
-    then raise ERR "apply_move" ""
+    then raise ERR "apply_move" (name_of_oper move)
     else exec_fun (move,exec) l1 l2
   end
    
