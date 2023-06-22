@@ -116,7 +116,7 @@ fun checkf nnvalue (p,exec) =
   let
     val (anumtl,cov,anumlpart) = coverf_oeis exec
     fun f (anum,t) = 
-      if !think_flag 
+      if !think_flag orelse !run_flag
       then update_wind wind (anum,[(Real.round (~nnvalue * 1000000000.0),p)])
       else update_wind wind (anum,[(t,p)])
     fun g (anum,n) =
@@ -137,7 +137,7 @@ fun checkf_intl (nnvalue:real) p =
   let
     val (anumtl,cov,anumlpart) = exec_intl.coverf_oeis (exec_intl.mk_exec p)
     fun f (anum,t) = 
-      if !think_flag 
+      if !think_flag orelse !run_flag
       then update_wind wind (anum,[(Real.round (~nnvalue * 1000000000.0),p)])
       else update_wind wind (anum,[(t,p)])
     fun g (anum,n) = 
@@ -174,7 +174,8 @@ fun checkonline nnvalue (p,exec) =
   else checkf nnvalue (p,exec)
 
 fun checkfinal () =
-  if !seq_flag orelse !her_flag orelse !think_flag then dlist (!wind) else
+  if !seq_flag orelse !her_flag orelse !think_flag orelse !run_flag
+  then dlist (!wind) else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); 

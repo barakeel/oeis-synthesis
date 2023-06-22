@@ -32,6 +32,7 @@ sig
   val turing_flag : bool ref (* experiment using a turing machine *)
   val rps_flag : bool ref (* rock-paper-scissor experiment *)
   val think_flag : bool ref (* experiments with thinking tokens *)
+  val run_flag : bool ref (* experiments with running subprograms *)
   val her_flag : bool ref  
   val intl_flag : bool ref 
   val num_epoch : int ref
@@ -91,6 +92,7 @@ sig
   val maxmove : int
   val arity_of_oper : int -> int
   val name_of_oper : int -> string
+  val oper_of_name : string -> int
   
   (* timer *)
   exception ProgTimeout

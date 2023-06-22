@@ -219,8 +219,14 @@ val org_execl =
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
    loop_f,x_f,y_f, compr_f,loop2_f]
 
-val execv = Vector.fromList (org_execl @ [push_f, pop_f] @
-  (if !think_flag then [think1_f,think2_f] else []))
+val run_f = mk_unf (fn x => x)
+
+val execv = Vector.fromList (
+  org_execl @ 
+  [push_f, pop_f] @
+  (if !think_flag then [think1_f,think2_f] else []) @
+  (if !run_flag then List.tabulate (12, fn _ => run_f) else [])
+  )
 
 val _ = if !intl_flag andalso Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"

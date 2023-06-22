@@ -64,6 +64,7 @@ val her_flag = bflag "her_flag"
 val intl_flag = bflag "intl_flag"
 val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
+val run_flag = bflag "run_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -217,7 +218,11 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !intl_flag then [("push",2),("pop",1)] else []) @
      (if !rps_flag then [("hist1",1),("hist2",1)] else []) @
      (if !think_flag then [("think1",1),("think2",1)] else []) @
-     (if !seq_flag then [("seq",1)] else [])
+     (if !run_flag 
+      then ("run",1) :: List.tabulate (10, fn i => ("runz" ^ its i, 1)) @ 
+           [("runz-",1)]
+      else []) @
+     (if !seq_flag then [("seq",1)] else []) 
   )
 
 (* -------------------------------------------------------------------------
@@ -236,6 +241,9 @@ fun name_of_oper i =
 
 val operisl = map_assoc name_of_oper (List.tabulate (Vector.length operv,I))
 val opersd = dnew String.compare (map swap operisl)
+
+fun oper_of_name s = dfind s opersd 
+  handle NotFound => raise ERR "oper_of_name" s
 
 (* -------------------------------------------------------------------------
    Simple syntactic test
@@ -265,6 +273,7 @@ val ho_ariv = Vector.fromList (
           List.tabulate (length pgen_operl + 1, fn _ => 0) else []) @
        (if !intl_flag then List.tabulate (2, fn _ => 0) else []) @
        (if !think_flag then List.tabulate (2, fn _ => 0) else []) @
+       (if !run_flag then List.tabulate (12, fn _ => 0) else []) @
        (if !seq_flag then [0] else [])
   )
   

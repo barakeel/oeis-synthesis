@@ -319,18 +319,17 @@ val execv =
   else if !minimal_flag then minimal_execv 
   else if !turing_flag then turing_execv
   else
-    Vector.fromList 
-    (
-     org_execl @
-     (if !z_flag then [z_f, loop3_f] else []) @
-     (if !extranum_flag 
-      then [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
-      else []) @
-     (if !fs_flag then [perm_f] else []) @
-     (if !pgen_flag then [seq_f] @ mfl else []) @
-     (if !think_flag then [think1_f,think2_f] else []) @
-     (if !seq_flag then [seq_f] else [])
-     )
+    Vector.fromList (
+    org_execl @
+    (if !z_flag then [z_f, loop3_f] else []) @
+    (if !extranum_flag 
+    then [three_f, four_f, five_f, six_f, seven_f, eight_f, nine_f, ten_f] 
+    else []) @
+    (if !fs_flag then [perm_f] else []) @
+    (if !pgen_flag then [seq_f] @ mfl else []) @
+    (if !think_flag then [think1_f,think2_f] else []) @
+    (if !seq_flag then [seq_f] else [])
+    )
 val _ = if Vector.length execv <> Vector.length operv andalso not (!intl_flag)
         then raise ERR "execv" "mismatch with operv"
         else ()
