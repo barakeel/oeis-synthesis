@@ -85,6 +85,7 @@ fun expand_run (move,exec) boarde =
     val (l1,l2) = part_n arity boarde
     val p = (Ins (move, map #1 (rev l1))) 
     val pexec = exec_intl.mk_exec p
+    val _ = init_timer ()
     val r = hd (pexec ([azero], [azero])) 
       handle _ => IntInf.fromInt 1000000
     val ml =    
@@ -217,6 +218,11 @@ fun split_tim (torg,tinc) dis =
    Create a policy from a targete and boarde
    ------------------------------------------------------------------------- *)
 
+fun add_temp l = 
+  if Real.compare (temperature,1.0) = EQUAL then l else
+  map_snd (fn x => Math.pow (x, 1.0 / temperature)) l
+
+
 fun create_pol targete boarde mfl =
   if !randsearch_flag 
     then normalize_distrib (map (fn x => (x, random_real ())) mfl)
@@ -231,7 +237,7 @@ fun create_pol targete boarde mfl =
       val ende = f head_poli [prepolie]
       val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
       val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
-      val pol3 = normalize_distrib pol2
+      val pol3 = normalize_distrib (add_temp pol2)
       val pol4 = if !game.noise_flag then add_noise pol3 else pol3
     in
       pol4

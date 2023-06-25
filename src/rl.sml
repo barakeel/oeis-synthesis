@@ -522,6 +522,37 @@ fun stats_sol prefix itsol =
     writel (prefix ^ "prog") (map string_of_itprog itsolsort);
     writel (prefix ^ "freq") (map human_progfreq freql1)
   end
+ 
+ 
+(* Interactive way of getting frequency
+
+sh hol.sh
+
+load "kernel"; open kernel human aiLib;  
+
+val dir = "exp/yourexp";
+
+fun human_progfreq_gpt (p,freq) = 
+  its freq ^ ": " ^ humanf p ^ "\n  " ^ gpt_of_prog p  
+ 
+fun compute_freq f sol1 =
+  let val freql = dlist 
+    (count_dict (dempty prog_compare) (List.concat (map f sol1)))
+  in
+    dict_sort compare_imax (filter (fn x => snd x >= 10) freql)
+  end 
+ 
+fun stats_freq filename itsol =
+  let
+    val allprog = List.concat (map (map snd o snd) itsol) 
+    val freql1 = compute_freq all_subprog allprog
+  in
+    writel filename (map human_progfreq freql1)
+  end 
+  
+stats_freq (dir ^ "/freq") (read_itprogl (dir ^ "/solnew"));
+
+*)
 
 fun stats_ngen dir ngen =
   let 

@@ -38,6 +38,7 @@ sig
   val num_epoch : int ref
   val short_timeincr : int
   val long_timeincr : int
+  val temperature : real
    
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

@@ -24,6 +24,8 @@ fun bflag_true s =
   ref (string_to_bool (dfind s configd) handle NotFound => true)
 fun iflag s i = ref (string_to_int (dfind s configd) handle NotFound => i) 
 fun iflagnoref s i = string_to_int (dfind s configd) handle NotFound => i
+fun rflagnoref s i = valOf (Real.fromString (dfind s configd)) 
+  handle NotFound => i
 
 (* main_experiment flags *)
 val seq_flag = bflag "seq_flag"
@@ -32,7 +34,7 @@ val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val solm_flag = bflag "solm_flag"
 val extranum_flag = bflag "extranum_flag"
-val locsearch_flag = bflag "locsearch_flag" (* local search *)
+val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
 val slowcheck_flag = bflag "slowcheck_flag"
 val minimal_flag = bflag "minimal_flag"
@@ -43,6 +45,7 @@ val short_timeincr = iflagnoref "short_timeincr" 1000
 val long_timeincr = iflagnoref "long_timeincr" 100000
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
+val temperature = rflagnoref "temperature" 1.0
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
