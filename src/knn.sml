@@ -130,14 +130,9 @@ fun parallel_knn_gpt ncore expname n =
    Clustering algorithm
    ------------------------------------------------------------------------- *)
 
-fun random_cluster (feav,symweight) csize pl =   
-  let
-    val l = knn (symweight,feav) csize (random_elem pl)
-    val d = enew prog_compare l
-  in
-    l
-  end
-  
+fun random_cluster (feav,symweight) csize pl =
+  knn (symweight,feav) csize (random_elem pl)
+
 fun cluster expname ncluster =
   let 
     val dir = selfdir ^ "/exp/" ^ expname
@@ -145,15 +140,17 @@ fun cluster expname ncluster =
     val sl' = mk_fast_set String.compare sl
     val progl = map prog_of_gpt sl'
     val proglset = mk_fast_set prog_compare_size progl
-    val csize = length proglset div ncluster + 1
+    val csize = (length proglset div ncluster) + 1
     val feav = map_assoc fea_of_prog proglset
     val symweight = mlFeature.learn_tfidf feav 
     fun loop n pl =
       if null pl then [] else 
       if n <= 1 then [pl] else
       let
+        val _ = print_endline (its n)
         val sel = random_cluster (feav,symweight) csize pl
-        val rem = filter (fn x => not (mem x sel)) pl
+        val d = enew prog_compare sel
+        val rem = filter (fn x => not (emem x d)) pl
       in
         sel :: loop (n-1) rem
       end
