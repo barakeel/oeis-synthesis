@@ -146,22 +146,10 @@ fun trainf_tnn datadir pid =
     val isol = if not (!intl_flag) then isol0 else
       let 
         val progl = mk_fast_set prog_compare_size (map snd isol0)
-        val feav = map_assoc fea_of_prog progl 
-        val symweight = mlFeature.learn_tfidf feav 
-        val (_,p') = random_elem isol0
-        val l = knn (symweight,feav) (random_int (2000,20000)) p'
-        val d = enew prog_compare l
+        val d = enew prog_compare (random_cluster 10000 progl)
       in
         filter (fn (i,p) => emem p d) isol0 
       end
-      (* let
-        val (isolpos,isolneg) = 
-          partition (fn (_,p) => contain_opers "pop" p andalso 
-                                 contain_opers "push" p) isol0
-      in
-        isolpos @ first_n (pid * length isolpos) (shuffle isolneg)
-      end
-      *)
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")

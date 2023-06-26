@@ -11,5 +11,7 @@ sig
   val parallel_knn_gpt : int -> string -> int -> unit
   
   val cluster : string -> int -> unit
+  val random_cluster : int -> kernel.prog list -> kernel.prog list
+  
   
 end
