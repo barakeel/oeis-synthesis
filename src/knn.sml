@@ -148,6 +148,7 @@ fun cluster expname ncluster =
       if n <= 1 then [pl] else
       let
         val _ = print_endline (its n)
+        val feav = map_assoc fea_of_prog pl        
         val sel = random_cluster (feav,symweight) csize pl
         val d = enew prog_compare sel
         val rem = filter (fn x => not (emem x d)) pl
