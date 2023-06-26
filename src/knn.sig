@@ -10,4 +10,6 @@ sig
   val knnspec : (int * string, string list, string list) smlParallel.extspec
   val parallel_knn_gpt : int -> string -> int -> unit
   
+  val cluster : string -> int -> unit
+  
 end

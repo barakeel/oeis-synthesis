@@ -135,6 +135,7 @@ fun trainf_pgen datadir pid =
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
   end
+
   
 fun trainf_tnn datadir pid =
   let
