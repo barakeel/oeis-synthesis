@@ -143,21 +143,20 @@ fun cluster expname ncluster =
     val csize = (length proglset div ncluster) + 1
     val feav = map_assoc fea_of_prog proglset
     val symweight = mlFeature.learn_tfidf feav 
-    fun loop n pl =
-      if null pl then [] else 
-      if n <= 1 then [pl] else
+    fun loop n feavloc =
+      if null feavloc then [] else 
+      if n <= 1 then [map fst feavloc] else
       let
-        val _ = print_endline (its n)
-        val feav = map_assoc fea_of_prog pl        
-        val sel = random_cluster (feav,symweight) csize pl
+        val _ = print_endline (its n)       
+        val sel = random_cluster (feavloc,symweight) csize (map fst feavloc)
         val d = enew prog_compare sel
-        val rem = filter (fn x => not (emem x d)) pl
+        val newfeav = filter (fn x => not (emem (fst x) d)) feavloc
       in
-        sel :: loop (n-1) rem
+        sel :: loop (n-1) newfeav
       end
     fun f i x = writel (dir ^ "/cluster" ^ its i) (map gpt_of_prog x)
   in   
-    appi f (loop ncluster proglset)
+    appi f (loop ncluster feav)
   end
   
 
