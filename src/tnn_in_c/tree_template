@@ -355,10 +355,12 @@ int main()
   else {
   for (op=0; op < nop; ++op) {
     if (HEAD[op] > 0) {
-      if (FIXED) {fixed_head (HEAD[op],A+MO[op]);} else {rand_head (HEAD[op],A+MO[op]);}
+      if (FIXED) {fixed_head (HEAD[op],A+MO[op]);} else 
+         {rand_head (HEAD[op],A+MO[op]);}
       }
     else {
-      if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else {rand_mat2 (ARITY[op],A+MO[op]);}
+      if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else 
+         {rand_mat(ARITY[op],A+MO[op]);}
       }
   }}
   //printf("%li matrix initalized\n", nop);
