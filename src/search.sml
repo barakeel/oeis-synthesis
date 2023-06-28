@@ -265,7 +265,7 @@ and search_move rt depth (vis,tim) targete boarde pol =
     app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
 
 and search_aux rt depth (vis,tim) targete boarde = 
-  if depth >= 10000 then () else
+  if depth >= 240 then () else
   let
     val (newboarde, mfl) = collect_children (snd tim) boarde       
     val pol = create_pol targete newboarde mfl
