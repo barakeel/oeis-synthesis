@@ -265,7 +265,7 @@ and search_move rt depth (vis,tim) targete boarde pol =
     app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
 
 and search_aux rt depth (vis,tim) targete boarde = 
-  if depth >= 240 then () else
+  if depth >= maxproglen then () else
   let
     val (newboarde, mfl) = collect_children (snd tim) boarde       
     val pol = create_pol targete newboarde mfl
@@ -307,7 +307,7 @@ fun create_pol_rnn embl mfl =
   end     
 
 fun search_move rt depth embl boarde ((move,f),(torg,tinc)) =
-  if depth >= 240 orelse 
+  if depth >= maxproglen orelse 
      torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else 
   let 
     val newembl = if !randsearch_flag 
@@ -473,7 +473,7 @@ fun beamsearch () =
         val _ = select_random_target ()
         val targete = get_targete ()
       in
-        beamsearch_aux targete 1000 240 0 [([],1.0)]
+        beamsearch_aux targete 1000 maxproglen 0 [([],1.0)]
       end
     fun loop n = if n <= 0 then () else (f (); loop (n-1))
     val (_,t) = add_time loop 1

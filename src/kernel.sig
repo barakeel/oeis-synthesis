@@ -39,7 +39,8 @@ sig
   val short_timeincr : int
   val long_timeincr : int
   val temperature : real
-   
+  val maxproglen : int
+  
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
   val dfindo : 'a -> ('a, 'b) dict -> 'b option

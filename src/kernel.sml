@@ -46,6 +46,7 @@ val long_timeincr = iflagnoref "long_timeincr" 100000
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 val temperature = rflagnoref "temperature" 1.0
+val maxproglen = iflagnoref "maxproglen" 240
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
