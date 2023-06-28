@@ -12,7 +12,6 @@
 #define PREV 0
 
 // M is the number of lines (output), N is the number of column (input)
-// DIM has to be bigger than maximum output dimension of heads
 // HEADS are assumed to have arity 1 for now.
 
 //shuffle
@@ -121,6 +120,22 @@ void rand_mat (long arity, double A[]) {
   for (long i = 0; i < size; ++i) {A[i] = coeff * randfrom(-1.0, 1.0);}
   }
 
+void rand_mat2 (long arity, double A[]) {
+    long i, j;
+    long rows = DIM;
+    long columns = arity * DIM + 1;
+    double coeff = sqrt (6.0 / ((arity * DIM + 1) + DIM));
+    for (i = 0; i < rows; i++) {
+        for (j = 0; j < columns; j++) {
+            if ((j - i) % rows == 0 && j != columns - 1 && arity != 0) {
+                A[i * columns + j] = 1.0 / arity;
+            } 
+            else {A[i * columns + j] = coeff * randfrom(-1.0, 1.0);}
+        }
+    }
+}
+
+
 void fixed_mat (long arity, double A[]) {
   long size = (arity * DIM + 1) * DIM;
   for (long i = 0; i < size; ++i) {A[i] = 0.001 * i;}
@@ -153,8 +168,7 @@ void zero_head (long out, double A[]) {
   zero_vect ((DIM + 1) * out, A);
   }
 
-void copy (long n, double X[], double Y[]) {
-  cblas_dcopy (n,X,1,Y,1);}
+void copy (long n, double X[], double Y[]) {cblas_dcopy (n,X,1,Y,1);}
    
 void one_vect (long size, double X[]) 
   {for (long i = 0; i < size; ++i) {X[i] = 1.0;}}
@@ -344,7 +358,7 @@ int main()
       if (FIXED) {fixed_head (HEAD[op],A+MO[op]);} else {rand_head (HEAD[op],A+MO[op]);}
       }
     else {
-      if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else {rand_mat (ARITY[op],A+MO[op]);}
+      if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else {rand_mat2 (ARITY[op],A+MO[op]);}
       }
   }}
   //printf("%li matrix initalized\n", nop);
@@ -426,7 +440,7 @@ int main()
     dago = DO[ex];
     exo = EXO[ex];
     objo = OBJO[ex];
-    one_vect (XSIZE[ex],X); // could be done faster
+    one_vect (XSIZE[ex],X); // add default biais at the end of vectors
     zero_vect (bY*SIZE[ex],GTY); //zeroing gradients of one example
     
   //forward pass
