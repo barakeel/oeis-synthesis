@@ -307,7 +307,7 @@ fun create_pol_rnn embl mfl =
   end     
 
 fun search_move rt depth embl boarde ((move,f),(torg,tinc)) =
-  if depth >= 10000 orelse 
+  if depth >= 240 orelse 
      torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else 
   let 
     val newembl = if !randsearch_flag 
