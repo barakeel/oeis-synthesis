@@ -174,7 +174,7 @@ fun checkonline nnvalue (p,exec) =
   else checkf nnvalue (p,exec)
 
 fun checkfinal () =
-  if short_timeincr > long_timeincr orelse 
+  if short_timeincr >= long_timeincr orelse 
      !seq_flag orelse !her_flag orelse !think_flag orelse !run_flag
   then dlist (!wind) else
   let
