@@ -18,32 +18,12 @@ local open IntInf in
   fun adecr x = x - aone
   fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
   fun pow2 b = arb_pow atwo (fromInt b)
-  val maxarb = arb_pow (fromInt 10) (fromInt 285) (* 4.685 * 10 ^ 284 *)
-  val minarb = ~maxarb
   val maxint = fromInt (valOf (Int.maxInt))
   val minint = fromInt (valOf (Int.minInt))
-  fun large_arb x = x > maxarb orelse x < minarb
   fun large_int x = x > maxint orelse x < minint
 end
 
-val verylargeint = int_pow 2 40
-val smallcost_flag = ref false
-
-fun cost costn x = 
-  if !smallcost_flag then
-    if x > aone orelse x < ~aone
-    then 
-      let val size = IntInf.log2 (IntInf.abs x) in
-        if size > 1024 then verylargeint else costn * size
-      end
-    else costn
-  else 
-    if large_int x 
-    then 
-      let val cost1 = IntInf.log2 (IntInf.abs x) in
-        if cost1 > 1024 then verylargeint else cost1
-      end
-    else costn
+fun cost costn x = if large_int x then IntInf.log2 (IntInf.abs x) else costn
 
 fun testn costn f x =
   let 
