@@ -167,6 +167,7 @@ fun create_compr f =
       else loop i [aincr (hd x)]
     val _ = catch_perror (loop 0) [azero] (fn () => ())
     val v = Vector.fromList (rev (!l))
+    (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
   in
     (fn x => if x < 0 then raise Div 
              else if x >= Vector.length v then raise ProgTimeout
@@ -181,11 +182,8 @@ fun compr_f fl = case fl of
      let 
        val input = IntInf.toInt (hd (f2 x)) handle Overflow => raise Div 
        val (y,cost) = f1' input
-       val _ = if !largest_compr_cost < cost 
-               then largest_compr_cost := cost
-               else ()
      in
-       testcache 1 y
+       testcache cost y
      end)
   end
   | _ => raise ERR "compr_f" ""

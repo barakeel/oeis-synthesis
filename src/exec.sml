@@ -238,7 +238,7 @@ fun create_compr f =
       if i >= !max_compr_number then () else
       if f (x, azero, azero) <= azero
       then (
-           l := (x,!abstimer) :: !l;
+           l := (x,!abstimer) :: !l; 
            incr_timer ();
            loop (i+1) (aincr x)
            )
@@ -260,11 +260,8 @@ fun compr_f fl = case fl of
      let 
        val input = IntInf.toInt (f2 x) handle Overflow => raise Div 
        val (y,cost) = f1' input
-       val _ = if !largest_compr_cost < cost 
-         then largest_compr_cost := cost
-         else ()
      in
-       testcache 1 y
+       testcache cost y
      end)
   end
   | _ => raise ERR "compr_f" ""
