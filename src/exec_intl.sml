@@ -189,13 +189,22 @@ fun compr_f fl = case fl of
   | _ => raise ERR "compr_f" ""
 
 
+local open IntInf in
+  fun compr_f_aux_nc x f n0 n =
+     if hd (f ([x],[azero])) <= azero 
+     then (if n0 >= n then [x] else compr_f_aux_nc (x+aone) f (n0+aone) n)
+     else compr_f_aux_nc (x+aone) f n0 n
+  fun compr_f_aux2_nc (f,n) = compr_f_aux_nc azero f azero (hd n)
+  val compr_f_nc = mk_binf1 compr_f_aux2_nc
+end
+
 (* -------------------------------------------------------------------------
    Instruction sets
    ------------------------------------------------------------------------- *)
 
 val org_execl = 
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
-   loop_f,x_f,y_f, compr_f,loop2_f]
+   loop_f,x_f,y_f, compr_f_nc, loop2_f]
 
 val run_f = mk_unf (fn x => x)
 

@@ -282,7 +282,7 @@ end
 val org_execl = 
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
    loop_f,x_f,y_f,
-   if !fs_flag orelse !pgen_flag then compr_f_nc else compr_f, 
+   (* if !fs_flag orelse !pgen_flag then *) compr_f_nc (* else compr_f *), 
    loop2_f]
 
 val array_execv = Vector.fromList
