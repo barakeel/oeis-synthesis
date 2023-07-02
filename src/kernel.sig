@@ -102,6 +102,7 @@ sig
   val graph : (IntInf.int * int) list ref
   val graphb : int ref
   val abstimer : int ref
+  val largest_compr_cost : int ref
   val max_compr_number : int ref
   val timeincr : int ref
   val timelimit : int ref

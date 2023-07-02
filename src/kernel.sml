@@ -322,6 +322,7 @@ fun zeroy (Ins (id,pl)) =
    ------------------------------------------------------------------------- *)
 
 exception ProgTimeout;
+val largest_compr_cost = ref 0
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
@@ -330,7 +331,9 @@ val graph = ref []
 val graphb = ref 0
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
-fun init_timer () = (abstimer := 0; timelimit := !timeincr)
+fun init_timer () = (largest_compr_cost := 0; 
+                     abstimer := 0; 
+                     timelimit := !timeincr)
 fun init_fast_test () = 
   (max_compr_number := short_compr; timeincr := short_timeincr)
 fun init_slow_test () = 

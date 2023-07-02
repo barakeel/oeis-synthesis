@@ -243,7 +243,7 @@ fun collect_partseq ot =
 val anlref = ref []
 
 fun cover_oeis_aux f i ot = case ot of
-    Oleaf (an2,[]) => anlref := (an2,!abstimer) :: !anlref
+    Oleaf (an2,[]) => anlref := (an2,!abstimer + !largest_compr_cost) :: !anlref
   | Oleaf (an2,a2 :: m2) => 
     (
     case SOME (f i = a2) handle ProgTimeout => NONE of
@@ -254,7 +254,10 @@ fun cover_oeis_aux f i ot = case ot of
     | NONE => anlrefpart := [an2]
     )
   | Odict (anl,d) =>
-    let val _ = anlref := map (fn x => (x,!abstimer)) anl @ !anlref in
+    let val _ = 
+      anlref := 
+      map (fn x => (x,!abstimer + !largest_compr_cost)) anl @ !anlref 
+    in
       case SOME (f i) handle ProgTimeout => NONE of
         SOME a1 =>
         (

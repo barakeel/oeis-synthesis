@@ -155,21 +155,18 @@ val loop_f = mk_ternf1 loop_f_aux
 fun create_compr f =
   let
     val _ = init_timer ()
-    val prevtime = ref (!abstimer)
     val l = ref []
     fun loop i x =
       if i >= !max_compr_number then () else
       if hd (f (x,[azero])) <= azero
       then (
-           l := (x,!abstimer - !prevtime) :: !l; 
-           prevtime := !abstimer;
+           l := (x,!abstimer) :: !l;
            incr_timer (); 
            loop (i+1) [aincr (hd x)]
            ) 
       else loop i [aincr (hd x)]
     val _ = catch_perror (loop 0) [azero] (fn () => ())
     val v = Vector.fromList (rev (!l))
-    (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
   in
     (fn x => if x < 0 then raise Div 
              else if x >= Vector.length v then raise ProgTimeout
@@ -184,8 +181,11 @@ fun compr_f fl = case fl of
      let 
        val input = IntInf.toInt (hd (f2 x)) handle Overflow => raise Div 
        val (y,cost) = f1' input
+       val _ = if !largest_compr_cost < cost 
+               then largest_compr_cost := cost
+               else ()
      in
-       testcache cost y
+       testcache 1 y
      end)
   end
   | _ => raise ERR "compr_f" ""
