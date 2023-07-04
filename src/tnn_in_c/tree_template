@@ -405,7 +405,6 @@ int main()
   
   //Compute from arity and examples offsets for X
   xmax = 0;
-  xsize = 0;
   opercount = 0;
   for (ex = 0; ex < nex; ++ex) {
     dago = DO[ex];
@@ -426,10 +425,10 @@ int main()
   // initalize memory
   double *Xcur, *Ycur, *TYcur;
   X = (double*)mkl_malloc(xmax*sizeof( double ),ALIGN);
-  constant_vect (xmax,X,1.0);
   Y = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
   TY = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
-  
+  XONE = (double*)mkl_malloc(xmax*sizeof( double ),ALIGN);
+  constant_vect (xmax,XONE,1.0);
   
   double *GX, *GY, *GTY;
   double *GXcur, *GYcur, *GTYcur, *GNULL;
@@ -460,7 +459,9 @@ int main()
     exo = EXO[ex];
     objo = OBJO[ex];
     copy (bY*SIZE[ex],GNULL,GTY); //zeroing gradients of one example
-    
+    copy (XSIZE[ex],XONE,X); // adding ones everywhere so that it appears
+                             // at the end of concatenated vectors
+  
   //forward pass
   if (DBG) {printf ("example size: %li\n", SIZE[ex]);}
   
