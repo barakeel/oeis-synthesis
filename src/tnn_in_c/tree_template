@@ -120,6 +120,7 @@ void rand_mat (long arity, double A[]) {
   for (long i = 0; i < size; ++i) {A[i] = coeff * randfrom(-1.0, 1.0);}
   }
 
+/* 
 void rand_mat2 (long arity, double A[]) {
     long i, j;
     long rows = DIM;
@@ -134,6 +135,7 @@ void rand_mat2 (long arity, double A[]) {
         }
     }
 }
+*/
 
 void fixed_mat (long arity, double A[]) {
   long size = (arity * DIM + 1) * DIM;
@@ -365,7 +367,7 @@ int main()
       }
     else {
       if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else 
-         {rand_mat2(ARITY[op],A+MO[op]);}
+         {rand_mat(ARITY[op],A+MO[op]);}
       }
   }}
   //printf("%li matrix initalized\n", nop);
@@ -385,10 +387,6 @@ int main()
   constant_vect (mtot,Clipmin,-4.0);
   
   //printf("%li update matrix zeroed\n", nop);
-  
-  
-  
-  
   
   //check if an operator was updated
   long *UPD;
