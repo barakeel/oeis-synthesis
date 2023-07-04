@@ -365,7 +365,7 @@ int main()
       }
     else {
       if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else 
-         {rand_mat(ARITY[op],A+MO[op]);}
+         {rand_mat2(ARITY[op],A+MO[op]);}
       }
   }}
   //printf("%li matrix initalized\n", nop);
