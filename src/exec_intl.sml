@@ -152,6 +152,7 @@ fun loop_f_aux (f1,n,x1) =
   helper f1 (fn (x1,x2) => [aincr (hd x2)]) (hd n) x1 [aone]
 val loop_f = mk_ternf1 loop_f_aux
 
+(* prepared programs can't be reused because they would need to reset compr *)
 fun create_compr f =
   let
     val _ = init_timer ()
@@ -168,10 +169,18 @@ fun create_compr f =
     val _ = catch_perror (loop 0) [azero] (fn () => ())
     val v = Vector.fromList (rev (!l))
     (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
+    val r = ref 0
   in
-    (fn x => if x < 0 then raise Div 
-             else if x >= Vector.length v then raise ProgTimeout
-             else Vector.sub (v,x))
+    (fn x => 
+      (
+      if x < 0 then raise Div else 
+      if x >= Vector.length v then raise ProgTimeout else 
+      let val (y,cost) = Vector.sub (v,x) in
+        (y, 1 + (if !r > cost then 0 else 
+           let val diff = cost - !r in r := cost; diff end)) 
+      end
+      )
+    )
   end
 
 fun compr_f fl = case fl of
@@ -204,7 +213,7 @@ end
 
 val org_execl = 
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
-   loop_f,x_f,y_f, compr_f_nc, loop2_f]
+   loop_f,x_f,y_f, compr_f, loop2_f]
 
 val run_f = mk_unf (fn x => x)
 
@@ -237,7 +246,7 @@ fun mk_exec_onev p =
 (* -------------------------------------------------------------------------
    Verifiy cover
    ------------------------------------------------------------------------- *)
-  
+
 fun penum_aux p n = 
   let 
     val f = mk_exec_onev p
@@ -275,7 +284,6 @@ end (* struct *)
 PolyML.print_depth 10;
 load "exec_intl";  open kernel aiLib exec_intl;
 
-
 val itsol = read_itprogl "model/itsol209"; 
 val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol); 
 length isol;
@@ -285,8 +293,17 @@ val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
+length lbad1; length lbad2; t;
 
+val newisol = filter (fn x => mem x lbad) isol;
+val (bbl,t) = add_time (map_assoc (verify_wtime 1000000)) newisol;
+val lbad1 = filter (not o fst o snd) bbl; length lbad1;
+val lbad2 = filter (not o snd o snd) bbl; length lbad2;
+val lbad = map fst lbad1;
 length lbad; length lbad2; t;
+
+
+
 
 fun f (i,p) = its i ^ ": " ^ humanf p;
 map f lbad;
@@ -295,7 +312,7 @@ val lbad = read_iprogl "lbad";
 *)
 
 (* -------------------------------------------------------------------------
-   Testing
+   Testinglength lbad2;
    ------------------------------------------------------------------------- *) 
     
 (* 

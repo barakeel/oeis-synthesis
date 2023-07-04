@@ -234,11 +234,13 @@ fun create_compr f =
   let
     val _ = init_timer ()
     val l = ref []
+    val prevtime = ref 0
     fun loop i x =
       if i >= !max_compr_number then () else
       if f (x, azero, azero) <= azero
       then (
-           l := (x,!abstimer) :: !l; 
+           l := (x,!abstimer - !prevtime) :: !l; 
+           prevtime := !abstimer;
            incr_timer ();
            loop (i+1) (aincr x)
            )
@@ -282,7 +284,7 @@ end
 val org_execl = 
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
    loop_f,x_f,y_f,
-   (* if !fs_flag orelse !pgen_flag then *) compr_f_nc (* else compr_f *), 
+   if !fs_flag orelse !pgen_flag then compr_f_nc else compr_f, 
    loop2_f]
 
 val array_execv = Vector.fromList
@@ -681,7 +683,6 @@ val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
 val lbad1 = filter (not o fst o snd) bbl; length lbad1;
 val lbad2 = filter (not o snd o snd) bbl; length lbad2;
 val lbad = map fst lbad1;
-
 length lbad1; length lbad2; t;
 
 

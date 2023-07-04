@@ -135,7 +135,6 @@ void rand_mat2 (long arity, double A[]) {
     }
 }
 
-
 void fixed_mat (long arity, double A[]) {
   long size = (arity * DIM + 1) * DIM;
   for (long i = 0; i < size; ++i) {A[i] = 0.001 * i;}
@@ -152,26 +151,14 @@ void fixed_head (long out, double A[]) {
   for (long i = 0; i < size; ++i) {A[i] = 0.001 * i;}
   }
 
-void zero_vect (long size, double A[]) {
-  for (long long i = 0; i < size; ++i) {A[i] = 0.0;}
-  }
-
 void zero_ivect (long size, long A[]) {
   for (long i = 0; i < size; ++i) {A[i] = 0;}
   }
 
-void zero_mat (long arity, double A[]) {
-  zero_vect ((arity * DIM + 1) * DIM, A);
-  }
-
-void zero_head (long out, double A[]) {
-  zero_vect ((DIM + 1) * out, A);
-  }
-
 void copy (long n, double X[], double Y[]) {cblas_dcopy (n,X,1,Y,1);}
    
-void one_vect (long size, double X[]) 
-  {for (long i = 0; i < size; ++i) {X[i] = 1.0;}}
+void constant_vect (long size, double X[], double r) 
+  {for (long i = 0; i < size; ++i) {X[i] = r;}}
 
 // computation
 void tensor (double lr, long arity, double A[], double B[], double C[]) {
@@ -219,20 +206,38 @@ void tmv_head (long out, double A[], double X[], double Y[]) {
   if (DBG) {print_vect ("din",indim,Y);}
   }
 
+
+
 // Update
+void clip (long arity, double A[], double B[], double C[]) {
+  vdFmax((arity * DIM + 1)*DIM, A, B, A);
+  vdFmin((arity * DIM + 1)*DIM, A, C, A);
+}
+
+void clip_head(long out, double A[], double B[], double C[]) {
+  vdFmax(out * (DIM + 1), A, B, A);
+  vdFmin(out * (DIM + 1), A, C, A);
+}
+
+/*
 void clip (long arity, double A[]) {
   for (long i = 0; i < (arity * DIM + 1)*DIM; ++i) {
     if (A[i] > 4.0) {A[i] = 4.0;}
     if (A[i] < -4.0) {A[i] = -4.0;}
     }
 }
+*/
 
+
+
+/*
 void clip_head (long out, double A[]) {
   for (long i = 0; i < (DIM + 1)*out; ++i) {
     if (A[i] > 4.0) {A[i] = 4.0;}
     if (A[i] < -4.0) {A[i] = -4.0;}
     }
 }
+*/
 
 void dtanh (long size, double C[], double X[], double Y[]) {
   if (DBG) {print_vect ("doutn",size,X);}
@@ -368,14 +373,22 @@ int main()
   //update matrix for each operator
   double *U, *Ucur;
   U = (double*)mkl_malloc(mtot*sizeof( double ),ALIGN);
-  void zeroU () {
-  for (op=0; op < nop; ++op) {
-    if (HEAD[op] == 0) {zero_mat (ARITY[op],U+MO[op]);}
-    else {zero_head (HEAD[op],U+MO[op]);}
-  }
-  }
-  zeroU ();
+  constant_vect (mtot,U,0.0);
   //printf("%li update matrix zeroed\n", nop);
+  
+  
+  //clipping values (mtot is an upper bound)
+  double *Clipmax, *Clipmin;
+  Clipmax = (double*)mkl_malloc(mtot*sizeof( double ),ALIGN);
+  Clipmin = (double*)mkl_malloc(mtot*sizeof( double ),ALIGN);
+  constant_vect (mtot,Clipmax,4.0);
+  constant_vect (mtot,Clipmin,-4.0);
+  
+  //printf("%li update matrix zeroed\n", nop);
+  
+  
+  
+  
   
   //check if an operator was updated
   long *UPD;
@@ -413,14 +426,18 @@ int main()
   // initalize memory
   double *Xcur, *Ycur, *TYcur;
   X = (double*)mkl_malloc(xmax*sizeof( double ),ALIGN);
+  constant_vect (xmax,X,1.0);
   Y = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
   TY = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
   
+  
   double *GX, *GY, *GTY;
-  double *GXcur, *GYcur, *GTYcur;
+  double *GXcur, *GYcur, *GTYcur, *GNULL;
   GX = (double*)mkl_malloc(xmax*sizeof( double ),ALIGN);
   GY = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
   GTY = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
+  GNULL = (double*)mkl_malloc(bY*maxsize*sizeof( double ),ALIGN);
+  constant_vect (bY*maxsize,GNULL,0.0);
   
   // setting the number of threads
   max_threads = mkl_get_max_threads();
@@ -442,8 +459,7 @@ int main()
     dago = DO[ex];
     exo = EXO[ex];
     objo = OBJO[ex];
-    one_vect (XSIZE[ex],X); // add default biais at the end of vectors
-    zero_vect (bY*SIZE[ex],GTY); //zeroing gradients of one example
+    copy (bY*SIZE[ex],GNULL,GTY); //zeroing gradients of one example
     
   //forward pass
   if (DBG) {printf ("example size: %li\n", SIZE[ex]);}
@@ -543,10 +559,10 @@ int main()
   for (op=0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];
-    if (HEAD [op] > 0) {clip_head (HEAD[op],Acur);
+    if (HEAD [op] > 0) {clip_head (HEAD[op],Clipmax,Clipmin,Acur);
       if (DBG) {print_mat ("A",DIM+1,HEAD[op],Acur);}
       }
-    else {clip (ARITY[op],Acur);
+    else {clip (ARITY[op],Clipmax,Clipmin,Acur);
       if (DBG) {print_mat ("A",ARITY[op]*DIM+1,DIM,Acur);}
       }
     }
