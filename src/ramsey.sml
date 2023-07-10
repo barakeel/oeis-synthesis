@@ -48,7 +48,10 @@ fun random_symmat size = symmetrify size (random_mat size);
 (* -------------------------------------------------------------------------
    Neighbor representation (most compact)
    -------------------------------------------------------------------------
-*)    
+*)
+
+
+  
 (* -------------------------------------------------------------------------
    Edge representation (fastest to udpate, maybe less garbage collection)
    -------------------------------------------------------------------------
@@ -192,10 +195,27 @@ fun has_shape (shapel,shapesize) msize m =
   in
     exists f l
   end;
-  
-fun has_shape_with_edge (i,j) (shapel,shapesize) msize m =
+
+fun has_shape_with_edge1 (i,j) (shapel,shapesize) msize m =
   let 
-    val l0 = filter (fn x => x <> i orelse x <> j) (List.tabulate (msize,I))
+    val l = subsets_of_size shapesize (List.tabulate (msize,I))
+    fun f subset =
+      if not (mem i subset) then false else
+      if not (mem j subset) then false else
+      let 
+        val sigma = mk_permf subset
+        val candshape = mat_permute (m,shapesize) sigma
+      in
+        exists (fn x => subcoloring shapesize x candshape) shapel
+      end
+  in
+    exists f l
+  end;   
+
+
+fun has_shape_with_edge2 (i,j) (shapel,shapesize) msize m =
+  let 
+    val l0 = filter (fn x => not (mem x [i,j])) (List.tabulate (msize,I))
     val l1 = subsets_of_size (shapesize-2) l0
     fun f subset =
       let 
@@ -206,9 +226,17 @@ fun has_shape_with_edge (i,j) (shapel,shapesize) msize m =
       end
   in
     exists f l1
-  end;
-    
+  end; 
   
+fun has_shape_with_edge (i,j) (shapel,shapesize) msize m =
+  let 
+    val b1 = has_shape_with_edge1 (i,j) (shapel,shapesize) msize m
+    val b2 = has_shape_with_edge2 (i,j) (shapel,shapesize) msize m
+  in
+    if b1 = b2 then b1 else 
+    raise ERR "has_shape_with_edge" (its i ^ its j)
+  end
+
 (* -------------------------------------------------------------------------
    Test if a graph has cycle
    ------------------------------------------------------------------------- *)
@@ -264,15 +292,12 @@ fun search_order size =
     search_order2
   end
 
-
-(* todo: consider changing to a sparse representation (list of edges) 
-   for a more efficient update *)
-val ERR = mk_HOL_ERR "test";
 (* find all graph of size at most "size" that avoid both shapes *)
 (* todo : make it work with mixed colors and a list of shapes *)
 (* terrible *)
 
 val counter = ref 0;
+val timer = ref (Timer.startRealTimer ());
 
 exception RamseyTimeout;
 
@@ -281,19 +306,25 @@ fun search_one size limit blueshape redshape edgel graph = case edgel of
   | (newi,newj) :: m => 
     let 
       val _ = incr counter
-      val _ = if limit > 0 andalso !counter > limit 
-              then raise RamseyTimeout
-              else ()
-      val csize = Int.max (newi,newj) (* depends on the search_order *)
+      val _ = case fst limit of
+          NONE => ()
+        | SOME ti => 
+          if !counter > ti then raise RamseyTimeout else ()
+      val _ = case snd limit of
+          NONE => ()
+        | SOME tr => 
+          if Timer.checkRealTimer (!timer) > tr then raise RamseyTimeout else ()
+      (* depends on the search_order *)
+      val csize = Int.max (newi,newj) + 1 
       val bluegraph = mat_tabulate (size, fn (i,j) => 
         if (i,j) = (newi,newj) then 1 else mat_sub (graph,i,j))
       val redgraph = mat_tabulate (size, fn (i,j) => 
         if (i,j) = (newi,newj) then 2 else mat_sub (graph,i,j))
     in
-      filter (not o has_shape_with_edge (newi,newj) blueshape csize) 
+      filter (not o has_shape_with_edge2 (newi,newj) blueshape csize) 
         [bluegraph] 
       @
-      filter (not o has_shape_with_edge (newi,newj) redshape csize) 
+      filter (not o has_shape_with_edge2 (newi,newj) redshape csize) 
         [redgraph]
     end;
     
@@ -315,6 +346,7 @@ fun search_loop size limit blueshape redshape graphl edgel =
 fun search size limit (blueshape,redshape) =
   let 
     val _ = counter := 0
+    val _ = timer := Timer.startRealTimer ()
     val initgraphl = [mat_tabulate (size, fn (i,j) => 0)]
     val initedgel = search_order size
   in
@@ -400,147 +432,7 @@ end (* struct *)
   
 (*
 load "ramsey"; open aiLib kernel ramsey;
-PolyML.print_depth 10;
-
-(* val random_subset n allvertex. *)
-val blueshape = random_shape_nocycle 4 1;
-val redshape = random_shape_nocycle 4 2;
-
-(* one shape *)
-val brshape = read_shape "dr100/adr_a_d_rb_inf_cnf.p";
-
-(* bottom-up search *)
-val r = run "ramsey2" 100000;
-
-
-
-
-
-
-(* simple_search *)
-val size = 6;
-val (r,t) = add_time (search size blueshape) redshape; 
+val r = run "ramsey12" (NONE, SOME (Time.fromReal 10.0));
 *)
 
 
-(*
-val size = 8;
-val ml = List.tabulate (100, fn _ => symmetrify size (random_mat size));
-val (mcl,t) = add_time (map_assoc (charac size)) ml;
-
-fun norm_charac x = dict_sort (snd_compare (list_compare Int.compare)) x;
-val mcl1 = map_snd norm_charac mcl;
-val mcl2 = map_snd split mcl1;
-
-val mcl3 = map (fn (a,(b,c)) => (c,(a,b))) mcl2;
-val mcld = dregroup (list_compare (list_compare Int.compare)) mcl3;
-
-val mcl4 = dlist mcld;
-val mcl5 = filter (fn (a,b) => length b > 1) mcl4;
-
-val d = fst (List.nth(mcl5,1));
-val (md1,md2) = pair_of_list (snd (List.nth(mcl5,1)));
-val (m1,perm1) = md1;
-val (m2,perm2) = md2;
-fun perm1_f n = List.nth (perm1,n);
-fun perm2_f n = List.nth (perm2,n);
-
-
-all_neighbor size (mat_permute (m1,size) perm1_f);
-all_neighbor size (mat_permute (m2,size) perm2_f);
-
-fun misof size (m1,perm1) (m2,perm2) = 
-  let 
-    fun perm1_f n = List.nth (perm1,n)
-    fun perm2_f n = List.nth (perm2,n)
-  inval (m1,perm1) = md1;
-val (m2,perm2) = md2;
-fun perm1_f n = List.nth (perm1,n);
-fun perm2_f n = List.nth (perm2,n);
-    miso size (m1,perm1_f) (m2,perm2_f)
-  end;
-
-
-val bl = map (uncurry (misof size) o pair_of_list o snd) mcl5;
-
-
-  
-fun split_same [] = []
-  | split_same (x::xs) =
-    let fun aux xs res =
-        case xs of
-            [] => [List.rev res]
-          | y::ys => if fst y = fst x then aux ys (y::res)
-                     else (List.rev res) :: split_same xs
-    in aux xs [x]
-    end;
-
-(* l is assumed to be ordered (todo rename elements) *)
-fun productl l = case l of [] => 1 | a :: m => a * productl m;
-map length 
-
-(* normalize with respect to permutations *)
-fun stable_permutations l =
-  let 
-    val l0 = number_snd 0 l
-    val l1 = split_same l0
-    val l2 = map (map snd) l1
-    val i = productl (map length l2)
-  in
-    if i > 100
-    then 
-      (print_endline "warning: too many permutations";
-       [List.tabulate (length l,I)]) (* todo pick random subsets *)
-    else 
-      let 
-        val l3 = map permutations l2
-        val l4 = cartesian_productl l3
-    in
-      map List.concat l4
-    end
-  end
-
-val l = stable_permutations d;
-
-
-fun misofp size perm (m1,perm1) (m2,perm2) = 
-  let 
-    fun perm1_f n = List.nth (perm1,List.nth(perm,n))
-    fun perm2_f n = List.nth (perm2,n)
-  in
-    miso size (m1,perm1_f) (m2,perm2_f)
-  end;
-
-val perm = hd l;
-
-fun test (d,mdl) = 
-  let 
-    val perml = stable_permutations d  
-    val (md1,md2) = pair_of_list mdl
-  in
-    PolyML.print perml;
-    exists (fn permx => misofp size permx md1 md2) perml
-  end;
-  
-val rl = map test mcl5;
-
-(* 
-generate all potential permutations 
-better/simpler invariants
-*)
-
-val nv = all_neighbor (m,5);
-val x = all_charac (m,5);
-val x' = dict_sort (snd_compare (list_compare Int.compare)) x;
-val perm = map fst x';
-fun perm_f n = List.nth (perm,n);
-*)
-(*
-val m' = mat_permute (m,5) perm_f;
-val mc' = all_charac (m',5);
-
-fun perm_f2 n = List.nth (invpermo,n);
-
-val m2' = mat_permute (m,5) perm_f2;
-val m2c' = all_charac (m2',5);
-*)
