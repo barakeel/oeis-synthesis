@@ -57,6 +57,8 @@ fun random_symmat size = symmetrify size (random_mat size);
    -------------------------------------------------------------------------
 *)   
 
+(* maybe tell the list of edges needed to be colored *)
+
     
     
 (* -------------------------------------------------------------------------
@@ -329,19 +331,21 @@ fun search_one size limit blueshape redshape edgel graph = case edgel of
     end;
     
 fun search_loop size limit blueshape redshape graphl edgel = 
+  (
+  logp ("edges: " ^ its (length edgel) ^ 
+        ", graphs: " ^ its (length graphl) ^ 
+        ", steps: " ^ its (!counter))
+  ;
   if null graphl then (logp "unsat"; graphl) else
   case edgel of   
-    [] => graphl
+    [] => (logp "sat"; graphl)
   | _ :: newedgel => 
     let val newgraphl = 
       List.concat (map (search_one size limit blueshape redshape edgel) graphl)
-      val _ = logp (
-        "edges: " ^ its (length edgel) ^ 
-        ", graphs: " ^ its (length newgraphl) ^ 
-        ", steps: " ^ its (!counter))
     in
       search_loop size limit blueshape redshape newgraphl newedgel
-    end;
+    end
+  )
   
 fun search size limit (blueshape,redshape) =
   let 
@@ -432,6 +436,8 @@ end (* struct *)
   
 (*
 load "ramsey"; open aiLib kernel ramsey;
+val r = run "ramsey14" (SOME 100000, NONE);
+
 val r = run "ramsey12" (NONE, SOME (Time.fromReal 10.0));
 *)
 
