@@ -12,6 +12,11 @@ val log_file = ref (selfdir ^ "/ramsey_log")
 fun log s = append_endline (!log_file) s
 fun logp s = (print_endline s; log s)
 
+val blue_array_glob = ref (Array.fromList [true]);
+val red_array_glob = ref (Array.fromList [true]);
+val blue_size_glob = ref 0;
+val red_size_glob = ref 0;
+
 (* -------------------------------------------------------------------------
    Adjacency matrix representation
    ------------------------------------------------------------------------- *)
@@ -21,7 +26,13 @@ fun mat_sub (m,i,j) = Array2.sub (m,i,j)
 fun mat_update (m,i,j,v) = Array2.update (m,i,j,v)
 fun mat_update_sym (m,i,j,v) =
   (mat_update (m,i,j,v); mat_update (m,j,i,v));
+
 fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
+fun mat_appi f m = 
+  let val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE} in
+    Array2.appi Array2.RowMajor f range
+  end
+
 fun mat_copy (m,gsize) =
   let fun f (x,y) = mat_sub (m,x,y) in
     mat_tabulate (gsize, f)
@@ -44,13 +55,17 @@ fun symmetrify size m =
   mat_tabulate (size, fn (a,b) => 
   if a=b then 0 else if a < b then mat_sub (m,a,b) else mat_sub (m,b,a));
 fun random_symmat size = symmetrify size (random_mat size);
+  
+(* assumes mat contains 1 and 0s *)    
+fun mat_to_int m = 
+  let val r = ref 0 (* can start at zero because all the same size *) in
+    mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
+  end;  
     
 (* -------------------------------------------------------------------------
    Neighbor representation (most compact)
    -------------------------------------------------------------------------
 *)
-
-
   
 (* -------------------------------------------------------------------------
    Edge representation (fastest to udpate, maybe less garbage collection)
@@ -230,6 +245,29 @@ fun has_shape_with_edge2 (i,j) (shapel,shapesize) msize m =
     exists f l1
   end; 
   
+fun keep_only color size m = 
+  mat_tabulate (size, fn (i,j) => if mat_sub (m,i,j) = color then 1 else 0)
+  
+fun has_shape_with_edge3 color (i,j) msize mtop =
+  let 
+    val shapesize = if color = 1 then !blue_size_glob else !red_size_glob
+    val m = keep_only color msize mtop
+    val l0 = filter (fn x => not (mem x [i,j])) (List.tabulate (msize,I))
+    val l1 = subsets_of_size (shapesize-2) l0
+    fun f subset =
+      let 
+        val sigma = mk_permf (i :: j :: subset)
+        val candshape = mat_permute (m,shapesize) sigma
+      in
+        if color = 1 
+        then Array.sub (!blue_array_glob, mat_to_int candshape)
+        else Array.sub (!red_array_glob, mat_to_int candshape)
+      end
+  in
+    exists f l1
+  end;   
+  
+  
 fun has_shape_with_edge (i,j) (shapel,shapesize) msize m =
   let 
     val b1 = has_shape_with_edge1 (i,j) (shapel,shapesize) msize m
@@ -323,11 +361,8 @@ fun search_one size limit blueshape redshape edgel graph = case edgel of
       val redgraph = mat_tabulate (size, fn (i,j) => 
         if (i,j) = (newi,newj) then 2 else mat_sub (graph,i,j))
     in
-      filter (not o has_shape_with_edge2 (newi,newj) blueshape csize) 
-        [bluegraph] 
-      @
-      filter (not o has_shape_with_edge2 (newi,newj) redshape csize) 
-        [redgraph]
+      filter (not o has_shape_with_edge3 1 (newi,newj) csize) [bluegraph] @
+      filter (not o has_shape_with_edge3 2 (newi,newj) csize) [redgraph]
     end;
     
 fun search_loop size limit blueshape redshape graphl edgel = 
@@ -358,20 +393,6 @@ fun search size limit (blueshape,redshape) =
       initgraphl initedgel
   end;
 
-fun search_each_size limit (blueshape,redshape) =
-  let 
-    val initsize = Int.max (mat_size blueshape, mat_size redshape) 
-    fun loop csize =
-      let 
-        val _ = logp ("search with graph size: " ^ its csize)  
-        val graphl = search csize limit (blueshape,redshape) 
-      in
-        if null graphl then (true,csize) else loop (csize + 1)
-      end
-      handle RamseyTimeout => (false,csize) 
-  in
-    loop initsize 
-  end
 
 (* -------------------------------------------------------------------------
    Graph representations: set of edges, neighbors, adjacency matrices
@@ -387,6 +408,24 @@ fun edgecl_to_mat edgecl =
     mat_tabulate (size, f)
   end
   
+fun edgecl_to_mat_size size edgecl =
+  let 
+    val edgel = map fst edgecl
+    val edged = dnew (cpl_compare Int.compare Int.compare) edgecl
+    fun f (i,j) = case dfindo (i,j) edged of NONE => 0 | SOME c => c 
+  in
+    mat_tabulate (size, f)
+  end  
+  
+fun mat_to_edge1l m =
+  let 
+    val r = ref []
+    fun f (i,j,x) = if i = j orelse x = 0 then () else 
+      r := ((i,j),1) :: !r
+  in
+    mat_appi f m; !r
+  end
+
 fun read_edgel s =
   map pair_of_list
   (mk_batch 2 (map string_to_int (String.tokens (not o Char.isDigit) s)))
@@ -402,15 +441,78 @@ fun read_shape file =
   end
   
 (* -------------------------------------------------------------------------
+   Enumerating all supershapes of multiples shape
+   ------------------------------------------------------------------------- *)
+
+fun supershapes_one size shape =
+  let 
+    val edge1l = mat_to_edge1l shape
+    val edgel1 = search_order size 
+    val edgel2 = filter (fn x => not (mem x (map fst edge1l))) edgel1
+    val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) edgel2)
+    val l2 = map (fn x => edge1l @ x) l1
+    val il = map (fn x => mat_to_int (edgecl_to_mat_size size x)) l2
+  in
+    il
+  end;
+  
+fun supershapes (shapel,size) = 
+  let 
+    val a = Array.tabulate (int_pow 2 (size * (size - 1)), fn _ => false)
+    fun f shape = 
+      let val il = supershapes_one size shape in
+        app (fn x => Array.update (a,x,true)) il
+      end
+  in
+    app f shapel;
+    a
+  end 
+  
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val size = 5;
+val shape1 = random_shape 5 1;
+val shape2 = init_shape shape1;
+
+val a = supershapes shape2;
+
+
+
+*)
+
+(* -------------------------------------------------------------------------
    Experiment
    ------------------------------------------------------------------------- *)
+  
+fun search_each_size limit (blueshape,redshape) =
+  let 
+    val bluer = init_shape blueshape
+    val redr = init_shape redshape
+    val _ = blue_array_glob := supershapes bluer
+    val _ = red_array_glob := supershapes redr
+    val _ = blue_size_glob := snd bluer
+    val _ = red_size_glob := snd redr 
+    val initsize = Int.max (mat_size blueshape, mat_size redshape) 
+    fun loop csize =
+      let 
+        val _ = logp ("search with graph size: " ^ its csize)  
+        val graphl = search csize limit (blueshape,redshape) 
+      in
+        if null graphl then (true,csize) else loop (csize + 1)
+      end
+      handle RamseyTimeout => (false,csize) 
+  in
+    loop initsize 
+  end
+  
   
 fun run expname limit = 
   let
     val expdir = selfdir ^ "/exp/" ^ expname
     val _ = app mkDir_err [selfdir ^ "/exp", expdir]
     val _ = log_file := expdir ^ "/log"
-    val filel = listDir "dr100"
+    val filel = listDir (selfdir ^ "/dr100")
     val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel
     val brshapel = map_assoc (read_shape o (fn x => "dr100/" ^ x)) cnfl
     fun f ((file,brshape),i) = 
@@ -429,16 +531,47 @@ fun run expname limit =
   in
     rl
   end  
-  
+
+fun normalize_naively mat =
+  let 
+    val size = mat_size mat 
+    val fl = map mk_permf (permutations (List.tabulate (size,I)))  
+    val matl = map (mat_permute (mat,size)) fl
+  in
+    hd (dict_sort (array2_compare size) matl)
+  end  
   
 end (* struct *) 
   
   
 (*
 load "ramsey"; open aiLib kernel ramsey;
-val r = run "ramsey14" (SOME 100000, NONE);
+val r = run "ramsey15" (SOME 100000, NONE);
 
 val r = run "ramsey12" (NONE, SOME (Time.fromReal 10.0));
 *)
 
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val filel = listDir (selfdir ^ "/dr100");
+val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
+val brshapel = map_assoc (read_shape o (fn x => "dr100/" ^ x)) cnfl;
 
+
+  
+  
+  
+  
+  
+  
+   
+  
+  
+
+
+
+
+
+
+
+*)
