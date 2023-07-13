@@ -61,13 +61,21 @@ val timer = ref (Timer.startRealTimer ())
 val isod_glob = ref (eempty IntInf.compare)
 
 (* -------------------------------------------------------------------------
-   Timer
+   Timer and statistics
    ------------------------------------------------------------------------- *)
 
 exception RamseyTimeout;
 
+val level1 = ref 0
+val level2 = ref 0
+val level3 = ref 0
+
 fun init_timer () =
-  (counter := 0; timer := Timer.startRealTimer ())
+  (level1 := 0;
+   level2 := 0;
+   level3 := 0;
+   counter := 0; 
+   timer := Timer.startRealTimer ())
 
 fun test_timer () =
   let
@@ -314,22 +322,56 @@ fun normalize_weak m =
   
 (* benefit cost analysis between getting more data 
    doing all permutations *)  
+fun has_repetition l = case l of 
+    [] => false
+  | [a] => false
+  | a :: b :: m => a = b orelse has_repetition (b :: m)
+
+
+
 fun normalize_strong m =
-  let 
-    val blueneighl = map length (all_neighbor blue m)
-    val redneighl = map length (all_neighbor red m)
-    val blueinneighl = map length (all_inneighbor blue m)
-    val redinneighl = map length (all_inneighbor red m)
-    val neighl = number_fst 0 
-      (list_combine [blueneighl,blueinneighl,redneighl,redinneighl])
+  (* first level *)
+  let
+    val _ = incr level1
+    val blueneighl = all_neighbor blue m
+    val redneighl = all_neighbor red m
+    val blueinneighl = all_inneighbor blue m
+    val redinneighl = all_inneighbor red m
+    val neighl = list_combine 
+      (map (map length) [blueneighl,blueinneighl,redneighl,redinneighl])
     val cmp = snd_compare (list_compare Int.compare)
-    val neighsortedl = dict_sort cmp neighl
-    val permutation = map fst neighsortedl
-    val sigma = mk_permf permutation
+    val neighsortedl = dict_sort cmp (number_fst 0 neighl)
   in
-    mat_permute (m,mat_size m) sigma
-  end 
-  
+  if not (has_repetition neighsortedl) 
+  then  
+    let 
+      val permutation = map fst neighsortedl
+      val sigma = mk_permf permutation
+    in
+      mat_permute (m,mat_size m) sigma
+    end
+  else
+  (* second level *)
+  let
+    val _ = incr level2
+    val neighv = Vector.fromList neighl 
+    fun f l = dict_sort (list_compare Int.compare)
+      (map (fn x => Vector.sub (neighv,x)) l)
+    val neighl2 = list_combine (map (map f)
+      [blueneighl,blueinneighl,redneighl,redinneighl])
+    val cmp = snd_compare 
+      (list_compare (list_compare (list_compare Int.compare)))
+    val neighsortedl2 = dict_sort cmp (number_fst 0 neighl2)
+  in
+    let 
+      val _ = if not (has_repetition neighsortedl2) then incr level3 else ()
+      val permutation2 = map fst neighsortedl2
+      val sigma2 = mk_permf permutation2
+    in
+      mat_permute (m,mat_size m) sigma2
+    end
+  end (* first level *)
+  end (* second level *)
   
 (* -------------------------------------------------------------------------
    Test if a shape is a subgraph of a bigger graph
@@ -573,7 +615,14 @@ fun next_edge graph = next_edge_aux (mat_size graph) graph (!edgel_glob)
    ------------------------------------------------------------------------- *)
 
 fun add_break () = if !counter >= 1000 then log "" else () 
-fun stats () = log ("isomorphic graphs: " ^ its (elength (!isod_glob)))
+fun stats () = 
+  (
+  log ("isomorphic graphs: " ^ its (elength (!isod_glob)));
+  log ("level1 : " ^ its (!level1));
+  log ("level2 : " ^ its (!level2));
+  log ("level3 : " ^ its (!level3))
+  )
+  
 fun search_end grapho = case grapho of 
     NONE => (add_break (); log "unsat"; 
     stats (); true) 
