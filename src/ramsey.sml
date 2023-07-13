@@ -171,31 +171,44 @@ fun neighbor_of color graph x =
     val vertexl = List.tabulate (mat_size graph,I)
     fun test y = mat_sub (graph,x,y) = color
   in
-    (x, filter test vertexl)
+    filter test vertexl
   end
   
 fun all_neighbor color graph = 
   List.tabulate (mat_size graph, neighbor_of color graph) 
+
+fun inneighbor_of color graph x = 
+  let 
+    val vertexl = List.tabulate (mat_size graph,I)
+    fun test y = mat_sub (graph,y,x) = color
+  in
+    filter test vertexl
+  end
+
+fun all_inneighbor color graph = 
+  List.tabulate (mat_size graph, inneighbor_of color graph)
 
 fun string_of_edgecl edgecl = 
   let fun f ((i,j),x) = its i ^ "," ^ its j ^ ":" ^ its x in
     String.concatWith " " (map f edgecl)
   end
   
+fun named_neighbor color graph = number_fst 0 (all_neighbor color graph)  
+  
 fun string_of_graph graph = 
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
-    String.concatWith ", " (map f (all_neighbor blue graph)) ^ " | " ^
-    String.concatWith ", " (map f (all_neighbor red graph))
+    String.concatWith ", " (map f (named_neighbor blue graph)) ^ " | " ^
+    String.concatWith ", " (map f (named_neighbor red graph))
   end
   
 fun string_of_bluegraph graph = 
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
-    String.concatWith ", " (map f (all_neighbor blue graph))
+    String.concatWith ", " (map f (named_neighbor blue graph))
   end
   
 fun string_of_redgraph graph = 
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
-    String.concatWith ", " (map f (all_neighbor red graph))
+    String.concatWith ", " (map f (named_neighbor red graph))
   end    
 
 (* -------------------------------------------------------------------------
@@ -284,19 +297,12 @@ fun normalize_naively mat =
   end
 
 
-fun neighbor_of_color color size m x = 
-  let fun test y = mat_sub (m,x,y) = color in
-    filter test (List.tabulate (size,I))
-  end
-  
-fun all_neighbor_color color size m = 
-  List.tabulate (size, neighbor_of_color color size m)
-  
+
 fun normalize_weak m =
   let 
     val size = mat_size m
-    val blueneighl = map length (all_neighbor_color blue size m)
-    val redneighl = map length (all_neighbor_color red size m)
+    val blueneighl = map length (all_neighbor blue m)
+    val redneighl = map length (all_neighbor red m)
     val neighl = number_fst 0 (combine (blueneighl,redneighl))
     val cmp = snd_compare (cpl_compare Int.compare Int.compare)
     val neighsortedl = dict_sort cmp neighl
@@ -305,6 +311,25 @@ fun normalize_weak m =
   in
     mat_permute (m,size) sigma
   end
+  
+(* benefit cost analysis between getting more data 
+   doing all permutations *)  
+fun normalize_strong m =
+  let 
+    val blueneighl = map length (all_neighbor blue m)
+    val redneighl = map length (all_neighbor red m)
+    val blueinneighl = map length (all_inneighbor blue m)
+    val redinneighl = map length (all_inneighbor red m)
+    val neighl = number_fst 0 
+      (list_combine [blueneighl,blueinneighl,redneighl,redinneighl])
+    val cmp = snd_compare (list_compare Int.compare)
+    val neighsortedl = dict_sort cmp neighl
+    val permutation = map fst neighsortedl
+    val sigma = mk_permf permutation
+  in
+    mat_permute (m,mat_size m) sigma
+  end 
+  
   
 (* -------------------------------------------------------------------------
    Test if a shape is a subgraph of a bigger graph
@@ -403,7 +428,7 @@ fun has_shape graph =
    ------------------------------------------------------------------------- *)
     
 fun is_iso graph =     
-  let val graphid = zip_mat (normalize_weak graph) in
+  let val graphid = zip_mat (normalize_strong graph) in
     if emem graphid (!isod_glob)   
     then true
     else (isod_glob := eadd graphid (!isod_glob); false)
@@ -570,16 +595,16 @@ fun search_loop path =
         fun backtrack () = search_loop ((graph,colorm) :: parentl)
       in
         debugf "split: " f (); test_timer ();
-        if is_iso candgraph 
-          then (debug "iso"; backtrack ()) else
+        (* if is_iso candgraph 
+          then (debug "iso"; backtrack ()) else *)
         if has_shape_wedge edge candgraph 
           then (debug "conflict"; backtrack ()) else
         (
         case propagate candgraph of
           NONE => (debug "pconflict"; backtrack ())
         | SOME newgraph =>
-          if mat_compare (newgraph,candgraph) <> EQUAL andalso is_iso newgraph 
-            then (debug "iso"; backtrack ()) else
+          if (* mat_compare (newgraph,candgraph) <> EQUAL andalso *) 
+            is_iso newgraph then (debug "iso"; backtrack ()) else
           let 
             val child = (newgraph,[blue,red])
             val newparentl = (graph,colorm) :: parentl
@@ -927,12 +952,11 @@ fun parallel_ramsey ncore expname filel =
  
   
 end (* struct *) 
-  
-  
+
 (*
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60iso" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60iso3" (rev cnfl);
 *)
 
