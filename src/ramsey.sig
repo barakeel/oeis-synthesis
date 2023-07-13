@@ -8,14 +8,37 @@ sig
   val random_shape_nocycle : int -> int -> mat
   val edgecl_to_mat : ((int * int) * int) list -> mat
   val read_shape : string -> mat * mat
-  val search : int -> int option * Time.time option -> (mat * mat) -> mat list
   val search_order : int -> (int * int) list
-  val search_each_size : int option * Time.time option -> 
-    (mat * mat) -> (bool * int)
-  val run : string -> int option * Time.time option -> (bool * int) list
   
-  val init_shape : int Array2.array -> int Array2.array list * int
-  val supershapes : mat list * int -> bool array
+  val subsets_of_size_faster : int -> int list * int -> int list list
+  
   val normalize_naively : mat -> mat
+  
+  (* projection *)
+  val keep_only : int -> mat -> mat
+  
+  (* shapes *)
+  val isomorphic_shapes : mat -> mat list * int
+  val supershapes_one_aux : int -> ((int * int) * int) list -> int list
+  val supershapes_one : int -> mat -> int list
+  val supershapes : mat list * int -> bool array
+  val all_shapes : unit -> mat list
+  val normalize_shapes : mat list -> (int * mat) list
+  val compute_write_supershapes : (int * mat) list -> unit
+  val propshapes : mat -> (int * int) list array
+  val compute_write_propshapes : (int * mat) list -> unit
+  (* conversion between formats *)
+  val mat_to_edge1l : mat -> ((int * int) * int) list
+  val read_prop : string -> (int * int) list array
+
+  (* main *)
+  val limit_glob : (int option * real option) ref
+  val search_each_size : (mat * mat) -> (bool * int)
+  val run : string -> (bool * int) list
+
+  (* parallel *)
+  val ramseyspec : (unit, string, (bool * int)) smlParallel.extspec
+  val parallel_ramsey : 
+    int -> string -> string list -> (string * (bool * int)) list
   
 end
