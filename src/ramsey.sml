@@ -567,16 +567,17 @@ fun search_loop path =
       let 
         fun f () = its (fst edge) ^ "," ^ its (snd edge) ^ ":" ^ its color
         val candgraph = mat_add (edge,color) graph 
+        fun backtrack () = search_loop ((graph,colorm) :: parentl)
       in
-        debugf "split: " f ();
-        test_timer ();
-        if has_shape_wedge edge candgraph
-        then (debug "conflict"; search_loop ((graph,colorm) :: parentl))
+        debugf "split: " f (); test_timer ();
+        if is_iso candgraph then (debug "iso"; backtrack ()) else
+        if has_shape_wedge edge candgraph then (debug "conflict"; backtrack ())
         else
         (
-        case check_iso (propagate candgraph) of
+        case propagate candgraph of
           NONE => search_loop ((graph,colorm) :: parentl)
         | SOME newgraph =>
+          if is_iso newgraph then (debug "iso"; backtrack ()) else
           let 
             val child = (newgraph,[blue,red])
             val newparentl = (graph,colorm) :: parentl
@@ -930,6 +931,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 4 "aaa_para6" cnfl;
+val rl = parallel_ramsey 32 "prop60" (rev cnfl);
 *)
 
