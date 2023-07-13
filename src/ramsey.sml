@@ -461,7 +461,7 @@ fun propagate_one graph =
             else debugf  "prop red: " string_of_edgecl rededgel
   in
     case edge_conflict (rededgel @ blueedgel @ graphedgecl) of
-      NONE => (debug "prop conflict"; NONE)
+      NONE => NONE
     | SOME edgecl => 
       let val newedgecl = filter (fn ((i,j),_) => 
         mat_sub (graph,i,j) = 0) edgecl
@@ -570,14 +570,16 @@ fun search_loop path =
         fun backtrack () = search_loop ((graph,colorm) :: parentl)
       in
         debugf "split: " f (); test_timer ();
-        if is_iso candgraph then (debug "iso"; backtrack ()) else
-        if has_shape_wedge edge candgraph then (debug "conflict"; backtrack ())
-        else
+        if is_iso candgraph 
+          then (debug "iso"; backtrack ()) else
+        if has_shape_wedge edge candgraph 
+          then (debug "conflict"; backtrack ()) else
         (
         case propagate candgraph of
-          NONE => search_loop ((graph,colorm) :: parentl)
+          NONE => (debug "pconflict"; backtrack ())
         | SOME newgraph =>
-          if is_iso newgraph then (debug "iso"; backtrack ()) else
+          if mat_compare (newgraph,candgraph) <> EQUAL andalso is_iso newgraph 
+            then (debug "iso"; backtrack ()) else
           let 
             val child = (newgraph,[blue,red])
             val newparentl = (graph,colorm) :: parentl
@@ -931,6 +933,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60iso" (rev cnfl);
 *)
 
