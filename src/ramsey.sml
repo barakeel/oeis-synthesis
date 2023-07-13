@@ -342,7 +342,7 @@ fun normalize_strong m =
     val cmp = snd_compare (list_compare Int.compare)
     val neighsortedl = dict_sort cmp (number_fst 0 neighl)
   in
-  if not (has_repetition neighsortedl) 
+  if not (has_repetition (map snd neighsortedl)) 
   then  
     let 
       val permutation = map fst neighsortedl
@@ -364,7 +364,8 @@ fun normalize_strong m =
     val neighsortedl2 = dict_sort cmp (number_fst 0 neighl2)
   in
     let 
-      val _ = if not (has_repetition neighsortedl2) then incr level3 else ()
+      val _ = if not (has_repetition (map snd neighsortedl2)) 
+        then incr level3 else ()
       val permutation2 = map fst neighsortedl2
       val sigma2 = mk_permf permutation2
     in
@@ -618,9 +619,9 @@ fun add_break () = if !counter >= 1000 then log "" else ()
 fun stats () = 
   (
   log ("isomorphic graphs: " ^ its (elength (!isod_glob)));
-  log ("level1 : " ^ its (!level1));
-  log ("level2 : " ^ its (!level2));
-  log ("level3 : " ^ its (!level3))
+  log ("level1: " ^ its (!level1));
+  log ("level2: " ^ its (!level2));
+  log ("level3: " ^ its (!level3))
   )
   
 fun search_end grapho = case grapho of 
@@ -1006,6 +1007,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60iso3" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60iso4" (rev cnfl);
 *)
 
