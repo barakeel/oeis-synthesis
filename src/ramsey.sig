@@ -32,7 +32,6 @@ sig
   val read_prop : string -> (int * int) list array
 
   (* main *)
-  val limit_glob : (int option * real option) ref
   val search_each_size : (mat * mat) -> (bool * int)
   val run : string -> (bool * int) list
 

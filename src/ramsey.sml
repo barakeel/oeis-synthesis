@@ -11,22 +11,34 @@ val ERR = mk_HOL_ERR "ramsey"
    Parameters (edit the file to make the changes)
    ------------------------------------------------------------------------- *)
 
-val limit_glob = ref (NONE, SOME 10.0)
-val parallel_flag = ref true
+val ramseyconfigd = 
+  if exists_file (selfdir ^ "/ramsey_config") then 
+    let 
+      val sl = readl (selfdir ^ "/ramsey_config")
+      fun f s = SOME (pair_of_list (String.tokens Char.isSpace s)) 
+        handle HOL_ERR _ => NONE
+    in
+      dnew String.compare (List.mapPartial f sl)
+    end
+  else dempty String.compare
+
+fun bflag s b = 
+  string_to_bool (dfind s ramseyconfigd) handle NotFound => b
+fun iflag s i = 
+  string_to_int (dfind s ramseyconfigd) handle NotFound => i
+fun rflag s r = 
+  valOf (Real.fromString (dfind s ramseyconfigd)) handle NotFound => r
+
+val real_time = rflag "real_time" 0.0
+val abstract_time = iflag "abstract_time" 0
+val propagate_flag = bflag "propagate_flag" false
+val memory = iflag "memory" 10000
 
 (* -------------------------------------------------------------------------
    Logging
    ------------------------------------------------------------------------- *)
 
-val log_file = ref (selfdir ^ "/ramsey_log")
-val parallel_flag = ref true
-local fun log s = append_endline (!log_file) s
-in
-  fun logp s = if !parallel_flag 
-               then print_endline s
-               else (print_endline s; log s)
-end
-
+fun log s = print_endline s 
 
 (* -------------------------------------------------------------------------
    Globals
@@ -42,8 +54,9 @@ val edgel_glob = ref [(0,0)]
 val blue_size_glob = ref 0
 val red_size_glob = ref 0
 val counter = ref 0
-val limit_glob = ref (SOME 10000, NONE)
-val time_glob = ref (SOME (Time.fromReal 0.0))
+val limit_glob = 
+  (if abstract_time > 0 then SOME abstract_time else NONE, 
+   if real_time > 0.0 then SOME (Time.fromReal real_time) else NONE)
 val timer = ref (Timer.startRealTimer ())
 val isod_glob = ref (eempty IntInf.compare)
 
@@ -54,24 +67,16 @@ val isod_glob = ref (eempty IntInf.compare)
 exception RamseyTimeout;
 
 fun init_timer () =
-  (
-  counter := 0;
-  time_glob := Option.map Time.fromReal (snd (!limit_glob));
-  timer := Timer.startRealTimer ()
-  )
+  (counter := 0; timer := Timer.startRealTimer ())
 
 fun test_timer () =
   let
     val _ = incr counter
     val _ = if !counter mod 1000 = 0 then print "." else ()
-    val _ = case fst (!limit_glob) of
-        NONE => ()
-      | SOME ti => 
-        if !counter > ti then raise RamseyTimeout else ()
-    val _ = case !time_glob of
-        NONE => ()
-      | SOME tr => 
-        if Timer.checkRealTimer (!timer) > tr then raise RamseyTimeout else ()
+    val _ = case fst (limit_glob) of NONE => () | SOME ti => 
+      if !counter > ti then raise RamseyTimeout else ()
+    val _ = case snd (limit_glob) of NONE => () | SOME tr => 
+      if Timer.checkRealTimer (!timer) > tr then raise RamseyTimeout else ()
   in
     ()
   end
@@ -264,7 +269,7 @@ fun isomorphic_shapes shape =
     val permfl = map mk_permf perml
     val shapel = map (mat_permute (shape,shapesize)) permfl
     val shaped = enew (mat_compare_fixedsize shapesize) shapel
-    val _ = print_endline (its (elength shaped) ^ " isomorphic variants")
+    val _ = log (its (elength shaped) ^ " isomorphic variants")
   in
     (elist shaped, shapesize)
   end;
@@ -473,7 +478,8 @@ fun propagate_loop graph = case propagate_one graph of
   | SOME (true,newgraph) => SOME newgraph
   | SOME (false,newgraph) => propagate_loop newgraph
 
-fun propagate graph = propagate_loop graph
+fun propagate graph = 
+  if propagate_flag then propagate_loop graph else SOME graph
 
 (* -------------------------------------------------------------------------
    Test if a graph has cycle
@@ -541,13 +547,13 @@ fun next_edge graph = next_edge_aux (mat_size graph) graph (!edgel_glob)
    Search
    ------------------------------------------------------------------------- *)
 
-fun add_break () = if !counter >= 1000 then logp "" else () 
-fun stats () = logp ("isomorphic graphs: " ^ its (elength (!isod_glob)))
+fun add_break () = if !counter >= 1000 then log "" else () 
+fun stats () = log ("isomorphic graphs: " ^ its (elength (!isod_glob)))
 fun search_end grapho = case grapho of 
-    NONE => (add_break (); logp "unsat"; 
+    NONE => (add_break (); log "unsat"; 
     stats (); true) 
-  | SOME graph => (add_break (); logp "sat"; 
-    logp (string_of_graph graph); stats(); false)
+  | SOME graph => (add_break (); log "sat"; 
+    log (string_of_graph graph); stats(); false)
     
 fun search_loop path = 
   case path of 
@@ -692,8 +698,7 @@ fun propshapes shape =
     fun f size (shape,edge) = (supershapes_one_aux size shape, edge)
     val (_,t) = add_time (app (update_proparray a o f size)) subshapel;
   in
-    print_endline ("propshapes: " ^ rts_round 2 t);
-    a
+    log ("propshapes: " ^ rts_round 2 t); a
   end
 
 (* -------------------------------------------------------------------------
@@ -825,14 +830,14 @@ fun search_each_size (blueshape,redshape) =
     val initsize = Int.max (mat_size blueshape, mat_size redshape) 
     fun loop csize =
       let 
-        val _ = logp ("search with graph size: " ^ its csize)  
+        val _ = log ("search with graph size: " ^ its csize)  
         val b = search csize
         val _ = print_endline ""
       in
         if b then (true,csize) else loop (csize + 1)
       end
       handle RamseyTimeout => 
-        (add_break (); logp "timeout"; stats(); (false,csize)) 
+        (add_break (); log "timeout"; stats(); (false,csize)) 
   in
     loop initsize 
   end
@@ -841,21 +846,20 @@ fun run expname =
   let
     val expdir = selfdir ^ "/exp/" ^ expname
     val _ = app mkDir_err [selfdir ^ "/exp", expdir]
-    val _ = log_file := expdir ^ "/log"
     val filel = ["adr_o3_o3_rb_inf_cnf.p"]
     val filel = listDir (selfdir ^ "/dr100")
     val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel
     val brshapel = map_assoc (read_shape o (fn x => "dr100/" ^ x)) cnfl
     fun f ((file,brshape),i) = 
        let 
-         val _ = logp ("File " ^ its i ^ ": " ^ file)
+         val _ = log ("File " ^ its i ^ ": " ^ file)
          val (r,t) = add_time search_each_size brshape
-         val _ = logp ("file time: " ^ rts_round 2 t)
+         val _ = log ("file time: " ^ rts_round 2 t)
        in
          r
        end 
     val (rl,t) = add_time (map f) (number_snd 0 brshapel)
-    val _ = logp ("total time: " ^ rts_round 2 t)
+    val _ = log ("total time: " ^ rts_round 2 t)
     val l = filter (fst o snd) (combine (cnfl,rl))
     fun g (s,(_,n)) = s ^ ": " ^ its n; 
     val _ = writel (expdir ^ "/results") (map g l)
@@ -869,10 +873,10 @@ fun run expname =
 
 fun ramseyspec_fun param file =
    let 
-     val _ = logp ("File: " ^ file)
+     val _ = log ("File: " ^ file)
      val brshape = (read_shape o (fn x => selfdir ^ "/dr100/" ^ x)) file
      val (r,t) = add_time search_each_size brshape
-     val _ = logp ("file time: " ^ rts_round 2 t)
+     val _ = log ("file time: " ^ rts_round 2 t)
    in
      r
    end 
@@ -903,20 +907,16 @@ val ramseyspec : (unit, string, (bool * int)) extspec =
   }
 
 fun parallel_ramsey ncore expname filel =
-  let  
-    val _ = parallel_flag := true
+  let
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
     val _ = smlExecScripts.buildheap_dir := dir
-    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) 
-      handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its memory
     val (rl,t) = add_time (parmap_queue_extern ncore ramseyspec ()) filel
     val l = filter (fst o snd) (combine (filel,rl))
     fun g (s,(_,n)) = s ^ ": " ^ its n  
   in
-    parallel_flag := false;
     writel (dir ^ "/log") ["time: " ^ rts t];
     writel (dir ^ "/results") (map g l);
     l
@@ -930,7 +930,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val expname = "aaa_para6";
-val rl = parallel_ramsey 4 expname cnfl;
+val rl = parallel_ramsey 4 "aaa_para6" cnfl;
 *)
 
