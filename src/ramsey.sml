@@ -369,7 +369,6 @@ fun normalize_weak m =
   end
 
 fun normalize_strong m =
-  (* first level *)
   let
     val msize = mat_size m
     val _ = incr level1
@@ -388,10 +387,9 @@ fun normalize_strong m =
       val permutation = map fst neighsortedl
       val sigma = mk_permf permutation
     in
-      mat_permute (m,mat_size m) sigma
+      mat_permute (m,msize) sigma
     end
   else
-  (* second level *)
   let
     val _ = incr level2
     val neighv = Vector.fromList neighl 
@@ -410,11 +408,12 @@ fun normalize_strong m =
       val permutationl3 = stable_permutations valuel
       val sigma2 = mk_permf permutation2
       val sigmal3 = map mk_permf permutationl3
-      val matl = map (fn x => mat_permute (mat,msize) (sigma2 o x)) sigmal3
-  in
-    hd (dict_sort (mat_compare_fixedsize msize) matl)
-  end (* first level *)
-  end (* second level *)
+      val matl = map (fn x => mat_permute (m,msize) (sigma2 o x)) sigmal3
+    in
+      hd (dict_sort (mat_compare_fixedsize msize) matl)
+    end
+  end 
+  end 
   
 (* -------------------------------------------------------------------------
    Test if a shape is a subgraph of a bigger graph
