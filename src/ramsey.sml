@@ -34,6 +34,8 @@ val abstract_time = iflag "abstract_time" 0
 val propagate_flag = bflag "propagate_flag" false
 val memory = iflag "memory" 10000
 
+val symmetry_flag = ref false
+
 (* -------------------------------------------------------------------------
    Logging
    ------------------------------------------------------------------------- *)
@@ -95,9 +97,6 @@ fun test_timer () =
 
 type mat = int Array2.array
 fun mat_sub (m,i,j) = Array2.sub (m,i,j)
-fun mat_update (m,i,j,v) = Array2.update (m,i,j,v)
-fun mat_update_sym (m,i,j,v) =
-  (mat_update (m,i,j,v); mat_update (m,j,i,v));
 
 fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
 fun mat_appi f m = 
@@ -156,9 +155,9 @@ fun mat_add (edge,color) graph  =
     val newgraphsize = Int.max (Int.max edge + 1, graphsize)  
   in
     mat_tabulate (newgraphsize, fn (i,j) => 
-      if (i,j) = edge then color 
-      else if i >= graphsize orelse j >= graphsize then 0
-      else mat_sub (graph,i,j))
+    if (i,j) = edge then color 
+    else if i >= graphsize orelse j >= graphsize then 0
+    else mat_sub (graph,i,j))
   end
   
 fun mat_addl edgecl graph = foldl (uncurry mat_add) graph edgecl
@@ -276,7 +275,54 @@ fun mk_permf perm =
     fun f n = Vector.sub (permv,n) 
   in 
     f 
-  end  
+  end 
+  
+(* -------------------------------------------------------------------------
+   Stable permutations
+   ------------------------------------------------------------------------- *)
+
+(* benefit cost analysis between getting more data 
+   doing all permutations *)  
+fun has_repetition l = case l of 
+    [] => false
+  | [a] => false
+  | a :: b :: m => a = b orelse has_repetition (b :: m)
+
+fun split_same [] = []
+  | split_same (x::xs) =
+    let fun aux xs res =
+        case xs of
+            [] => [List.rev res]
+          | y::ys => if fst y = fst x then aux ys (y::res)
+                     else (List.rev res) :: split_same xs
+    in aux xs [x]
+    end;
+
+(* l is assumed to be ordered (todo rename elements) *)
+
+fun productl start l = case l of [] => start | a :: m => 
+  if a * start > 100 then a else (productl (a * start) m)
+
+(* normalize with respect to permutations *)
+fun stable_permutations l =
+  let 
+    val l0 = number_snd 0 l
+    val l1 = split_same l0
+    val l2 = map (map snd) l1
+    val i = productl 1 (map length l2) 
+  in
+    if i > 100
+    then 
+      (print_endline "warning: too many permutations";
+       [List.tabulate (length l,I)]) (* todo pick random subsets *)
+    else 
+      let 
+        val l3 = map permutations l2
+        val l4 = cartesian_productl l3
+    in
+      map List.concat l4
+    end
+  end
 
 (* -------------------------------------------------------------------------
    Shapes: computes all isomorphism of an input shape before starting
@@ -304,8 +350,6 @@ fun normalize_naively mat =
     hd (dict_sort (mat_compare_fixedsize size) matl)
   end
 
-
-
 fun normalize_weak m =
   let 
     val size = mat_size m
@@ -319,15 +363,6 @@ fun normalize_weak m =
   in
     mat_permute (m,size) sigma
   end
-  
-(* benefit cost analysis between getting more data 
-   doing all permutations *)  
-fun has_repetition l = case l of 
-    [] => false
-  | [a] => false
-  | a :: b :: m => a = b orelse has_repetition (b :: m)
-
-
 
 fun normalize_strong m =
   (* first level *)
@@ -420,7 +455,7 @@ fun keep_only color graph =
   mat_tabulate (mat_size graph,
     fn (i,j) => if mat_sub (graph,i,j) = color then 1 else 0)
   
-fun has_shape_wcedge (i,j) graph color =
+fun has_shape_wcedge graph ((i,j),color) =
   let 
     val shapesize = if color = blue then !blue_size_glob else !red_size_glob
     val barray = if color = blue then !blue_array_glob else !red_array_glob
@@ -440,8 +475,8 @@ fun has_shape_wcedge (i,j) graph color =
   end;   
 
 fun has_shape_wedge edge graph =
-  has_shape_wcedge edge graph blue orelse
-  has_shape_wcedge edge graph red
+  has_shape_wcedge graph (edge,blue) orelse
+  has_shape_wcedge graph (edge,red)
   
   
 fun has_shape_c graph color =
@@ -550,6 +585,31 @@ fun propagate graph =
   if propagate_flag then propagate_loop graph else SOME graph
 
 (* -------------------------------------------------------------------------
+   Alternative unit propagation only using has shape with edge
+   ------------------------------------------------------------------------- *)
+
+fun propagate_alt_one graph undecl edgel = case edgel of 
+    [] => SOME (graph,rev undecl)
+  | edge :: m => 
+    let 
+      val blueext = mat_add (edge,blue) graph 
+      val redext = mat_add (edge,red) graph
+      val blueb = has_shape_wcedge blueext (edge,blue)
+      val redb = has_shape_wcedge redext (edge,red) 
+    in
+      if blueb andalso redb then NONE
+      else if blueb then propagate_alt_one redext undecl m
+      else if redb then propagate_alt_one blueext undecl m
+      else propagate_alt_one graph (edge :: undecl) m
+    end
+    
+fun propagate_alt graph edgel =
+   case propagate_alt_one graph [] edgel of 
+     NONE => NONE
+   | SOME (graph,newedgel) => 
+     if newedgel = edgel then SOME graph else propagate_alt graph newedgel
+
+(* -------------------------------------------------------------------------
    Test if a graph has cycle
    ------------------------------------------------------------------------- *)
 
@@ -611,6 +671,14 @@ fun next_edge_aux graphsize graph edgel = case edgel of
   
 fun next_edge graph = next_edge_aux (mat_size graph) graph (!edgel_glob)      
 
+fun blank_edges graphsize graph edgel = case edgel of
+    [] => []
+  | (i,j) :: m => 
+    if i >= graphsize orelse j >= graphsize then [] else 
+      if mat_sub (graph,i,j) = 0 
+      then (i,j) :: blank_edges graphsize graph m
+      else blank_edges graphsize graph m
+
 (* -------------------------------------------------------------------------
    Search
    ------------------------------------------------------------------------- *)
@@ -618,10 +686,9 @@ fun next_edge graph = next_edge_aux (mat_size graph) graph (!edgel_glob)
 fun add_break () = if !counter >= 1000 then log "" else () 
 fun stats () = 
   (
-  log ("isomorphic graphs: " ^ its (elength (!isod_glob)));
-  log ("level1: " ^ its (!level1));
-  log ("level2: " ^ its (!level2));
-  log ("level3: " ^ its (!level3))
+  log ("graphs: " ^ its (elength (!isod_glob)));
+  log ("level1: " ^ its (!level1) ^ ", level2: " ^ its (!level2) ^
+       ", level3: " ^ its (!level3))
   )
   
 fun search_end grapho = case grapho of 
@@ -647,16 +714,17 @@ fun search_loop path =
         debugf "split: " f (); test_timer ();
         (* if is_iso candgraph 
           then (debug "iso"; backtrack ()) else *)
-        if has_shape_wedge edge candgraph 
+        if has_shape_wcedge candgraph (edge,color)
           then (debug "conflict"; backtrack ()) else
         (
-        case propagate candgraph of
+        case propagate_alt candgraph 
+          (blank_edges (mat_size candgraph) candgraph (!edgel_glob)) of
           NONE => (debug "pconflict"; backtrack ())
-        | SOME newgraph =>
+        | SOME propgraph =>
           if (* mat_compare (newgraph,candgraph) <> EQUAL andalso *) 
-            is_iso newgraph then (debug "iso"; backtrack ()) else
+            is_iso propgraph then (debug "iso"; backtrack ()) else
           let 
-            val child = (newgraph,[blue,red])
+            val child = (propgraph,[blue,red])
             val newparentl = (graph,colorm) :: parentl
           in
             search_loop (child :: newparentl)
@@ -730,22 +798,21 @@ fun supershapes_one_aux size edge1l =
 fun supershapes_one size shape = 
   supershapes_one_aux size (mat_to_edge1l shape)
   
-fun supershapes (shapel,size) = 
+fun supershapes shape = 
   let 
+    val (isoshapel,size) = isomorphic_shapes shape
     val a = Array.tabulate (int_pow 2 (size * (size - 1)), fn _ => false)
     fun f shape = 
       let val il = supershapes_one size shape in
         app (fn x => Array.update (a,x,true)) il
       end
   in
-    app f shapel;
-    a
+    app f isoshapel; a
   end 
 
 (* -------------------------------------------------------------------------
    Enumerating all supershapes of subshapes for unit propagation
    ------------------------------------------------------------------------- *)
-   
 
 fun all_split l =
   let val l1 =
@@ -818,7 +885,7 @@ fun ats a = String.concatWith " "
 fun compute_write_supershapes ishapel =
   let 
     fun f (i,shape) = 
-      let val a = supershapes (isomorphic_shapes shape) in
+      let val a = supershapes shape in
         writel (selfdir ^ "/dr100shapes/" ^ its i) [ats a]
       end
   in
@@ -880,19 +947,19 @@ fun init_shapes (blueshape,redshape) =
     val _ =  
        if exists_file bluefile
        then blue_array_glob := read_array bluefile
-       else raise ERR "reading blue supershapes" bluefile
+       else blue_array_glob := supershapes blueshape
     val _ =  
        if exists_file redfile
        then red_array_glob := read_array redfile
-       else raise ERR "reading red supershapes" redfile
+       else red_array_glob := supershapes redshape
     val _ =  
        if exists_file bluepropfile
        then blue_prop_glob := read_prop bluepropfile
-       else raise ERR "reading blue prop supershapes" bluepropfile
+       else blue_prop_glob := propshapes blueshape
     val _ =  
        if exists_file redpropfile
        then red_prop_glob := read_prop redpropfile
-       else raise ERR "reading red prop supershapes" redpropfile
+       else red_prop_glob := propshapes redshape
     val _ = blue_size_glob := mat_size blueshape
     val _ = red_size_glob := mat_size redshape
   in
@@ -1007,6 +1074,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60iso4" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60iso6" (rev cnfl);
 *)
 

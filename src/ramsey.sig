@@ -21,7 +21,7 @@ sig
   val isomorphic_shapes : mat -> mat list * int
   val supershapes_one_aux : int -> ((int * int) * int) list -> int list
   val supershapes_one : int -> mat -> int list
-  val supershapes : mat list * int -> bool array
+  val supershapes : mat -> bool array
   val all_shapes : unit -> mat list
   val normalize_shapes : mat list -> (int * mat) list
   val compute_write_supershapes : (int * mat) list -> unit
