@@ -73,11 +73,13 @@ exception RamseyTimeout;
 val level1 = ref 0
 val level2 = ref 0
 val level3 = ref 0
+val level4 = ref 0
 
 fun init_timer () =
   (level1 := 0;
    level2 := 0;
    level3 := 0;
+   level4 := 0;
    counter := 0; 
    timer := Timer.startRealTimer ())
 
@@ -302,8 +304,10 @@ fun split_same [] = []
 
 (* l is assumed to be ordered (todo rename elements) *)
 
+val perm_limit = 10
+
 fun productl start l = case l of [] => start | a :: m => 
-  if a * start > 100 then a else (productl (a * start) m)
+  if a * start > 10 then a * start else (productl (a * start) m)
 
 (* normalize with respect to permutations *)
 fun stable_permutations l =
@@ -313,10 +317,8 @@ fun stable_permutations l =
     val l2 = map (map snd) l1
     val i = productl 1 (map length l2) 
   in
-    if i > 100
-    then 
-      (print_endline "warning: too many permutations";
-       [List.tabulate (length l,I)]) (* todo pick random subsets *)
+    if i > 10
+    then (incr level4; [List.tabulate (length l,I)]) (* todo pick random subsets *)
     else 
       let 
         val l3 = map permutations l2
@@ -369,6 +371,7 @@ fun normalize_weak m =
 fun normalize_strong m =
   (* first level *)
   let
+    val msize = mat_size m
     val _ = incr level1
     val blueneighl = all_neighbor blue m
     val redneighl = all_neighbor red m
@@ -401,13 +404,15 @@ fun normalize_strong m =
     val neighsortedl2 = dict_sort cmp (number_fst 0 neighl2)
   in
     let 
-      val _ = if not (has_repetition (map snd neighsortedl2)) 
-        then incr level3 else ()
+      val valuel = map snd neighsortedl2
+      val _ = if not (has_repetition valuel) then incr level3 else ()
       val permutation2 = map fst neighsortedl2
+      val permutationl3 = stable_permutations valuel
       val sigma2 = mk_permf permutation2
-    in
-      mat_permute (m,mat_size m) sigma2
-    end
+      val sigmal3 = map mk_permf permutationl3
+      val matl = map (fn x => mat_permute (mat,msize) (sigma2 o x)) sigmal3
+  in
+    hd (dict_sort (mat_compare_fixedsize msize) matl)
   end (* first level *)
   end (* second level *)
   
@@ -692,7 +697,8 @@ fun stats () =
   (
   log ("graphs: " ^ its (elength (!isod_glob)));
   log ("level1: " ^ its (!level1) ^ ", level2: " ^ its (!level2) ^
-       ", level3: " ^ its (!level3))
+       ", level3: " ^ its (!level3) ^ ", level4: " ^ its (!level4))
+  
   )
   
 fun search_end grapho = case grapho of 
@@ -1080,6 +1086,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "newprop60" (rev cnfl);
+val rl = parallel_ramsey 32 "newprop60_1" (rev cnfl);
 *)
 
