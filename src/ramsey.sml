@@ -50,8 +50,10 @@ val blue = 1
 val red = 2
 val blue_array_glob = ref (Array.fromList [true])
 val red_array_glob = ref (Array.fromList [true])
+(*
 val blue_prop_glob = ref (Array.fromList [[(0,0)]])
 val red_prop_glob = ref (Array.fromList [[(0,0)]])
+*)
 val edgel_glob = ref [(0,0)]
 val blue_size_glob = ref 0
 val red_size_glob = ref 0
@@ -520,6 +522,7 @@ fun check_iso grapho = case grapho of
    Unit propagation
    ------------------------------------------------------------------------- *)
   
+  (*
 fun propagate_color graphtop color =
   let 
     val r = ref (eempty (cpl_compare Int.compare Int.compare))
@@ -584,6 +587,7 @@ fun propagate_loop graph = case propagate_one graph of
 fun propagate graph = 
   if propagate_flag then propagate_loop graph else SOME graph
 
+*)
 (* -------------------------------------------------------------------------
    Alternative unit propagation only using has shape with edge
    ------------------------------------------------------------------------- *)
@@ -952,6 +956,7 @@ fun init_shapes (blueshape,redshape) =
        if exists_file redfile
        then red_array_glob := read_array redfile
        else red_array_glob := supershapes redshape
+    (*
     val _ =  
        if exists_file bluepropfile
        then blue_prop_glob := read_prop bluepropfile
@@ -960,11 +965,12 @@ fun init_shapes (blueshape,redshape) =
        if exists_file redpropfile
        then red_prop_glob := read_prop redpropfile
        else red_prop_glob := propshapes redshape
+    *)
     val _ = blue_size_glob := mat_size blueshape
     val _ = red_size_glob := mat_size redshape
   in
     ()
-  end  
+  end
 
 fun search_each_size (blueshape,redshape) =
   let
@@ -1074,6 +1080,6 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60iso6" (rev cnfl);
+val rl = parallel_ramsey 32 "newprop60" (rev cnfl);
 *)
 
