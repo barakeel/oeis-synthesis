@@ -397,47 +397,83 @@ fun gather_iocolors colorv ioneighl =
 
 val charac_cmp = 
   list_compare (list_compare (cpl_compare Int.compare Int.compare))
-  
-fun equitable_partition_aux graphsize ioneighl (colorv,ncolor) =
+
+fun decompose acc l = case l of
+    [] => []
+  | a :: m => (a,rev acc @ m) :: decompose (a :: acc) m 
+
+fun refine_partition acc partition = case partition of
+    [] => raise ERR "refine_partition" ""
+  | [a] :: m => refine_partition ([a] :: acc) m
+  | l :: m => map (fn (x,y) => rev acc @ [[x]] @ [y] @ m)              
+              (decompose [] l)
+
+fun colorv_of graphsize partition =
+  let
+    val cvl = distrib (number_fst 0 partition)
+    val colorv = Array.array (graphsize,0)
+    fun g (c,v) = Array.update (colorv,v,c)
+    val _ = app g cvl
+ in
+   colorv
+ end
+
+val partition_glob = ref []
+val partition_n = ref 0
+exception EquitableBreak;
+
+fun equitable_partition_aux graphsize ioneighl partitiontop =
+  if !partition_n > 64 then (raise EquitableBreak; incr level2) else
   let 
+    val ncolor = length partitiontop
+    val colorv = colorv_of graphsize partitiontop
     fun f (x,ioentry) = (gather_iocolors colorv ioentry, x)
     val characl1 = map f ioneighl
     val d = dregroup charac_cmp characl1
     val newncolor = dlength d
-    val groupl = map snd (dlist d)
-    val cvl = distrib (number_fst 0 groupl)
-    val newcolorv = Array.array (graphsize,0)
-    fun g (c,v) = Array.update (newcolorv,v,c)
-    val _ = app g cvl
+    val partition = map snd (dlist d) 
   in
-    if newncolor < ncolor
-      then raise ERR "equitable_partition" ""
-    else if newncolor = ncolor orelse newncolor = graphsize
-      then (if newncolor = graphsize then incr level1 else incr level2; 
-            groupl)
-    else equitable_partition_aux graphsize ioneighl (newcolorv,newncolor)
+    if newncolor < ncolor then raise ERR "equitable_partition" "" 
+    else if newncolor = graphsize then 
+      (partition_glob := partition :: !partition_glob; incr partition_n; ()) 
+    else if newncolor = ncolor then 
+      app (equitable_partition_aux graphsize ioneighl) 
+        (refine_partition [] partition)
+    else equitable_partition_aux graphsize ioneighl partition
   end
 
 fun equitable_partition graph =
   let
+    val _ = partition_glob := []
+    val _ = partition_n := 0
     val graphsize = mat_size graph
-    val ioneighl = map_assoc (io_neighbors graph) (List.tabulate (graphsize,I))
+    val vertexl = List.tabulate (graphsize,I)
+    val ioneighl = map_assoc (io_neighbors graph) vertexl
     val colorv = Array.array (graphsize,0)
     val ncolor = 1
+    val _ = equitable_partition_aux graphsize ioneighl [vertexl]
+       handle EquitableBreak => ()
   in
-    equitable_partition_aux graphsize ioneighl (colorv,ncolor)
+    !partition_glob
   end
 
-
-fun normalize_equitable graph = 
+fun normalize_equitable graph =
   let 
-    val permutation = List.concat (equitable_partition graph)
-    val sigma = mk_permf permutation
+    val _ = incr level1
+    val graphsize = mat_size graph
+    fun f x = mat_permute (graph,graphsize) (mk_permf x)
+    val partl = equitable_partition graph
   in
-    mat_permute (graph,mat_size graph) sigma
+    case partl of [part] => f (List.concat part) | _ =>
+      let 
+        val perml0 = map List.concat partl
+        val perml1 = dict_sort (list_compare Int.compare) perml0
+        val perml2 = map f perml1
+      in
+        hd (dict_sort (mat_compare_fixedsize graphsize) perml2)
+      end
   end
 
-(* *)
 fun normalize_strong m =
   let
     val msize = mat_size m
@@ -1148,7 +1184,7 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "newprop60_2" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60_equit" (rev cnfl);
 length rl;
 *)
 

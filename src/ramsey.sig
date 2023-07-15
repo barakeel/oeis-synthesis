@@ -14,7 +14,7 @@ sig
   
   (* normalization *)
   val normalize_naively : mat -> mat
-  val equitable_partition : mat -> int list list
+  val equitable_partition : mat -> int list list list
   
   (* projection *)
   val keep_only : int -> mat -> mat
