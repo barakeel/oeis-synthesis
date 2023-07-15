@@ -199,6 +199,16 @@ fun inneighbor_of color graph x =
 fun all_inneighbor color graph = 
   List.tabulate (mat_size graph, inneighbor_of color graph)
 
+fun full_neighbor graph =
+  List.tabulate (mat_size graph, 
+    fn x => 
+    [neighbor_of blue graph x,
+     inneighbor_of blue graph x,
+     neighbor_of red graph x,
+     inneighbor_of red graph x]
+    )
+
+
 fun string_of_edgecl edgecl = 
   let fun f ((i,j),x) = its i ^ "," ^ its j ^ ":" ^ its x in
     String.concatWith " " (map f edgecl)
@@ -368,6 +378,66 @@ fun normalize_weak m =
     mat_permute (m,size) sigma
   end
 
+fun io_neighbors graph x =
+  [inneighbor_of blue graph x,
+   inneighbor_of red graph x,
+   neighbor_of blue graph x,
+   neighbor_of red graph x]
+  
+(* make a reference so that it's possible to update colors
+   of a vertex in every neighborhood *) 
+
+(* slow *)  
+fun gather_colors colorv neighl =
+  dlist (count_dict (dempty Int.compare) 
+    (map (fn x => Array.sub(colorv,x)) neighl))
+ 
+fun gather_iocolors colorv ioneighl = 
+  map (gather_colors colorv) ioneighl
+
+val charac_cmp = 
+  list_compare (list_compare (cpl_compare Int.compare Int.compare))
+  
+fun equitable_partition_aux graphsize ioneighl (colorv,ncolor) =
+  let 
+    fun f (x,ioentry) = (gather_iocolors colorv ioentry, x)
+    val characl1 = map f ioneighl
+    val d = dregroup charac_cmp characl1
+    val newncolor = dlength d
+    val groupl = map snd (dlist d)
+    val cvl = distrib (number_fst 0 groupl)
+    val newcolorv = Array.array (graphsize,0)
+    fun g (c,v) = Array.update (newcolorv,v,c)
+    val _ = app g cvl
+  in
+    if newncolor < ncolor
+      then raise ERR "equitable_partition" ""
+    else if newncolor = ncolor orelse newncolor = graphsize
+      then (if newncolor = graphsize then incr level1 else incr level2; 
+            groupl)
+    else equitable_partition_aux graphsize ioneighl (newcolorv,newncolor)
+  end
+
+fun equitable_partition graph =
+  let
+    val graphsize = mat_size graph
+    val ioneighl = map_assoc (io_neighbors graph) (List.tabulate (graphsize,I))
+    val colorv = Array.array (graphsize,0)
+    val ncolor = 1
+  in
+    equitable_partition_aux graphsize ioneighl (colorv,ncolor)
+  end
+
+
+fun normalize_equitable graph = 
+  let 
+    val permutation = List.concat (equitable_partition graph)
+    val sigma = mk_permf permutation
+  in
+    mat_permute (graph,mat_size graph) sigma
+  end
+
+(* *)
 fun normalize_strong m =
   let
     val msize = mat_size m
@@ -405,12 +475,13 @@ fun normalize_strong m =
       val valuel = map snd neighsortedl2
       val _ = if not (has_repetition valuel) then incr level3 else ()
       val permutation2 = map fst neighsortedl2
-      val permutationl3 = stable_permutations valuel
       val sigma2 = mk_permf permutation2
-      val sigmal3 = map mk_permf permutationl3
-      val matl = map (fn x => mat_permute (m,msize) (sigma2 o x)) sigmal3
+      (* val sigmal3 = map mk_permf permutationl3
+         val permutationl3 = stable_permutations valuel
+         val matl = map (fn x => mat_permute (m,msize) (sigma2 o x)) sigmal3 *)
     in
-      hd (dict_sort (mat_compare_fixedsize msize) matl)
+      mat_permute (m,msize) sigma2
+      (* hd (dict_sort (mat_compare_fixedsize msize) matl) *)
     end
   end 
   end 
@@ -460,31 +531,7 @@ fun subcoloring size shape1 shape2 =
 fun keep_only color graph = 
   mat_tabulate (mat_size graph,
     fn (i,j) => if mat_sub (graph,i,j) = color then 1 else 0)
-  
-fun has_shape_wcedge graph ((i,j),color) =
-  let 
-    val shapesize = if color = blue then !blue_size_glob else !red_size_glob
-    val barray = if color = blue then !blue_array_glob else !red_array_glob
-    val unigraph = keep_only color graph
-    val vertexl = List.tabulate (mat_size unigraph, I)
-    val l0 = filter (fn x => not (mem x [i,j])) vertexl
-    val l1 = subsets_of_size_faster (shapesize-2) (l0,length l0)
-    fun f subset =
-      let 
-        val sigma = mk_permf (i :: j :: subset)
-        val candshape = mat_permute (unigraph,shapesize) sigma
-      in
-        Array.sub (barray, mat_to_int_fixedsize candshape)
-      end
-  in
-    exists f l1
-  end;   
 
-fun has_shape_wedge edge graph =
-  has_shape_wcedge graph (edge,blue) orelse
-  has_shape_wcedge graph (edge,red)
-  
-  
 fun has_shape_c graph color =
   let 
     val shapesize = if color = blue then !blue_size_glob else !red_size_glob
@@ -503,16 +550,32 @@ fun has_shape_c graph color =
     exists f l1
   end;   
 
-fun has_shape graph =
-  has_shape_c graph blue orelse
-  has_shape_c graph red  
-  
+fun has_shape_wcedge graph ((i,j),color) =
+  let 
+    val shapesize = if color = blue then !blue_size_glob else !red_size_glob
+    val barray = if color = blue then !blue_array_glob else !red_array_glob
+    val unigraph = keep_only color graph
+    val vertexl = List.tabulate (mat_size unigraph, I)
+    val l0 = filter (fn x => not (mem x [i,j])) vertexl
+    val l1 = subsets_of_size_faster (shapesize-2) (l0,length l0)
+    fun f subset =
+      let 
+        val sigma = mk_permf (i :: j :: subset)
+        (* todo: avoid this intermediate representation *)
+        val candshape = mat_permute (unigraph,shapesize) sigma
+      in
+        Array.sub (barray, mat_to_int_fixedsize candshape)
+      end
+  in
+    exists f l1
+  end;
+
 (* -------------------------------------------------------------------------
    Test isomorphism
    ------------------------------------------------------------------------- *)
     
 fun is_iso graph =     
-  let val graphid = zip_mat (normalize_strong graph) in
+  let val graphid = zip_mat (normalize_equitable graph) in
     if emem graphid (!isod_glob)   
     then true
     else (isod_glob := eadd graphid (!isod_glob); false)
@@ -594,6 +657,7 @@ fun propagate graph =
 *)
 (* -------------------------------------------------------------------------
    Alternative unit propagation only using has shape with edge
+   edgel: list of candidates uncolored edges
    ------------------------------------------------------------------------- *)
 
 fun propagate_alt_one graph undecl edgel = case edgel of 
@@ -695,9 +759,8 @@ fun add_break () = if !counter >= 1000 then log "" else ()
 fun stats () = 
   (
   log ("graphs: " ^ its (elength (!isod_glob)));
-  log ("level1: " ^ its (!level1) ^ ", level2: " ^ its (!level2) ^
-       ", level3: " ^ its (!level3) ^ ", level4: " ^ its (!level4))
-  
+  log ("level1: " ^ its (!level1) ^ ", level2: " ^ its (!level2)) (* ^
+       ", level3: " ^ its (!level3) ^ ", level4: " ^ its (!level4)) *)
   )
   
 fun search_end grapho = case grapho of 
@@ -1085,6 +1148,7 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "newprop60_1" (rev cnfl);
+val rl = parallel_ramsey 32 "newprop60_2" (rev cnfl);
+length rl;
 *)
 

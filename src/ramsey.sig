@@ -12,7 +12,9 @@ sig
   
   val subsets_of_size_faster : int -> int list * int -> int list list
   
+  (* normalization *)
   val normalize_naively : mat -> mat
+  val equitable_partition : mat -> int list list
   
   (* projection *)
   val keep_only : int -> mat -> mat
@@ -28,6 +30,7 @@ sig
   val propshapes : mat -> (int * int) list array
   val compute_write_propshapes : (int * mat) list -> unit
   (* conversion between formats *)
+  val mat_to_edgecl : mat -> ((int * int) * int) list
   val mat_to_edge1l : mat -> ((int * int) * int) list
   val read_prop : string -> (int * int) list array
 
