@@ -4,6 +4,7 @@ sig
   type mat = int Array2.array
   val mat_sub : mat * int * int -> int 
   val mat_size : mat -> int
+  val random_mat : int -> mat
   val random_shape : int -> int -> mat
   val random_shape_nocycle : int -> int -> mat
   val edgecl_to_mat : ((int * int) * int) list -> mat

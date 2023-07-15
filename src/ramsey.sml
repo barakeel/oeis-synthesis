@@ -395,8 +395,8 @@ fun gather_colors colorv neighl =
 fun gather_iocolors colorv ioneighl = 
   map (gather_colors colorv) ioneighl
 
-val charac_cmp = 
-  list_compare (list_compare (cpl_compare Int.compare Int.compare))
+val charac_cmp = cpl_compare Int.compare
+  (list_compare (list_compare (cpl_compare Int.compare Int.compare)))
 
 fun decompose acc l = case l of
     [] => []
@@ -422,24 +422,36 @@ val partition_glob = ref []
 val partition_n = ref 0
 exception EquitableBreak;
 
-fun equitable_partition_aux graphsize ioneighl partitiontop =
+fun string_of_partition part = 
+  String.concatWith "|" (map (String.concatWith " " o map its) part)
+
+fun equitable_partition_aux graphsize ioneighl (partitiontop,ncolor) =
   if !partition_n > 64 then (raise EquitableBreak; incr level2) else
+  if ncolor = graphsize then 
+    (partition_glob := partitiontop :: !partition_glob; incr partition_n)
+  else
   let 
-    val ncolor = length partitiontop
     val colorv = colorv_of graphsize partitiontop
-    fun f (x,ioentry) = (gather_iocolors colorv ioentry, x)
+    fun f (x,ioentry) = 
+      ((Array.sub (colorv,x), gather_iocolors colorv ioentry), x)
     val characl1 = map f ioneighl
     val d = dregroup charac_cmp characl1
     val newncolor = dlength d
     val partition = map snd (dlist d) 
   in
-    if newncolor < ncolor then raise ERR "equitable_partition" "" 
+    if newncolor < ncolor then 
+      raise ERR "equitable_partition" 
+        (string_of_partition partitiontop ^ " "  ^
+         string_of_partition partition)
     else if newncolor = graphsize then 
-      (partition_glob := partition :: !partition_glob; incr partition_n; ()) 
+      (partition_glob := partition :: !partition_glob; incr partition_n) 
     else if newncolor = ncolor then 
-      app (equitable_partition_aux graphsize ioneighl) 
-        (refine_partition [] partition)
-    else equitable_partition_aux graphsize ioneighl partition
+      let val partl = map_assoc (fn _ => newncolor + 1) 
+        (refine_partition [] partition) 
+      in
+        app (equitable_partition_aux graphsize ioneighl) partl
+      end
+    else equitable_partition_aux graphsize ioneighl (partition,newncolor)
   end
 
 fun equitable_partition graph =
@@ -451,7 +463,7 @@ fun equitable_partition graph =
     val ioneighl = map_assoc (io_neighbors graph) vertexl
     val colorv = Array.array (graphsize,0)
     val ncolor = 1
-    val _ = equitable_partition_aux graphsize ioneighl [vertexl]
+    val _ = equitable_partition_aux graphsize ioneighl ([vertexl],1)
        handle EquitableBreak => ()
   in
     !partition_glob
@@ -473,6 +485,13 @@ fun normalize_equitable graph =
         hd (dict_sort (mat_compare_fixedsize graphsize) perml2)
       end
   end
+  
+(* 
+load "ramsey"; open aiLib kernel ramsey;
+val x = random_shape 10 1;
+val y = mat_to_edgecl x;
+val l = equitable_partition x;
+*)
 
 fun normalize_strong m =
   let
@@ -1184,7 +1203,7 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60_equit" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60_refine" (rev cnfl);
 length rl;
 *)
 
