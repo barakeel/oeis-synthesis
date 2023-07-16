@@ -378,6 +378,11 @@ fun normalize_weak m =
     mat_permute (m,size) sigma
   end
 
+
+(* -------------------------------------------------------------------------
+   Coloring algorithm
+   ------------------------------------------------------------------------- *)
+
 fun io_neighbors graph x =
   [inneighbor_of blue graph x,
    inneighbor_of red graph x,
@@ -386,6 +391,10 @@ fun io_neighbors graph x =
   
 (* make a reference so that it's possible to update colors
    of a vertex in every neighborhood *) 
+
+
+fun string_of_partition part = 
+  String.concatWith "|" (map (String.concatWith " " o map its) part)
 
 (* slow *)  
 fun gather_colors colorv neighl =
@@ -408,6 +417,18 @@ fun refine_partition acc partition = case partition of
   | l :: m => map (fn (x,y) => rev acc @ [[x]] @ [y] @ m)              
               (decompose [] l)
 
+fun unify_partitions graph graphsize partl = case partl of
+    [] => []
+  | [a] => [a]
+  | _ => 
+    let
+      fun f x = mat_permute (graph,graphsize) (mk_permf (List.concat x))
+      val mpartl = map (fn x => (f x, x)) partl
+      val d = dnew (mat_compare_fixedsize graphsize) mpartl    
+    in
+      map snd (dlist d)
+    end
+
 fun colorv_of graphsize partition =
   let
     val cvl = distrib (number_fst 0 partition)
@@ -418,63 +439,67 @@ fun colorv_of graphsize partition =
    colorv
  end
 
-val partition_glob = ref []
-val partition_n = ref 0
-exception EquitableBreak;
-
-fun string_of_partition part = 
-  String.concatWith "|" (map (String.concatWith " " o map its) part)
-
-fun equitable_partition_aux graphsize ioneighl (partitiontop,ncolor) =
-  if !partition_n > 64 then (raise EquitableBreak; incr level2) else
-  if ncolor = graphsize then 
-    (partition_glob := partitiontop :: !partition_glob; incr partition_n)
-  else
+fun equitable_partition_aux graphsize ioneighl partition =
   let 
-    val colorv = colorv_of graphsize partitiontop
+    val ncolor = length partition 
+    val colorv = colorv_of graphsize partition
     fun f (x,ioentry) = 
       ((Array.sub (colorv,x), gather_iocolors colorv ioentry), x)
     val characl1 = map f ioneighl
     val d = dregroup charac_cmp characl1
     val newncolor = dlength d
-    val partition = map snd (dlist d) 
+    val newpartition = map snd (dlist d) 
   in
     if newncolor < ncolor then 
-      raise ERR "equitable_partition" 
-        (string_of_partition partitiontop ^ " "  ^
-         string_of_partition partition)
-    else if newncolor = graphsize then 
-      (partition_glob := partition :: !partition_glob; incr partition_n) 
-    else if newncolor = ncolor then 
-      let val partl = map_assoc (fn _ => newncolor + 1) 
-        (refine_partition [] partition) 
-      in
-        app (equitable_partition_aux graphsize ioneighl) partl
-      end
-    else equitable_partition_aux graphsize ioneighl (partition,newncolor)
+      raise ERR "equitable_partition_aux" 
+        (string_of_partition partition ^ " "  ^
+         string_of_partition newpartition)
+    else if newncolor = graphsize orelse newncolor = ncolor then
+      newpartition
+    else equitable_partition_aux graphsize ioneighl newpartition
   end
-
+  
 fun equitable_partition graph =
   let
-    val _ = partition_glob := []
-    val _ = partition_n := 0
     val graphsize = mat_size graph
     val vertexl = List.tabulate (graphsize,I)
     val ioneighl = map_assoc (io_neighbors graph) vertexl
-    val colorv = Array.array (graphsize,0)
-    val ncolor = 1
-    val _ = equitable_partition_aux graphsize ioneighl ([vertexl],1)
-       handle EquitableBreak => ()
   in
-    !partition_glob
+    equitable_partition_aux graphsize ioneighl [vertexl]
   end
 
-fun normalize_equitable graph =
+fun refine_partition_loop graph ioneighl partl = 
+  let    
+    val partl1 = List.concat (map (refine_partition []) partl)
+    val partl2 = unify_partitions graph (mat_size graph) partl1
+    fun mk_equitable x = equitable_partition_aux (mat_size graph) ioneighl x
+  in
+    if length partl2 > 64 then (incr level2; partl) else
+    let val partl3 = map mk_equitable partl2 in
+      if length (hd partl3) = mat_size graph 
+      then partl3
+      else refine_partition_loop graph ioneighl partl3
+    end
+  end
+
+(* warning: limited to 64 partitions, 
+   some partition might give the same graph *)
+fun nauty_partition graph =
+  let
+    val graphsize = mat_size graph
+    val vertexl = List.tabulate (graphsize,I)
+    val ioneighl = map_assoc (io_neighbors graph) vertexl
+    val part = equitable_partition_aux graphsize ioneighl [vertexl]
+  in
+    refine_partition_loop graph ioneighl [part]
+  end
+
+fun normalize_nauty graph =
   let 
     val _ = incr level1
     val graphsize = mat_size graph
     fun f x = mat_permute (graph,graphsize) (mk_permf x)
-    val partl = equitable_partition graph
+    val partl = nauty_partition graph
   in
     case partl of [part] => f (List.concat part) | _ =>
       let 
@@ -630,7 +655,7 @@ fun has_shape_wcedge graph ((i,j),color) =
    ------------------------------------------------------------------------- *)
     
 fun is_iso graph =     
-  let val graphid = zip_mat (normalize_equitable graph) in
+  let val graphid = zip_mat (normalize_nauty graph) in
     if emem graphid (!isod_glob)   
     then true
     else (isod_glob := eadd graphid (!isod_glob); false)
