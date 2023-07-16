@@ -412,7 +412,7 @@ fun decompose acc l = case l of
   | a :: m => (a,rev acc @ m) :: decompose (a :: acc) m 
 
 fun refine_partition acc partition = case partition of
-    [] => raise ERR "refine_partition" ""
+    [] => raise ERR "refine_partition" "all elements are colored differently"
   | [a] :: m => refine_partition ([a] :: acc) m
   | l :: m => map (fn (x,y) => rev acc @ [[x]] @ [y] @ m)              
               (decompose [] l)
@@ -440,8 +440,9 @@ fun colorv_of graphsize partition =
  end
 
 fun equitable_partition_aux graphsize ioneighl partition =
-  let 
-    val ncolor = length partition 
+  let val ncolor = length partition in
+  if ncolor = graphsize then partition else
+  let
     val colorv = colorv_of graphsize partition
     fun f (x,ioentry) = 
       ((Array.sub (colorv,x), gather_iocolors colorv ioentry), x)
@@ -458,6 +459,7 @@ fun equitable_partition_aux graphsize ioneighl partition =
       newpartition
     else equitable_partition_aux graphsize ioneighl newpartition
   end
+  end
   
 fun equitable_partition graph =
   let
@@ -468,30 +470,30 @@ fun equitable_partition graph =
     equitable_partition_aux graphsize ioneighl [vertexl]
   end
 
-fun refine_partition_loop graph ioneighl partl = 
-  let    
+fun refine_partition_loop limit graph ioneighl partl = 
+  if length partl > limit then first_n limit partl else
+  let
+    val graphsize = mat_size graph
     val partl1 = List.concat (map (refine_partition []) partl)
-    val partl2 = unify_partitions graph (mat_size graph) partl1
-    fun mk_equitable x = equitable_partition_aux (mat_size graph) ioneighl x
+    fun mk_equitable x = equitable_partition_aux graphsize ioneighl x
+    val partl2 = map mk_equitable partl1
+    val partl3 = unify_partitions graph graphsize partl2
+    val (partl4,partl5) = partition (fn x => length x = graphsize) partl3
+    val newlimit = limit - length partl4
   in
-    if length partl2 > 64 then (incr level2; partl) else
-    let val partl3 = map mk_equitable partl2 in
-      if length (hd partl3) = mat_size graph 
-      then partl3
-      else refine_partition_loop graph ioneighl partl3
-    end
+    partl4 @ refine_partition_loop newlimit graph ioneighl partl5
   end
 
-(* warning: limited to 64 partitions, 
+(* warning: limited to "limit" partitions, 
    some partition might give the same graph *)
-fun nauty_partition graph =
+fun nauty_partition limit graph =
   let
     val graphsize = mat_size graph
     val vertexl = List.tabulate (graphsize,I)
     val ioneighl = map_assoc (io_neighbors graph) vertexl
     val part = equitable_partition_aux graphsize ioneighl [vertexl]
   in
-    refine_partition_loop graph ioneighl [part]
+    refine_partition_loop limit graph ioneighl [part]
   end
 
 fun normalize_nauty graph =
@@ -499,7 +501,7 @@ fun normalize_nauty graph =
     val _ = incr level1
     val graphsize = mat_size graph
     fun f x = mat_permute (graph,graphsize) (mk_permf x)
-    val partl = nauty_partition graph
+    val partl = nauty_partition 64 graph
   in
     case partl of [part] => f (List.concat part) | _ =>
       let 
@@ -669,7 +671,7 @@ fun check_iso grapho = case grapho of
    Unit propagation
    ------------------------------------------------------------------------- *)
   
-  (*
+(*
 fun propagate_color graphtop color =
   let 
     val r = ref (eempty (cpl_compare Int.compare Int.compare))
@@ -1228,7 +1230,7 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60_refine" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60_refine2" (rev cnfl);
 length rl;
 *)
 
