@@ -6,9 +6,8 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel smlParallel
 val ERR = mk_HOL_ERR "ramsey"
 
-
 (* -------------------------------------------------------------------------
-   Parameters (edit the file to make the changes)
+   Config file
    ------------------------------------------------------------------------- *)
 
 val ramseyconfigd = 
@@ -31,7 +30,6 @@ fun rflag s r =
 
 val real_time = rflag "real_time" 0.0
 val abstract_time = iflag "abstract_time" 0
-val propagate_flag = bflag "propagate_flag" false
 val memory = iflag "memory" 10000
 
 val symmetry_flag = ref false
@@ -48,8 +46,8 @@ fun log s = print_endline s
 
 val blue = 1
 val red = 2
-val blue_array_glob = ref (Array.fromList [true])
-val red_array_glob = ref (Array.fromList [true])
+val blue_supershapes_glob = ref (Array.fromList [true])
+val red_supershapes_glob = ref (Array.fromList [true])
 (*
 val blue_prop_glob = ref (Array.fromList [[(0,0)]])
 val red_prop_glob = ref (Array.fromList [[(0,0)]])
@@ -111,8 +109,8 @@ fun mat_appi f m =
 local open IntInf in
   fun zip_mat m =
     let val r = ref 1 in
-      mat_appi (fn (i,j,x) => if i = j then () else r := !r * 3 + 
-        IntInf.fromInt x) m; !r
+      mat_appi (fn (i,j,x) => if i = j then () else 
+                              r := !r * 3 + IntInf.fromInt x) m; !r
     end
 end
 
@@ -121,6 +119,7 @@ fun mat_permute (m,size) sigma =
   let fun f (x,y) = mat_sub (m, sigma x, sigma y) in
     mat_tabulate (size, f)
   end
+  
 fun random_mat size = 
   mat_tabulate (size,fn (a,b) => if a=b then 0 else random_int (0,2));
 fun mat_size m = 
@@ -130,10 +129,12 @@ fun mat_size m =
 fun random_shape size color =
    mat_tabulate (size,fn (a,b) => if a=b then 0 else 
     if random_real () < 0.5 then 0 else color)
-fun symmetrify size m = 
-  mat_tabulate (size, fn (a,b) => 
+
+fun symmetrify m = 
+  mat_tabulate (mat_size m, fn (a,b) => 
   if a=b then 0 else if a < b then mat_sub (m,a,b) else mat_sub (m,b,a));
-fun random_symmat size = symmetrify size (random_mat size);
+
+fun random_symmat size = symmetrify (random_mat size);
  
 fun mat_compare_aux size a1 a2 i j = 
   case Int.compare (Array2.sub (a1,i,j),Array2.sub (a2,i,j)) of
@@ -166,16 +167,16 @@ fun mat_add (edge,color) graph  =
   
 fun mat_addl edgecl graph = foldl (uncurry mat_add) graph edgecl
 
-(* assumes mat contains 1 and 0s *)    
+(* assumes shape contains 1 and 0s and is not too big *)    
 fun shape_to_int_fixedsize m = 
   let val r = ref 0 (* can start at zero because all the same size *) in
     mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
-  end;  
+  end
     
 fun shape_to_int m = 
   let val r = ref 1 in
     mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
-  end;
+  end
 
 fun neighbor_of color graph x = 
   let 
@@ -208,7 +209,6 @@ fun full_neighbor graph =
      inneighbor_of red graph x]
     )
 
-
 fun string_of_edgecl edgecl = 
   let fun f ((i,j),x) = its i ^ "," ^ its j ^ ":" ^ its x in
     String.concatWith " " (map f edgecl)
@@ -222,15 +222,10 @@ fun string_of_graph graph =
     String.concatWith ", " (map f (named_neighbor red graph))
   end
   
-fun string_of_bluegraph graph = 
+fun string_of_shape graph = 
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
     String.concatWith ", " (map f (named_neighbor blue graph))
   end
-  
-fun string_of_redgraph graph = 
-  let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
-    String.concatWith ", " (map f (named_neighbor red graph))
-  end    
 
 (* -------------------------------------------------------------------------
    Switching between representations
@@ -269,6 +264,15 @@ fun edgecl_to_mat edgecl =
   in
     mat_tabulate (size, f)
   end
+  
+fun edgel_to_shape edgel =
+  let
+    val edged = enew (cpl_compare Int.compare Int.compare) edgel
+    val size = list_imax (List.concat (map (fn (a,b) => [a,b]) edgel)) + 1
+    fun f (i,j) = if emem (i,j) edged then 1 else 0 
+  in
+    mat_tabulate (size, f)
+  end  
 
 (* -------------------------------------------------------------------------
    Permutations
@@ -290,93 +294,19 @@ fun mk_permf perm =
   in 
     f 
   end 
-  
-(* -------------------------------------------------------------------------
-   Stable permutations
-   ------------------------------------------------------------------------- *)
-
-(* benefit cost analysis between getting more data 
-   doing all permutations *)  
-fun has_repetition l = case l of 
-    [] => false
-  | [a] => false
-  | a :: b :: m => a = b orelse has_repetition (b :: m)
-
-fun split_same [] = []
-  | split_same (x::xs) =
-    let fun aux xs res =
-        case xs of
-            [] => [List.rev res]
-          | y::ys => if fst y = fst x then aux ys (y::res)
-                     else (List.rev res) :: split_same xs
-    in aux xs [x]
-    end;
-
-(* l is assumed to be ordered (todo rename elements) *)
-
-val perm_limit = 10
-
-fun productl start l = case l of [] => start | a :: m => 
-  if a * start > 10 then a * start else (productl (a * start) m)
-
-(* normalize with respect to permutations *)
-fun stable_permutations l =
-  let 
-    val l0 = number_snd 0 l
-    val l1 = split_same l0
-    val l2 = map (map snd) l1
-    val i = productl 1 (map length l2) 
-  in
-    if i > 10
-    then (incr level4; [List.tabulate (length l,I)]) (* todo pick random subsets *)
-    else 
-      let 
-        val l3 = map permutations l2
-        val l4 = cartesian_productl l3
-    in
-      map List.concat l4
-    end
-  end
 
 (* -------------------------------------------------------------------------
-   Computes all isomorphisc variants of an input shape.
+   Nauty algorithm
    ------------------------------------------------------------------------- *)
 
-(* todo: optimize for undirected graphs *)
-fun isomorphic_shapes shape =
-  let
-    val shapesize = Int.min (Array2.dimensions shape)
-    val perml = permutations (List.tabulate (shapesize,I))
-    val permfl = map mk_permf perml
-    val shapel = map (mat_permute (shape,shapesize)) permfl
-    val shaped = enew (mat_compare_fixedsize shapesize) shapel
-    val _ = log (its (elength shaped) ^ " isomorphic variants")
-  in
-    (elist shaped, shapesize)
-  end;
-  
-fun normalize_naively mat =
-  let 
-    val size = mat_size mat 
-    val fl = map mk_permf (permutations (List.tabulate (size,I)))  
-    val matl = map (mat_permute (mat,size)) fl
-  in
-    hd (dict_sort (mat_compare_fixedsize size) matl)
-  end
-
-(* -------------------------------------------------------------------------
-   Coloring algorithm
-   ------------------------------------------------------------------------- *)
+val nauty_failure = ref false
+val nauty_limit = 64
 
 fun io_neighbors graph x =
   [inneighbor_of blue graph x,
    inneighbor_of red graph x,
    neighbor_of blue graph x,
    neighbor_of red graph x]
-  
-(* make a reference so that it's possible to update colors
-   of a vertex in every neighborhood *) 
-
 
 fun string_of_partition part = 
   String.concatWith "|" (map (String.concatWith " " o map its) part)
@@ -456,7 +386,9 @@ fun equitable_partition graph =
   end
 
 fun refine_partition_loop limit graph ioneighl partl = 
-  if length partl > limit then first_n limit partl else
+  if length partl > limit then (incr level2; nauty_failure := true;
+                                first_n limit partl) 
+  else
   let
     val graphsize = mat_size graph
     val partl1 = List.concat (map (refine_partition []) partl)
@@ -488,18 +420,26 @@ fun normalize_nauty graph =
     val _ = incr level1
     val graphsize = mat_size graph
     fun f x = mat_permute (graph,graphsize) (mk_permf x)
-    val partl = nauty_partition 64 graph
+    val partl = nauty_partition nauty_limit graph
   in
     case partl of [part] => f (List.concat part) | _ =>
       let 
         val perml0 = map List.concat partl
         val perml1 = dict_sort (list_compare Int.compare) perml0
-        val perml2 = map f perml1
+        val matl = map f perml1
       in
-        hd (dict_sort (mat_compare_fixedsize graphsize) perml2)
+        hd (dict_sort (mat_compare_fixedsize graphsize) matl)
       end
   end
   
+fun normalize_nauty_safe graph = 
+  let 
+    val _ = nauty_failure := false
+    val r = normalize_nauty graph
+  in
+    if !nauty_failure then raise ERR "normalize_nauty_safe" "" else r
+  end
+    
 (* 
 load "ramsey"; open aiLib kernel ramsey;
 val x = random_shape 5 1;
@@ -511,16 +451,6 @@ val l = equitable_partition x;
    Test if a shape is a subgraph of a bigger graph
    ------------------------------------------------------------------------- *)
    
-fun subsets_of_size n l = case l of
-    [] => if n = 0 then [[]] else []
-  | a :: m => 
-    let
-      val l1 = map (fn subset => a::subset) (subsets_of_size (n - 1) m)
-      val l2 = subsets_of_size n m
-    in
-      l1 @ l2
-    end;
-    
 fun subsets_of_size_faster n (l,ln) = 
   if n > ln then [] else if n = ln then [l] else
   (
@@ -534,7 +464,9 @@ fun subsets_of_size_faster n (l,ln) =
     in
       l1 @ l2
     end  
-  ) 
+  )
+  
+fun subsets_of_size n l =  subsets_of_size_faster n (l, length l)
 
 fun subcoloring_aux size shape1 shape2 i j = 
   if Array2.sub (shape1,i,j) <> 0 andalso 
@@ -553,39 +485,25 @@ fun keep_only color graph =
   mat_tabulate (mat_size graph,
     fn (i,j) => if mat_sub (graph,i,j) = color then 1 else 0)
 
-fun has_shape_c graph color =
-  let 
-    val shapesize = if color = blue then !blue_size_glob else !red_size_glob
-    val barray = if color = blue then !blue_array_glob else !red_array_glob
-    val unigraph = keep_only color graph
-    val vertexl = List.tabulate (mat_size unigraph, I)
-    val l1 = subsets_of_size_faster shapesize (vertexl,mat_size unigraph)
-    fun f subset =
-      let 
-        val sigma = mk_permf subset
-        val candshape = mat_permute (unigraph,shapesize) sigma
-      in
-        Array.sub (barray, shape_to_int_fixedsize candshape)
-      end
-  in
-    exists f l1
-  end;   
-
 fun has_shape_wcedge graph ((i,j),color) =
   let 
     val shapesize = if color = blue then !blue_size_glob else !red_size_glob
-    val barray = if color = blue then !blue_array_glob else !red_array_glob
+    val supershape_arr = if color = blue 
+       then !blue_supershapes_glob else !red_supershapes_glob
     val unigraph = keep_only color graph
     val vertexl = List.tabulate (mat_size unigraph, I)
     val l0 = filter (fn x => not (mem x [i,j])) vertexl
-    val l1 = subsets_of_size_faster (shapesize-2) (l0,length l0)
+    val l1 = subsets_of_size (shapesize-2) l0
     fun f subset =
       let 
         val sigma = mk_permf (i :: j :: subset)
         (* todo: avoid this intermediate representation *)
         val candshape = mat_permute (unigraph,shapesize) sigma
+        val entry = shape_to_int_fixedsize candshape
       in
-        Array.sub (barray, shape_to_int_fixedsize candshape)
+        Array.sub (supershape_arr,entry)
+        handle Subscript => raise ERR "has_shape_wcedge" (its entry ^ " " ^ its 
+           (Array.length supershape_arr))
       end
   in
     exists f l1
@@ -601,87 +519,12 @@ fun is_iso graph =
     then true
     else (isod_glob := eadd graphid (!isod_glob); false)
   end
-  
-fun check_iso grapho = case grapho of 
-    NONE => NONE 
-  | SOME graph => if is_iso graph then NONE else SOME graph
 
 (* -------------------------------------------------------------------------
    Unit propagation
    ------------------------------------------------------------------------- *)
-  
-(*
-fun propagate_color graphtop color =
-  let 
-    val r = ref (eempty (cpl_compare Int.compare Int.compare))
-    val shapesize = if color = blue 
-      then !blue_size_glob else !red_size_glob    
-    val graphsize = mat_size graphtop
-    val graph = keep_only color graphtop    
-    val subsetl = subsets_of_size_faster shapesize
-      (List.tabulate (graphsize,I),graphsize)
-    val prop_glob = if color = blue 
-      then !blue_prop_glob else !red_prop_glob
-    fun loop subsetl = case subsetl of [] => NONE | subset :: subsetcont =>
-      let 
-        val sigma = mk_permf subset
-        val candshape = mat_permute (graph,shapesize) sigma
-        val candedgel = Array.sub (prop_glob, shape_to_int_fixedsize candshape)
-        fun subloop l = case l of 
-            [] => loop subsetcont
-          | (i,j) :: edgecont => 
-            (r := eadd (sigma i, sigma j) (!r); subloop edgecont)
-      in
-        subloop candedgel
-      end 
-  in
-    loop subsetl; !r
-  end
 
-fun propagate_one graph = 
-  let
-    val _ = debugf "prop: " string_of_graph graph
-    val _ = test_timer ()
-    val rededged = propagate_color graph blue
-    val rededgel = map_assoc (fn _ => red) (elist rededged)
-    val blueedged = propagate_color graph red
-    val blueedgel = map_assoc (fn _ => blue) (elist blueedged)
-    val graphedgecl = mat_to_edgecl graph
-    val _ = if null blueedgel 
-            then ()
-            else debugf  "prop blue: " string_of_edgecl blueedgel
-    val _ = if null rededgel 
-            then () 
-            else debugf  "prop red: " string_of_edgecl rededgel
-  in
-    case edge_conflict (rededgel @ blueedgel @ graphedgecl) of
-      NONE => NONE
-    | SOME edgecl => 
-      let val newedgecl = filter (fn ((i,j),_) => 
-        mat_sub (graph,i,j) = 0) edgecl
-      in
-        if null newedgecl
-        then SOME (true, graph)
-        else (debugf  "prop update: " string_of_edgecl newedgecl; 
-              SOME (false, mat_addl newedgecl graph))
-      end
-  end
-   
-fun propagate_loop graph = case propagate_one graph of
-    NONE => NONE
-  | SOME (true,newgraph) => SOME newgraph
-  | SOME (false,newgraph) => propagate_loop newgraph
-
-fun propagate graph = 
-  if propagate_flag then propagate_loop graph else SOME graph
-
-*)
-(* -------------------------------------------------------------------------
-   Alternative unit propagation only using has shape with edge
-   edgel: list of candidates uncolored edges
-   ------------------------------------------------------------------------- *)
-
-fun propagate_alt_one graph undecl edgel = case edgel of 
+fun propagate_one graph undecl edgel = case edgel of 
     [] => SOME (graph,rev undecl)
   | edge :: m => 
     let 
@@ -691,16 +534,16 @@ fun propagate_alt_one graph undecl edgel = case edgel of
       val redb = has_shape_wcedge redext (edge,red) 
     in
       if blueb andalso redb then NONE
-      else if blueb then propagate_alt_one redext undecl m
-      else if redb then propagate_alt_one blueext undecl m
-      else propagate_alt_one graph (edge :: undecl) m
+      else if blueb then propagate_one redext undecl m
+      else if redb then propagate_one blueext undecl m
+      else propagate_one graph (edge :: undecl) m
     end
-    
-fun propagate_alt graph edgel =
-   case propagate_alt_one graph [] edgel of 
+   
+fun propagate graph edgel =
+   case propagate_one graph [] edgel of 
      NONE => NONE
    | SOME (graph,newedgel) => 
-     if newedgel = edgel then SOME graph else propagate_alt graph newedgel
+     if newedgel = edgel then SOME graph else propagate graph newedgel
 
 (* -------------------------------------------------------------------------
    Test if a graph has cycle
@@ -743,17 +586,17 @@ fun random_shape_nocycle n color =
    Order in which the vertices should be colored
    ------------------------------------------------------------------------- *)
 
-fun pairbelowy y = List.tabulate (y+1,fn x => (x,y));
+fun pairbelowy y = List.tabulate (y+1,fn x => (x,y))
 
-fun search_order size =
+fun search_order_undirected size = 
   let 
     val search_order0 = List.concat (List.tabulate (size,fn y => pairbelowy y))
-    val search_order1 = filter (fn (x,y) => x <> y) search_order0
-    val search_order2 = 
-      List.concat (map (fn (x,y) => [(x,y),(y,x)]) search_order1)
   in
-    search_order2
-  end
+    filter (fn (x,y) => x <> y) search_order0
+  end  
+
+fun search_order size = List.concat 
+  (map (fn (x,y) => [(x,y),(y,x)]) (search_order_undirected size))
 
 fun next_edge_aux graphsize graph edgel = case edgel of
     [] => NONE
@@ -779,9 +622,8 @@ fun blank_edges graphsize graph edgel = case edgel of
 fun add_break () = if !counter >= 1000 then log "" else () 
 fun stats () = 
   (
-  log ("graphs: " ^ its (elength (!isod_glob)));
-  log ("level1: " ^ its (!level1) ^ ", level2: " ^ its (!level2)) (* ^
-       ", level3: " ^ its (!level3) ^ ", level4: " ^ its (!level4)) *)
+  log ("graphs: " ^ its (elength (!isod_glob)) ^ ", " ^ its (!level1));
+  if !level2 <> 0 then log ("norm_failure: " ^ its (!level2)) else ()
   )
   
 fun search_end grapho = case grapho of 
@@ -805,17 +647,14 @@ fun search_loop path =
         fun backtrack () = search_loop ((graph,colorm) :: parentl)
       in
         debugf "split: " f (); test_timer ();
-        (* if is_iso candgraph 
-          then (debug "iso"; backtrack ()) else *)
         if has_shape_wcedge candgraph (edge,color)
           then (debug "conflict"; backtrack ()) else
         (
-        case propagate_alt candgraph 
+        case propagate candgraph 
           (blank_edges (mat_size candgraph) candgraph (!edgel_glob)) of
           NONE => (debug "pconflict"; backtrack ())
         | SOME propgraph =>
-          if (* mat_compare (newgraph,candgraph) <> EQUAL andalso *) 
-            is_iso propgraph then (debug "iso"; backtrack ()) else
+          if is_iso propgraph then (debug "iso"; backtrack ()) else
           let 
             val child = (propgraph,[blue,red])
             val newparentl = (graph,colorm) :: parentl
@@ -836,12 +675,11 @@ fun search size =
     search_loop path
   end
 
-
 (* -------------------------------------------------------------------------
    Graph representations: set of edges, neighbors, adjacency matrices
    ------------------------------------------------------------------------- *)
 
-fun edgecl_to_mat_size size edgecl =
+fun edgecl_to_mat_fixedsize size edgecl =
   let 
     val edgel = map fst edgecl
     val edged = dnew (cpl_compare Int.compare Int.compare) edgecl
@@ -849,98 +687,104 @@ fun edgecl_to_mat_size size edgecl =
   in
     mat_tabulate (size, f)
   end  
-  
-fun mat_to_edge1l m =
-  let 
-    val r = ref []
-    fun f (i,j,x) = if i = j orelse x = 0 then () else 
-      r := ((i,j),1) :: !r
-  in
-    mat_appi f m; !r
-  end
 
 fun read_edgel s =
   map pair_of_list
   (mk_batch 2 (map string_to_int (String.tokens (not o Char.isDigit) s)))
 
-fun read_shape file =
+fun read_problem file =
   let 
     val sl = readl file
     val reds = List.nth (sl,5)
     val blues = List.nth (sl,6)
   in
-    (edgecl_to_mat (map_assoc (fn _ => blue) (read_edgel blues)),
-     edgecl_to_mat (map_assoc (fn _ => red) (read_edgel reds)))
+    (edgel_to_shape (read_edgel blues), edgel_to_shape (read_edgel reds))
   end
   
 (* -------------------------------------------------------------------------
-   Enumerating all supershapes of multiples shape
+   All shapes of a certain size
+   -------------------------------------------------------------------------
+*)
+
+fun all_undirected_shapes size = 
+  let 
+    val edgel = search_order_undirected size 
+    val edgecll = cartesian_productl (map (fn x => [(x,0),(x,1)]) edgel)
+    val edgecll' = filter (fn l => not (all (fn (_,c) => c = 0) l)) edgecll
+    val matl = map edgecl_to_mat edgecll'
+  in
+    map symmetrify matl
+  end
+  
+fun reduce_mat m = 
+  let 
+    val edgecl = mat_to_edgecl m
+    val vertexl = mk_fast_set Int.compare 
+      (List.concat (map (fn ((a,b),_) => [a,b]) edgecl))
+  in
+    mat_permute (m, length vertexl) (mk_permf vertexl)
+  end 
+  
+(*  
+load "ramsey"; open aiLib kernel ramsey;
+val shapel1 = all_undirected_shapes 7; length shapel1;
+val shapel2 = regroup_isoshapes shapel1; length shapel2;
+val shapel3 = map (normalize_nauty o reduce_mat o snd) shapel2;
+val shapel4 = map_assoc shape_to_int shapel3;
+*)
+
+(* -------------------------------------------------------------------------
+   All supershapes of multiples shape
    ------------------------------------------------------------------------- *)
 
-fun supershapes_one_aux size edge1l =
+fun isomorphic_shapes shape =
+  let
+    val shapesize = Int.min (Array2.dimensions shape)
+    val perml = permutations (List.tabulate (shapesize,I))
+    val permfl = map mk_permf perml
+    val shapel = map (mat_permute (shape,shapesize)) permfl
+    val shaped = enew (mat_compare_fixedsize shapesize) shapel
+    val _ = log (its (elength shaped) ^ " isomorphic variants")
+  in
+    elist shaped
+  end
+
+fun supershapes_one_aux size edgecl =
   let 
+    val edgel = map fst edgecl
     val edgel1 = search_order size 
-    val edgel2 = filter (fn x => not (mem x (map fst edge1l))) edgel1
-    val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) edgel2)
-    val l2 = map (fn x => edge1l @ x) l1
-    val il = map (fn x => shape_to_int_fixedsize (edgecl_to_mat_size size x)) l2
+    val uncolored = filter (fn x => not (mem x edgel)) edgel1
+    val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) uncolored)
+    val l2 = map (fn x => edgecl @ x) l1
+    val il = map (fn x => shape_to_int_fixedsize 
+       (edgecl_to_mat_fixedsize size x)) l2
   in
     il
-  end; 
+  end
 
 fun supershapes_one size shape = 
-  supershapes_one_aux size (mat_to_edge1l shape)
+  supershapes_one_aux size (mat_to_edgecl shape)
   
 fun supershapes shape = 
   let 
-    val (isoshapel,size) = isomorphic_shapes shape
-    val a = Array.tabulate (int_pow 2 (size * (size - 1)), fn _ => false)
+    val shapesize = mat_size shape
+    val isoshapel = isomorphic_shapes shape
+    val a = Array.array (int_pow 2 (shapesize * (shapesize - 1)), false)
+    val i = ref 0
     fun f shape = 
-      let val il = supershapes_one size shape in
-        app (fn x => Array.update (a,x,true)) il
+      let val il = supershapes_one shapesize shape in
+        app (fn x => (
+          Array.update (a,x,true) handle Subscript => 
+          raise ERR "supershapes" (its x); incr i)) il
       end
+      
   in
     app f isoshapel; a
-  end 
-
-(* -------------------------------------------------------------------------
-   Enumerating all supershapes of subshapes for unit propagation
-   ------------------------------------------------------------------------- *)
-
-fun all_split l =
-  let val l1 =
-    map (fn chosen => (filter (fn x => x <> chosen) l, chosen)) l
-  in
-    map (fn (a,b) => (a,fst b)) l1
-  end
-  
-fun insert_ol cmp x l = case l of
-    [] => [x]
-  | a :: m => 
-    (case cmp (x,a) of
-      EQUAL => l 
-    | LESS => x :: l
-    | GREATER => a :: insert_ol cmp x m
-    )
-
-val cmpii = cpl_compare Int.compare Int.compare
-fun update_proparray a (il,edge) =
-  app (fn x => Array.update (a,x, insert_ol cmpii edge (Array.sub (a,x)))) il
-
-fun propshapes shape = 
-  let
-    val (isoshapel,size) = isomorphic_shapes shape
-    val (a: (int*int) list array) = 
-      Array.tabulate (int_pow 2 (size * (size - 1)), fn _ => [])
-    val subshapel = List.concat (map (all_split o mat_to_edge1l) isoshapel)
-    fun f size (shape,edge) = (supershapes_one_aux size shape, edge)
-    val (_,t) = add_time (app (update_proparray a o f size)) subshapel;
-  in
-    log ("propshapes: " ^ rts_round 2 t); a
   end
 
 (* -------------------------------------------------------------------------
-   Precompute supershapes of shape in dr100
+   Precompute supershapes of shape 
+   (* maybe remove as it does not save that much time *)
    ------------------------------------------------------------------------- *)
 
 fun mat_appi f m = 
@@ -948,110 +792,70 @@ fun mat_appi f m =
     Array2.appi Array2.RowMajor f range
   end
 
-fun all_shapes () =
+fun all_shapes_from_dir s =
   let 
-    val filel = listDir (selfdir ^ "/dr100");
+    val filel = listDir s;
     val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel
-    val brshapel = map_assoc (read_shape o (fn x => "dr100/" ^ x)) cnfl
-    val l1 = map snd brshapel;
-    val l2 = map (fn (a,b) => (keep_only blue a, keep_only red b)) l1;
+    val brshapel = map (read_problem o (fn x => "dr100/" ^ x)) cnfl
  in 
-   List.concat (map (fn (a,b) => [a,b]) l2)
+   mk_fast_set mat_compare (List.concat (map (fn (a,b) => [a,b]) brshapel))
  end
 
-fun regroup_isoshapes l3 =
+fun regroup_isoshapes shapel =
   let
-    val l6 = map (normalize_naively o snd) l3
-    val l7 = map swap (map_assoc shape_to_int l6);
-    val d2 = dregroup Int.compare l7 
-    val l8 = map (fn (a,b) => (a,hd b)) (dlist d2)  
+    val l1 = map normalize_nauty_safe shapel
+    val l2 = map swap (map_assoc shape_to_int l1)
+    val d = dregroup Int.compare l2
+    val l3 = map (fn (a,b) => (a,hd b)) (dlist d)  
  in
-   l8
+   l3
  end
 
 fun ats a = String.concatWith " "
   (map (fn x => if x then its 1 else its 0) (array_to_list a));
 
-fun compute_write_supershapes ishapel =
-  let 
-    fun f (i,shape) = 
+fun write_supershapes outdir shapel =
+  let
+    val ishapel = regroup_isoshapes shapel
+    fun f (shapeid,shape) = 
       let val a = supershapes shape in
-        writel (selfdir ^ "/dr100shapes/" ^ its i) [ats a]
+        writel (outdir ^ "/" ^ its shapeid) [ats a]
       end
   in
     app f ishapel
   end
-  
-fun propts a = 
-  let 
-    fun f (x,y) =  its x ^ "," ^ its y
-    fun g l = String.concatWith " " (map f l)
-  in
-    map g (array_to_list a) 
-  end
-  
-fun compute_write_propshapes ishapel =
-  let fun f (i,shape) = 
-    writel (selfdir ^ "/dr100propshapes/" ^ its i) 
-      (propts (propshapes shape))
-  in
-    app f ishapel
-  end 
-  
+
+fun read_supershapes file = Array.fromList
+  (map (fn s => s = "1") (String.tokens Char.isSpace (hd (readl file))))
+
 (*  
 load "ramsey"; open aiLib kernel ramsey;
-val ishapel = regroup_isoshapes (all_shapes ());
-val (_,t) = add_time compute_write_propshapes ishapel;
+val shapel = all_shapes_from_dir (selfdir ^ "/dr100");
+clean_dir (selfdir ^ "/dr100shapes");
+val (_,t) = add_time (write_supershapes (selfdir ^ "/dr100shapes")) shapel;
 *) 
 
 (* -------------------------------------------------------------------------
    Experiment
    ------------------------------------------------------------------------- *)
- 
-fun read_array file = Array.fromList
-  (map (fn s => s = "1") (String.tokens Char.isSpace (hd (readl file))))
-  
-fun read_prop file = 
-  let 
-    fun read_entry s = 
-      let val (a,b) = split_string "," s in 
-        (string_to_int a, string_to_int b) 
-      end
-    fun read_line s = 
-      map read_entry (String.tokens Char.isSpace s)
-  in
-    Array.fromList (map read_line (readl_empty file))
-    (* some lines are empty and it is important *)
-  end 
- 
+
 fun init_shapes (blueshape,redshape) =
   let
     val shapedir = selfdir ^ "/dr100shapes"
-    val propdir = selfdir ^ "/dr100propshapes"
-    val blueshape_norm = normalize_naively (keep_only blue blueshape)
-    val redshape_norm = normalize_naively (keep_only red redshape)
+    val blueshape_norm = normalize_nauty_safe blueshape
+    val redshape_norm = normalize_nauty_safe redshape
     val bluefile = shapedir ^ "/" ^ its (shape_to_int blueshape_norm)
     val redfile = shapedir ^ "/" ^ its (shape_to_int redshape_norm)
-    val bluepropfile = propdir ^ "/" ^ its (shape_to_int blueshape_norm) 
-    val redpropfile = propdir ^ "/" ^ its (shape_to_int redshape_norm) 
-    val _ =  
-       if exists_file bluefile
-       then blue_array_glob := read_array bluefile
-       else blue_array_glob := supershapes blueshape
-    val _ =  
-       if exists_file redfile
-       then red_array_glob := read_array redfile
-       else red_array_glob := supershapes redshape
-    (*
-    val _ =  
-       if exists_file bluepropfile
-       then blue_prop_glob := read_prop bluepropfile
-       else blue_prop_glob := propshapes blueshape
-    val _ =  
-       if exists_file redpropfile
-       then red_prop_glob := read_prop redpropfile
-       else red_prop_glob := propshapes redshape
-    *)
+    val _ = print_endline ("blue shape: " ^ string_of_shape blueshape)
+    val _ = blue_supershapes_glob := supershapes blueshape
+       (* if exists_file bluefile
+       then blue_supershapes_glob := read_supershapes bluefile
+       else  *) 
+    val _ = print_endline ("red shape:  " ^ string_of_shape redshape)
+    val _ = red_supershapes_glob := supershapes redshape
+       (* if exists_file redfile
+       then red_supershapes_glob := read_supershapes redfile
+       else  *) 
     val _ = blue_size_glob := mat_size blueshape
     val _ = red_size_glob := mat_size redshape
   in
@@ -1060,8 +864,6 @@ fun init_shapes (blueshape,redshape) =
 
 fun search_each_size (blueshape,redshape) =
   let
-    val _ = print_endline ("blue shape: " ^ string_of_bluegraph blueshape)
-    val _ = print_endline ("red shape:  " ^ string_of_redgraph redshape)
     val (_,t) = add_time init_shapes (blueshape,redshape)
     val _ = print_endline ("reading supershapes: " ^ rts_round 2 t)
     val initsize = Int.max (mat_size blueshape, mat_size redshape) 
@@ -1079,31 +881,29 @@ fun search_each_size (blueshape,redshape) =
     loop initsize 
   end
 
-fun run expname = 
+fun run brshapel = 
   let
-    val expdir = selfdir ^ "/exp/" ^ expname
-    val _ = app mkDir_err [selfdir ^ "/exp", expdir]
-    val filel = ["adr_o3_o3_rb_inf_cnf.p"]
-    val filel = listDir (selfdir ^ "/dr100")
-    val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel
-    val brshapel = map_assoc (read_shape o (fn x => "dr100/" ^ x)) cnfl
-    fun f ((file,brshape),i) = 
+    fun f (brshape,i) = 
        let 
-         val _ = log ("File " ^ its i ^ ": " ^ file)
          val (r,t) = add_time search_each_size brshape
-         val _ = log ("file time: " ^ rts_round 2 t)
+         val _ = log ("problem time: " ^ rts_round 2 t)
        in
          r
        end 
     val (rl,t) = add_time (map f) (number_snd 0 brshapel)
     val _ = log ("total time: " ^ rts_round 2 t)
-    val l = filter (fst o snd) (combine (cnfl,rl))
-    fun g (s,(_,n)) = s ^ ": " ^ its n; 
-    val _ = writel (expdir ^ "/results") (map g l)
   in
     rl
   end
   
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val filel = ["adr_o3_o3_rb_inf_cnf.p"];
+val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
+val brshapel = map (read_problem o (fn x => "dr100/" ^ x)) cnfl;
+run brshapel;
+*)  
+
 (* -------------------------------------------------------------------------
    Parallel execution
    ------------------------------------------------------------------------- *)
@@ -1111,7 +911,7 @@ fun run expname =
 fun ramseyspec_fun param file =
    let 
      val _ = log ("File: " ^ file)
-     val brshape = (read_shape o (fn x => selfdir ^ "/dr100/" ^ x)) file
+     val brshape = (read_problem o (fn x => selfdir ^ "/dr100/" ^ x)) file
      val (r,t) = add_time search_each_size brshape
      val _ = log ("file time: " ^ rts_round 2 t)
    in
@@ -1168,9 +968,5 @@ val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
 val rl = parallel_ramsey 32 "prop60_refine3" (rev cnfl);
 length rl;
-
-
-
-
 *)
 
