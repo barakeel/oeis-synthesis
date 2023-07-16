@@ -167,12 +167,12 @@ fun mat_add (edge,color) graph  =
 fun mat_addl edgecl graph = foldl (uncurry mat_add) graph edgecl
 
 (* assumes mat contains 1 and 0s *)    
-fun mat_to_int_fixedsize m = 
+fun shape_to_int_fixedsize m = 
   let val r = ref 0 (* can start at zero because all the same size *) in
     mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
   end;  
     
-fun mat_to_int m = 
+fun shape_to_int m = 
   let val r = ref 1 in
     mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
   end;
@@ -339,7 +339,7 @@ fun stable_permutations l =
   end
 
 (* -------------------------------------------------------------------------
-   Shapes: computes all isomorphism of an input shape before starting
+   Computes all isomorphisc variants of an input shape.
    ------------------------------------------------------------------------- *)
 
 (* todo: optimize for undirected graphs *)
@@ -363,21 +363,6 @@ fun normalize_naively mat =
   in
     hd (dict_sort (mat_compare_fixedsize size) matl)
   end
-
-fun normalize_weak m =
-  let 
-    val size = mat_size m
-    val blueneighl = map length (all_neighbor blue m)
-    val redneighl = map length (all_neighbor red m)
-    val neighl = number_fst 0 (combine (blueneighl,redneighl))
-    val cmp = snd_compare (cpl_compare Int.compare Int.compare)
-    val neighsortedl = dict_sort cmp neighl
-    val permutation = map fst neighsortedl
-    val sigma = mk_permf permutation
-  in
-    mat_permute (m,size) sigma
-  end
-
 
 (* -------------------------------------------------------------------------
    Coloring algorithm
@@ -522,54 +507,6 @@ val y = mat_to_edgecl x;
 val l = equitable_partition x;
 *)
 
-fun normalize_strong m =
-  let
-    val msize = mat_size m
-    val _ = incr level1
-    val blueneighl = all_neighbor blue m
-    val redneighl = all_neighbor red m
-    val blueinneighl = all_inneighbor blue m
-    val redinneighl = all_inneighbor red m
-    val neighl = list_combine 
-      (map (map length) [blueneighl,blueinneighl,redneighl,redinneighl])
-    val cmp = snd_compare (list_compare Int.compare)
-    val neighsortedl = dict_sort cmp (number_fst 0 neighl)
-  in
-  if not (has_repetition (map snd neighsortedl)) 
-  then  
-    let 
-      val permutation = map fst neighsortedl
-      val sigma = mk_permf permutation
-    in
-      mat_permute (m,msize) sigma
-    end
-  else
-  let
-    val _ = incr level2
-    val neighv = Vector.fromList neighl 
-    fun f l = dict_sort (list_compare Int.compare)
-      (map (fn x => Vector.sub (neighv,x)) l)
-    val neighl2 = list_combine (map (map f)
-      [blueneighl,blueinneighl,redneighl,redinneighl])
-    val cmp = snd_compare 
-      (list_compare (list_compare (list_compare Int.compare)))
-    val neighsortedl2 = dict_sort cmp (number_fst 0 neighl2)
-  in
-    let 
-      val valuel = map snd neighsortedl2
-      val _ = if not (has_repetition valuel) then incr level3 else ()
-      val permutation2 = map fst neighsortedl2
-      val sigma2 = mk_permf permutation2
-      (* val sigmal3 = map mk_permf permutationl3
-         val permutationl3 = stable_permutations valuel
-         val matl = map (fn x => mat_permute (m,msize) (sigma2 o x)) sigmal3 *)
-    in
-      mat_permute (m,msize) sigma2
-      (* hd (dict_sort (mat_compare_fixedsize msize) matl) *)
-    end
-  end 
-  end 
-  
 (* -------------------------------------------------------------------------
    Test if a shape is a subgraph of a bigger graph
    ------------------------------------------------------------------------- *)
@@ -628,7 +565,7 @@ fun has_shape_c graph color =
         val sigma = mk_permf subset
         val candshape = mat_permute (unigraph,shapesize) sigma
       in
-        Array.sub (barray, mat_to_int_fixedsize candshape)
+        Array.sub (barray, shape_to_int_fixedsize candshape)
       end
   in
     exists f l1
@@ -648,7 +585,7 @@ fun has_shape_wcedge graph ((i,j),color) =
         (* todo: avoid this intermediate representation *)
         val candshape = mat_permute (unigraph,shapesize) sigma
       in
-        Array.sub (barray, mat_to_int_fixedsize candshape)
+        Array.sub (barray, shape_to_int_fixedsize candshape)
       end
   in
     exists f l1
@@ -689,7 +626,7 @@ fun propagate_color graphtop color =
       let 
         val sigma = mk_permf subset
         val candshape = mat_permute (graph,shapesize) sigma
-        val candedgel = Array.sub (prop_glob, mat_to_int_fixedsize candshape)
+        val candedgel = Array.sub (prop_glob, shape_to_int_fixedsize candshape)
         fun subloop l = case l of 
             [] => loop subsetcont
           | (i,j) :: edgecont => 
@@ -946,7 +883,7 @@ fun supershapes_one_aux size edge1l =
     val edgel2 = filter (fn x => not (mem x (map fst edge1l))) edgel1
     val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) edgel2)
     val l2 = map (fn x => edge1l @ x) l1
-    val il = map (fn x => mat_to_int_fixedsize (edgecl_to_mat_size size x)) l2
+    val il = map (fn x => shape_to_int_fixedsize (edgecl_to_mat_size size x)) l2
   in
     il
   end; 
@@ -1022,13 +959,10 @@ fun all_shapes () =
    List.concat (map (fn (a,b) => [a,b]) l2)
  end
 
-fun normalize_shapes l3 =
+fun regroup_isoshapes l3 =
   let
-    val l4 = map swap (map_assoc mat_to_int l3)
-    val d = dregroup Int.compare l4
-    val l5 = map (fn (a,b) => (a,hd b)) (dlist d)
-    val l6 = map (normalize_naively o snd) l5
-    val l7 = map swap (map_assoc mat_to_int l6);
+    val l6 = map (normalize_naively o snd) l3
+    val l7 = map swap (map_assoc shape_to_int l6);
     val d2 = dregroup Int.compare l7 
     val l8 = map (fn (a,b) => (a,hd b)) (dlist d2)  
  in
@@ -1066,7 +1000,7 @@ fun compute_write_propshapes ishapel =
   
 (*  
 load "ramsey"; open aiLib kernel ramsey;
-val ishapel = normalize_shapes (all_shapes ());
+val ishapel = regroup_isoshapes (all_shapes ());
 val (_,t) = add_time compute_write_propshapes ishapel;
 *) 
 
@@ -1096,10 +1030,10 @@ fun init_shapes (blueshape,redshape) =
     val propdir = selfdir ^ "/dr100propshapes"
     val blueshape_norm = normalize_naively (keep_only blue blueshape)
     val redshape_norm = normalize_naively (keep_only red redshape)
-    val bluefile = shapedir ^ "/" ^ its (mat_to_int blueshape_norm)
-    val redfile = shapedir ^ "/" ^ its (mat_to_int redshape_norm)
-    val bluepropfile = propdir ^ "/" ^ its (mat_to_int blueshape_norm) 
-    val redpropfile = propdir ^ "/" ^ its (mat_to_int redshape_norm) 
+    val bluefile = shapedir ^ "/" ^ its (shape_to_int blueshape_norm)
+    val redfile = shapedir ^ "/" ^ its (shape_to_int redshape_norm)
+    val bluepropfile = propdir ^ "/" ^ its (shape_to_int blueshape_norm) 
+    val redpropfile = propdir ^ "/" ^ its (shape_to_int redshape_norm) 
     val _ =  
        if exists_file bluefile
        then blue_array_glob := read_array bluefile
@@ -1234,5 +1168,9 @@ val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
 val rl = parallel_ramsey 32 "prop60_refine3" (rev cnfl);
 length rl;
+
+
+
+
 *)
 
