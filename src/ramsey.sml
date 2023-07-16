@@ -475,13 +475,14 @@ fun refine_partition_loop limit graph ioneighl partl =
   let
     val graphsize = mat_size graph
     val partl1 = List.concat (map (refine_partition []) partl)
-    fun mk_equitable x = equitable_partition_aux graphsize ioneighl x
-    val partl2 = map mk_equitable partl1
+    val partl2 = map (equitable_partition_aux graphsize ioneighl) partl1
     val partl3 = unify_partitions graph graphsize partl2
     val (partl4,partl5) = partition (fn x => length x = graphsize) partl3
     val newlimit = limit - length partl4
   in
-    partl4 @ refine_partition_loop newlimit graph ioneighl partl5
+    if null partl5 
+    then partl4 
+    else partl4 @ refine_partition_loop newlimit graph ioneighl partl5
   end
 
 (* warning: limited to "limit" partitions, 
@@ -516,7 +517,7 @@ fun normalize_nauty graph =
   
 (* 
 load "ramsey"; open aiLib kernel ramsey;
-val x = random_shape 10 1;
+val x = random_shape 5 1;
 val y = mat_to_edgecl x;
 val l = equitable_partition x;
 *)
