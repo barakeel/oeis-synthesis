@@ -493,6 +493,7 @@ fun nauty_partition limit graph =
     val ioneighl = map_assoc (io_neighbors graph) vertexl
     val part = equitable_partition_aux graphsize ioneighl [vertexl]
   in
+    if length part = graphsize then [part] else 
     refine_partition_loop limit graph ioneighl [part]
   end
 
@@ -1230,7 +1231,7 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "prop60_refine2" (rev cnfl);
+val rl = parallel_ramsey 32 "prop60_refine3" (rev cnfl);
 length rl;
 *)
 
