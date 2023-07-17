@@ -10,6 +10,8 @@ sig
   val random_mat : int -> mat
   val random_shape : int -> int -> mat
   val random_shape_nocycle : int -> int -> mat
+  val string_of_graph : mat -> string
+  val string_of_shape : mat -> string
   
   (* search tools *)
   val search_order : int -> (int * int) list
@@ -19,6 +21,15 @@ sig
   val normalize_nauty : mat -> mat
   val normalize_nauty_safe : mat -> mat
   
+  (* properties *)
+  val is_ackset : mat -> bool
+  val is_ackset_pb : (mat * mat) -> bool
+  val not_automorphic : mat -> bool
+  val not_automorphic_pb : (mat * mat) -> bool
+   
+  (* cycles *)
+  val has_cycle : int -> mat -> bool
+  
   (* keeps only one color *)
   val keep_only : int -> mat -> mat
   
@@ -26,27 +37,29 @@ sig
   val read_problem : string -> mat * mat
   val all_undirected_shapes : int -> mat list
   val reduce_mat : mat -> mat
-  val regroup_isoshapes : mat list -> (int * mat) list
+  val deduplicate_shapel : mat list -> mat list
   val supershapes : mat -> bool array
   val all_shapes_from_dir : string -> mat list
   val isomorphic_shapes : mat -> mat list
-  
-  val write_supershapes : string -> mat list -> unit
-  val read_supershapes : string -> bool array
-  
+
   (* conversion between formats *)
   val edgecl_to_mat : ((int * int) * int) list -> mat
   val mat_to_edgecl : mat -> ((int * int) * int) list
+  val mat_to_edgecl_undirected : mat -> ((int * int) * int) list
   val shape_to_int : mat -> int
   val zip_mat : mat -> IntInf.int
+  val unzip_mat : IntInf.int -> mat
+  (* problems *)
+  val create_pbl_maxsize : int -> ((mat * mat) * (mat * mat) list) list
 
   (* main *)
-  val search_each_size : (mat * mat) -> (bool * int)
-  val run : (mat * mat) list -> (bool * int) list
-  
+  val search_each_size : ((mat * mat) * bool) -> (bool * int)
+ 
   (* parallel *)
-  val ramseyspec : (unit, string, (bool * int)) smlParallel.extspec
+  val ramseyspec : 
+    (unit, ((mat * mat) * bool), (bool * int)) smlParallel.extspec 
   val parallel_ramsey : 
-    int -> string -> string list -> (string * (bool * int)) list
+    int -> string -> ((mat * mat) * bool) list -> 
+      (((mat * mat) * bool) * (bool * int)) list
   
 end
