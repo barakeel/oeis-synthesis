@@ -51,6 +51,8 @@ sig
   val unzip_mat : IntInf.int -> mat
   (* problems *)
   val create_pbl_maxsize : int -> ((mat * mat) * (mat * mat) list) list
+  val create_pbl_same_maxsize : int -> ((mat * mat) * (mat * mat) list) list
+
 
   (* main *)
   val search_each_size : ((mat * mat) * bool) -> (bool * int)

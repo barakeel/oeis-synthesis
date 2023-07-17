@@ -824,6 +824,19 @@ fun create_pbl_maxsize shapesize =
     map f pbl
   end
 
+fun create_pbl_same_maxsize shapesize =
+  let
+    val shapel1 = all_undirected_shapes shapesize
+    val shapel2 = deduplicate_shapel shapel1
+    val shapel3 = map (normalize_nauty o reduce_mat) shapel2
+    val shapel4 = map_assoc directed_shapes shapel3
+    val pbl = map (fn x => (x,x)) shapel4
+    fun fii (x,y) = (x,y) (* (shape_to_int x, shape_to_int y) *)
+    fun f ((u1,d1l),(u2,d2l)) = 
+      (fii (u1,u2), map fii (cartesian_product d1l d2l))
+  in
+    map f pbl
+  end
 
 (*  
 load "ramsey"; open aiLib kernel ramsey;
@@ -1024,17 +1037,14 @@ length rl;
 (* TODO test the undirected case too *)
 
 load "ramsey"; open aiLib kernel ramsey;
-val pbl = create_pbl_maxsize 5;
+val pbl = create_pbl_same_maxsize 5;
 val pbl1 = map (fn (a,b) => (a,true) :: 
   map_assoc (fn _ => false) (filter not_automorphic_pb b)) pbl;
 val pbl2 = filter (fn x => length x >= 3) pbl1;
 length pbl2;
+val pbl3 = List.concat pbl2;
 
-parallel_ramsey 64 "notauto" pbl2;
-
-
-
-
+val r = parallel_ramsey 64 "notauto" pbl3;
 
 fun test pbdi =
   let 
