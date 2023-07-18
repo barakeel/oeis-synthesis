@@ -37,6 +37,13 @@ val memory = iflag "memory" 10000
 
 val symmetry_flag = ref false
 
+(* flags conspiring to output all models *)
+val continue_flag = ref false
+val sat_flag = ref false
+
+(* experimental flags *)
+val shuffle_flag = ref false
+
 (* -------------------------------------------------------------------------
    Logging
    ------------------------------------------------------------------------- *)
@@ -228,7 +235,12 @@ fun inneighbor_of color graph x =
   end
 
 fun string_of_edgecl edgecl = 
-  let fun f ((i,j),x) = its i ^ "," ^ its j ^ ":" ^ its x in
+  let fun f ((i,j),x) = its i ^ "-" ^ its j ^ ":" ^ its x in
+    String.concatWith " " (map f edgecl)
+  end
+
+fun string_of_edgel edgecl = 
+  let fun f (i,j)= its i ^ "-" ^ its j in
     String.concatWith " " (map f edgecl)
   end
   
@@ -244,8 +256,6 @@ fun string_of_shape graph =
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
     String.concatWith ", " (map f (named_neighbor blue graph))
   end
-
-
 
 (* -------------------------------------------------------------------------
    Switching between representations
@@ -682,10 +692,10 @@ fun stats () =
   )
   
 fun search_end grapho = case grapho of 
-    NONE => (add_break (); log "unsat"; 
-    stats (); true) 
+    NONE => (add_break (); log (if !sat_flag then "sat" else "unsat"); 
+    stats (); (if !sat_flag then false else true)) 
   | SOME graph => (add_break (); log "sat"; 
-    log (string_of_graph graph); stats(); false)
+      log (string_of_graph graph); stats(); false)
     
 fun search_loop path = 
   case path of 
@@ -694,7 +704,11 @@ fun search_loop path =
   | (graph, color :: colorm) :: parentl =>    
     (
     case next_edge graph of
-      NONE => search_end (SOME graph)
+      NONE => if !continue_flag 
+              then (sat_flag := true;
+                    log (string_of_graph graph);
+                    search_loop ((graph,[]) :: parentl))
+              else search_end (SOME graph)
     | SOME edge =>
       let 
         fun f () = its (fst edge) ^ "," ^ its (snd edge) ^ ":" ^ its color
@@ -724,7 +738,10 @@ fun search size =
   let 
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := search_order size
+    val _ = edgel_glob := (if !shuffle_flag 
+      then shuffle else I) (search_order size)
+    val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob))
+    val _ = sat_flag := false
     val path = [(mat_tabulate (1, fn (i,j) => 0),[blue,red])]
   in
     search_loop path
@@ -838,20 +855,6 @@ fun create_pbl_same_maxsize shapesize =
     map f pbl
   end
 
-(*  
-load "ramsey"; open aiLib kernel ramsey;
-val r = create_pbl_maxsize 4;
-
-  
-val shape = random_elem shapel3;  
-val dishapel = directed_shapes shape;
-
-
-length (List.concat (map snd shapel5));
-*)
-(* create problem set by taking two undirected shapes *)
-(* give set non-set and automorphic non-automorphic *)
-
 (* -------------------------------------------------------------------------
    All supershapes of multiples shape
    ------------------------------------------------------------------------- *)
@@ -901,13 +904,6 @@ fun supershapes shape =
     app f isoshapel; a
   end
 
-(*  
-load "ramsey"; open aiLib kernel ramsey;
-val shapel = all_shapes_from_dir (selfdir ^ "/dr100");
-clean_dir (selfdir ^ "/dr100shapes");
-val (_,t) = add_time (write_supershapes (selfdir ^ "/dr100shapes")) shapel;
-*) 
-
 (* -------------------------------------------------------------------------
    Experiment
    ------------------------------------------------------------------------- *)
@@ -944,12 +940,39 @@ fun search_each_size ((blueshape,redshape),symflag) =
     loop initsize 
   end
   
+fun search_one_size size ((blueshape,redshape),symflag) =
+  let
+    val _ = symmetry_flag := symflag
+    val (_,t) = add_time init_supershapes (blueshape,redshape)
+    val _ = print_endline ("initializing supershapes: " ^ rts_round 2 t)
+    fun loop csize =
+      let 
+        val _ = log ("search with graph size: " ^ its csize)  
+        val b = search csize
+        val _ = print_endline ""
+      in
+        if b then (true,csize) else (false,csize)
+      end
+      handle RamseyTimeout => 
+        (add_break (); log "timeout"; stats(); (false,0)) 
+  in
+    loop size 
+  end  
+  
 (*
 load "ramsey"; open aiLib kernel ramsey;
-val filel = ["adr_o3_o3_rb_inf_cnf.p"];
-val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val brshapel = map (read_problem o (fn x => "dr100/" ^ x)) cnfl;
-val rl = map_assoc search_each_size brshapel;
+continue_flag := true; (* todo add final graph to set *)
+shuffle_flag := true;
+val edgecl = map_assoc (fn _ => 1) 
+  [(0,2),(1,3),(2,0),(2,4),(3,1),(3,4),(4,2),(4,3)];
+val graph = edgecl_to_mat edgecl;  
+val r1 = search_each_size ((graph,graph),true);
+
+val edgecl = map_assoc (fn _ => 1) 
+  [(0,1),(1,0),(1,2),(2,1),(2,0),(0,2)];
+val graph = edgecl_to_mat edgecl;  
+val r1 = search_each_size ((graph,graph),true);
+
 *)  
 
 (* -------------------------------------------------------------------------
@@ -1029,22 +1052,19 @@ end (* struct *)
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
 val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "nocache" (rev cnfl);
+val rl = parallel_ramsey 32 "600s" (rev cnfl);
 length rl;
 *)
 
 (*
-(* TODO test the undirected case too *)
-
 load "ramsey"; open aiLib kernel ramsey;
 val pbl = create_pbl_same_maxsize 5;
 val pbl1 = map (fn (a,b) => (a,true) :: 
   map_assoc (fn _ => false) (filter not_automorphic_pb b)) pbl;
 val pbl2 = filter (fn x => length x >= 3) pbl1;
-length pbl2;
-val pbl3 = List.concat pbl2;
-
+val pbl3 = List.concat pbl2; length pbl3;
 val r = parallel_ramsey 64 "notauto" pbl3;
+val d = dnew (triple_compare mat_compare
 
 fun test pbdi =
   let 
@@ -1055,6 +1075,72 @@ fun test pbdi =
   end;
     
 val r = valOf (List.find test (shuffle pbl3));
+
+
+fun mat_compare_aux size a1 a2 i j = 
+  case Int.compare (Array2.sub (a1,i,j),Array2.sub (a2,i,j)) of
+      EQUAL => if j >= size - 1 then 
+                 if i >= size - 1 
+                 then EQUAL 
+                 else mat_compare_aux size a1 a2 (i+1) 0
+               else mat_compare_aux size a1 a2 i (j+1)
+    | r => r;
+
+fun mat_compare_fixedsize size (a1,a2) = 
+  mat_compare_aux size a1 a2 0 0;
+
+fun mat_compare (a1,a2) = 
+  case Int.compare (mat_size a1, mat_size a2) of
+    EQUAL => mat_compare_aux (mat_size a1) a1 a2 0 0
+  | x => x;
+  
+val cmp = cpl_compare (cpl_compare mat_compare mat_compare) bool_compare;  
+val rd = dnew cmp r;
+
+val pbl2r = map (map_assoc (fn x => dfind x rd)) pbl2;
+
+fun testr l = 
+  let val l' = filter (fn x => fst (snd x)) l in
+    length (mk_fast_set (snd_compare (snd_compare Int.compare)) l') >= 2
+  end;
+  
+val pbl2rempty = filter testr pbl2r;  
+
+
+  
+ 
+
+fun szip_mat m = IntInf.toString (zip_mat m);
+fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s));
+
+fun string_of_pb (((x,y),b),(bunsat,n)) = 
+  String.concatWith " || "
+  [string_of_shape x, szip_mat x, if is_ackset x then "set" else "...",
+   string_of_shape y, szip_mat y, if is_ackset y then "set" else "...",
+   if b then "undirected" else "directed", 
+   if bunsat then "unsat" else "sat", its n];
+
+fun string_of_pbl pbl = String.concatWith "\n" (map string_of_pb pbl) ^ "\n";
+
+writel "ramsey_notauto_full" (map string_of_pb r);
+writel "ramsey_notauto_counter" (map string_of_pbl pbl2rempty);
+
+fun contain_ackset (((x,y),b),(bunsat,n)) = is_ackset x andalso is_ackset y;
+
+fun testrset l = 
+  let val l' = filter contain_ackset l in
+    length (mk_fast_set (snd_compare (snd_compare Int.compare)) l') >= 2
+  end;
+
+val pbl2rset = filter testrset pbl2rempty;  
+
+fun string_of_pbl_set pbl = String.concatWith "\n" (map string_of_pb 
+  (filter contain_ackset pbl)) ^ "\n";
+
+writel "ramsey_notauto_counter_set" (map string_of_pbl_set pbl2rset);
+
+
+
 
 fun f pbdi =
   let val y = map search_each_size (map_assoc (fn _ => false) pbdi) in
@@ -1077,35 +1163,5 @@ shape: 0 -> 1 2 3, 1 -> 2 3, 2 -> 3, 3 ->
 24 isomorphic variants
 red shape:  0 -> 2 3, 1 -> 3, 2 -> 1 3, 3 -> 
 *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

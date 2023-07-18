@@ -5,6 +5,8 @@ sig
   val mat_sub : mat * int * int -> int 
   val mat_size : mat -> int
 
+  val continue_flag : bool ref
+  val shuffle_flag : bool ref
   
   (* random shapes *)
   val random_mat : int -> mat
@@ -26,7 +28,7 @@ sig
   val is_ackset_pb : (mat * mat) -> bool
   val not_automorphic : mat -> bool
   val not_automorphic_pb : (mat * mat) -> bool
-   
+  
   (* cycles *)
   val has_cycle : int -> mat -> bool
   
@@ -56,7 +58,8 @@ sig
 
   (* main *)
   val search_each_size : ((mat * mat) * bool) -> (bool * int)
- 
+  val search_one_size : int -> ((mat * mat) * bool) -> (bool * int)
+  
   (* parallel *)
   val ramseyspec : 
     (unit, ((mat * mat) * bool), (bool * int)) smlParallel.extspec 
