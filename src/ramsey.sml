@@ -760,32 +760,34 @@ fun edgecl_to_mat_fixedsize size edgecl =
     mat_tabulate (size, f)
   end  
 
+(* -------------------------------------------------------------------------
+   Problems
+   ------------------------------------------------------------------------- *)
+
 fun read_edgel s =
   map pair_of_list
   (mk_batch 2 (map string_to_int (String.tokens (not o Char.isDigit) s)))
 
-fun read_problem file =
+fun read_cnf file =
   let 
     val sl = readl file
     val reds = List.nth (sl,5)
     val blues = List.nth (sl,6)
   in
-    (edgel_to_shape (read_edgel blues), edgel_to_shape (read_edgel reds))
+    ((edgel_to_shape (read_edgel blues), edgel_to_shape (read_edgel reds)),
+     false)
   end
+  
+fun string_of_pbr (((x,y),b),(bunsat,n)) = 
+  String.concatWith " || "
+  [string_of_shape x, szip_mat x, if is_ackset x then "set" else "...",
+   string_of_shape y, szip_mat y, if is_ackset y then "set" else "...",
+   if b then "undirected" else "directed", 
+   if bunsat then "unsat" else "sat", its n];  
   
 (* -------------------------------------------------------------------------
    Shape tools
-   -------------------------------------------------------------------------
-*)
-
-fun all_shapes_from_dir s =
-  let 
-    val filel = listDir s
-    val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel
-    val brshapel = map (read_problem o (fn x => "dr100/" ^ x)) cnfl
- in 
-   mk_fast_set mat_compare (List.concat (map (fn (a,b) => [a,b]) brshapel))
- end
+   ------------------------------------------------------------------------- *)
 
 fun deduplicate_shapel shapel =
   let
@@ -1051,8 +1053,11 @@ end (* struct *)
 (*
 load "ramsey"; open aiLib kernel ramsey;
 val filel = listDir (selfdir ^ "/dr100");
-val cnfl = filter (fn x => String.isSuffix "_cnf.p" x) filel;
-val rl = parallel_ramsey 32 "600s" (rev cnfl);
+val cnfl = map (fn x => selfdir ^ "/dr100/" ^ x) 
+  (filter (fn x => String.isSuffix "_cnf.p" x) filel);
+val pbl = map read_cnf cnfl;
+
+val rl = parallel_ramsey 32 "600s" cnfl;
 length rl;
 *)
 
@@ -1113,14 +1118,9 @@ val pbl2rempty = filter testr pbl2r;
 fun szip_mat m = IntInf.toString (zip_mat m);
 fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s));
 
-fun string_of_pb (((x,y),b),(bunsat,n)) = 
-  String.concatWith " || "
-  [string_of_shape x, szip_mat x, if is_ackset x then "set" else "...",
-   string_of_shape y, szip_mat y, if is_ackset y then "set" else "...",
-   if b then "undirected" else "directed", 
-   if bunsat then "unsat" else "sat", its n];
 
-fun string_of_pbl pbl = String.concatWith "\n" (map string_of_pb pbl) ^ "\n";
+
+fun string_of_pbl pbl = String.concatWith "\n" (map string_of_pbr pbl) ^ "\n";
 
 writel "ramsey_notauto_full" (map string_of_pb r);
 writel "ramsey_notauto_counter" (map string_of_pbl pbl2rempty);
@@ -1134,7 +1134,7 @@ fun testrset l =
 
 val pbl2rset = filter testrset pbl2rempty;  
 
-fun string_of_pbl_set pbl = String.concatWith "\n" (map string_of_pb 
+fun string_of_pbl_set pbl = String.concatWith "\n" (map string_of_pbr
   (filter contain_ackset pbl)) ^ "\n";
 
 writel "ramsey_notauto_counter_set" (map string_of_pbl_set pbl2rset);

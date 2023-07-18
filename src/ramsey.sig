@@ -35,13 +35,15 @@ sig
   (* keeps only one color *)
   val keep_only : int -> mat -> mat
   
+  (* problems *)
+  val read_cnf : string -> ((mat * mat) * bool)
+  val string_of_pbr : ((mat * mat) * bool) * (bool * int) -> string
+  
   (* shapes and supershapes *)
-  val read_problem : string -> mat * mat
   val all_undirected_shapes : int -> mat list
   val reduce_mat : mat -> mat
   val deduplicate_shapel : mat list -> mat list
   val supershapes : mat -> bool array
-  val all_shapes_from_dir : string -> mat list
   val isomorphic_shapes : mat -> mat list
 
   (* conversion between formats *)
