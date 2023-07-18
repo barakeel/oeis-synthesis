@@ -35,7 +35,8 @@ val real_time = rflag "real_time" 0.0
 val abstract_time = iflag "abstract_time" 0
 val memory = iflag "memory" 10000
 
-val symmetry_flag = ref false
+
+val undirected_flag = ref false
 
 (* flags conspiring to output all models *)
 val continue_flag = ref false
@@ -190,7 +191,7 @@ fun mat_add (edge,color) graph  =
     val graphsize = mat_size graph 
     val newgraphsize = Int.max (Int.max edge + 1, graphsize)  
   in
-    if !symmetry_flag then 
+    if !undirected_flag then 
       mat_tabulate (newgraphsize, fn (i,j) => 
       if (i,j) = edge orelse (j,i) = edge then color 
       else if i >= graphsize orelse j >= graphsize then 0
@@ -743,7 +744,7 @@ fun search size =
   let 
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := search_order_linear size
+    val _ = edgel_glob := search_order size
     val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob))
     val _ = sat_flag := false
     val path = [(mat_tabulate (1, fn (i,j) => 0),[blue,red])]
@@ -788,10 +789,7 @@ fun string_of_pbr (((x,y),b),(bunsat,n)) =
    string_of_shape y, szip_mat y, if is_ackset y then "set" else "...",
    if b then "undirected" else "directed", 
    if bunsat then "unsat" else "sat", its n];  
-  
-(* -------------------------------------------------------------------------
-   Shape tools
-   ------------------------------------------------------------------------- *)
+
 
 fun deduplicate_shapel shapel =
   let
@@ -822,6 +820,15 @@ fun reduce_mat m =
     mat_permute (m, length vertexl) (mk_permf vertexl)
   end 
 
+fun create_pbl_undirected shapesize =
+  let
+    val shapel1 = all_undirected_shapes shapesize
+    val shapel2 = deduplicate_shapel shapel1
+    val shapel3 = map (normalize_nauty o reduce_mat) shapel2
+  in
+    map_assoc (fn _ => true) (cartesian_product shapel3 shapel3)
+  end  
+  
 fun directed_shapes shape =
   let 
     val edgecl = mat_to_edgecl_undirected shape
@@ -833,7 +840,7 @@ fun directed_shapes shape =
     deduplicate_shapel dishapel2
   end
 
-fun create_pbl_maxsize shapesize =
+fun create_pbl shapesize =
   let
     val shapel1 = all_undirected_shapes shapesize
     val shapel2 = deduplicate_shapel shapel1
@@ -846,8 +853,9 @@ fun create_pbl_maxsize shapesize =
   in
     map f pbl
   end
+    
 
-fun create_pbl_same_maxsize shapesize =
+fun create_pbl_same shapesize =
   let
     val shapel1 = all_undirected_shapes shapesize
     val shapel2 = deduplicate_shapel shapel1
@@ -877,22 +885,23 @@ fun isomorphic_shapes shape =
     elist shaped
   end
 
-fun supershapes_one_aux size edgecl =
+fun supershapes_one shape =
   let 
-    val edgel = map fst edgecl
-    val edgel1 = search_order size 
-    val uncolored = filter (fn x => not (mem x edgel)) edgel1
-    val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) uncolored)
+    val shapesize = mat_size shape
+    val edgecl = mat_to_edgecl shape
+    val blankl = 
+      if !undirected_flag 
+      then blank_edges shapesize shape (search_order_undirected shapesize)
+      else blank_edges shapesize shape (search_order shapesize)
+    val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) blankl)
     val l2 = map (fn x => edgecl @ x) l1
     val il = map (fn x => shape_to_int_fixedsize 
-       (edgecl_to_mat_fixedsize size x)) l2
+       ((if !undirected_flag then symmetrify else I) 
+       (edgecl_to_mat_fixedsize shapesize x))) l2
   in
     il
   end
 
-fun supershapes_one size shape = 
-  supershapes_one_aux size (mat_to_edgecl shape)
-  
 fun supershapes shape = 
   let 
     val shapesize = mat_size shape
@@ -900,7 +909,7 @@ fun supershapes shape =
     val a = Array.array (int_pow 2 (shapesize * (shapesize - 1)), false)
     val i = ref 0
     fun f shape = 
-      let val il = supershapes_one shapesize shape in
+      let val il = supershapes_one shape in
         app (fn x => (
           Array.update (a,x,true) handle Subscript => 
           raise ERR "supershapes" (its x); incr i)) il
@@ -926,9 +935,9 @@ fun init_supershapes (blueshape,redshape) =
     ()
   end
   
-fun search_each_size ((blueshape,redshape),symflag) =
+fun search_each_size ((blueshape,redshape),uflag) =
   let
-    val _ = symmetry_flag := symflag
+    val _ = undirected_flag := uflag
     val (_,t) = add_time init_supershapes (blueshape,redshape)
     val _ = print_endline ("initializing supershapes: " ^ rts_round 2 t)
     val initsize = Int.max (mat_size blueshape, mat_size redshape) 
@@ -946,9 +955,9 @@ fun search_each_size ((blueshape,redshape),symflag) =
     loop initsize 
   end
   
-fun search_one_size size ((blueshape,redshape),symflag) =
+fun search_one_size size ((blueshape,redshape),uflag) =
   let
-    val _ = symmetry_flag := symflag
+    val _ = undirected_flag := uflag
     val (_,t) = add_time init_supershapes (blueshape,redshape)
     val _ = print_endline ("initializing supershapes: " ^ rts_round 2 t)
     fun loop csize =
@@ -1040,14 +1049,9 @@ fun parallel_ramsey ncore expname pbl =
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its memory
     val (rl,t) = add_time (parmap_queue_extern ncore ramseyspec ()) pbl
     val l = combine (pbl,rl)
-    fun f (((m1,m2),b),(rb,rn)) = 
-      string_of_graph m1 ^ "\n" ^
-      string_of_graph m2 ^ "\n" ^
-      String.concatWith " " [szip_mat m1,szip_mat m2,bts b,
-        if rb then "sat" else "unsat", its rn] 
   in
     writel (dir ^ "/log") ["time: " ^ rts t];
-    writel (dir ^ "/results") (map f l);
+    writel (dir ^ "/results") (map string_of_pbr l);
     l
   end
  
@@ -1062,8 +1066,17 @@ val cnfl = map (fn x => selfdir ^ "/dr100/" ^ x)
 val pbl = map read_cnf cnfl;
 
 val rl = parallel_ramsey 32 "linsearch" pbl;
-length rl;
+length (filter (fst o snd) rl);
 *)
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val pbl = create_pbl_undirected 5;
+val rl = parallel_ramsey 32 "undirected0" pbl;
+length (filter (fst o snd) rl);
+*)
+
+
 
 (*
 load "ramsey"; open aiLib kernel ramsey;

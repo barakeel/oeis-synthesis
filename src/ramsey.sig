@@ -56,10 +56,11 @@ sig
   val shape_to_int : mat -> int
   val zip_mat : mat -> IntInf.int
   val unzip_mat : IntInf.int -> mat
+ 
   (* problems *)
-  val create_pbl_maxsize : int -> ((mat * mat) * (mat * mat) list) list
-  val create_pbl_same_maxsize : int -> ((mat * mat) * (mat * mat) list) list
-
+  val create_pbl : int -> ((mat * mat) * (mat * mat) list) list
+  val create_pbl_same : int -> ((mat * mat) * (mat * mat) list) list
+  val create_pbl_undirected : int -> ((mat * mat) * bool) list
 
   (* main *)
   val search_each_size : ((mat * mat) * bool) -> (bool * int)
