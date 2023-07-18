@@ -62,7 +62,7 @@ val red_supershapes_glob = ref (Array.fromList [true])
 val blue_prop_glob = ref (Array.fromList [[(0,0)]])
 val red_prop_glob = ref (Array.fromList [[(0,0)]])
 *)
-val edgel_glob = ref [(0,0)]
+val edgel_glob = ref []
 val blue_size_glob = ref 0
 val red_size_glob = ref 0
 val counter = ref 0
@@ -663,6 +663,11 @@ fun search_order_undirected size =
 fun search_order size = List.concat 
   (map (fn (x,y) => [(x,y),(y,x)]) (search_order_undirected size))
 
+fun search_order_linear size = 
+  filter (fn (x,y) => x <> y)
+  (cartesian_product (List.tabulate (size,I)) (List.tabulate (size,I)))
+
+
 fun next_edge_aux graphsize graph edgel = case edgel of
     [] => NONE
   | (i,j) :: m => 
@@ -738,8 +743,7 @@ fun search size =
   let 
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := (if !shuffle_flag 
-      then shuffle else I) (search_order size)
+    val _ = edgel_glob := search_order_linear size
     val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob))
     val _ = sat_flag := false
     val path = [(mat_tabulate (1, fn (i,j) => 0),[blue,red])]
@@ -1057,7 +1061,7 @@ val cnfl = map (fn x => selfdir ^ "/dr100/" ^ x)
   (filter (fn x => String.isSuffix "_cnf.p" x) filel);
 val pbl = map read_cnf cnfl;
 
-val rl = parallel_ramsey 32 "600s" cnfl;
+val rl = parallel_ramsey 32 "linsearch" pbl;
 length rl;
 *)
 

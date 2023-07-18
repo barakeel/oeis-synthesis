@@ -8,6 +8,7 @@ sig
   val continue_flag : bool ref
   val shuffle_flag : bool ref
   
+  
   (* random shapes *)
   val random_mat : int -> mat
   val random_shape : int -> int -> mat
@@ -17,6 +18,8 @@ sig
   
   (* search tools *)
   val search_order : int -> (int * int) list
+  val search_order_linear : int -> (int * int) list
+  val edgel_glob : (int * int) list ref
   val subsets_of_size : int -> int list -> int list list
   
   (* normalization *)
