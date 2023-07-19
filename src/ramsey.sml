@@ -42,9 +42,6 @@ val undirected_flag = ref false
 val continue_flag = ref false
 val sat_flag = ref false
 
-(* experimental flags *)
-val shuffle_flag = ref false
-
 (* -------------------------------------------------------------------------
    Logging
    ------------------------------------------------------------------------- *)
@@ -167,6 +164,9 @@ fun symmetrify m =
   if a=b then 0 else if a < b then mat_sub (m,a,b) else mat_sub (m,b,a));
 
 fun random_symmat size = symmetrify (random_mat size);
+ 
+fun matK size = 
+  mat_tabulate (size,fn (a,b) => if a=b then 0 else 1);
  
 fun mat_compare_aux size a1 a2 i j = 
   case Int.compare (Array2.sub (a1,i,j),Array2.sub (a2,i,j)) of
@@ -336,7 +336,7 @@ fun mk_permf perm =
   end 
 
 (* -------------------------------------------------------------------------
-   Properties of graph
+   Properties of shapes
    ------------------------------------------------------------------------- *)
 
 fun is_ackset shape =
@@ -393,11 +393,15 @@ fun decompose acc l = case l of
     [] => []
   | a :: m => (a,rev acc @ m) :: decompose (a :: acc) m 
 
-fun refine_partition acc partition = case partition of
+fun refine_partition_aux acc partition = case partition of
     [] => raise ERR "refine_partition" "all elements are colored differently"
-  | [a] :: m => refine_partition ([a] :: acc) m
+  | [a] :: m => refine_partition_aux ([a] :: acc) m
   | l :: m => map (fn (x,y) => rev acc @ [[x]] @ [y] @ m)              
               (decompose [] l)
+
+fun refine_partition partition = 
+  refine_partition_aux [] partition
+
 
 fun unify_partitions graph graphsize partl = case partl of
     [] => []
@@ -458,7 +462,7 @@ fun refine_partition_loop limit graph ioneighl partl =
   else
   let
     val graphsize = mat_size graph
-    val partl1 = List.concat (map (refine_partition []) partl)
+    val partl1 = List.concat (map refine_partition partl)
     val partl2 = map (equitable_partition_aux graphsize ioneighl) partl1
     val partl3 = unify_partitions graph graphsize partl2
     val (partl4,partl5) = partition (fn x => length x = graphsize) partl3
@@ -471,23 +475,23 @@ fun refine_partition_loop limit graph ioneighl partl =
 
 (* warning: limited to "limit" partitions, 
    some partition might give the same graph *)
-fun nauty_partition limit graph =
+fun nauty_partition limit graph parttop =
   let
     val graphsize = mat_size graph
     val vertexl = List.tabulate (graphsize,I)
     val ioneighl = map_assoc (io_neighbors graph) vertexl
-    val part = equitable_partition_aux graphsize ioneighl [vertexl]
+    val part = equitable_partition_aux graphsize ioneighl parttop
   in
     if length part = graphsize then [part] else 
     refine_partition_loop limit graph ioneighl [part]
   end
-
-fun normalize_nauty graph =
+ 
+fun normalize_nauty_aux graph parttop =
   let 
     val _ = incr level1
     val graphsize = mat_size graph
     fun f x = mat_permute (graph,graphsize) (mk_permf x)
-    val partl = nauty_partition nauty_limit graph
+    val partl = nauty_partition nauty_limit graph parttop
   in
     case partl of [part] => f (List.concat part) | _ =>
       let 
@@ -497,6 +501,10 @@ fun normalize_nauty graph =
         hd (dict_sort (mat_compare_fixedsize graphsize) matl)
       end
   end
+ 
+fun normalize_nauty graph =
+  normalize_nauty_aux graph [List.tabulate (mat_size graph,I)]
+  
   
 fun normalize_nauty_safe graph = 
   let 
@@ -506,11 +514,47 @@ fun normalize_nauty_safe graph =
     if !nauty_failure then raise ERR "normalize_nauty_safe" "" else r
   end
     
-(* 
+(* could be #vertex times faster *)    
+fun iso_vertices graph = 
+  let
+    val graphsize = mat_size graph
+    val vertexl = List.tabulate (graphsize,I)
+    val ioneighl = map_assoc (io_neighbors graph) vertexl
+    val partl = refine_partition [vertexl]
+    fun f part = (normalize_nauty_aux graph part, hd (hd part))
+    val mil = map f partl
+    val d = dregroup (mat_compare_fixedsize graphsize) mil
+  in
+    map snd (dlist d)
+  end
+  
+fun iso_edges graph = 
+  let
+    val graphsize = mat_size graph
+    val vertexl = List.tabulate (graphsize,I)
+    val ioneighl = map_assoc (io_neighbors graph) vertexl
+    val partl1 = refine_partition [vertexl]
+    val partl2 = List.concat (map refine_partition partl1)
+    fun f part = (normalize_nauty_aux graph part, 
+      ((hd o hd) part, (hd o hd o tl) part))
+    val mil = map f partl2
+    val d = dregroup (mat_compare_fixedsize graphsize) mil
+  in
+    map snd (dlist d)
+  end  
+  
+(*
 load "ramsey"; open aiLib kernel ramsey;
-val x = random_shape 5 1;
-val y = mat_to_edgecl x;
-val l = equitable_partition x;
+val x = symmetrify (random_shape 5 1);
+val x = matK 5;
+val isovl = iso_vertices x;
+val part = [List.tabulate (5,I)];
+val y1 =  refine_partition part;
+val y2 = List.concat (map refine_partition y1);
+
+val isoel = iso_edges x;
+mat_to_edgecl x;
+
 *)
 
 (* -------------------------------------------------------------------------
@@ -745,9 +789,9 @@ fun search size =
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
     val _ = edgel_glob := search_order size
-    val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob))
+    (* val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob)) *)
     val _ = sat_flag := false
-    val path = [(mat_tabulate (1, fn (i,j) => 0),[blue,red])]
+    val path = [(mat_tabulate (size, fn (i,j) => 0),[blue,red])]
   in
     search_loop path
   end
@@ -977,16 +1021,16 @@ fun search_one_size size ((blueshape,redshape),uflag) =
 (*
 load "ramsey"; open aiLib kernel ramsey;
 continue_flag := true; (* todo add final graph to set *)
-shuffle_flag := true;
+
 val edgecl = map_assoc (fn _ => 1) 
   [(0,2),(1,3),(2,0),(2,4),(3,1),(3,4),(4,2),(4,3)];
 val graph = edgecl_to_mat edgecl;  
-val r1 = search_each_size ((graph,graph),true);
+val r = search_each_size ((graph,graph),true);
 
 val edgecl = map_assoc (fn _ => 1) 
   [(0,1),(1,0),(1,2),(2,1),(2,0),(0,2)];
 val graph = edgecl_to_mat edgecl;  
-val r1 = search_each_size ((graph,graph),true);
+val r = search_each_size ((graph,graph),true);
 
 *)  
 
@@ -1074,6 +1118,15 @@ load "ramsey"; open aiLib kernel ramsey;
 val pbl = create_pbl_undirected 5;
 val rl = parallel_ramsey 32 "undirected0" pbl;
 length (filter (fst o snd) rl);
+val pb = random_elem pbl;
+val r = search_each_size pb;
+*)
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val pb = ((matK 4, matK 6),true);
+val r = search_each_size pb;
+
 *)
 
 
@@ -1086,7 +1139,9 @@ val pbl1 = map (fn (a,b) => (a,true) ::
 val pbl2 = filter (fn x => length x >= 3) pbl1;
 val pbl3 = List.concat pbl2; length pbl3;
 val r = parallel_ramsey 64 "notauto" pbl3;
-val d = dnew (triple_compare mat_compare
+val d = dnew (triple_compare mat_compareload "ramsey"; open aiLib kernel ramsey;
+val pb = ((matK 4, matK 6),true);
+val r = search_each_size pb;
 
 fun test pbdi =
   let 

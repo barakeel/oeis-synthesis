@@ -6,13 +6,13 @@ sig
   val mat_size : mat -> int
 
   val continue_flag : bool ref
-  val shuffle_flag : bool ref
-  
-  
+
   (* random shapes *)
   val random_mat : int -> mat
+  val matK : int -> mat
   val random_shape : int -> int -> mat
   val random_shape_nocycle : int -> int -> mat
+  val symmetrify : mat -> mat
   val string_of_graph : mat -> string
   val string_of_shape : mat -> string
   
@@ -25,6 +25,9 @@ sig
   (* normalization *)
   val normalize_nauty : mat -> mat
   val normalize_nauty_safe : mat -> mat
+  val refine_partition : int list list -> int list list list
+  val iso_vertices : mat -> int list list
+  val iso_edges : mat -> (int * int) list list
   
   (* properties *)
   val is_ackset : mat -> bool
