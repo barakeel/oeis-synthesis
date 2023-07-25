@@ -7,9 +7,25 @@ sig
 
   val continue_flag : bool ref
 
+  (* sat problem *)
+  val init_satpb :   int -> mat * mat -> 
+    (int ref * ((int * int) list * (int * int) list)) vector *
+    ((bool ref * (int * int)) vector * int ref) vector
+
+  val prop_sat : 
+    (int ref * ((int * int) list * (int * int) list)) vector ->
+    ((bool ref * (int * int)) vector * int ref) vector ->
+    (int * int) -> (int * int) list * (int * int) list * bool
+  
+  val sat_solver_loop : 
+    (int ref * ((int * int) list * (int * int) list)) vector ->
+    ((bool ref * (int * int)) vector * int ref) vector ->
+    ((int * int) list * int list) list -> bool
+
   (* random shapes *)
   val random_mat : int -> mat
   val matK : int -> mat
+  val matKn : int -> int -> mat
   val random_shape : int -> int -> mat
   val random_shape_nocycle : int -> int -> mat
   val symmetrify : mat -> mat

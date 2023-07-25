@@ -63,7 +63,7 @@ val red_prop_glob = ref (Array.fromList [[(0,0)]])
 val edgel_glob = ref []
 val blue_size_glob = ref 0
 val red_size_glob = ref 0
-val counter = ref 0
+
 val limit_glob = 
   (if abstract_time > 0 then SOME abstract_time else NONE, 
    if real_time > 0.0 then SOME (Time.fromReal real_time) else NONE)
@@ -80,26 +80,57 @@ val level1 = ref 0
 val level2 = ref 0
 val level3 = ref 0
 val level4 = ref 0
+val level5 = ref 0
+
+val prop_timer = ref 0.0
+val shape_timer = ref 0.0
+val iso_timer = ref 0.0
+val split_counter = ref 0
+val prop_counter = ref 0
+val iso_counter = ref 0
+
 
 fun init_timer () =
   (level1 := 0;
    level2 := 0;
    level3 := 0;
    level4 := 0;
-   counter := 0; 
+   level5 := 0;
+   split_counter := 0;
+   prop_counter := 0;
+   prop_timer := 0.0;
+   iso_counter := 0;
+   iso_timer := 0.0;
+   shape_timer := 0.0;
    timer := Timer.startRealTimer ())
 
 fun test_timer () =
   let
-    val _ = incr counter
-    val _ = if !counter mod 1000 = 0 then print "." else ()
+    val _ = incr split_counter
+    val _ = if !split_counter mod 1000 = 0 then print "." else ()
     val _ = case fst (limit_glob) of NONE => () | SOME ti => 
-      if !counter > ti then raise RamseyTimeout else ()
+      if !split_counter > ti then raise RamseyTimeout else ()
     val _ = case snd (limit_glob) of NONE => () | SOME tr => 
       if Timer.checkRealTimer (!timer) > tr then raise RamseyTimeout else ()
   in
     ()
   end
+
+fun add_break () = if !split_counter >= 1000 then log "" else () 
+fun stats () = 
+  (
+  log ("graphs: " ^ its (elength (!isod_glob)) ^ ", " ^ its (!level1));
+  if !level2 <> 0 then log ("norm_failure: " ^ its (!level2)) else ();
+  if !level3 <> 0 then log ("conflict (degree): " ^ its (!level3)) else ();
+  if !level4 <> 0 then log ("conflict (split): " ^ its (!level4)) else ();
+  if !level5 <> 0 then log ("conflict (prop): " ^ its (!level5)) else ();
+  log ("split time: " ^ its (!split_counter));
+  log ("prop time: " ^ its (!prop_counter) ^ " " ^ rts_round 2 (!prop_timer)); 
+  log ("iso time: " ^ its (!iso_counter) ^ " " ^ rts_round 2 (!iso_timer));
+  log ("shape time: " ^ rts_round 2 (!shape_timer))
+  )
+
+
 
 (* -------------------------------------------------------------------------
    Adjacency matrix representation
@@ -168,6 +199,13 @@ fun random_symmat size = symmetrify (random_mat size);
 fun matK size = 
   mat_tabulate (size,fn (a,b) => if a=b then 0 else 1);
  
+fun matKn size n = 
+  mat_tabulate (size + 1, fn (a,b) => 
+    if (a = size andalso b >= n) orelse 
+       (b = size andalso a >= n) orelse (a=b) 
+    then 0 else 1
+       );
+
 fun mat_compare_aux size a1 a2 i j = 
   case Int.compare (Array2.sub (a1,i,j),Array2.sub (a2,i,j)) of
       EQUAL => if j >= size - 1 then 
@@ -207,6 +245,12 @@ fun mat_addl edgecl graph = foldl (uncurry mat_add) graph edgecl
 
 (* assumes shape contains 1 and 0s and is not too big *)    
 fun shape_to_int_fixedsize m = 
+  if !undirected_flag then 
+  let val r = ref 0 (* can start at zero because all the same size *) in
+    mat_appi (fn (i,j,x) => if i <= j then () else r := !r * 2 + x) m; !r
+  end
+  
+  else
   let val r = ref 0 (* can start at zero because all the same size *) in
     mat_appi (fn (i,j,x) => if i = j then () else r := !r * 2 + x) m; !r
   end
@@ -223,7 +267,11 @@ fun neighbor_of color graph x =
   in
     filter test vertexl
   end
+  handle Subscript => raise ERR "neighbor_of" ""
   
+fun degree_geq n color graph x = 
+  length (neighbor_of color graph x) >= n
+
 fun all_neighbor color graph = 
   List.tabulate (mat_size graph, neighbor_of color graph) 
 
@@ -257,6 +305,17 @@ fun string_of_shape graph =
   let fun f (i,l) = its i ^ " -> " ^ String.concatWith " " (map its l) in
     String.concatWith ", " (map f (named_neighbor blue graph))
   end
+
+(* -------------------------------------------------------------------------
+   Ending the search
+   ------------------------------------------------------------------------- *)
+
+fun search_end grapho = case grapho of 
+    NONE => (add_break (); log (if !sat_flag then "sat" else "unsat"); 
+    stats (); (if !sat_flag then false else true)) 
+  | SOME graph => (add_break (); log "sat"; 
+      log (string_of_graph graph); stats(); false)
+
 
 (* -------------------------------------------------------------------------
    Switching between representations
@@ -370,10 +429,12 @@ val nauty_failure = ref false
 val nauty_limit = 64
 
 fun io_neighbors graph x =
-  [inneighbor_of blue graph x,
-   inneighbor_of red graph x,
-   neighbor_of blue graph x,
-   neighbor_of red graph x]
+  if !undirected_flag 
+  then [neighbor_of blue graph x, neighbor_of red graph x]
+  else [inneighbor_of blue graph x,
+        inneighbor_of red graph x,
+        neighbor_of blue graph x,
+        neighbor_of red graph x]
 
 fun string_of_partition part = 
   String.concatWith "|" (map (String.concatWith " " o map its) part)
@@ -543,6 +604,7 @@ fun iso_edges graph =
     map snd (dlist d)
   end  
   
+  
 (*
 load "ramsey"; open aiLib kernel ramsey;
 val x = symmetrify (random_shape 5 1);
@@ -599,10 +661,12 @@ fun has_shape_wcedge graph ((i,j),color) =
   let 
     val shapesize = if color = blue then !blue_size_glob else !red_size_glob
     val supershape_arr = if color = blue 
-       then !blue_supershapes_glob else !red_supershapes_glob
+      then !blue_supershapes_glob else !red_supershapes_glob
     val unigraph = keep_only color graph
     val vertexl = List.tabulate (mat_size unigraph, I)
-    val l0 = filter (fn x => not (mem x [i,j])) vertexl
+    val degreemin = if color = blue then 3 else 6
+    val vertexl2  = filter (degree_geq degreemin color graph) vertexl
+    val l0 = filter (fn x => not (mem x [i,j])) vertexl2
     val l1 = subsets_of_size (shapesize-2) l0
     fun f subset =
       let 
@@ -612,7 +676,8 @@ fun has_shape_wcedge graph ((i,j),color) =
         val entry = shape_to_int_fixedsize candshape
       in
         Array.sub (supershape_arr,entry)
-        handle Subscript => raise ERR "has_shape_wcedge" (its entry ^ " " ^ its 
+        handle Subscript => 
+          raise ERR "has_shape_wcedge" (its entry ^ " " ^ its 
            (Array.length supershape_arr))
       end
   in
@@ -623,16 +688,225 @@ fun has_shape_wcedge graph ((i,j),color) =
    Test isomorphism
    ------------------------------------------------------------------------- *)
     
-fun is_iso graph =     
+fun is_iso_aux graph =     
   let val graphid = zip_mat (normalize_nauty graph) in
     if emem graphid (!isod_glob)   
     then true
     else (isod_glob := eadd graphid (!isod_glob); false)
   end
+  
+fun is_iso graph =
+  (incr iso_counter; total_time iso_timer is_iso_aux graph)
 
 (* -------------------------------------------------------------------------
    Unit propagation
    ------------------------------------------------------------------------- *)
+
+(* 
+the future array could be the same as the assign array 
+should be remember an order in which the literals were
+assigned color
+*)
+
+fun id_pair (x,y) = x + ((y * (y - 1)) div 2);
+
+val clause_counter = ref 0
+
+fun clause_of_subset a clauseid (subset,color) = 
+  let
+    val l = all_pairs (dict_sort Int.compare subset)
+    fun f litid x = 
+      let 
+        val edgeid = id_pair x
+        val (pblue,pred) = Array.sub (a, edgeid)
+      in
+        if color = blue 
+        then Array.update (a, edgeid, ((clauseid,litid) :: pblue, pred))
+        else Array.update (a, edgeid, (pblue, (clauseid,litid) :: pred))
+        ;
+        (ref false, (edgeid, color))
+      end
+  in
+    (Vector.fromList (mapi f l), ref 0)
+  end
+
+(* _undirected_symmetric *)
+fun init_satpb size (blueshape,redshape) =
+  let
+    val maxedge = (size * (size - 1)) div 2
+    val bluesize = mat_size blueshape
+    val bluesubsetl = subsets_of_size bluesize (List.tabulate (size,I))
+    val redsize = mat_size redshape
+    val redsubsetl = subsets_of_size redsize (List.tabulate (size,I))
+    val subsetl = map_assoc (fn _ => blue) bluesubsetl @
+                  map_assoc (fn _ => red) redsubsetl
+    val a = Array.array (maxedge, ([],[]))
+    val clausel = mapi (clause_of_subset a) subsetl
+    val clausev = Vector.fromList clausel
+    val assignv = Vector.fromList (map (fn x => (ref 0,x)) (array_to_list a))
+  in
+    (assignv,clausev)
+  end
+
+
+
+exception Conflict;
+
+fun propagated_clause clausev = 
+  let fun loop i = 
+    let val (bref,lit) = Vector.sub (clausev,i) in
+      if not (!bref) then lit else loop (i+1)
+    end
+  in
+    loop 0
+  end
+
+fun propagate_sat assignv clausevv queue acc1 acc2 = case !queue of 
+    [] => (rev (!acc1), rev (!acc2), false)
+  | (edgeid, edgecolor) :: _ =>
+  let
+    val _ = queue := tl (!queue)
+    (* acc1: propagated (possibly partially) *)
+    val _ = acc1 := (edgeid,edgecolor) :: !acc1
+    val (_, (blue_clauses, red_clauses)) = Vector.sub (assignv,edgeid)
+    val clauses = if edgecolor = blue then blue_clauses else red_clauses
+    fun f (clauseid,litid) = 
+      let
+        val (clausev,nref) = Vector.sub (clausevv,clauseid) 
+        val _ = incr nref
+        val (bref,_) = Vector.sub (clausev,litid)
+        val _ = bref := true
+      in
+        (* happens if a clause contains only one literal *)
+        if !nref > Vector.length clausev - 1 then raise Conflict else
+        if !nref < Vector.length clausev - 1 then () else
+        let 
+          val (newedgeid,colortemp) = propagated_clause clausev
+          val propcolor = 3 - colortemp
+          val assigncolor = fst (Vector.sub (assignv, newedgeid))
+        in
+          if !assigncolor = propcolor then () 
+          else if !assigncolor = colortemp then raise Conflict 
+          else (assigncolor := propcolor;
+                (* acc2: assigned *)
+                acc2 := (newedgeid,propcolor) :: !acc2;
+                queue := (newedgeid,propcolor) :: !queue)
+        end
+      end
+  in
+    case ((app f clauses; NONE) 
+      handle Conflict => SOME (rev (!acc1), rev (!acc2), true))
+    of
+      NONE => propagate_sat assignv clausevv queue acc1 acc2
+    | SOME s => s
+  end
+  
+
+fun prop_sat assignv clausevv (edgeid,color) =
+  (
+  fst (Vector.sub (assignv, edgeid)) := color;
+  propagate_sat assignv clausevv (ref [(edgeid,color)]) (ref []) 
+    (ref [(edgeid,color)])
+  )
+ 
+fun unassign_sat assignv (edgeid,edgecolor) =
+  fst (Vector.sub (assignv, edgeid)) := 0 
+ 
+fun unprop_sat assignv clausevv (edgeid,edgecolor) =
+  let
+    val _ = fst (Vector.sub (assignv, edgeid)) := 0
+    val (_, (blue_clauses, red_clauses)) = Vector.sub (assignv,edgeid)
+    val clauses = if edgecolor = blue then blue_clauses else red_clauses
+    fun f (clauseid,litid) = 
+      let
+        val (clausev,nref) = Vector.sub (clausevv,clauseid) 
+        val _ = decr nref
+        val (bref,_) = Vector.sub (clausev,litid)
+        val _ = bref := false
+      in
+        ()
+      end
+  in
+    app f clauses
+  end
+
+fun next_assign_aux assignv edgel = case edgel of 
+    [] => NONE
+  | (i,j) :: m => 
+    let val edgeid = id_pair (i,j) in
+      if !(fst (Vector.sub (assignv,edgeid))) <> 0 
+      then SOME edgeid
+      else next_assign_aux assignv m
+    end
+    
+fun next_assign assignv = next_assign_aux assignv (!edgel_glob)    
+
+fun sat_solver_loop assignv clausevv path = 
+  case path of 
+    [] => search_end NONE
+  | (oldpropl, []) :: parentl => 
+    (
+    app (unprop_sat assignv clausevv) oldpropl;
+    sat_solver_loop assignv clausevv parentl
+    )
+  | (oldpropl, color :: colorm) :: parentl =>    
+  (
+  case next_assign assignv of
+    NONE => search_end (SOME (matK 4))
+  | SOME edgeid =>
+     let val (propl,assignl,conflict) = 
+       prop_sat assignv clausevv (edgeid, color) 
+     in
+       if conflict 
+       then (
+            debug "conflict";
+            app (unassign_sat assignv) assignl;
+            app (unprop_sat assignv clausevv) propl;
+            sat_solver_loop assignv clausevv ((oldpropl,colorm) :: parentl)
+            )
+       else sat_solver_loop assignv clausevv
+               ((propl,[blue,red]) :: (oldpropl,colorm) :: parentl)  
+     end
+  )
+
+(*  if !continue_flag 
+then (sat_flag := true; log (string_of_graph graph);
+      sat_solver_loop ((oldpropl,[]) :: parentl))
+else *) 
+(* if is_iso propgraph then (debug "iso"; backtrack ()) else *)
+
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+val (assignv,clausev) = init_satpb 8 (matK 3,matK 3);
+val r = sat_solver_loop assignv clausev [([],[1,2])];
+
+val (l1,l2) = prop_sat assignv clausev (0,1);
+val (l3,l4) = prop_sat assignv clausev (1,1);
+length (filter (fn x => !(fst x) <> 0) (vector_to_list assignv));
+*)
+
+
+(*
+fun unassign 
+
+fun unprop_sat clausea assigna (edgeid,color) =
+  let 
+    val edgeid = edge
+    val (_,blue_clauses,red_clauses) = Array.sub (assigna,edgeid)
+    val clauses = if color = blue then blue_clauses else red_clauses
+    val l = ref []
+    fun f (clausea,nref) = 
+      (Array.update (clausea, edgeid, true), incr nref)
+      if !nref = Array.length clausea - 1 
+      then find_the_propagated_clause and 
+           check if there is a conflict with elements in the queue
+           add it to a reference to get the final list
+      else ()
+  in
+    app f clauses; !l  
+  end
+*)
 
 fun propagate_one graph undecl edgel = case edgel of 
     [] => SOME (graph,rev undecl)
@@ -649,11 +923,14 @@ fun propagate_one graph undecl edgel = case edgel of
       else propagate_one graph (edge :: undecl) m
     end
    
-fun propagate graph edgel =
+fun propagate_loop graph edgel =
    case propagate_one graph [] edgel of 
      NONE => NONE
    | SOME (graph,newedgel) => 
-     if newedgel = edgel then SOME graph else propagate graph newedgel
+     if newedgel = edgel then SOME graph else propagate_loop graph newedgel
+
+fun propagate graph edgel = 
+  (incr prop_counter; total_time prop_timer (propagate_loop graph) edgel)
 
 (* -------------------------------------------------------------------------
    Test if a graph has cycle
@@ -734,19 +1011,12 @@ fun blank_edges graphsize graph edgel = case edgel of
    Search
    ------------------------------------------------------------------------- *)
 
-fun add_break () = if !counter >= 1000 then log "" else () 
-fun stats () = 
-  (
-  log ("graphs: " ^ its (elength (!isod_glob)) ^ ", " ^ its (!level1));
-  if !level2 <> 0 then log ("norm_failure: " ^ its (!level2)) else ()
-  )
+
+
+fun iso_edges_of graph edge =
+  valOf (List.find (fn x => mem edge x) (iso_edges graph))
+  handle Option => [edge]
   
-fun search_end grapho = case grapho of 
-    NONE => (add_break (); log (if !sat_flag then "sat" else "unsat"); 
-    stats (); (if !sat_flag then false else true)) 
-  | SOME graph => (add_break (); log "sat"; 
-      log (string_of_graph graph); stats(); false)
-    
 fun search_loop path = 
   case path of 
     [] => search_end NONE
@@ -761,17 +1031,34 @@ fun search_loop path =
               else search_end (SOME graph)
     | SOME edge =>
       let 
-        fun f () = its (fst edge) ^ "," ^ its (snd edge) ^ ":" ^ its color
-        val candgraph = mat_add (edge,color) graph 
+        fun f () = 
+          its (fst edge) ^ "," ^ its (snd edge) ^ ":" ^ its color          
+        val candgraph = mat_add (edge,color) graph
+          (* preference on growing the blue graph *)
+          (* if color = blue 
+          then mat_add (edge,color) graph
+          else 
+            let val newedgecl = 
+              map_assoc (fn _ => red) (iso_edges_of graph edge) 
+            in
+              mat_addl newedgecl graph 
+            end
+          *)  
         fun backtrack () = search_loop ((graph,colorm) :: parentl)
-      in
-        debugf "split: " f (); test_timer ();
-        if has_shape_wcedge candgraph (edge,color)
-          then (debug "conflict"; backtrack ()) else
+        val _ = (debugf "split: " f (); test_timer ())
+        val degree_limit = if color = red then 14 else 6
+      in   
+        if degree_geq degree_limit color candgraph (fst edge)
+           orelse degree_geq degree_limit color candgraph (snd edge)
+        then (debug "conflict degree"; incr level3; backtrack ()) 
+        else if total_time shape_timer 
+          (has_shape_wcedge candgraph) (edge,color)
+          then (debug "conflict shape"; incr level4; backtrack ()) 
+        else
         (
         case propagate candgraph 
           (blank_edges (mat_size candgraph) candgraph (!edgel_glob)) of
-          NONE => (debug "pconflict"; backtrack ())
+          NONE => (debug "conflict propagate"; incr level5; backtrack ())
         | SOME propgraph =>
           if is_iso propgraph then (debug "iso"; backtrack ()) else
           let 
@@ -788,10 +1075,10 @@ fun search size =
   let 
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := search_order size
+    val _ = edgel_glob := search_order(*_linear*) size
     (* val _ = log ("edge order: " ^ string_of_edgel (!edgel_glob)) *)
     val _ = sat_flag := false
-    val path = [(mat_tabulate (size, fn (i,j) => 0),[blue,red])]
+    val path = [(mat_tabulate (Int.min (6,size), fn (i,j) => 0),[blue,red])]
   in
     search_loop path
   end
@@ -906,7 +1193,7 @@ fun create_pbl_same shapesize =
     val shapel3 = map (normalize_nauty o reduce_mat) shapel2
     val shapel4 = map_assoc directed_shapes shapel3
     val pbl = map (fn x => (x,x)) shapel4
-    fun fii (x,y) = (x,y) (* (shape_to_int x, shape_to_int y) *)
+    fun fii (x,y) = (x,y)
     fun f ((u1,d1l),(u2,d2l)) = 
       (fii (u1,u2), map fii (cartesian_product d1l d2l))
   in
@@ -940,8 +1227,7 @@ fun supershapes_one shape =
     val l1 = cartesian_productl (map (fn x => [(x,0),(x,1)]) blankl)
     val l2 = map (fn x => edgecl @ x) l1
     val il = map (fn x => shape_to_int_fixedsize 
-       ((if !undirected_flag then symmetrify else I) 
-       (edgecl_to_mat_fixedsize shapesize x))) l2
+      (edgecl_to_mat_fixedsize shapesize x)) l2
   in
     il
   end
@@ -950,7 +1236,9 @@ fun supershapes shape =
   let 
     val shapesize = mat_size shape
     val isoshapel = isomorphic_shapes shape
-    val a = Array.array (int_pow 2 (shapesize * (shapesize - 1)), false)
+    val a = if !undirected_flag
+      then Array.array (int_pow 2 ((shapesize * (shapesize - 1)) div 2), false)
+      else Array.array (int_pow 2 (shapesize * (shapesize - 1)), false)
     val i = ref 0
     fun f shape = 
       let val il = supershapes_one shape in
@@ -1020,15 +1308,12 @@ fun search_one_size size ((blueshape,redshape),uflag) =
   
 (*
 load "ramsey"; open aiLib kernel ramsey;
-continue_flag := true; (* todo add final graph to set *)
-
+continue_flag := true;
+val r = search_one_size 19 ((matK 3, matK 6),true);
+val r = search_one_size 17 ((matK 4,matK 4),true);
+continue_flag := true;
 val edgecl = map_assoc (fn _ => 1) 
   [(0,2),(1,3),(2,0),(2,4),(3,1),(3,4),(4,2),(4,3)];
-val graph = edgecl_to_mat edgecl;  
-val r = search_each_size ((graph,graph),true);
-
-val edgecl = map_assoc (fn _ => 1) 
-  [(0,1),(1,0),(1,2),(2,1),(2,0),(0,2)];
 val graph = edgecl_to_mat edgecl;  
 val r = search_each_size ((graph,graph),true);
 
@@ -1109,7 +1394,7 @@ val cnfl = map (fn x => selfdir ^ "/dr100/" ^ x)
   (filter (fn x => String.isSuffix "_cnf.p" x) filel);
 val pbl = map read_cnf cnfl;
 
-val rl = parallel_ramsey 32 "linsearch" pbl;
+val rl = parallel_ramsey 32 "fixedsize120" pbl;
 length (filter (fst o snd) rl);
 *)
 
@@ -1183,14 +1468,8 @@ fun testr l =
   
 val pbl2rempty = filter testr pbl2r;  
 
-
-  
- 
-
 fun szip_mat m = IntInf.toString (zip_mat m);
 fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s));
-
-
 
 fun string_of_pbl pbl = String.concatWith "\n" (map string_of_pbr pbl) ^ "\n";
 
@@ -1211,9 +1490,6 @@ fun string_of_pbl_set pbl = String.concatWith "\n" (map string_of_pbr
 
 writel "ramsey_notauto_counter_set" (map string_of_pbl_set pbl2rset);
 
-
-
-
 fun f pbdi =
   let val y = map search_each_size (map_assoc (fn _ => false) pbdi) in
     combine (pbdi,y)
@@ -1227,13 +1503,6 @@ app p l2;
 
 val rl = parallel_ramsey 32 "nocache" (rev cnfl);
 length rl;
+
 *)
-
-(*
-
-shape: 0 -> 1 2 3, 1 -> 2 3, 2 -> 3, 3 -> 
-24 isomorphic variants
-red shape:  0 -> 2 3, 1 -> 3, 2 -> 1 3, 3 -> 
-*)
-
 
