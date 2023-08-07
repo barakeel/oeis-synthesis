@@ -117,8 +117,6 @@ fun test_timer () =
     ()
   end
 
-fun add_break () = if !prop_counter >= 1000 then log "" else () 
-
 fun stats () = 
   (  
   log ("prop: " ^ its (!prop_counter) ^ " calls, " ^ 
@@ -1093,7 +1091,8 @@ fun sat_solver_loop assignv clausevv path =
      else
      let 
        val _ = incr prop_counter
-       val _ = if abstract_time > 0 andalso !prop_counter > abstract_time
+       val _ = if abstract_time > 0 andalso 
+          !prop_counter + !prop_small_counter > abstract_time
                then raise SatTimeout else ()
        val (newundol,conflict) = 
          total_time prop_timer (prop_sat assignv clausevv) (eid,color)
