@@ -129,6 +129,11 @@ sig
   val read_pgen : string -> pgen list
   val write_pgen : string -> pgen list -> unit
   
+  (* ramsey experiment *)
+  type ramsey = (int * prog) * (int * int * int * int)
+  val ramsey_flag : bool ref
+  val write_ramseyl : string -> ramsey list -> unit
+  val read_ramseyl : string -> ramsey list
 
 
 end

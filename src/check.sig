@@ -33,5 +33,11 @@ sig
   val checkfinal_pgen : unit -> kernel.pgen list
   val merge_pgen : string option -> kernel.pgen list
  
+  (* ramsey experiment *)
+  val checkinit_ramsey : unit -> unit
+  val checkonline_ramsey : prog * exec.exec -> unit
+  val checkfinal_ramsey : unit -> kernel.ramsey list
+  val merge_ramsey : string option -> kernel.ramsey list
+ 
  
 end

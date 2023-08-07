@@ -126,7 +126,7 @@ fun collect_child boarde move =
     let
       val p = Ins (move, map #1 (rev l1))
       val exec = 
-        if !intl_flag 
+        if !intl_flag
         then (fn (a,b,c) => a) 
         else mk_exec_move move (map #2 (rev l1))  
     in 
@@ -144,7 +144,9 @@ fun collect_children nnvalue boarde = case boarde of
       val _ = if not (!locsearch_flag) 
               then (
                    incr prog_counter; 
-                   if !pgen_flag 
+                   if !ramsey_flag then
+                     checkonline_ramsey (p,exec)
+                   else if !pgen_flag 
                    then checkonline_pgen (p,exec)
                    else checkonline nnvalue (p,exec)
                    )

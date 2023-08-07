@@ -69,6 +69,8 @@ val vector_glob = ref (Vector.fromList [])
 val resl_glob = ref []
 val resn_glob = ref 0
 
+
+
 (* -------------------------------------------------------------------------
    Time limit wrappers
    ------------------------------------------------------------------------- *)
@@ -493,7 +495,7 @@ fun penum_pgen exec =
   in 
     app g anuml_itsol209; rev (!l)
   end 
-  
+
 (* -------------------------------------------------------------------------
    HER experiment (maybe should be looking at
    the 10 best recommendation according to the tnn)
@@ -713,6 +715,20 @@ val (l1,t) = add_time (penum p) 7;
 !abstimer;
 val l = penum_prime p;
 !abstimer;
+
+val s = "C C L C G C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N L C G M C C D H B E A K C H A K N K M E C G C H E";
+
+
+val prog = prog_of_gpt s;
+
+val (f,t) = aiLib.add_time mk_exec prog;
+
+timeincr := 1000000000000;
+max_compr_number := 2000;
+
+val (r,t) 
+ = aiLib.add_time f (IntInf.fromInt 1000,IntInf.fromInt 0, IntInf.fromInt 0);
+
 *)
 
 (* -------------------------------------------------------------------------

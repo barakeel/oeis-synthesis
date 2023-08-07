@@ -27,8 +27,7 @@ sig
   (* pgen experiment *)
   val penum_pgen : exec -> (int * kernel.prog) list
   (* seq experiment *)
-  val match_seq : kernel.seq -> exec -> bool * int
-   
+  val match_seq : kernel.seq -> exec -> bool * int   
   (* parallel execution (wip) *)
   val execspec : (unit, kernel.prog list, kernel.seq list) smlParallel.extspec
   val parallel_exec : int -> string -> unit

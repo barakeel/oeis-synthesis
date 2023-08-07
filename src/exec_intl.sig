@@ -8,5 +8,8 @@ sig
   val mk_exec : prog -> exec
   val coverf_oeis : exec -> (int * int) list * int * int list
   val verify_wtime : int -> int * prog -> bool * bool 
+  val edgev_glob : (int ref *
+       (((int ref * int ref) * (int * int)) vector *
+       ((int ref * int ref) * (int * int)) vector)) vector ref 
   
 end

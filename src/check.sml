@@ -502,5 +502,81 @@ fun merge_pgen fileo =
     checkfinal_pgen ()
   end  
 
+(* -------------------------------------------------------------------------
+   Learning programs with respect to an objective function
+   and a hash function saying which program are simiarl.
+   ------------------------------------------------------------------------- *)
+
+(* data structures 
+ramseyd: contains list of ramsey entries sorted by score then compare_prog_size
+ramseyh: contains the set of hashes from ramseyd
+when stored on a file ramsey is a list of key and values.
+*)
+
+val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
+val ramseyd = ref (dempty compare_ramsey)
+val ramseyh = ref (dempty Int.compare)
+
+exception Catchableip of ramsey;
+
+fun smallest_keyval d =
+  (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
+  handle Catchableip r => SOME r
+
+fun filter_ramsey () = 
+  if dlength (!ramseyd) >= 10001 then 
+    let val (k,v) = valOf (smallest_keyval (!ramseyd)) in
+      ramseyd := drem k (!ramseyd);
+      ramseyh := drem (#3 v) (!ramseyh)
+    end
+  else ()
+  
+fun update_ramseyd (ktop,vtop as (_,_,h,_)) = 
+  case dfindo h (!ramseyh) of
+    NONE =>
+    (
+    ramseyd := dadd ktop vtop (!ramseyd); 
+    ramseyh := dadd h (ktop,vtop) (!ramseyh);
+    filter_ramsey ()
+    )
+  | SOME (k,v) => 
+    if compare_ramsey (ktop,k) <> GREATER then () else
+    (
+    ramseyd := drem k (!ramseyd);
+    ramseyd := dadd ktop vtop (!ramseyd);
+    ramseyh := dadd h (ktop,vtop) (!ramseyh)
+    )
+
+fun checkinit_ramsey () = 
+  (ramseyd := dempty compare_ramsey; ramseyh := dempty Int.compare)
+    
+fun collect_id (Ins (id,pl)) = id :: List.concat (map collect_id pl)
+
+fun hash_prog p =
+  let 
+    val l = collect_id p 
+    fun f(a,b) = (a*10+1)*b
+  in
+    sum_int (map f (dlist (count_dict (dempty Int.compare) l)))
+  end
+ 
+fun checkonline_ramsey (p,exec) = case ramsey.ramsey_score p of 
+    NONE => ()
+  | SOME sc => update_ramseyd ((~sc,p),(sc,sc,sc,sc))
+ 
+fun checkfinal_ramsey () = dlist (!ramseyd)
+
+fun merge_ramsey_file file = app update_ramseyd (read_ramseyl file)
+
+fun merge_ramsey fileo = 
+  let 
+    val _ = checkinit_ramsey ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_ramsey_file filel
+    val _ = if isSome fileo then merge_ramsey_file (valOf fileo) else ()
+  in
+    checkfinal_ramsey ()
+  end
+
 
 end (* struct *)

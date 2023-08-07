@@ -6,22 +6,20 @@ sig
   val mat_size : mat -> int
 
   val continue_flag : bool ref
+  val degree_flag : bool ref
 
-  (* sat problem *)
-  val init_satpb :   int -> mat * mat -> 
-    (int ref * ((int * int) list * (int * int) list)) vector *
-    ((bool ref * (int * int)) vector * int ref) vector
-
-  val prop_sat : 
-    (int ref * ((int * int) list * (int * int) list)) vector ->
-    ((bool ref * (int * int)) vector * int ref) vector ->
-    (int * int) -> (int * int) list * (int * int) list * bool
+  (* sat *)            
+  val all_clauses : int -> mat * mat -> (int * int) list list
+  val extra_clauses : int -> (int * int) list list
   
-  val sat_solver_loop : 
-    (int ref * ((int * int) list * (int * int) list)) vector ->
-    ((bool ref * (int * int)) vector * int ref) vector ->
-    ((int * int) list * int list) list -> bool
-
+  val init_sat : int -> mat * mat ->
+     (int ref *
+       (((int ref * int ref) * (int * int)) vector *
+       ((int ref * int ref) * (int * int)) vector)) vector *
+     ((bool ref * ((int * int) * int)) vector * int ref) vector
+  
+  val sat_solver : int -> mat * mat -> bool
+  
   (* random shapes *)
   val random_mat : int -> mat
   val matK : int -> mat
@@ -30,7 +28,7 @@ sig
   val random_shape_nocycle : int -> int -> mat
   val symmetrify : mat -> mat
   val string_of_graph : mat -> string
-  val string_of_shape : mat -> string
+  val string_of_bluegraph : mat -> string
   
   (* search tools *)
   val search_order : int -> (int * int) list
@@ -39,57 +37,19 @@ sig
   val subsets_of_size : int -> int list -> int list list
   
   (* normalization *)
+  val refine_partition : int list list -> int list list list
   val normalize_nauty : mat -> mat
   val normalize_nauty_safe : mat -> mat
-  val refine_partition : int list list -> int list list list
-  val iso_vertices : mat -> int list list
-  val iso_edges : mat -> (int * int) list list
   
   (* properties *)
   val is_ackset : mat -> bool
   val is_ackset_pb : (mat * mat) -> bool
   val not_automorphic : mat -> bool
   val not_automorphic_pb : (mat * mat) -> bool
-  
-  (* cycles *)
   val has_cycle : int -> mat -> bool
   
-  (* keeps only one color *)
-  val keep_only : int -> mat -> mat
-  
-  (* problems *)
-  val read_cnf : string -> ((mat * mat) * bool)
-  val string_of_pbr : ((mat * mat) * bool) * (bool * int) -> string
-  
-  (* shapes and supershapes *)
-  val all_undirected_shapes : int -> mat list
-  val reduce_mat : mat -> mat
-  val deduplicate_shapel : mat list -> mat list
-  val supershapes : mat -> bool array
-  val isomorphic_shapes : mat -> mat list
+  (* rl experiment *)
+  val ramsey_score : kernel.prog -> int option  
 
-  (* conversion between formats *)
-  val edgecl_to_mat : ((int * int) * int) list -> mat
-  val mat_to_edgecl : mat -> ((int * int) * int) list
-  val mat_to_edgecl_undirected : mat -> ((int * int) * int) list
-  val shape_to_int : mat -> int
-  val zip_mat : mat -> IntInf.int
-  val unzip_mat : IntInf.int -> mat
- 
-  (* problems *)
-  val create_pbl : int -> ((mat * mat) * (mat * mat) list) list
-  val create_pbl_same : int -> ((mat * mat) * (mat * mat) list) list
-  val create_pbl_undirected : int -> ((mat * mat) * bool) list
-
-  (* main *)
-  val search_each_size : ((mat * mat) * bool) -> (bool * int)
-  val search_one_size : int -> ((mat * mat) * bool) -> (bool * int)
-  
-  (* parallel *)
-  val ramseyspec : 
-    (unit, ((mat * mat) * bool), (bool * int)) smlParallel.extspec 
-  val parallel_ramsey : 
-    int -> string -> ((mat * mat) * bool) list -> 
-      (((mat * mat) * bool) * (bool * int)) list
   
 end

@@ -131,6 +131,20 @@ fun pop_f fl = case fl of
   | _ => raise ERR "mk_popf" ""
 
 (* -------------------------------------------------------------------------
+   Memory
+   ------------------------------------------------------------------------- *)
+
+val edgev_glob = ref (Vector.fromList [])
+
+fun edge_f_aux a = 
+  let val modn = IntInf.fromInt (Vector.length (!edgev_glob)) in
+    [IntInf.fromInt 
+      (!(fst (Vector.sub (!edgev_glob, IntInf.toInt ((hd a) mod modn)))))]
+  end
+  
+val edge_f = mk_unf edge_f_aux
+
+(* -------------------------------------------------------------------------
    Thinking tokens
    ------------------------------------------------------------------------- *)
 
@@ -215,14 +229,19 @@ val org_execl =
   [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
    loop_f,x_f,y_f, compr_f, loop2_f]
 
+val ramsey_execl = 
+  [zero_f,one_f,two_f,addi_f,diff_f,mult_f,divi_f,modu_f,cond_f,
+   loop_f,x_f,y_f, loop2_f ,push_f, pop_f, edge_f]
+
 val run_f = mk_unf (fn x => x)
 
 val execv = Vector.fromList (
-  org_execl @ 
+  if !ramsey_flag then ramsey_execl else
+  (org_execl @ 
   [push_f, pop_f] @
   (if !think_flag then [think1_f,think2_f] else []) @
   (if !run_flag then List.tabulate (12, fn _ => run_f) else [])
-  )
+  ))
 
 val _ = if !intl_flag andalso Vector.length execv <> Vector.length operv
         then raise ERR "execv" "mismatch with operv"

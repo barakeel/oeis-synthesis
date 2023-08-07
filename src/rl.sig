@@ -47,4 +47,10 @@ sig
   val pgenspec : 
     (unit, (prog list * real) list, kernel.pgen list) smlParallel.extspec
   
+  (* searching for hadamard matrices *)
+  val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
+  val ramseyspec : 
+    (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
+  
+  
 end

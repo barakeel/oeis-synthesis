@@ -70,6 +70,7 @@ val intl_flag = bflag "intl_flag"
 val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
+val ramsey_flag = bflag "ramsey_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -171,12 +172,17 @@ local open HOLsexp in
   val enc_pgen = pair_encode (enc_prog, 
     list_encode (pair_encode (Integer,enc_prog))) 
   val dec_pgen = pair_decode (dec_prog, 
-    list_decode (pair_decode (int_decode,dec_prog))) 
+    list_decode (pair_decode (int_decode,dec_prog)))
+  val enc_ramsey = pair_encode (pair_encode (Integer, enc_prog), 
+                     pair4_encode (Integer,Integer,Integer,Integer))
+  val dec_ramsey = pair_decode (pair_decode (int_decode, dec_prog),
+     pair4_decode (int_decode,int_decode,int_decode,int_decode))
 end
 
 fun write_itprogl file r = write_data enc_itprogl file r
 fun read_itprogl file = read_data dec_itprogl file
 
+type pgen = (prog * (int * prog) list)
 fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
 fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
 
@@ -185,6 +191,11 @@ fun read_progl file = read_data dec_progl file
 
 fun write_seql file r = write_data enc_seql file r
 fun read_seql file = read_data dec_seql file
+
+type ramsey = (int * prog) * (int * int * int * int)
+fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
+fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
+
 
 (* -------------------------------------------------------------------------
    Instructions
@@ -204,13 +215,19 @@ val turing_operl = [("zero",0),("one",0),("two",0),
   ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
   ("cond",3),("loope",2),("next",0),("prev",0),("write",1),("read",0)]
 
+val ramsey_operl = [("zero",0),("one",0),("two",0),
+  ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+  ("cond",3),("loop",3),("x",0),("y",0),("loop2",5),
+  ("push",2),("pop",1),("edge",1)]
+
 val pgen_operl = map (fn x => (x,1))
   ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
    "mcond","mloop","mx","my","mcompr","mloop2"] 
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !array_flag then array_operl
+  if !ramsey_flag then ramsey_operl 
+  else if !array_flag then array_operl
   else if !turing_flag then turing_operl
   else if !minimal_flag then minimal_operl
   else org_operl @
@@ -266,10 +283,14 @@ fun contain_opers s p = case dfindo s opersd of
    ------------------------------------------------------------------------- *)
 
 val ho_ariv = Vector.fromList (
-  if !turing_flag then List.tabulate (Vector.length operv, fn _ => 0)
+  if !ramsey_flag 
+    then List.tabulate (9,fn _ => 0) @ [1,0,0,2,0,0,0] 
+  else if !turing_flag 
+    then List.tabulate (Vector.length operv, fn _ => 0)
   else if !array_flag
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
-  else if !minimal_flag then [0,0,0,0,0,1]
+  else if !minimal_flag 
+    then [0,0,0,0,0,1]
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
        (if !z_flag then [0,3] else []) @
        (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
@@ -387,7 +408,6 @@ fun prog_of_movel ml =
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
  
-type pgen = (prog * (int * prog) list)
 
   
 end (* struct *)
