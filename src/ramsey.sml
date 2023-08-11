@@ -969,12 +969,10 @@ fun all_clauses2 size (bluesize,redsize) =
 fun reduce_clause edgecd acc clause = case clause of
     [] => SOME (rev acc)
   | (lit as ((i,j),color)) :: m => 
-    (
-    case dpeek (i,j) edgecd of
-      NONE => reduce_clause edgecd (lit :: acc) m
-    | SOME newcolor => 
-      if color = newcolor then reduce_clause edgecd acc m else NONE
-    )
+    let val newcolor = mat_sub (edgecd,i,j) in
+      if newcolor = 0 then reduce_clause edgecd (lit :: acc) m
+      else if color = newcolor then reduce_clause edgecd acc m else NONE
+    end
   
 fun all_clauses3 size (bluesize,redsize) edgecd =
   List.mapPartial (reduce_clause edgecd []) 
@@ -1432,6 +1430,9 @@ fun ramsey_score p =
    R(4,5) search loop
    ------------------------------------------------------------------------- *)
  
+val satdir_glob = ref selfdir
+val subgraphs_glob = ref []
+ 
 fun read_case (a,b) =
   let 
     val file1 = selfdir ^ "/ramsey_3_5/" ^ its a  
@@ -1472,6 +1473,11 @@ fun random_index arr =
     loop n n
   end
   
+fun random_indexl n arr = 
+  if n <= 0 then [] else case random_index arr of NONE => [] | SOME i =>
+  (BoolArray.update (arr,i,true); i :: random_indexl (n-1) arr)
+  
+  
 fun subgraph_pair i subgraphs = case subgraphs of
     [] => raise ERR "subgraph_pair" ""
   | (x,(an,bn)) :: m => 
@@ -1481,82 +1487,98 @@ fun subgraph_pair i subgraphs = case subgraphs of
 
 val edge_compare = cpl_compare Int.compare Int.compare
 
-fun send_pb dir arr subgraphs =
-  let 
-    val i = valOf (random_index arr)
+
+fun send_pb dir subgraphs i =
+  let
     val (((csize,dsize),(cv,dv)),(ci,di)) = subgraph_pair i subgraphs
     val ce = Vector.sub (cv,ci)
     val de = Vector.sub (dv,di)
     val cl = unzip_full_edgecl csize (valOf (IntInf.fromString ce))
     val dl = unzip_full_edgecl dsize (valOf (IntInf.fromString de))
     val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
-    val edgecd = dnew edge_compare (cl @ dl')
+    val edgecd = edgecl_to_mat_size (csize + dsize) (cl @ dl')
     val pb = all_clauses3 24 (4,5) edgecd
     val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
     val vard = dnew edge_compare (number_snd 0 allvar)
     val newpb = map (map_fst (fn x => dfind x vard)) pb
     val file = dir ^ "/" ^ its i
+    val fileout = file ^ "_out"
+    val _ = write_satpb file (dlength vard, newpb)
+    val _ = cmd_in_dir dir ("sh cadical.sh " ^ file)
+    val r = mem "UNSATISFIABLE" 
+     (String.tokens Char.isSpace (hd (readl fileout)))
   in 
-    write_satpb file (dlength vard, newpb);
-    cmd_in_dir dir ("sh cadical.sh " ^ file ^ " &");
-    i
+    remove_file file; remove_file fileout; r
   end 
 
-exception Satisfiable of int
+(* -------------------------------------------------------------------------
+   R(4,5) parallel execution
+   ------------------------------------------------------------------------- *)
+
+fun init_subgraphs () = 
+  (
+  satdir_glob := selfdir ^ "/exp/r45/sat";
+  subgraphs_glob := import_subgraphs ()
+  )
+
+fun ramseyspec_fun job = send_pb (!satdir_glob) (!subgraphs_glob) job
+ 
+fun write_int file i = writel file [its i]
+fun read_int file = string_to_int (hd (readl file))
+fun write_bool file b = writel file [bts b]
+fun read_bool file = string_to_bool (hd (readl file))
+
+val ramseyspec : (unit, int, bool) extspec =
+  {
+  self_dir = selfdir,
+  self = "ramsey.ramseyspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir),
+     "ramsey.init_subgraphs ()"
+      ] 
+    ^ ")"),
+  function = let fun f () pl = ramseyspec_fun pl in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_int,
+  read_arg = read_int,
+  write_result = write_bool,
+  read_result = read_bool
+  }
+
+exception Satisfiable of int list;
+
+val batch_size = 10000
 
 fun r45 ncore expdir =
   let
     val satdir = expdir ^ "/sat"
+    val buildheapdir = expdir ^ "/buildheap"
     val completed_file = expdir ^ "/completed"
     val completedn_file = expdir ^ "/completedn"
-    val _ = app mkDir_err [expdir,satdir]
+    val _ = app mkDir_err [expdir,satdir,buildheapdir]
     val _ = cmd_in_dir selfdir ("cp cadical.sh " ^ satdir)
-    val _ = print_endline "importing subgraphs"
-    val subgraphs = import_subgraphs ()
-    val _ = print_endline "done"
-    val total = sum_int (map ((op *) o snd) subgraphs)
-    val _ = print_endline ("graph pairs: " ^ its total)
+    val total = sum_int (map ((op *) o snd) (import_subgraphs ()))
     val arr = BoolArray.array (total,false)
-    val completed = ref 0
-    val running = ref 0
-    val runningl = ref []
-    fun test job =
-      let
-        val file = satdir ^ "/" ^ its job
-        val fileout = file ^ "_out" 
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
+    val _ = smlExecScripts.buildheap_dir := buildheapdir
+    fun loop k = 
+      if not (isSome (random_index arr)) then print_endline "end proof" else
+      let 
+        val il = random_indexl batch_size arr
+        val ncore' = Int.min (ncore,length il)
+        val (bl,t) = add_time (parmap_queue_extern ncore' ramseyspec ()) il
       in
-        if exists_file fileout
-        then 
-          if mem "UNSATISFIABLE" 
-            (String.tokens Char.isSpace (hd (readl fileout)))
-          then (remove_file file; remove_file fileout; true)
-          else raise Satisfiable job
-        else false  
-      end      
-    fun check_running () = 
-      let val (completedl,newrunningl) = partition test (!runningl) in
-        app (append_endline completed_file) (map its completedl);
-        completed := !completed + (length completedl);
-        if not (null completedl) then
-          writel completedn_file [its (!completed)] else ();
-        app (print_endline o (fn x => "completed " ^ its x)) completedl;
-        runningl := newrunningl
-      end    
-    fun start_job () =
-      if length (!runningl) < ncore
-      then let val i = send_pb satdir arr subgraphs in
-         print_endline ("send " ^ its i);
-         runningl := i :: !runningl
-        end
-      else ()
-    fun loop () =
-      (OS.Process.sleep (Time.fromReal 0.01);
-       if !completed = BoolArray.length arr 
-         then print_endline "end proof" 
-         else (start_job (); check_running (); loop ())
-      )
+        append_endline (expdir ^ "/batch") 
+          ("batch " ^ its k ^ " in " ^ rts_round 2 t ^ " seconds");
+        if exists not bl then raise Satisfiable il else loop (k+1)
+      end
   in
-    loop ()
+    loop 0
   end
  
 (*
@@ -1564,7 +1586,7 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 val expdir = selfdir ^ "/exp/r45";
-val ncore = 2;
+val ncore = 100;
 val (r,t) = add_time (r45 ncore) expdir;
 *)
 
@@ -1612,8 +1634,6 @@ max_blue_degree := 8;
 max_red_degree := 8; 
 loop (4,4) 2;
 *)
-
-
 
 (*
 val (r,t) = add_time (sat_solver 5) (matK 3,matK 3);

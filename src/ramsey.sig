@@ -34,7 +34,7 @@ sig
   
   (* creating problems *)
   val all_clauses2 : int -> int * int -> ((int * int) * int) list list
-  val all_clauses3 : int -> int * int -> (int * int, int) Redblackmap.dict 
+  val all_clauses3 : int -> int * int -> int Array2.array
     -> ((int * int) * int) list list
   
   (* random shapes *)
@@ -71,6 +71,8 @@ sig
   val ramsey_score : kernel.prog -> int option  
 
   (* r45 experiment *)
+  val init_subgraphs : unit -> unit
+  val ramseyspec : (unit, int, bool) smlParallel.extspec
   val r45 : int -> string -> unit
 
   
