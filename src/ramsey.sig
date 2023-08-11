@@ -7,10 +7,17 @@ sig
 
   val continue_flag : bool ref
   val degree_flag : bool ref
-
+  val max_red_degree : int ref
+  val max_blue_degree : int ref
+  val iso_flag : bool ref
+  val del_flag : bool ref
+  val sbl_flag : bool ref
+  val graphl : IntInf.int list ref
+  val disable_log : bool ref
+  
   (* sat *)            
   val all_clauses : int -> mat * mat -> (int * int) list list
-  val extra_clauses : int -> (int * int) list list
+  val sbl_clauses : int -> (int * int) list list
   
   val init_sat : int -> mat * mat ->
      (int ref *
@@ -20,8 +27,20 @@ sig
   
   val sat_solver : int -> mat * mat -> bool
   
+  (* storing full matrices *)
+  val zip_full : mat -> IntInf.int
+  val unzip_full : int -> IntInf.int -> mat
+  val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list
+  
+  (* creating problems *)
+  val all_clauses2 : int -> int * int -> ((int * int) * int) list list
+  val all_clauses3 : int -> int * int -> (int * int, int) Redblackmap.dict 
+    -> ((int * int) * int) list list
+  
   (* random shapes *)
   val random_mat : int -> mat
+  val random_full_symmat : int -> mat
+  val mat_compare : mat * mat -> order
   val matK : int -> mat
   val matKn : int -> int -> mat
   val random_shape : int -> int -> mat
@@ -50,6 +69,9 @@ sig
   
   (* rl experiment *)
   val ramsey_score : kernel.prog -> int option  
+
+  (* r45 experiment *)
+  val r45 : int -> string -> unit
 
   
 end
