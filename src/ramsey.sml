@@ -904,6 +904,9 @@ fun string_of_assignv assignv =
 val graph_glob = ref (Array2.array (1,1,0));
 val isograph_glob = ref (Array2.array (1,1,0));
 
+(* 1 in the graph means blue, 
+   1 in the sat problem means not blue *)
+
 fun add_clause (clause,(assignv,clausevv)) =
   let
     val cid = Vector.length clausevv
@@ -922,7 +925,9 @@ fun add_clause (clause,(assignv,clausevv)) =
         val l = if color = blue then l1 else l2
         val vcid = length (!l) + 1
       in
-        l := (cid,cvid) :: !l; (* link from var to clauses *)
+        l := (cid,cvid) :: !l; 
+        (* l is the list of watched literals
+           link from var to clauses *)
         ((vid,vcid),color)
       end
     val newclausev = Vector.fromList (mapi f clause)
@@ -1678,7 +1683,10 @@ fun r45 ncore expdir =
       (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
     val _ = smlExecScripts.buildheap_dir := buildheapdir
     fun loop k = 
-      if not (isSome (random_index arr)) then print_endline "end proof" else
+      if not (isSome (random_index arr)) then 
+        (append_endline (expdir ^ "/batch") "end proof";
+         print_endline "end proof")
+      else
       let 
         val il = random_indexl batch_size arr
         val ncore' = Int.min (ncore,length il)
@@ -1697,7 +1705,7 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 val expdir = selfdir ^ "/exp/r45_789";
-val ncore = 2;
+val ncore = 100;
 val (r,t) = add_time (r45 ncore) expdir;
 *)
 
