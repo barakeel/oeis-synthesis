@@ -1646,7 +1646,7 @@ val ramseyspec : (unit, int, bool) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote 
       (!smlExecScripts.buildheap_dir),
-     "ramsey.satdir_glob := " ^  mlquote (!ramsey.satdir_glob),
+     "ramsey.satdir_glob := " ^  mlquote (!satdir_glob),
      "ramsey.init_subgraphs ()"
       ] 
     ^ ")"),
@@ -1696,7 +1696,7 @@ fun r45 ncore expdir =
 PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
-val expdir = selfdir ^ "/exp/r45";
+val expdir = selfdir ^ "/exp/r45_789";
 val ncore = 2;
 val (r,t) = add_time (r45 ncore) expdir;
 *)
