@@ -47,6 +47,7 @@ val iso_flag = ref true
 val del_flag = ref true
 val sbl_flag = ref false
 val graphl = ref []
+val conel = ref []
 
 
 (* -------------------------------------------------------------------------
@@ -98,6 +99,7 @@ val other_timer = ref 0.0
 fun init_timer () =
   (
   graphl := [];
+  conel := [];
   sat_n := 0;
   prop_counter := 0;
   prop_small_counter := 0;
@@ -365,8 +367,8 @@ fun string_of_bluegraph graph =
 fun pairbelowy y = List.tabulate (y+1,fn x => (x,y))
 
 fun search_order_undirected size = 
-  let 
-    val search_order0 = List.concat (List.tabulate (size,fn y => pairbelowy y))
+  let val search_order0 = 
+    List.concat (List.tabulate (size,fn y => pairbelowy y))
   in
     filter (fn (x,y) => x <> y) search_order0
   end  
@@ -965,6 +967,34 @@ fun all_clauses2 size (bluesize,redsize) =
   in
     map clique_of_subset2 subsetl
   end  
+
+
+(*
+val iref = ref 0;
+val jref = ref 0;
+val kref = ref 0;
+val lref = ref 0;
+val mref = ref 0;
+
+fun enum5 boundtop ftop =
+  let
+    val _ = (iref := 0; jref := 0; kref := 0; lref := 0; mref := 0)
+    fun forloop_aux xref bound f =
+      if !xref >= bound then () else 
+      (f (); incr xref; forloop_aux xref bound f)
+    fun forloop xref start bound f = 
+      (xref := start; forloop_aux xref bound f)
+    fun loop1 () = forloop mref (!lref + 1) boundtop ftop
+    fun loop2 () = forloop lref (!kref + 1) boundtop loop1
+    fun loop3 () = forloop kref (!jref + 1) boundtop loop2
+    fun loop4 () = forloop jref (!iref + 1) boundtop loop3
+    fun loop5 () = forloop iref 0 boundtop loop4
+  in
+    loop5 ()
+  end;
+  
+val (_,t) = add_time (enum5 24) (fn _ => ());  
+*)
  
 fun reduce_clause edgecd acc clause = case clause of
     [] => SOME (rev acc)
@@ -979,52 +1009,6 @@ fun all_clauses3 size (bluesize,redsize) edgecd =
   (all_clauses2 size (bluesize,redsize))
  
 
-
-(*
-load "ramsey"; open aiLib kernel ramsey;
-
-val cases = [(7,17),(8,16),(9,15),(10,14),(12,12),(13,11)]
-fun read_case (a,b) =
-  let 
-    val file1 = selfdir ^ "/ramsey_3_5/" ^ its a  
-    val file2 = selfdir ^ "/ramsey_4_4/" ^ its b
-  in
-    (readl file1, readl file2)
-  end;
-val l0 = map_assoc read_case cases;
-val l1 = map_assoc (fn (_,(a,b)) => Real.fromInt (length a * length b)) l0;
-val ((csize,dsize),(c,d)) = select_in_distrib l1;
-val ce = random_elem c;
-val de = random_elem d;
-val cl = unzip_full_edgecl csize (valOf (IntInf.fromString ce));
-val dl = unzip_full_edgecl dsize (valOf (IntInf.fromString de));
-val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl;
-
-val edgecd = dnew (cpl_compare Int.compare Int.compare) (cl @ dl');
-
-val pb = all_clauses3 24 (4,5) edgecd;
-
-val allvar = mk_fast_set (cpl_compare Int.compare Int.compare) 
-  (List.concat (map (map fst) pb));
-val vard = dnew (cpl_compare Int.compare Int.compare) (number_snd 0 allvar);
-
-val newpb = map (map_fst (fn x => dfind x vard)) pb;
-
-fun write_satpb file (nvar,pb) = 
-  let 
-    val header = "p cnf " ^ its nvar ^ " " ^ its (length pb) 
-    fun g (x,c) = if c = 1 then "-" ^ (its (x+1)) else its (x+1)
-    fun f clause = String.concatWith " " (map g clause) ^ " 0"
-  in
-    writel file (header :: map f pb)
-  end;
-
-write_satpb "aaatest" (dlength vard, newpb);
-
-(* main process will use a bool array *)
-
-*)  
-  
 val fresh_var_counter = ref 0  
   
 fun fresh_var () = 
@@ -1123,7 +1107,7 @@ fun propagated_clause clausev =
 
 
 fun assign undol edgeid assignref color =
-  if edgeid < !edgel_n then
+  (* if edgeid < !edgel_n then *)
   let 
     val graph = !graph_glob
     val (a,b) = project edgeid
@@ -1139,12 +1123,13 @@ fun assign undol edgeid assignref color =
     mat_update (graph,b,a,color);
     undol := back :: !undol
   end
+  (* 
   else
   let fun back () = assignref := 0 in
     assignref := color;
     undol := back :: !undol
   end  
-  
+  *)
 
 fun prop_sat_loop assignv clausevv queue undol = case !queue of 
     [] => (!undol, false)
@@ -1337,9 +1322,11 @@ fun sat_solver_loop assignv clausevv path =
       if !continue_flag 
       then (sat_flag := true;
             incr sat_n; 
-            graphl := zip_full (normalize_nauty (!graph_glob)) :: !graphl;
-            log (string_of_bluegraph (!graph_glob));
-            sat_solver_loop assignv clausevv ((undol,eido,[]) :: parentl))
+      (* graphl := zip_full (normalize_nauty (!graph_glob)) :: !graphl; *)
+        conel := map (fn (a,b) => 
+           mat_sub (!graph_glob,a,b)) (!edgel_glob) :: !conel;
+        (* log (string_of_bluegraph (!graph_glob)); *)
+        sat_solver_loop assignv clausevv ((undol,eido,[]) :: parentl))
       else
       (log "sat"; stats ();
         log (string_of_bluegraph (!graph_glob));
@@ -1425,6 +1412,115 @@ fun ramsey_score p =
     disable_log := false;
     r
   end
+  
+(* -------------------------------------------------------------------------
+   R(4,5) cone creation
+   ------------------------------------------------------------------------- *)  
+ 
+fun starting_graph edgecl (assignv,clausevv) = case edgecl of
+    [] => ()
+  | ((i,j),c) :: m => 
+    let 
+      val eid = id_pair (i,j)
+      val propc = !(fst (Vector.sub (assignv,eid)))
+    in
+      if propc = c then starting_graph m (assignv,clausevv) else
+      if propc = 0 then
+        let val (_,conflict) = prop_sat assignv clausevv (eid,c)
+          
+          handle Subscript => raise ERR "prop_sat" "subscript"
+        in
+          if conflict then raise ERR "starting_shape" "conflict1" else
+          starting_graph m (assignv,clausevv)
+        end  
+      else raise ERR "starting_shape" "conflict2"
+    end
+  
+fun create_cone (blueshape,redshape) size sgraph =
+  let
+    val edgecl = unzip_full_edgecl size (valOf (IntInf.fromString sgraph))
+    val _ = log ("edgecl: " ^ string_of_edgecl edgecl)
+    val _ = init_timer ()
+    val _ = isod_glob := eempty IntInf.compare
+    val _ = edgel_glob := List.tabulate (size, fn x => (x,size))
+    val _ = edgel_n := length (!edgel_glob)
+    val _ = sat_flag := false
+    val _ = undirected_flag := true
+    val (assignv,clausevv) = init_sat (size+1) (blueshape,redshape)
+    val _ = log "init_sat"
+    val _ = starting_graph edgecl (assignv,clausevv)
+    val _ = log ("starting_graph " ^ sgraph ^ ": " ^ 
+                  string_of_bluegraph (!graph_glob))
+    val (eido,colorl) = next_assign (!choose_global) assignv
+    val path = [([],eido,colorl)]
+    val _ = log ("variables: " ^ its (Vector.length assignv))
+    val _ = log ("clauses: " ^ its (Vector.length clausevv))
+  in
+    sat_solver_loop assignv clausevv path
+  end  
+  
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 20;
+
+val size = 10;
+val sl = readl "ramsey_3_5/10";
+val sgraph = random_elem sl;
+
+degree_flag := false;
+continue_flag := true;
+(* max_blue_degree := 4;
+   max_red_degree := 8; *)
+iso_flag := false; 
+disable_log := false;
+val (r,t) = add_time (create_cone (matK 4,matK 5) 10) sgraph;
+
+
+val size = 17;
+val sl = readl ("ramsey_4_4/" ^ its size);
+val sgraph = random_elem sl;
+
+degree_flag := false;
+continue_flag := true;
+(* max_blue_degree := 4;
+   max_red_degree := 8; *)
+iso_flag := false; 
+disable_log := false;
+val (r,t) = add_time (create_cone (matK 4,matK 5) size) sgraph;
+
+val edgel = List.tabulate (17, fn x => (x,17));
+
+
+
+val edgecl = combine (edgel, hd (!conel));
+val s0pos = ((~1,0),2);
+val s0neg = ((~1,0),1);
+val clause = s0pos :: edgecl;
+val clausel =  map (fn (x,c) => [s0neg,(x, 3 -c)]) edgecl;
+
+val edgel2 = List.tabulate (17, fn x => (x,17));
+ 
+val edgecl = combine (edgel2, hd (!conel));
+val s1pos = ((~1,1),2);
+val s1neg = ((~1,1),1);
+val clause = s1pos :: edgecl;
+val clausel =  map (fn (x,c) => [s1neg,(x, 3 -c)]) edgecl;
+
+fun loop (a,b) k = 
+  let 
+    val dir = "ramsey_" ^ its a ^ "_" ^ its b ^ "_cones"
+    val file = dir ^ "/" ^ k
+    
+    val _ = mkDir_err dir
+    val (r,t) = add_time (create_cone (matK 3,matK 5) 10 sgraph)
+  in
+    print_endline (its (length (!graphl)));
+    writel file (map IntInf.toString (!graphl));
+    if r then () else loop (a,b) (k+1)
+  end;
+
+*)
 
 (* -------------------------------------------------------------------------
    R(4,5) search loop
@@ -1450,9 +1546,11 @@ fun write_satpb file (nvar,pb) =
     writel file (header :: map f pb)
   end  
   
+(* ,(10,14),(12,12),(13,11) *)
+  
 fun import_subgraphs () =
   let 
-    val cases = [(7,17),(8,16),(9,15),(10,14),(12,12),(13,11)]
+    val cases = [(7,17),(8,16),(9,15)]
     val l0 = map_assoc read_case cases;
     fun f (_,(a,b)) = (Vector.length a, Vector.length b)
     val l1 = map_assoc f l0
@@ -1490,21 +1588,36 @@ val edge_compare = cpl_compare Int.compare Int.compare
 
 fun send_pb dir subgraphs i =
   let
-    val (((csize,dsize),(cv,dv)),(ci,di)) = subgraph_pair i subgraphs
-    val ce = Vector.sub (cv,ci)
-    val de = Vector.sub (dv,di)
-    val cl = unzip_full_edgecl csize (valOf (IntInf.fromString ce))
-    val dl = unzip_full_edgecl dsize (valOf (IntInf.fromString de))
-    val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
-    val edgecd = edgecl_to_mat_size (csize + dsize) (cl @ dl')
-    val pb = all_clauses3 24 (4,5) edgecd
-    val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
-    val vard = dnew edge_compare (number_snd 0 allvar)
-    val newpb = map (map_fst (fn x => dfind x vard)) pb
+    fun pb_import () =
+      let
+        val (((csize,dsize),(cv,dv)),(ci,di)) = subgraph_pair i subgraphs
+        val ce = Vector.sub (cv,ci)
+        val de = Vector.sub (dv,di)
+        val cl = unzip_full_edgecl csize (valOf (IntInf.fromString ce))
+        val dl = unzip_full_edgecl dsize (valOf (IntInf.fromString de))
+        val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
+      in
+        cl @ dl'
+      end
+    val (edgecl,t0) = add_time pb_import ()
+    val _ = print_endline ("pb_import: " ^ rts_round 6 t0)
+    fun pb_creation () =
+      let
+        val edgecd = edgecl_to_mat_size 24 edgecl 
+        val pb = all_clauses3 24 (4,5) edgecd
+        val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
+        val vard = dnew edge_compare (number_snd 0 allvar)
+      in
+        (map (map_fst (fn x => dfind x vard)) pb, dlength vard)
+      end
+    val ((pb,varn),t1) = add_time pb_creation ()
+    val _ = print_endline ("pb_creation: " ^ rts_round 6 t1)
     val file = dir ^ "/" ^ its i
     val fileout = file ^ "_out"
-    val _ = write_satpb file (dlength vard, newpb)
-    val _ = cmd_in_dir dir ("sh cadical.sh " ^ file)
+    val (_,t3) = add_time (write_satpb file) (varn,pb)
+    val _ = print_endline ("write_satpb: " ^ rts_round 6 t3)
+    val (_,t2) = add_time (cmd_in_dir dir) ("sh cadical.sh " ^ file)
+    val _ = print_endline ("cadical: " ^ rts_round 6 t2)
     val r = mem "UNSATISFIABLE" 
      (String.tokens Char.isSpace (hd (readl fileout)))
   in 
@@ -1515,11 +1628,7 @@ fun send_pb dir subgraphs i =
    R(4,5) parallel execution
    ------------------------------------------------------------------------- *)
 
-fun init_subgraphs () = 
-  (
-  satdir_glob := selfdir ^ "/exp/r45/sat";
-  subgraphs_glob := import_subgraphs ()
-  )
+fun init_subgraphs () = subgraphs_glob := import_subgraphs ()
 
 fun ramseyspec_fun job = send_pb (!satdir_glob) (!subgraphs_glob) job
  
@@ -1537,6 +1646,7 @@ val ramseyspec : (unit, int, bool) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote 
       (!smlExecScripts.buildheap_dir),
+     "ramsey.satdir_glob := " ^  mlquote (!ramsey.satdir_glob),
      "ramsey.init_subgraphs ()"
       ] 
     ^ ")"),
@@ -1556,6 +1666,7 @@ val batch_size = 10000
 fun r45 ncore expdir =
   let
     val satdir = expdir ^ "/sat"
+    val _ = satdir_glob := satdir
     val buildheapdir = expdir ^ "/buildheap"
     val completed_file = expdir ^ "/completed"
     val completedn_file = expdir ^ "/completedn"
@@ -1586,7 +1697,7 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 val expdir = selfdir ^ "/exp/r45";
-val ncore = 100;
+val ncore = 2;
 val (r,t) = add_time (r45 ncore) expdir;
 *)
 
@@ -1648,10 +1759,12 @@ val (r,t) = add_time (sat_solver 22) (matK 4,matK 5);
 (*
 PolyML.print_depth 0;
 load "ramsey"; load "game"; open aiLib kernel ramsey;
-PolyML.print_depth 10;
-val p = game.random_prog 10;
-val p = Ins(0,[]);
-human.humanf p;
-val sc = ramsey_score p;
+PolyML.print_depth 40;
+
+val l = search_order_undirected 9;
+val l = List.tabulate (9, (fn x => (x,9)));
+
+
+
 *)
 

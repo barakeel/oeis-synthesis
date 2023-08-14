@@ -13,6 +13,7 @@ sig
   val del_flag : bool ref
   val sbl_flag : bool ref
   val graphl : IntInf.int list ref
+  val conel : int list list ref
   val disable_log : bool ref
   
   (* sat *)            
@@ -29,6 +30,7 @@ sig
   
   (* storing full matrices *)
   val zip_full : mat -> IntInf.int
+  val zip_full_indices : int -> (int * int) list
   val unzip_full : int -> IntInf.int -> mat
   val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list
   
@@ -51,7 +53,9 @@ sig
   
   (* search tools *)
   val search_order : int -> (int * int) list
+  val search_order_undirected : int -> (int * int) list
   val search_order_linear : int -> (int * int) list
+  val search_order_linear_undirected : int -> (int * int) list
   val edgel_glob : (int * int) list ref
   val subsets_of_size : int -> int list -> int list list
   
@@ -72,8 +76,10 @@ sig
 
   (* r45 experiment *)
   val init_subgraphs : unit -> unit
+  val satdir_glob : string ref
   val ramseyspec : (unit, int, bool) smlParallel.extspec
   val r45 : int -> string -> unit
-
+  val create_cone : mat * mat -> int -> string -> bool
+ 
   
 end
