@@ -85,6 +85,11 @@ sig
   val ramseyspec : (unit, int, bool) smlParallel.extspec
   val r45 : int -> string -> unit
   val create_cone : mat * mat -> int -> string -> bool
+  (* r45 alternative *)
+  val evalspec : 
+    ((IntInf.int * IntInf.int, bool) Redblackmap.dict * 
+     (bool * int * int * int), 
+    (IntInf.int * IntInf.int), bool) smlParallel.extspec
   val eval_loop35 : (IntInf.int * IntInf.int, bool) Redblackmap.dict -> 
     int * int -> int -> unit
   val eval_loop44 : (IntInf.int * IntInf.int, bool) Redblackmap.dict -> 
