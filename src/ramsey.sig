@@ -4,13 +4,11 @@ sig
   type mat = int Array2.array
   val mat_sub : mat * int * int -> int 
   val mat_size : mat -> int
-
   val continue_flag : bool ref
   val degree_flag : bool ref
   val max_red_degree : int ref
   val max_blue_degree : int ref
   val iso_flag : bool ref
-  val del_flag : bool ref
   val sbl_flag : bool ref
   val graphl : IntInf.int list ref
   val conel : int list list ref
@@ -19,20 +17,27 @@ sig
   (* sat *)            
   val all_clauses : int -> mat * mat -> (int * int) list list
   val sbl_clauses : int -> (int * int) list list
-  
-  val init_sat : int -> mat * mat ->
-     (int ref *
-       (((int ref * int ref) * (int * int)) vector *
-       ((int ref * int ref) * (int * int)) vector)) vector *
-     ((bool ref * ((int * int) * int)) vector * int ref) vector
-  
+  val init_sat : int -> mat * mat -> 
+    (int ref * ((int * int) list ref * (int * int) list ref)) vector *
+    ((int * int) vector * (int ref * int ref)) vector
   val sat_solver : int -> mat * mat -> bool
   
+  
+  (* matrices *)
+  val mk_permf : int list -> int -> int
+  val mat_permute : mat * int -> (int -> int) -> mat
+  
+  (* conversion *)
+  val edgecl_to_mat_size : int -> ((int * int) * int) list -> mat
+  
+
   (* storing full matrices *)
   val zip_full : mat -> IntInf.int
   val zip_full_indices : int -> (int * int) list
   val unzip_full : int -> IntInf.int -> mat
   val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list
+  val read_case : int * int -> string vector * string vector
+  
   
   (* creating problems *)
   val all_clauses2 : int -> int * int -> ((int * int) * int) list list
@@ -80,6 +85,9 @@ sig
   val ramseyspec : (unit, int, bool) smlParallel.extspec
   val r45 : int -> string -> unit
   val create_cone : mat * mat -> int -> string -> bool
- 
+  val eval_loop35 : (IntInf.int * IntInf.int, bool) Redblackmap.dict -> 
+    int * int -> int -> unit
+  val eval_loop44 : (IntInf.int * IntInf.int, bool) Redblackmap.dict -> 
+    int -> int * int -> unit
   
 end
