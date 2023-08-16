@@ -56,7 +56,14 @@ val conel = ref []
    ------------------------------------------------------------------------- *)
 
 val disable_log = ref false
-fun log s = if !disable_log then () else print_endline s 
+
+val logfile = ref (selfdir ^ "/log")
+val store_log = ref false
+
+fun log s = 
+  if !disable_log then () 
+  else if !store_log then (print_endline s; append_endline (!logfile) s)
+  else print_endline s
 
 (* -------------------------------------------------------------------------
    Globals
@@ -1640,45 +1647,20 @@ fun read35 csize = map stinf
 fun read44 dsize = map stinf
   (readl (selfdir ^ "/ramsey_4_4/" ^ its dsize))
 
-fun test35 prevd csize dsize (ce,de) = 
-  if dlength prevd = 0 then false else
-  exists (fn x => dfind (x,de) prevd) (all_subgraphs csize ce)
-fun test44 prevd csize dsize (ce,de) = 
-  if dlength prevd = 0 then false else
-  exists (fn x => dfind (ce,x) prevd) (all_subgraphs dsize de)   
-
-fun eval_pair_prevd (prevd,(btest,limit,csize,dsize)) (ce,de) = 
-  if (if btest then test35 else test44) prevd csize dsize (ce,de)
-  then true
-  else eval_pair limit csize dsize (ce,de)
 
 
-
-fun write_evalparam file (prevd,(btest,limit,csize,dsize)) =
-  let 
-    val line = bts btest ^ " " ^ its limit ^ " "  ^ 
-               its csize ^ " " ^ its dsize
-    val sl = dlist prevd
-    fun f ((a,b),c) = infts a ^ " " ^ infts b ^ " " ^ bts c             
-  in
-    writel file (line :: map f sl)
-  end
+fun eval_pair_prevd (limit,csize,dsize) (ce,de) = 
+  eval_pair limit csize dsize (ce,de)
+  
+fun write_evalparam file (limit,csize,dsize) =
+  writel file [its limit ^ " "  ^ its csize ^ " " ^ its dsize]
   
 fun read_evalparam file =
   let 
     val sl = readl file
-    val (sa,sb,sc,sd) = quadruple_of_list (String.tokens Char.isSpace (hd sl))
-    val (btest,limit,csize,dsize) = 
-      (string_to_bool sa, string_to_int sb, 
-       string_to_int sc, string_to_int sd)   
-    fun f s = 
-      let val (a,b,c) = triple_of_list (String.tokens Char.isSpace s) in
-        ((stinf a, stinf b), string_to_bool c)
-      end
-    val cmp = cpl_compare IntInf.compare IntInf.compare
-    val d = dnew cmp (map f (tl sl))
+    val (sb,sc,sd) = triple_of_list (String.tokens Char.isSpace (hd sl))      
   in
-    (d,(btest,limit,csize,dsize))
+    (string_to_int sb,string_to_int sc, string_to_int sd)
   end
   
 fun write_int file i = writel file [its i]
@@ -1691,8 +1673,7 @@ fun read_infp file = pair_of_list (map stinf (readl file))
 
 
 val evalspec : 
-  ((IntInf.int * IntInf.int, bool) dict * (bool * int * int * int), 
-  (IntInf.int * IntInf.int), bool) extspec =
+  ((int * int * int), (IntInf.int * IntInf.int), bool) extspec =
   {
   self_dir = selfdir,
   self = "ramsey.evalspec",
@@ -1713,21 +1694,54 @@ val evalspec :
   read_result = read_bool
   }
 
-(* parallelize here *)
+
+fun create_pairl35 prevd csize dsize cl dl =
+  let
+    val clsub = map_assoc (all_subgraphs csize) cl
+    val l = cartesian_product clsub dl
+    fun test ((c,csubl),d) =  exists (fn x => emem (x,d) prevd) csubl
+    val (l1,l2) = partition test l
+  in
+    (map_fst fst l1, map_fst fst l2)
+  end
+
+fun create_pairl44 prevd csize dsize cl dl =
+  let
+    val dlsub = map_assoc (all_subgraphs dsize) dl
+    val l = cartesian_product cl dlsub
+    fun test (c,(d,dsubl)) = exists (fn x => emem (c,x) prevd) dsubl
+    val (l1,l2) = partition test l
+  in
+    (map_snd fst l1, map_snd fst l2)
+  end
+ 
+fun create_pairl btest prevd csize dsize cl dl = 
+  if elength prevd = 0 then ([],cartesian_product cl dl)
+  else if btest 
+    then create_pairl35 prevd csize dsize cl dl
+    else create_pairl44 prevd csize dsize cl dl
+ 
 fun eval_allpairs btest prevd limit csize dsize = 
   let 
     val cmp = cpl_compare IntInf.compare IntInf.compare
     val (cl,dl) = (read35 csize, read44 dsize)
-    val pairl = cartesian_product cl dl
+    val (cn,dn) = (length cl, length dl)
+    val _ = log ""
+    val _ = log (its (cn * dn) ^ " pairs: " ^ 
+              its csize ^ "-" ^ its cn ^ "," ^ its dsize ^ "-" ^ its dn)    
+    val ((pairlsub,pairl),t) = add_time 
+      (create_pairl btest prevd csize dsize cl) dl
+    val _ = log ("creation: " ^ rts_round 2 t ^ " seconds")
+    val pairn = length pairl
+    val pairnsub = length pairlsub
+    val _ = log (its pairnsub ^ " pairs by subgraph")
     val ncore' = Int.min (ncore, length pairl)
-    val param = (prevd,(btest,limit,csize,dsize))
-    val _ = log ("eval: " ^ its csize ^ "-" ^ its (length cl) ^ ", " ^ 
-                            its dsize ^ "-" ^ its (length dl))
+    val param = (limit,csize,dsize)
     val (bl,t) = add_time (parmap_queue_extern ncore' evalspec param) pairl
-    val _ = log ("evaluated " ^ its (length pairl) ^ " pairs in " ^
-      rts_round 2 t ^ " seconds")
-    val _ = log (its (length (filter I bl)) ^ " unsat")
-    val newd = dnew cmp (combine (pairl,bl))
+    val _ = log (its pairn ^ " pairs in " ^ rts_round 2 t ^ " seconds")
+    val pairlunsat = map fst (filter snd (combine (pairl,bl))) 
+    val _ = log (its (length pairlunsat) ^ " pairs by cadical")
+    val newd = enew cmp (pairlsub @ pairlunsat)
   in
     (all I bl, newd)
   end
@@ -1742,9 +1756,9 @@ fun eval_loop35 prevd (csize,maxcsize) dsize =
     val (alltrue,newd) = eval_allpairs true prevd limit csize dsize 
   in
     if not alltrue andalso csize = maxcsize 
-      then print_endline "satisfiable" 
+      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else if alltrue 
-      then print_endline "unsatisfiable"
+      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else eval_loop35 newd (csize + 1,maxcsize) dsize
   end   
        
@@ -1752,18 +1766,26 @@ fun eval_loop35 prevd (csize,maxcsize) dsize =
 PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
-val satdir = selfdir ^ "/exp/sat35";
+
+val expdir = selfdir ^ "/exp/r45";
+clean_dir expdir;
+val satdir = expdir ^ "/sat";
 satdir_glob := satdir;
+mkDir_err expdir;
 mkDir_err (!satdir_glob);
+store_log := true;
+logfile := expdir ^ "/log";
 val cmp = cpl_compare IntInf.compare IntInf.compare;
 cmd_in_dir selfdir ("cp cadical.sh " ^ satdir);
 cmd_in_dir selfdir ("cp cadical_time.sh " ^ satdir);
 
-val (_,t1) = add_time (eval_loop35 (dempty cmp) (2,9)) 15;
-val (_,t2) = add_time (eval_loop35 (dempty cmp) (2,10)) 14;
-val (_,t3) = add_time (eval_loop44 (dempty cmp) 12) (2,12);
-val (_,t4) = add_time (eval_loop44 (dempty cmp) 13) (2,11);
-t1,t2,t3,t4
+val (_,t0) = add_time (eval_loop35 (eempty cmp) (2,7)) 17;
+val (_,t1) = add_time (eval_loop35 (eempty cmp) (2,8)) 16;
+val (_,t2) = add_time (eval_loop35 (eempty cmp) (2,9)) 15;
+val (_,t3) = add_time (eval_loop35 (eempty cmp) (2,10)) 14;
+val (_,t4) = add_time (eval_loop44 (eempty cmp) 12) (2,12);
+val (_,t5) = add_time (eval_loop44 (eempty cmp) 13) (2,11);
+
 *)     
         
 (* -------------------------------------------------------------------------
@@ -1776,9 +1798,9 @@ fun eval_loop44 prevd csize (dsize,maxdsize) =
     val (alltrue,newd) = eval_allpairs false prevd limit csize dsize 
   in
     if not alltrue andalso dsize = maxdsize 
-      then print_endline "satisfiable" 
+      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else if alltrue 
-      then print_endline "end proof" 
+      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else eval_loop44 newd csize (dsize+1,maxdsize)
   end   
 
