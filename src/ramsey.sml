@@ -1726,12 +1726,12 @@ fun eval_allpairs btest prevd limit csize dsize =
     val cmp = cpl_compare IntInf.compare IntInf.compare
     val (cl,dl) = (read35 csize, read44 dsize)
     val (cn,dn) = (length cl, length dl)
-    val _ = log ""
-    val _ = log (its (cn * dn) ^ " pairs: " ^ 
-              its csize ^ "-" ^ its cn ^ "," ^ its dsize ^ "-" ^ its dn)    
     val ((pairlsub,pairl),t) = add_time 
       (create_pairl btest prevd csize dsize cl) dl
-    val _ = log ("creation: " ^ rts_round 2 t ^ " seconds")
+    val _ = log ""
+    val _ = log (its (cn * dn) ^ " pairs (" ^ 
+      its csize ^ "-" ^ its cn ^ "," ^ its dsize ^ "-" ^ its dn ^
+      ") in " ^ rts_round 2 t ^ " seconds")
     val pairn = length pairl
     val pairnsub = length pairlsub
     val _ = log (its pairnsub ^ " pairs by subgraph")
@@ -1750,7 +1750,7 @@ fun eval_allpairs btest prevd limit csize dsize =
    Search loop: 3,5
    ------------------------------------------------------------------------- *)
 
-fun eval_loop35 prevd (csize,maxcsize) dsize =      
+fun eval_loop35_aux prevd (csize,maxcsize) dsize =      
   let 
     val limit = if csize = maxcsize then 0 else 100 
     val (alltrue,newd) = eval_allpairs true prevd limit csize dsize 
@@ -1759,8 +1759,17 @@ fun eval_loop35 prevd (csize,maxcsize) dsize =
       then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else if alltrue 
       then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
-    else eval_loop35 newd (csize + 1,maxcsize) dsize
-  end   
+    else eval_loop35_aux newd (csize + 1,maxcsize) dsize
+  end 
+  
+fun eval_loop35 (csize,maxcsize) dsize =
+  let 
+    val cmp = cpl_compare IntInf.compare IntInf.compare 
+    val (_,t) =  add_time 
+      (eval_loop35_aux (eempty cmp) (csize,maxcsize)) dsize
+  in
+    log ("total time: " ^ rts_round 2 t)
+  end
        
 (*
 PolyML.print_depth 0;
@@ -1775,16 +1784,15 @@ mkDir_err expdir;
 mkDir_err (!satdir_glob);
 store_log := true;
 logfile := expdir ^ "/log";
-val cmp = cpl_compare IntInf.compare IntInf.compare;
 cmd_in_dir selfdir ("cp cadical.sh " ^ satdir);
 cmd_in_dir selfdir ("cp cadical_time.sh " ^ satdir);
 
-val (_,t0) = add_time (eval_loop35 (eempty cmp) (2,7)) 17;
-val (_,t1) = add_time (eval_loop35 (eempty cmp) (2,8)) 16;
-val (_,t2) = add_time (eval_loop35 (eempty cmp) (2,9)) 15;
-val (_,t3) = add_time (eval_loop35 (eempty cmp) (2,10)) 14;
-val (_,t4) = add_time (eval_loop44 (eempty cmp) 12) (2,12);
-val (_,t5) = add_time (eval_loop44 (eempty cmp) 13) (2,11);
+eval_loop35 (2,7) 17;
+eval_loop35 (2,8) 16;
+eval_loop35 (2,9) 15;
+eval_loop35 (2,10) 14;
+eval_loop44 12 (2,12);
+eval_loop44 13 (2,11);
 
 *)     
         
@@ -1792,7 +1800,7 @@ val (_,t5) = add_time (eval_loop44 (eempty cmp) 13) (2,11);
    Search loop: 4,4
    ------------------------------------------------------------------------- *)
     
-fun eval_loop44 prevd csize (dsize,maxdsize) =      
+fun eval_loop44_aux prevd csize (dsize,maxdsize) =      
   let 
     val limit = if dsize = maxdsize then 0 else 100 
     val (alltrue,newd) = eval_allpairs false prevd limit csize dsize 
@@ -1801,8 +1809,17 @@ fun eval_loop44 prevd csize (dsize,maxdsize) =
       then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
     else if alltrue 
       then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
-    else eval_loop44 newd csize (dsize+1,maxdsize)
+    else eval_loop44_aux newd csize (dsize+1,maxdsize)
   end   
+
+fun eval_loop44 csize (dsize,maxdsize) =
+  let 
+    val cmp = cpl_compare IntInf.compare IntInf.compare 
+    val (_,t) =  add_time 
+      (eval_loop44_aux (eempty cmp) csize) (dsize,maxdsize)
+  in
+    log ("total time: " ^ rts_round 2 t)
+  end
 
 
 (* -------------------------------------------------------------------------

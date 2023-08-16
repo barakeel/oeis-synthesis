@@ -17,6 +17,7 @@ sig
   val disable_log : bool ref
   val store_log : bool ref
   val logfile : string ref 
+  val log : string -> unit
   
   (* sat *)            
   val all_clauses : int -> mat * mat -> (int * int) list list
@@ -92,9 +93,7 @@ sig
   (* r45 alternative *)
   val evalspec : 
     ((int * int * int), (IntInf.int * IntInf.int), bool) smlParallel.extspec
-  val eval_loop35 : (IntInf.int * IntInf.int) Redblackset.set -> 
-    int * int -> int -> unit
-  val eval_loop44 : (IntInf.int * IntInf.int) Redblackset.set -> 
-    int -> int * int -> unit
+  val eval_loop35 : int * int -> int -> unit
+  val eval_loop44 : int -> int * int -> unit
   
 end
