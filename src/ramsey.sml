@@ -1756,9 +1756,9 @@ fun eval_loop35_aux prevd (csize,maxcsize) dsize =
     val (alltrue,newd) = eval_allpairs true prevd limit csize dsize 
   in
     if not alltrue andalso csize = maxcsize 
-      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
+      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize)
     else if alltrue 
-      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
+      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize)
     else eval_loop35_aux newd (csize + 1,maxcsize) dsize
   end 
   
@@ -1768,7 +1768,7 @@ fun eval_loop35 (csize,maxcsize) dsize =
     val (_,t) =  add_time 
       (eval_loop35_aux (eempty cmp) (csize,maxcsize)) dsize
   in
-    log ("total time: " ^ rts_round 2 t)
+    log ("total time: " ^ rts_round 2 t ^ "\n")
   end
        
 (*
@@ -1806,9 +1806,9 @@ fun eval_loop44_aux prevd csize (dsize,maxdsize) =
     val (alltrue,newd) = eval_allpairs false prevd limit csize dsize 
   in
     if not alltrue andalso dsize = maxdsize 
-      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
+      then log ("satisfiable: " ^ its csize ^ "," ^ its dsize)
     else if alltrue 
-      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize ^ "\n\n")
+      then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize)
     else eval_loop44_aux newd csize (dsize+1,maxdsize)
   end   
 
@@ -1818,7 +1818,7 @@ fun eval_loop44 csize (dsize,maxdsize) =
     val (_,t) =  add_time 
       (eval_loop44_aux (eempty cmp) csize) (dsize,maxdsize)
   in
-    log ("total time: " ^ rts_round 2 t)
+    log ("total time: " ^ rts_round 2 t ^ "\n")
   end
 
 
