@@ -93,7 +93,7 @@ sig
   (* r45 alternative *)
   val evalspec : 
     ((int * int * int), (IntInf.int * IntInf.int), bool) smlParallel.extspec
-  val eval_loop35 : int * int -> int -> unit
-  val eval_loop44 : int -> int * int -> unit
+  val eval_loop35 : string -> int * int -> int -> unit
+  val eval_loop44 : string -> int -> int * int -> unit
   
 end

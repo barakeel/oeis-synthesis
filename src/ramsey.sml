@@ -947,12 +947,42 @@ fun reduce_clause edgecd acc clause = case clause of
       if newcolor = 0 then reduce_clause edgecd (lit :: acc) m
       else if color = newcolor then reduce_clause edgecd acc m else NONE
     end
-  
+
+
+local
+  val colorglob = ref 0
+  val acc_glob = ref ([] : (int list * ((int * int) * int) list) list);
+  fun fadd_one (vl,el) vtop = 
+    let val newlitl = map (fn v => ((v,vtop),!colorglob)) vl in
+      acc_glob := (vtop :: vl, newlitl @ el) :: !acc_glob
+    end
+  fun fadd_loop (vl,el) start bound = 
+    if start >= bound then () else
+    (fadd_one (vl,el) start;  fadd_loop (vl,el) (start + 1) bound)
+  fun fadd bound (vl,el) = fadd_loop (vl,el) (hd vl + 1) bound
+  fun enum bound l = (acc_glob := []; app (fadd bound) l; !acc_glob)
+  fun enum_n_aux bound n acc  = 
+    if n <= 1 then acc else enum_n_aux bound (n-1) (enum bound acc)
+in 
+  fun enum_n bound n color = 
+    (colorglob := color; map snd 
+    (enum_n_aux bound n (List.tabulate (bound,fn x => ([x],[])))))
+end
+
+fun all_clauses2_faster size (bluesize,redsize) =
+  enum_n size bluesize blue @ enum_n size redsize red
+
 fun all_clauses3 size (bluesize,redsize) edgecd =
   List.mapPartial (reduce_clause edgecd []) 
-  (all_clauses2 size (bluesize,redsize))
+  (all_clauses2_faster size (bluesize,redsize))
 
-
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 10;
+val (x,t) = add_time (all_clauses2 20) (4,5);
+val (x',t') = add_time (all_clauses2_faster 24) (4,5);
+*)
 
 (* -------------------------------------------------------------------------
    Moving clause list into efficient data structure
@@ -1005,28 +1035,7 @@ fun transform_pb (assignv,clausevv) =
 
 
 (*
-val iref = ref 0;
-val jref = ref 0;
-val kref = ref 0;
-val lref = ref 0;
-val mref = ref 0;
 
-fun enum5 boundtop ftop =
-  let
-    val _ = (iref := 0; jref := 0; kref := 0; lref := 0; mref := 0)
-    fun forloop_aux xref bound f =
-      if !xref >= bound then () else 
-      (f (); incr xref; forloop_aux xref bound f)
-    fun forloop xref start bound f = 
-      (xref := start; forloop_aux xref bound f)
-    fun loop1 () = forloop mref (!lref + 1) boundtop ftop
-    fun loop2 () = forloop lref (!kref + 1) boundtop loop1
-    fun loop3 () = forloop kref (!jref + 1) boundtop loop2
-    fun loop4 () = forloop jref (!iref + 1) boundtop loop3
-    fun loop5 () = forloop iref 0 boundtop loop4
-  in
-    loop5 ()
-  end;
   
 val (_,t) = add_time (enum5 24) (fn _ => ());  
 *)
@@ -1619,18 +1628,24 @@ val stinf = valOf o IntInf.fromString
 fun eval_pair limit csize dsize (ce,de) = 
   let
     val dir = !satdir_glob
-    val cl = unzip_full_edgecl csize ce
-    val dl = unzip_full_edgecl dsize de
-    val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
-    val edgecl = cl @ dl'
-    val edgecd = edgecl_to_mat_size (csize + dsize) edgecl 
-    val pb = all_clauses3 (csize + dsize) (4,5) edgecd
-    val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
-    val vard = dnew edge_compare (number_snd 0 allvar)
-    val newpb = map (map_fst (fn x => dfind x vard)) pb
+    fun create_pb () = 
+      let
+        val cl = unzip_full_edgecl csize ce
+        val dl = unzip_full_edgecl dsize de
+        val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
+        val edgecl = cl @ dl'
+        val edgecd = edgecl_to_mat_size (csize + dsize) edgecl 
+        val pb = all_clauses3 (csize + dsize) (4,5) edgecd
+        val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
+        val vard = dnew edge_compare (number_snd 0 allvar) 
+      in 
+        (dlength vard, map (map_fst (fn x => dfind x vard)) pb)
+      end
+    val (newpb,t1) = add_time create_pb ()
+    val _ = print_endline ("create_pb: " ^ rts_round 6 t1)
     val file = dir ^ "/" ^ infts ce ^ "_" ^ infts de
     val fileout = file ^ "_out"
-    val (_,t3) = add_time (write_satpb file) (dlength vard,newpb)
+    val (_,t3) = add_time (write_satpb file) newpb
     val _ = print_endline ("write_satpb: " ^ rts_round 6 t3)
     val cmd = if limit <= 0 then "sh cadical.sh"  else
               ("sh cadical_time.sh " ^ its limit)
@@ -1746,6 +1761,21 @@ fun eval_allpairs btest prevd limit csize dsize =
     (all I bl, newd)
   end
 
+fun init_eval expdir = 
+  let
+    val satdir = expdir ^ "/sat"
+    val buildheapdir = expdir ^ "/buildheap"
+    val _ = satdir_glob := satdir
+    val _ = smlExecScripts.buildheap_dir := buildheapdir
+    val _ = app mkDir_err [expdir,satdir,buildheapdir]
+    val _ = store_log := true
+    val _ = logfile := expdir ^ "/log"
+  in
+    cmd_in_dir selfdir ("cp cadical.sh " ^ satdir);
+    cmd_in_dir selfdir ("cp cadical_time.sh " ^ satdir)
+  end
+
+
 (* -------------------------------------------------------------------------
    Search loop: 3,5
    ------------------------------------------------------------------------- *)
@@ -1762,46 +1792,22 @@ fun eval_loop35_aux prevd (csize,maxcsize) dsize =
     else eval_loop35_aux newd (csize + 1,maxcsize) dsize
   end 
   
-fun eval_loop35 (csize,maxcsize) dsize =
+fun eval_loop35 expdir (csize,maxcsize) dsize =
   let 
+    val _ = init_eval expdir
     val cmp = cpl_compare IntInf.compare IntInf.compare 
     val (_,t) =  add_time 
       (eval_loop35_aux (eempty cmp) (csize,maxcsize)) dsize
   in
     log ("total time: " ^ rts_round 2 t ^ "\n")
   end
-       
-(*
-PolyML.print_depth 0;
-load "ramsey"; open aiLib kernel ramsey;
-PolyML.print_depth 10;
-
-val expdir = selfdir ^ "/exp/r45";
-clean_dir expdir;
-val satdir = expdir ^ "/sat";
-satdir_glob := satdir;
-mkDir_err expdir;
-mkDir_err (!satdir_glob);
-store_log := true;
-logfile := expdir ^ "/log";
-cmd_in_dir selfdir ("cp cadical.sh " ^ satdir);
-cmd_in_dir selfdir ("cp cadical_time.sh " ^ satdir);
-
-eval_loop35 (2,7) 17;
-eval_loop35 (2,8) 16;
-eval_loop35 (2,9) 15;
-eval_loop35 (2,10) 14;
-eval_loop44 12 (2,12);
-eval_loop44 13 (2,11);
-
-*)     
-        
+ 
 (* -------------------------------------------------------------------------
    Search loop: 4,4
    ------------------------------------------------------------------------- *)
     
 fun eval_loop44_aux prevd csize (dsize,maxdsize) =      
-  let 
+  let    
     val limit = if dsize = maxdsize then 0 else 100 
     val (alltrue,newd) = eval_allpairs false prevd limit csize dsize 
   in
@@ -1812,14 +1818,37 @@ fun eval_loop44_aux prevd csize (dsize,maxdsize) =
     else eval_loop44_aux newd csize (dsize+1,maxdsize)
   end   
 
-fun eval_loop44 csize (dsize,maxdsize) =
+fun eval_loop44 expdir csize (dsize,maxdsize) =
   let 
+    val _ = init_eval expdir
     val cmp = cpl_compare IntInf.compare IntInf.compare 
     val (_,t) =  add_time 
       (eval_loop44_aux (eempty cmp) csize) (dsize,maxdsize)
   in
     log ("total time: " ^ rts_round 2 t ^ "\n")
   end
+ 
+(* -------------------------------------------------------------------------
+   Search loop
+   ------------------------------------------------------------------------- *)
+            
+       
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 10;
+
+val expdir = selfdir ^ "/exp/r45_2";
+clean_dir expdir;
+eval_loop35 expdir (2,7) 17;
+eval_loop35 expdir (2,8) 16;
+eval_loop35 expdir (2,9) 15;
+eval_loop35 expdir (2,10) 14;
+eval_loop44 expdir 12 (2,12);
+eval_loop44 expdir 13 (2,11);
+
+*)     
+        
 
 
 (* -------------------------------------------------------------------------
