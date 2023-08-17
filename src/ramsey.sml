@@ -173,6 +173,7 @@ fun mat_appi f m =
   
 val edge_compare = cpl_compare Int.compare Int.compare  
 
+
 fun size_of_zip l =
   let val ln = length l in
     valOf (List.find (fn x => x * (x - 1) = ln) (List.tabulate (100,I)))
@@ -191,10 +192,7 @@ fun zip_mat_undirected m =
     mat_appi (fn (i,j,x) => if FixedInt.>= (i,j) then () else 
                             r := !r * 3 + IntInf.fromInt x) m; !r
   end  
- 
- 
 
-  
 (* figure out whcih index are written 
    when using zip_mat_undirected *) 
   
@@ -984,6 +982,81 @@ val (x,t) = add_time (all_clauses2 20) (4,5);
 val (x',t') = add_time (all_clauses2_faster 24) (4,5);
 *)
 
+local
+  fun fadd_one acc vl vtop = acc := (vtop :: vl) :: !acc
+  fun fadd_loop acc vl start bound = 
+    if start >= bound then () else
+    (fadd_one acc vl start;  fadd_loop acc vl (start + 1) bound)
+  fun fadd acc bound vl = fadd_loop acc vl (hd vl + 1) bound
+  fun enum bound l = 
+    let val acc = ref [] in app (fadd acc bound) l; !acc end
+  fun enum_n_aux bound n acc  = 
+    if n <= 0 then [[]] else 
+    if n <= 1 then acc else enum_n_aux bound (n-1) (enum bound acc)
+in 
+  fun fixed_enum offset bound degree =
+    enum_n_aux bound degree
+      (List.tabulate (bound - offset,fn x => [x + offset]))
+  fun stars_up edgecd csize dsize color maxdegree vertex = 
+    let 
+      val degree = maxdegree - 
+        (length (neighbor_of color edgecd vertex) +
+         (if color = blue then 1 else 0))
+      val _ = if degree <= 0 then raise ERR "stars_up" "" else ()
+      val l = fixed_enum csize (csize + dsize) degree
+      fun f vl = map (fn x => ((vertex,x),color)) vl
+      val clauses = map f l
+    in
+      List.mapPartial (reduce_clause edgecd []) clauses
+    end
+  fun stars_down edgecd csize dsize color maxdegree vertex = 
+    let      
+      val degree = maxdegree - 
+        (length (neighbor_of color edgecd vertex) + 
+         (if color = red then 1 else 0))
+      val _ = if degree <= 0 then raise ERR "stars_down" "" else ()
+      val l = fixed_enum 0 csize degree
+      fun f vl = map (fn x => ((x,vertex),color)) vl
+      val clauses = map f l
+    in
+      List.mapPartial (reduce_clause edgecd []) clauses
+    end
+  fun all_stars edgecd (bluedegree,reddegree) csize dsize = 
+    let
+      val cvl = List.tabulate (csize, I)
+      val dvl = List.tabulate (dsize, fn x => x + csize)
+    in
+      List.concat 
+        (map (stars_up edgecd csize dsize blue bluedegree) cvl @
+         map (stars_up edgecd csize dsize red reddegree) cvl @
+         map (stars_down edgecd csize dsize blue bluedegree) dvl @
+         map (stars_down edgecd csize dsize red reddegree) dvl)
+    end
+end
+  
+  
+  
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 20;
+val csize = 10;
+val dsize = 14;
+val edgecd = 
+  symmetrify (
+  mat_tabulate (csize + dsize, fn (i,j) => if i = j orelse 
+  (i < csize andalso j >= csize) then 0 else random_int (1,2)));
+val (x,t) = add_time (all_stars edgecd (12,15) 10) 14;
+length x;
+
+val lit_compare = cpl_compare edge_compare Int.compare;
+val clause_compare = list_compare lit_compare;
+
+
+
+val (x',t') = add_time (all_clauses2_faster 24) (4,5);
+*)
+
 (* -------------------------------------------------------------------------
    Moving clause list into efficient data structure
    ------------------------------------------------------------------------- *)
@@ -1025,6 +1098,15 @@ fun add_clause (clause,(assignv,clausevv)) =
 fun add_clausel clausel (assignv,clausevv) = 
   foldl add_clause (assignv,clausevv) clausel
 
+fun new_clausel clausel =
+  let 
+    val assignv = Vector.fromList []
+    val clausevv = Vector.fromList []
+  in
+    add_clausel (map (map_fst id_pair) clausel) (assignv,clausevv)  
+  end
+  
+  
 fun transform_pb (assignv,clausevv) = 
   let 
     fun f1 (l1,l2) = (ref 0,(l1,l2))
@@ -1634,8 +1716,10 @@ fun eval_pair limit csize dsize (ce,de) =
         val dl = unzip_full_edgecl dsize de
         val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
         val edgecl = cl @ dl'
-        val edgecd = edgecl_to_mat_size (csize + dsize) edgecl 
-        val pb = all_clauses3 (csize + dsize) (4,5) edgecd
+        val edgecd = symmetrify (edgecl_to_mat_size (csize + dsize) edgecl)
+        val pb = all_clauses3 (csize + dsize) (4,5) edgecd @ 
+                 all_stars edgecd (12,15) csize dsize
+        (* to do remove/update all_stars *)
         val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb))
         val vard = dnew edge_compare (number_snd 0 allvar) 
       in 
@@ -1664,8 +1748,8 @@ fun read44 dsize = map stinf
 
 
 
-fun eval_pair_prevd (limit,csize,dsize) (ce,de) = 
-  eval_pair limit csize dsize (ce,de)
+fun eval_pair_prevd (limit,csize,dsize) cdl = 
+  map (eval_pair limit csize dsize) cdl
   
 fun write_evalparam file (limit,csize,dsize) =
   writel file [its limit ^ " "  ^ its csize ^ " " ^ its dsize]
@@ -1686,9 +1770,23 @@ fun read_bool file = string_to_bool (hd (readl file))
 fun write_infp file (a,b) = writel file (map infts [a,b])
 fun read_infp file = pair_of_list (map stinf (readl file))
 
+fun write_infpl file abl = 
+  let fun f (a,b) = infts a ^ " " ^ infts b in
+    writel file (map f abl)
+  end
+fun read_infpl file =
+  let fun g s = pair_of_list (map stinf (String.tokens Char.isSpace s)) in
+    map g (readl file)
+  end
+
+fun write_intl file i = writel file (map its i)
+fun read_intl file = map string_to_int (readl file)
+fun write_booll file b = writel file (map bts b)
+fun read_booll file = map string_to_bool (readl file)
+
 
 val evalspec : 
-  ((int * int * int), (IntInf.int * IntInf.int), bool) extspec =
+  ((int * int * int), (IntInf.int * IntInf.int) list, bool list) extspec =
   {
   self_dir = selfdir,
   self = "ramsey.evalspec",
@@ -1703,10 +1801,10 @@ val evalspec :
   function = eval_pair_prevd,
   write_param = write_evalparam,
   read_param = read_evalparam,
-  write_arg = write_infp,
-  read_arg = read_infp,
-  write_result = write_bool,
-  read_result = read_bool
+  write_arg = write_infpl,
+  read_arg = read_infpl,
+  write_result = write_booll,
+  read_result = read_booll
   }
 
 
@@ -1752,7 +1850,9 @@ fun eval_allpairs btest prevd limit csize dsize =
     val _ = log (its pairnsub ^ " pairs by subgraph")
     val ncore' = Int.min (ncore, length pairl)
     val param = (limit,csize,dsize)
-    val (bl,t) = add_time (parmap_queue_extern ncore' evalspec param) pairl
+    val pairll = mk_batch_full 100 pairl
+    val (bll,t) = add_time (parmap_queue_extern ncore' evalspec param) pairll
+    val bl = List.concat bll
     val _ = log (its pairn ^ " pairs in " ^ rts_round 2 t ^ " seconds")
     val pairlunsat = map fst (filter snd (combine (pairl,bl))) 
     val _ = log (its (length pairlunsat) ^ " pairs by cadical")
@@ -1838,17 +1938,66 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-val expdir = selfdir ^ "/exp/r45_2";
+val expdir = selfdir ^ "/exp/r45_3";
 clean_dir expdir;
 eval_loop35 expdir (2,7) 17;
 eval_loop35 expdir (2,8) 16;
 eval_loop35 expdir (2,9) 15;
+
 eval_loop35 expdir (2,10) 14;
+
+
 eval_loop44 expdir 12 (2,12);
 eval_loop44 expdir 13 (2,11);
 
 *)     
-        
+    
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 10;
+
+val csize = 7;
+val dsize = 14;
+val cl = read35 csize;
+val dl = read44 dsize;
+val c = random_elem cl;
+val d = random_elem dl;
+
+val cl = unzip_full_edgecl csize c;
+val dl = unzip_full_edgecl dsize d;
+val dl' = map_fst (fn (a,b) => (a + csize, b + csize)) dl
+val edgecl = cl @ dl'
+val size = csize + dsize
+val edgecd = edgecl_to_mat_size (csize + dsize) edgecl;
+val pb0 = all_clauses3 (csize + dsize) (4,5) edgecd;
+
+val edge_compare = cpl_compare Int.compare Int.compare;
+val alllit = enew edge_compare
+  (List.concat (map (map fst) pb0));
+val _ = print_endline (its (elength alllit));  
+  
+  
+val pb1 = new_clausel pb0;
+val pb2 = transform_pb pb1;
+val o1 = search_order_linear_undirected size;
+val o2 = filter (fn (a,b) => a < csize andalso b >= csize) o1; 
+val _ = print_endline (its (length o2));  
+val _ = edgel_glob := elist alllit;
+
+val (eido,colorl) = next_assign (!choose_global) (fst pb2);
+val path = [([],eido,colorl)];
+
+graph_glob := (Array2.array (size,size,0));
+degree_flag := false;
+iso_flag := false;
+sat_solver_loop (fst pb2) (snd pb2) path;
+
+val allvar = mk_fast_set edge_compare (List.concat (map (map fst) pb0));
+val vard = dnew edge_compare (number_snd 0 allvar);
+val newpb = map (map_fst (fn x => dfind x vard)) pb0;
+write_satpb "aaatest" (dlength vard,newpb);
+*)    
 
 
 (* -------------------------------------------------------------------------
@@ -2061,7 +2210,6 @@ max_blue_degree := 5;
 max_red_degree := 13; 
 continue_flag := true;
 val (r,t) = add_time (sat_solver 17) (matK 3,matK 6);
-
 val (r,t) = add_time (sat_solver 14) (matK 4,matK 4);
 val (r,t) = add_time (sat_solver 22) (matK 4,matK 5);
 *)

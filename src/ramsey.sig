@@ -19,12 +19,30 @@ sig
   val logfile : string ref 
   val log : string -> unit
   
-  (* sat *)            
-  val all_clauses : int -> mat * mat -> (int * int) list list
-  val sbl_clauses : int -> (int * int) list list
+  (* tools *)
+  val edge_compare : (int * int) * (int * int) -> order
+  val write_satpb : string -> int * (int * int) list list -> unit
+  
+  (* implementation details *)
   val init_sat : int -> mat * mat -> 
     (int ref * ((int * int) list ref * (int * int) list ref)) vector *
     ((int * int) vector * (int ref * int ref)) vector
+  val sat_solver_loop :     
+    (int ref * ((int * int) list ref * (int * int) list ref)) vector ->
+    ((int * int) vector * (int ref * int ref)) vector -> 
+    ((unit -> unit) list * int option * int list) list -> 
+    bool
+  val next_assign : 
+    (unit -> int) -> 
+    (int ref * 'a) vector -> int option * int list
+  val choose_global : (unit -> int) ref
+  val graph_glob : mat ref
+  
+  
+  (* sat *)            
+  val all_clauses : int -> mat * mat -> (int * int) list list
+  val sbl_clauses : int -> (int * int) list list
+
   val sat_solver : int -> mat * mat -> bool
   
   
@@ -44,12 +62,23 @@ sig
   val read_case : int * int -> string vector * string vector
   
   
-  (* creating problems *)
+  (* creating problems *)  
   val all_clauses2 : int -> int * int -> ((int * int) * int) list list
   val all_clauses3 : int -> int * int -> int Array2.array
     -> ((int * int) * int) list list
+  val all_stars : mat ->
+    int * int -> int -> int -> ((int * int) * int) list list
+  
+  val new_clausel : ((int * int) * int) list list ->
+     ((int * int) list ref * (int * int) list ref) vector *
+     (int * int) vector vector
+  val transform_pb : ('a * 'b) vector * 'c vector ->
+     (int ref * ('a * 'b)) vector * ('c * (int ref * int ref)) vector
+  
+  
   
   (* random shapes *)
+  val mat_tabulate : int * (int * int -> int) -> mat
   val random_mat : int -> mat
   val random_full_symmat : int -> mat
   val mat_compare : mat * mat -> order
@@ -91,8 +120,11 @@ sig
   val r45 : int -> string -> unit
   val create_cone : mat * mat -> int -> string -> bool
   (* r45 alternative *)
+  val read35 : int -> IntInf.int list
+  val read44 : int -> IntInf.int list
   val evalspec : 
-    ((int * int * int), (IntInf.int * IntInf.int), bool) smlParallel.extspec
+    ((int * int * int), (IntInf.int * IntInf.int) list, bool list)
+    smlParallel.extspec
   val eval_loop35 : string -> int * int -> int -> unit
   val eval_loop44 : string -> int -> int * int -> unit
   
