@@ -1734,10 +1734,12 @@ fun eval_pair limit csize dsize (ce,de) =
     val cmd = if limit <= 0 then "sh cadical.sh"  else
               ("sh cadical_time.sh " ^ its limit)
     val (_,t3) = add_time (cmd_in_dir dir) (cmd ^ " " ^ file)
-    val r = mem "UNSATISFIABLE" 
-     (String.tokens Char.isSpace (hd (readl fileout)))
+    val sl = String.tokens Char.isSpace (hd (readl fileout))
+    val r = mem "UNSATISFIABLE" sl 
+    val r2 = mem "SATISFIABLE" sl
     val _ = print_endline (String.concatWith " "
-      [infts ce, infts de, if r then "unsat" else "sat",
+      [infts ce, infts de, 
+       if r then "unsat" else if r2 then "sat" else "timeout",
        rts_round 6 t1, rts_round 6 t2, rts_round 6 t3])
   in 
     remove_file file; remove_file fileout; r
@@ -1850,28 +1852,38 @@ fun eval_allpairs btest prevd limit csize dsize =
     val pairn = length pairl
     val pairnsub = length pairlsub
     val _ = log (its pairnsub ^ " pairs by subgraph")
-    val ncore' = Int.min (ncore, length pairl)
-    val param = (limit,csize,dsize)
-    val pairll = shuffle  (mk_batch_full 100 pairl)
-    val (bll,t) = add_time (parmap_queue_extern ncore' evalspec param) pairll
-    val bl = List.concat bll
-    val _ = log (its pairn ^ " pairs in " ^ rts_round 2 t ^ " seconds")
-    val pairlunsat = map fst (filter snd (combine (pairl,bl))) 
-    val _ = log (its (length pairlunsat) ^ " pairs by cadical")
-    val newd = enew cmp (pairlsub @ pairlunsat)
-  in
-    (all I bl, newd)
+  in  
+    if mem csize [8,9] then (false, enew cmp pairlsub) else
+    let
+      val ncore' = Int.min (ncore, length pairl)
+      val param = (limit,csize,dsize)
+      val pairll = mk_batch_full 100 pairl
+      val (bll,t) = add_time 
+        (parmap_queue_extern ncore' evalspec param) pairll
+      val bl = List.concat bll
+      val _ = log (its pairn ^ " pairs in " ^ rts_round 2 t ^ " seconds")
+      val pairlunsat = map fst (filter snd (combine (pairl,bl))) 
+      val _ = log (its (length pairlunsat) ^ " pairs by cadical")
+      val newd = enew cmp (pairlsub @ pairlunsat)
+    in
+      (all I bl, newd)
+    end
   end
 
-fun init_eval expdir = 
+fun init_eval expdir (a,b) (c,d) = 
   let
-    val satdir = expdir ^ "/sat"
-    val buildheapdir = expdir ^ "/buildheap"
+    val subexpdir = expdir ^ "_" ^ 
+      its a ^ "-" ^ its b ^ "_" ^ its c ^ "-" ^ its d
+    val satdir = subexpdir ^ "/sat"
+    val buildheapdir = subexpdir ^ "/buildheap"
     val _ = satdir_glob := satdir
     val _ = smlExecScripts.buildheap_dir := buildheapdir
-    val _ = app mkDir_err [expdir,satdir,buildheapdir]
+    val _ = app mkDir_err [expdir,subexpdir,satdir,buildheapdir]
     val _ = store_log := true
-    val _ = logfile := expdir ^ "/log"
+    val _ = logfile := subexpdir ^ "/log"
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle 
+       NotFound => 10000) 
   in
     cmd_in_dir selfdir ("cp cadical.sh " ^ satdir);
     cmd_in_dir selfdir ("cp cadical_time.sh " ^ satdir)
@@ -1882,8 +1894,9 @@ fun init_eval expdir =
    Search loop: 3,5
    ------------------------------------------------------------------------- *)
 
-fun eval_loop35_aux prevd (csize,maxcsize) dsize =      
+fun eval_loop35_aux expdir prevd (csize,maxcsize) dsize =      
   let 
+    val _ = init_eval expdir (csize,maxcsize) (dsize,dsize)
     val limit = if csize = maxcsize then 0 else 100 
     val (alltrue,newd) = eval_allpairs true prevd limit csize dsize 
   in
@@ -1891,15 +1904,14 @@ fun eval_loop35_aux prevd (csize,maxcsize) dsize =
       then log ("satisfiable: " ^ its csize ^ "," ^ its dsize)
     else if alltrue 
       then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize)
-    else eval_loop35_aux newd (csize + 1,maxcsize) dsize
+    else eval_loop35_aux expdir newd (csize + 1,maxcsize) dsize
   end 
   
 fun eval_loop35 expdir (csize,maxcsize) dsize =
   let 
-    val _ = init_eval expdir
     val cmp = cpl_compare IntInf.compare IntInf.compare 
     val (_,t) =  add_time 
-      (eval_loop35_aux (eempty cmp) (csize,maxcsize)) dsize
+      (eval_loop35_aux expdir (eempty cmp) (csize,maxcsize)) dsize
   in
     log ("total time: " ^ rts_round 2 t ^ "\n")
   end
@@ -1908,8 +1920,9 @@ fun eval_loop35 expdir (csize,maxcsize) dsize =
    Search loop: 4,4
    ------------------------------------------------------------------------- *)
     
-fun eval_loop44_aux prevd csize (dsize,maxdsize) =      
+fun eval_loop44_aux expdir prevd csize (dsize,maxdsize) =      
   let    
+    val _ = init_eval expdir (csize,csize) (dsize,maxdsize)
     val limit = if dsize = maxdsize then 0 else 100 
     val (alltrue,newd) = eval_allpairs false prevd limit csize dsize 
   in
@@ -1917,7 +1930,7 @@ fun eval_loop44_aux prevd csize (dsize,maxdsize) =
       then log ("satisfiable: " ^ its csize ^ "," ^ its dsize)
     else if alltrue 
       then log ("unsatisfiable: " ^ its csize ^ "," ^ its dsize)
-    else eval_loop44_aux newd csize (dsize+1,maxdsize)
+    else eval_loop44_aux expdir newd csize (dsize+1,maxdsize)
   end   
 
 fun eval_loop44 expdir csize (dsize,maxdsize) =
@@ -1925,7 +1938,7 @@ fun eval_loop44 expdir csize (dsize,maxdsize) =
     val _ = init_eval expdir
     val cmp = cpl_compare IntInf.compare IntInf.compare 
     val (_,t) =  add_time 
-      (eval_loop44_aux (eempty cmp) csize) (dsize,maxdsize)
+      (eval_loop44_aux expdir (eempty cmp) csize) (dsize,maxdsize)
   in
     log ("total time: " ^ rts_round 2 t ^ "\n")
   end
@@ -2015,12 +2028,11 @@ val expdir = selfdir ^ "/exp/r45_4";
 clean_dir expdir;
 eval_loop35 expdir (10,10) 14;
 
+
+
 eval_loop35 expdir (2,7) 17;
 eval_loop35 expdir (2,8) 16;
 eval_loop35 expdir (2,9) 15;
-
-
-
 eval_loop44 expdir 12 (2,12);
 eval_loop44 expdir 13 (2,11);
 
@@ -2189,7 +2201,8 @@ fun r45 ncore expdir =
     val total = sum_int (map ((op *) o snd) (import_subgraphs ()))
     val arr = BoolArray.array (total,false)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
-      (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
+      (string_to_int (dfind "search_memory" configd) handle 
+       NotFound => 10000) 
     val _ = smlExecScripts.buildheap_dir := buildheapdir
     fun loop k = 
       if not (isSome (random_index arr)) then 
@@ -2209,15 +2222,6 @@ fun r45 ncore expdir =
     loop 0
   end
  
-(*
-PolyML.print_depth 0;
-load "ramsey"; open aiLib kernel ramsey;
-PolyML.print_depth 10;
-val expdir = selfdir ^ "/exp/r45_789";
-val ncore = 100;
-val (r,t) = add_time (r45 ncore) expdir;
-*)
-
 
   
 end (* struct *)
