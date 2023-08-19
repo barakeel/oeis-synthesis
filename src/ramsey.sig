@@ -74,11 +74,13 @@ sig
      (int * int) vector vector
   val transform_pb : ('a * 'b) vector * 'c vector ->
      (int ref * ('a * 'b)) vector * ('c * (int ref * int ref)) vector
-  
+
   
   
   (* random shapes *)
   val mat_tabulate : int * (int * int -> int) -> mat
+  val mat_app :  (int -> unit) -> mat -> unit  
+  val mat_appi : (int * int * int -> unit) -> mat -> unit  
   val random_mat : int -> mat
   val random_full_symmat : int -> mat
   val mat_compare : mat * mat -> order
@@ -89,6 +91,7 @@ sig
   val symmetrify : mat -> mat
   val string_of_graph : mat -> string
   val string_of_bluegraph : mat -> string
+  val string_of_bluegraph_undirected : mat -> string
   
   (* search tools *)
   val search_order : int -> (int * int) list

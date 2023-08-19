@@ -170,7 +170,9 @@ fun mat_appi f m =
   let val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE} in
     Array2.appi Array2.RowMajor f range
   end
-  
+
+fun mat_app f m = Array2.app Array2.RowMajor f m
+
 val edge_compare = cpl_compare Int.compare Int.compare  
 
 
@@ -1007,7 +1009,7 @@ in
       fun f vl = map (fn x => ((vertex,x),color)) vl
       val clauses = map f l
     in
-      List.mapPartial (reduce_clause edgecd []) clauses
+      clauses
     end
   fun stars_down edgecd csize dsize color maxdegree vertex = 
     let      
@@ -1019,7 +1021,7 @@ in
       fun f vl = map (fn x => ((x,vertex),color)) vl
       val clauses = map f l
     in
-      List.mapPartial (reduce_clause edgecd []) clauses
+      clauses
     end
   fun all_stars edgecd (bluedegree,reddegree) csize dsize = 
     let
@@ -1726,17 +1728,17 @@ fun eval_pair limit csize dsize (ce,de) =
         (dlength vard, map (map_fst (fn x => dfind x vard)) pb)
       end
     val (newpb,t1) = add_time create_pb ()
-    val _ = print_endline ("create_pb: " ^ rts_round 6 t1)
     val file = dir ^ "/" ^ infts ce ^ "_" ^ infts de
     val fileout = file ^ "_out"
-    val (_,t3) = add_time (write_satpb file) newpb
-    val _ = print_endline ("write_satpb: " ^ rts_round 6 t3)
+    val (_,t2) = add_time (write_satpb file) newpb
     val cmd = if limit <= 0 then "sh cadical.sh"  else
               ("sh cadical_time.sh " ^ its limit)
-    val (_,t2) = add_time (cmd_in_dir dir) (cmd ^ " " ^ file)
-    val _ = print_endline ("cadical: " ^ rts_round 6 t2)
+    val (_,t3) = add_time (cmd_in_dir dir) (cmd ^ " " ^ file)
     val r = mem "UNSATISFIABLE" 
      (String.tokens Char.isSpace (hd (readl fileout)))
+    val _ = print_endline (String.concatWith " "
+      [infts ce, infts de, if r then "unsat" else "sat",
+       rts_round 6 t1, rts_round 6 t2, rts_round 6 t3])
   in 
     remove_file file; remove_file fileout; r
   end
@@ -1938,13 +1940,85 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-val expdir = selfdir ^ "/exp/r45_3";
+fun blue_edges m = 
+  let 
+    val i = ref 0
+    fun f x = if x = 1 then incr i else ()
+  in
+    mat_app f m; !i
+  end;
+  
+val graphl1 = read35 10;
+val graphl2 = map (unzip_full 10) graphl1;
+
+fun loop childl l = 
+  if null l then () else
+  let
+    val childd = count_dict (dempty mat_compare) 
+      (List.concat (map snd l));
+    val l1 = map (fn (m,n) => (m, n)) (dlist childd)  
+    val (child,_) = hd (dict_sort compare_imax l1);
+    fun is_child x = mat_compare (child,x) = EQUAL
+    fun test (a,b) = exists is_child b
+    val _ = childl := child :: !childl
+    val l' = filter (not o test) l
+  in
+    loop childl l'
+  end;
+fun all_subgraphs mat = 
+  let
+    val size = mat_size mat
+    fun f x =
+      let
+        val l = filter (fn y => y <> x) (List.tabulate (size,I))
+        val permf = mk_permf l
+      in
+        normalize_nauty (mat_permute (mat,size - 1) permf)
+      end
+  in
+    mk_fast_set mat_compare (List.tabulate (size,f))
+  end;
+
+fun next_graphl graphl =
+  let 
+    val l = map_assoc all_subgraphs graphl
+    val childl = ref [] 
+  in 
+    loop childl l; !childl
+  end;
+
+val graphll = 
+  List.tabulate (9, fn i => (10 - i,funpow i next_graphl graphl2));
+
+map_snd length graphll;
+
+fun f (i,graphl) = 
+  "size " ^ its i ^ "\n" ^ 
+  String.concatWith "\n" (map (string_of_bluegraph_undirected) graphl) ^ "\n"
+;
+
+writel "r35_subgraphs_greedy" (map f graphll);
+
+
+ (assoc 6 graphll);
+
+average_int (map blue_edges (!childl));
+*)
+
+
+(*
+PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey;
+PolyML.print_depth 10;
+
+val expdir = selfdir ^ "/exp/r45_4";
 clean_dir expdir;
+eval_loop35 expdir (10,10) 14;
+
 eval_loop35 expdir (2,7) 17;
 eval_loop35 expdir (2,8) 16;
 eval_loop35 expdir (2,9) 15;
 
-eval_loop35 expdir (2,10) 14;
 
 
 eval_loop44 expdir 12 (2,12);
