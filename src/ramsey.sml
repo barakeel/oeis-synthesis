@@ -1872,7 +1872,7 @@ fun eval_allpairs btest prevd limit csize dsize =
 
 fun init_eval expdir (a,b) (c,d) = 
   let
-    val subexpdir = expdir ^ "_" ^ 
+    val subexpdir = expdir ^ "/" ^ 
       its a ^ "-" ^ its b ^ "_" ^ its c ^ "-" ^ its d
     val satdir = subexpdir ^ "/sat"
     val buildheapdir = subexpdir ^ "/buildheap"
@@ -2024,9 +2024,9 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-val expdir = selfdir ^ "/exp/r45_4";
+val expdir = selfdir ^ "/exp/r45skip";
 clean_dir expdir;
-eval_loop35 expdir (10,10) 14;
+eval_loop35 expdir (7,10) 14;
 
 
 
