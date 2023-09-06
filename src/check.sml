@@ -53,6 +53,9 @@ fun update_solcmp lessfl d anum tpl =
     d := dadd anum newtpl (!d)
   end
 
+fun update_nomerge d anum tpl = d := dadd anum tpl (!d)
+  
+
 val update_smallest = update_solcmp [is_smaller]
 val update_fastest = update_solcmp [is_faster]
 val update_sol2 = update_solcmp [is_smaller, is_faster]
@@ -60,7 +63,8 @@ val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
   is_smaller_kid 12, is_smaller_kid 13]
 
 val update_f =
-       if !solm_flag then update_solm
+  if !nomerge_flag then update_nomerge
+  else if !solm_flag then update_solm
   else if !sol2_flag then update_sol2
   else if !t_flag    then update_fastest
   else update_smallest

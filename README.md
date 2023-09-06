@@ -91,6 +91,9 @@ The program is written in reverse polish notation.
 
 Tip: If you do not have any `solold` file you may create a new `solold` file with "()" written in the first line.
 
+Tip: Change `sol2_flag true` to `nomerge_flag true` in the `config` file to
+see the behavior of all programs.
+
 
 #### Bootstrapping a external self-learning process
 You can start a self-learning process by starting from the files `sol0` (to rename to `solold`) and `sol0gpt` to be used to produce the `cand` file.

@@ -11,6 +11,7 @@ sig
   val seq_flag : bool ref (* allow to call the sequence *)
   val z_flag : bool ref (* functions of arity 3 *)
   val t_flag : bool ref (* optimize for time instead of size *)
+  val nomerge_flag : bool ref (* keep all solutions *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val solm_flag : bool ref
   val notarget_flag : bool ref (* train without looking at the target *)
