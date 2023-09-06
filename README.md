@@ -89,7 +89,7 @@ The programs will produce two files `solnew` and `solnewgpt`.
 `solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is "sequence>program"
 The program is written in reverse polish notation. 
 
-Tip: If you do not have any solold file you may create a new solold file with "()" written in the first line.
+Tip: If you do not have any `solold` file you may create a new `solold` file with "()" written in the first line.
 
 
 #### Bootstrapping a external self-learning process

@@ -7,3 +7,4 @@ time_opt 600.0
 search_memory 12000
 train_memory 50000
 sol2_flag true
+intl_flag true
