@@ -251,7 +251,7 @@ fun checkmll mll =
     fun f p =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
-       init_fast_test (); 
+       init_slow_test (); 
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
@@ -264,13 +264,12 @@ fun check_file file =
     val _ = print_endline (file ^ ":" ^ its (length mll))
   in
     checkmll mll; 
-    if !slowcheck_flag then checkfinal () else 
-      let 
-        val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
-        val r = dlist (!wind)
-      in
-        checkinit (); r
-      end 
+    let 
+      val _ = print_endline ("solutions: " ^ its (dlength (!wind)))
+      val r = dlist (!wind)
+    in
+      checkinit (); r
+    end
   end
 
 (* -------------------------------------------------------------------------

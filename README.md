@@ -10,6 +10,8 @@ The following installation instructions are for the Ubuntu OS.
 Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
+Hint: Installing `intel-mkl` is not necessary if you only want to run the checker.
+
 ``` 
 sudo apt install -y libgmp-dev rlwrap intel-mkl
 sh install_dep.sh
