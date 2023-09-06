@@ -10,12 +10,12 @@ The following installation instructions are for the Ubuntu OS.
 Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
-Hint: Installing `intel-mkl` is not necessary if you only want to run the checker.
-
 ``` 
 sudo apt install -y libgmp-dev rlwrap intel-mkl
 sh install_dep.sh
 ```
+
+Tip: Installing `intel-mkl` requires 2GB but is not necessary if you only want to run the checker.
 
 ### Install oeis-synthesis
 ```
@@ -69,11 +69,12 @@ A summary of the number of programs found at different generation is located at
 Resulting programs can be inspected in the directory `src/exp/expname/search/gen/full_prog` where `gen` is a generation number.
 Running multiple instances of ``rl.sh`` on the same machine may fail.
 
-### Self-learning using an external machine learner
+### Running the checker
 Go to the `src` directory and create the directories `exp` and `exp/expname`.
-In `exp/expname`, add two files: `solold` set of solutions in lisp format
+In `exp/expname`, add two files: `solold` set of previous 
+solutions in lisp format,
 and `cand` a set of candidate program should be listed in 
-reverse reverse polish notation.
+reverse reverse polish notation (e.g. prefix notation).
 Run in the src directory:
 
 ```
@@ -88,6 +89,10 @@ The programs will produce two files `solnew` and `solnewgpt`.
 `solnewgpt` can be used to trained your machine learning model an create a new `cand` file. The format is "sequence>program"
 The program is written in reverse polish notation. 
 
+Tip: If you do not have any solold file you may create a new solold file with "()" written in the first line.
+
+
+#### Bootstrapping a external self-learning process
 You can start a self-learning process by starting from the files `sol0` (to rename to `solold`) and `sol0gpt` to be used to produce the `cand` file.
 These files can be dowloaded by running:
 
