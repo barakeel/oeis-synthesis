@@ -255,7 +255,7 @@ fun checkmll mll =
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
-    print_endline ("fast check: " ^ rts_round 2 t)
+    print_endline ("slow check: " ^ rts_round 2 t)
   end
 
 fun check_file file =
