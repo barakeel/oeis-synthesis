@@ -401,7 +401,8 @@ fun parallel_check expname =
       then (
            cmd_in_dir dir "cat cand solold_reprocess > candx1";
            cmd_in_dir dir "sort -u candx1 > candx2";
-           cmd_in_dir dir "split -l 10000 candx2 split/cand"
+           cmd_in_dir dir "split -l 10000 candx2 split/cand";
+           cmd_in_dir dir "rm candx1; rm candx2"
            )
       else cmd_in_dir dir "split -l 10000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
