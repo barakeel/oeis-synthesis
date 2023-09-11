@@ -297,7 +297,8 @@ fun merge_itsol_default dir =
     val _ = app (merge_itsol_file d) filel
     val _ = log ("sol: " ^ its (dlength (!d)))
     val oldsolfile = dir ^ "/" ^ "solold"
-    val _ = if not (exists_file oldsolfile) then ()
+    val _ = if !reprocess_flag orelse 
+                not (exists_file oldsolfile) then ()
             else merge_itsol_file d oldsolfile
   in
     dlist (!d)
@@ -384,19 +385,39 @@ fun parallel_check expname =
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
     val splitdir = dir ^ "/split"
+    val oldsol = read_itprogl (dir ^ "/" ^ "solold")
+    val _ = if not (!reprocess_flag) then () else
+      let
+        val oldprogl = mk_fast_set prog_compare 
+          (map snd (List.concat (map snd oldsol)))
+        val oldprogl_file = dir ^ "/" ^ "solold_reprocess"
+      in
+        writel oldprogl_file
+        (map (implode o rev o explode o gpt_of_prog) oldprogl)
+      end
     val _ = mkDir_err splitdir
-    val _ = cmd_in_dir dir "split -l 10000 cand split/cand"
+    val _ = 
+      if !reprocess_flag 
+      then (
+           cmd_in_dir dir "cat cand solold_reprocess > candx1";
+           cmd_in_dir dir "sort -u candx1 > candx2";
+           cmd_in_dir dir "split -l 10000 candx2 split/cand"
+           )
+      else cmd_in_dir dir "split -l 10000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = init_merge ()
-    val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) (rev filel)
+
+    
+    val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) 
+      (rev filel)
     val _ = log ("checking time: " ^ rts_round 6 t)
     val (newsol,t) = add_time merge_itsol_default dir
     val _ = log ("merging time: " ^ rts_round 6 t)
     val _ = init_merge ()
     val gptfile = dir ^ "/" ^ "solnewgpt" 
     val newsolfile = dir ^ "/" ^ "solnew"
-    val oldsol = read_itprogl (dir ^ "/" ^ "solold")
+    
   in
     stats_dir dir oldsol newsol;
     write_itprogl (newsolfile ^ "_temp") newsol;
