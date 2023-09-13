@@ -68,15 +68,12 @@ sig
     -> ((int * int) * int) list list
   val all_stars : mat ->
     int * int -> int -> int -> ((int * int) * int) list list
-  
   val new_clausel : ((int * int) * int) list list ->
      ((int * int) list ref * (int * int) list ref) vector *
      (int * int) vector vector
   val transform_pb : ('a * 'b) vector * 'c vector ->
      (int ref * ('a * 'b)) vector * ('c * (int ref * int ref)) vector
 
-  
-  
   (* random shapes *)
   val mat_tabulate : int * (int * int -> int) -> mat
   val mat_app :  (int -> unit) -> mat -> unit  
@@ -100,12 +97,7 @@ sig
   val search_order_linear_undirected : int -> (int * int) list
   val edgel_glob : (int * int) list ref
   val subsets_of_size : int -> int list -> int list list
-  
-  (* normalization *)
-  val refine_partition : int list list -> int list list list
-  val normalize_nauty : mat -> mat
-  val normalize_nauty_safe : mat -> mat
-  
+    
   (* properties *)
   val is_ackset : mat -> bool
   val is_ackset_pb : (mat * mat) -> bool
