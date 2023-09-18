@@ -32,6 +32,19 @@ val real_time = rflag "real_time" 0.0
 val abstract_time = iflag "abstract_time" 0
 val memory = iflag "memory" 10000
 
+(* -------------------------------------------------------------------------
+   Logging
+   ------------------------------------------------------------------------- *)
+
+val disable_log = ref false
+
+val logfile = ref (selfdir ^ "/log")
+val store_log = ref false
+
+fun log s = 
+  if !disable_log then () 
+  else if !store_log then (print_endline s; append_endline (!logfile) s)
+  else print_endline s
 
 
   

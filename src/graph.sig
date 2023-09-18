@@ -14,6 +14,7 @@ sig
   val mat_size : mat -> int
   val mat_sub : mat * int * int -> int 
   val mat_update : mat * int * int * int -> unit
+  val mat_update_sym : mat * int * int * int -> unit
   val mat_tabulate : int * (int * int -> int) -> mat
   val mat_appi : (int * int * int -> unit) -> mat -> unit
   val mat_app : (int -> unit) -> mat -> unit
@@ -26,9 +27,12 @@ sig
   
   (* I/O *)
   val zip_mat : mat -> IntInf.int
-  val unzip_mat : IntInf.int -> mat
+  val unzip_mat : int -> IntInf.int -> mat
   val szip_mat : mat -> string
-  val sunzip_mat : string -> mat
+  val sunzip_mat : int -> string -> mat
+  val zip_full : mat -> IntInf.int
+  val unzip_full : int -> IntInf.int -> mat
+  val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list
   
   (* debug *)
   val string_of_edgel : (int * int) list -> string
@@ -57,13 +61,11 @@ sig
   (* properties *)
   val is_ackset : mat -> bool
   val not_automorphic : mat -> bool
- 
-  (* fully-colored undirected matrice I/O *)
-  val zip_full : mat -> IntInf.int
-  val unzip_full : int -> IntInf.int -> mat
-  val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list
   
   (* converting from matrix representation to list of edges *)
   val mat_to_edgecl : mat -> ((int * int) * int) list
+  val edgecl_to_mat : ((int * int) * int) list -> mat
+  val edgecl_to_mat_size : int -> ((int * int) * int) list -> mat
+  
    
 end

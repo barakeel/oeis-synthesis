@@ -15,6 +15,9 @@ val red =2
 
 fun mat_sub (m,i,j) = Array2.sub (m,i,j)
 fun mat_update (m,i,j,x) = Array2.update(m,i,j,x)
+fun mat_update_sym (m,i,j,x) = 
+  (mat_update (m,i,j,x); mat_update (m,j,i,x))
+
 fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
 fun mat_appi f m = 
   let val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE} in
@@ -64,51 +67,6 @@ fun mat_compare (a1,a2) =
   
 fun mat_compare_fixedsize size (a1,a2) = mat_compare_aux size a1 a2 0 0  
   
-(* -------------------------------------------------------------------------
-   Graph I/O
-   ------------------------------------------------------------------------- *)
-
-fun size_of_zip l =
-  let val ln = length l in
-    valOf (List.find (fn x => x * (x - 1) = ln) (List.tabulate (100,I)))
-  end
-  
-local open IntInf in
-
-fun zip_mat_directed m =
-  let val r = ref 1 in
-    mat_appi (fn (i,j,x) => if i = j then () else 
-                            r := !r * 3 + IntInf.fromInt x) m; !r
-  end
- 
-fun zip_mat_undirected m =
-  let val r = ref 1 in
-    mat_appi (fn (i,j,x) => if FixedInt.>= (i,j) then () else 
-                            r := !r * 3 + IntInf.fromInt x) m; !r
-  end
-
-fun zip_mat m = 
-  if !undirected_flag then zip_mat_undirected m else zip_mat_directed m 
-  
-fun unzip_mat mati = 
-  let 
-    fun loop x = if x < 3 then [] else x mod 3 :: loop (x div 3) 
-    val l = ref (rev (loop mati))
-    val graphsize = size_of_zip (!l)
-    fun f (i,j) = if i = j then 0 else 
-      let val r = IntInf.toInt (hd (!l)) in l := tl (!l); r end 
-  in
-    (if !undirected_flag then symmetrify else I) 
-    (mat_tabulate (graphsize, f))
-  end     
-  
-end (* local *)
-
-fun szip_mat m = IntInf.toString (zip_mat m)
-fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s))
-
-
-
 
 (* -------------------------------------------------------------------------
    Initialization
@@ -294,8 +252,43 @@ fun edgecl_to_mat_size size edgecl =
   end
 
 (* -------------------------------------------------------------------------
-   Fully-colored undirected matrice I/O
+   Graph I/O
    ------------------------------------------------------------------------- *)
+
+local open IntInf in
+
+fun zip_mat m = 
+  let val r = ref 1 in
+    mat_appi (fn (i,j,x) => if FixedInt.>= (i,j) then () else 
+                            r := !r * 3 + IntInf.fromInt x) m; !r
+  end
+
+fun zip_mat_indices size =
+  let 
+    val m = mat_tabulate (size, fn _ => 0)
+    val r = ref []
+    fun f (i,j,x) = if FixedInt.>= (i,j) then () else r := (i,j) :: !r;
+  in
+    mat_appi f m;
+    rev (!r)
+  end    
+    
+fun unzip_mat size mati =
+  let 
+    fun loop x = if x < 3 then [] else x mod 3 :: loop (x div 3) 
+    val l1 = rev (loop mati)
+    val l2 = zip_mat_indices size
+    val edgecl = combine (l2, map IntInf.toInt l1)
+  in
+    symmetrify (edgecl_to_mat_size size edgecl)
+  end      
+  
+end (* local *)
+
+fun szip_mat m = IntInf.toString (zip_mat m)
+fun sunzip_mat size s = unzip_mat size (valOf (IntInf.fromString s))
+
+
 
 local open IntInf in
 
