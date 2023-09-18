@@ -182,12 +182,12 @@ val ERR = mk_HOL_ERR "test";
 val l35 = read35 10;
 val gen0_35 = map (unzip_full 10) l35;
 val (mp35,cover35) = split (compute_cover gen0_35);
-length cover35;
-map length cover35;
 val mp35desc = enew mat_compare (List.concat (map all_leafs mp35));
 all (fn x => emem x mp35desc) gen0_35;
+mkDir_err "ramsey_3_5_gen";
 writel "ramsey_3_5_gen/10" (map szip_mat mp35);
-
+length cover35;
+map length cover35;
 
 
 val l44 = read44 14;
@@ -195,6 +195,7 @@ val gen0_44 =  map (unzip_full 14) l44;
 val (mp44,cover44) = split (compute_cover gen0_44);
 val mp44desc = enew mat_compare (List.concat (map all_leafs mp44));
 all (fn x => emem x mp44desc) gen0_44;
+mkDir_err "ramsey_4_4_gen";
 writel "ramsey_4_4_gen/14" (map szip_mat mp44);
 length cover44;
 map length cover44;
