@@ -93,6 +93,9 @@ Tip: If you do not have any `solold` file you may create a new `solold` file wit
 
 Tip: Change `sol2_flag true` to `nomerge_flag true` in the `config` file to
 see the behavior of all programs.
+If you add the line `reprocess_flag` true to the `config` the 
+statistics for the `solold` will be recomputed. This is useful to fix
+buggy statistics in `solold` without losing the solutions.
 
 
 #### Bootstrapping a external self-learning process
