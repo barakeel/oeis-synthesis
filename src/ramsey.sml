@@ -311,11 +311,12 @@ val ramseyspec : (unit, IntInf.int * IntInf.int, bool) extspec =
   read_result = read_bool
   }
 
-fun r45 ncore expdir csize dsize =
+fun r45 ncore expname csize dsize =
   let
+    val expdir = selfdir ^ "/exp/" ^ expname
     val buildheapdir = expdir ^ "/buildheap"
     val satdir = expdir ^ "/sat"
-    val _ = app mkDir_err [expdir,satdir,buildheapdir]
+    val _ = app mkDir_err [selfdir ^ "/exp",expdir,satdir,buildheapdir]
     val _ = write_pb_10_14 (satdir ^ "/r45_10-14");
     val _ = cmd_in_dir selfdir ("cp cadical.sh " ^ satdir)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
@@ -338,7 +339,7 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey graph;
 PolyML.print_depth 10;
 
-val csize = 10
+val csize = 10;
 val l = read35 csize; 
 val gen0 =  map (unzip_full csize) l;
 val (mp,cover) = split (compute_cover gen0);
@@ -346,6 +347,7 @@ val mpdesc = enew mat_compare (List.concat (map all_leafs mp));
 all (fn x => emem x mpdesc) gen0;
 mkDir_err "ramsey_3_5_gen";
 writel ("ramsey_3_5_gen/" ^ its csize) (map szip_mat mp);
+writel "r45_cover35_10_stats" (map (its o length) cover);
 *)
 
 
@@ -354,7 +356,7 @@ PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-r45 100 "r45gen10" 10 14;
+r45 100 (selfdir ^ "exp/r45_3-5-10" 10 14;
 
 *)
 
