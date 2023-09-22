@@ -84,29 +84,30 @@ fun all_children mat =
   in
     mk_fast_set mat_compare childl
   end;   
+   
      
-fun next_gen cd l = 
+fun next_gen leafd l = 
   let  
     val l1 = mk_fast_set mat_compare (List.concat (map all_parents l))
-    fun is_fullanc cd m = all (fn x => emem x cd) (all_leafs m)
-    val l2 = filter (is_fullanc cd) l1;
+    fun is_fullanc m = all (fn x => emem x leafd) (all_leafs m)
+    val l2 = filter is_fullanc l1;
   in
     l2
   end;
 
-fun loop_next_gen ngen cd l result =
+fun loop_next_gen ngen leafd l result =
   let
-    val (nextl,t) = add_time (next_gen cd) l
+    val (nextl,t) = add_time (next_gen leafd) l
     val _ = print_endline (its (ngen+1) ^ ": " ^ 
       its (length nextl) ^ " in " ^ rts_round 4 t ^ " seconds")
   in
     if null nextl then rev result else 
-    loop_next_gen (ngen + 1) cd nextl (l :: result)
+    loop_next_gen (ngen + 1) leafd nextl (l :: result)
   end;
   
-fun generalize cd leaf = loop_next_gen 0 cd [leaf] []
+fun generalize leafd leaf = 
+  loop_next_gen 0 leafd [leaf] []
 
-fun generalize2 cd leaf = List.concat (generalize cd leaf)
 
 (* -------------------------------------------------------------------------
    Cover using mutiple generalizations
@@ -133,11 +134,11 @@ fun find_best_mpll coverd mpll =
     hd (dict_sort cmp l4)
   end  
   
-fun loop_cover leafs coverd uncover result =
+fun loop_cover leafs leafd coverd uncover result =
   if null uncover then rev result else
   let 
     val m0 = random_elem uncover
-    val (mpll,t1) = add_time (generalize coverd) m0
+    val (mpll,t1) = add_time (generalize leafd) m0
     val ((mp,(sc,depth)),t2) = add_time (find_best_mpll coverd) mpll
     val mcover = filter (fn x => not (emem x coverd)) (all_leafs mp) 
     val mcoverd = enew mat_compare mcover
@@ -150,11 +151,13 @@ fun loop_cover leafs coverd uncover result =
       " in " ^ rts_round 4 t1 ^ " seconds and in " ^ 
       rts_round 4 t2 ^ " seconds")
   in  
-    loop_cover leafs newcoverd newuncover ((mp,mcover) :: result)
+    loop_cover leafs leafd newcoverd newuncover ((mp,mcover) :: result)
   end;
   
 fun compute_cover leafs = 
-  loop_cover leafs (eempty mat_compare) leafs [];  
+  let val leafd = enew mat_compare leafs in 
+    loop_cover leafs leafd (eempty mat_compare) leafs [] 
+  end
   
 (* -------------------------------------------------------------------------
    Parallel generalization and cover
@@ -332,10 +335,26 @@ end (* struct *)
 
 (*
 PolyML.print_depth 0;
+load "ramsey"; open aiLib kernel ramsey graph;
+PolyML.print_depth 10;
+
+val csize = 10
+val l = read35 csize; 
+val gen0 =  map (unzip_full csize) l;
+val (mp,cover) = split (compute_cover gen0);
+val mpdesc = enew mat_compare (List.concat (map all_leafs mp));
+all (fn x => emem x mpdesc) gen0;
+mkDir_err "ramsey_3_5_gen";
+writel ("ramsey_3_5_gen/" ^ its csize) (map szip_mat mp);
+*)
+
+
+(*
+PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-r45 2 "r45_test" 10 14;
+r45 100 "r45gen10" 10 14;
 
 *)
 
