@@ -51,6 +51,10 @@ sig
   val daddi : 'a -> 'b -> ('a, 'b) dict ref -> unit
   val dmemi : 'a -> ('a, 'b) dict ref -> bool
 
+  (* useful tools *)
+  val range : int * int * (int -> 'a) -> 'a list
+  val subsets_of_size : int -> 'a list -> 'a list list
+  
   (* sequences *)
   type seq = IntInf.int list
   type anum = int

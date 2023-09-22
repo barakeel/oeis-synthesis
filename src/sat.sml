@@ -467,35 +467,11 @@ in
          map (stars_down edgecd csize dsize red reddegree) dvl)
     end
 end
-  
-  
-  
-(*
-PolyML.print_depth 0;
-load "ramsey"; open aiLib kernel ramsey;
-PolyML.print_depth 20;
-val csize = 10;
-val dsize = 14;
-val edgecd = 
-  symmetrify (
-  mat_tabulate (csize + dsize, fn (i,j) => if i = j orelse 
-  (i < csize andalso j >= csize) then 0 else random_int (1,2)));
-val (x,t) = add_time (star_clauses edgecd (12,15) 10) 14;
-length x;
-
-val lit_compare = cpl_compare edge_compare Int.compare;
-val clause_compare = list_compare lit_compare;
-
-
-
-val (x',t') = add_time (all_clauses2_faster 24) (4,5);
-*)
 
 (* -------------------------------------------------------------------------
    Move clauses into an efficient data structure for propagation
    ------------------------------------------------------------------------- *)
 
-(* inefficient *)
 val graph_glob = ref (Array2.array (1,1,0));
 val isograph_glob = ref (Array2.array (1,1,0));
 
@@ -859,7 +835,7 @@ fun sat_solver size (blueshape,redshape) =
 fun write_satpb file (nvar,pb) = 
   let 
     val header = "p cnf " ^ its nvar ^ " " ^ its (length pb) 
-    fun g (x,c) = if c = 1 then "-" ^ (its (x+1)) else its (x+1)
+    fun g (x,c) = if c = blue then "-" ^ (its (x+1)) else its (x+1)
     fun f clause = String.concatWith " " (map g clause) ^ " 0"
   in
     writel file (header :: map f pb)
@@ -872,9 +848,7 @@ end (* struct *)
 PolyML.print_depth 0;
 load "sat"; open aiLib kernel graph sat;
 PolyML.print_depth 10;
-val (r,t) = add_time (sat_solver 18) (matK 4,matK 4);
-
-
+val (r,t) = add_time (sat_solver 18) (matK 4,matK 4)
 *)
 
 

@@ -255,6 +255,10 @@ fun edgecl_to_mat_size size edgecl =
    Graph I/O
    ------------------------------------------------------------------------- *)
 
+fun find_size i ln = 
+  if i > 10000 then raise ERR "find_size" "size > 10000" else
+  if i * (i-1) div 2 = ln then i else find_size (i+1) ln
+
 local open IntInf in
 
 fun zip_mat m = 
@@ -272,11 +276,12 @@ fun zip_mat_indices size =
     mat_appi f m;
     rev (!r)
   end    
-    
-fun unzip_mat size mati =
+
+fun unzip_mat mati =
   let 
     fun loop x = if x < 3 then [] else x mod 3 :: loop (x div 3) 
     val l1 = rev (loop mati)
+    val size = find_size 1 (length l1)
     val l2 = zip_mat_indices size
     val edgecl = combine (l2, map IntInf.toInt l1)
   in
@@ -286,7 +291,7 @@ fun unzip_mat size mati =
 end (* local *)
 
 fun szip_mat m = IntInf.toString (zip_mat m)
-fun sunzip_mat size s = unzip_mat size (valOf (IntInf.fromString s))
+fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s))
 
 
 

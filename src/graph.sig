@@ -27,9 +27,9 @@ sig
   
   (* I/O *)
   val zip_mat : mat -> IntInf.int
-  val unzip_mat : int -> IntInf.int -> mat
+  val unzip_mat : IntInf.int -> mat
   val szip_mat : mat -> string
-  val sunzip_mat : int -> string -> mat
+  val sunzip_mat : string -> mat
   val zip_full : mat -> IntInf.int
   val unzip_full : int -> IntInf.int -> mat
   val unzip_full_edgecl : int -> IntInf.int -> ((int * int) * int) list

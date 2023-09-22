@@ -85,6 +85,29 @@ fun dmemi x d = dmem x (!d)
 fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
 
 (* -------------------------------------------------------------------------
+   Other tools
+   ------------------------------------------------------------------------- *)
+
+fun range (a,b,f) = List.tabulate (b-a+1,fn i => f (i+a));
+
+fun subsets_of_size_aux n (l,ln) = 
+  if n > ln then [] else if n = ln then [l] else
+  (
+  case l of
+    [] => if n = 0 then [[]] else []
+  | a :: m => 
+    let
+      val l1 = map (fn subset => a::subset) 
+        (subsets_of_size_aux (n - 1) (m,ln-1))
+      val l2 = subsets_of_size_aux n (m,ln-1)
+    in
+      l1 @ l2
+    end  
+  )
+
+fun subsets_of_size n l =  subsets_of_size_aux n (l, length l)
+
+(* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
 
