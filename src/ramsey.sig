@@ -20,8 +20,10 @@ sig
   val loop_cover_para :  string -> int -> mat list -> (mat * mat list) list
   *)  
   
+  val no_gen : int -> unit
+  
   (* r45 *)
   val ramseyspec : (unit, IntInf.int * IntInf.int, bool) smlParallel.extspec
-  val r45 : int -> string -> int -> int -> unit
+  val r45 : int -> string -> int -> unit
 
 end

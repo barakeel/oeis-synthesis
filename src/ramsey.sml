@@ -23,6 +23,11 @@ fun read35gen csize = map stinf
 fun read44gen dsize = map stinf
   (readl (selfdir ^ "/ramsey_4_4_gen/" ^ its dsize)) 
 
+fun write35gen csize matl = 
+  writel (selfdir ^ "/ramsey_3_5_gen/" ^ its csize) (map szip_mat matl)
+fun write44gen dsize matl = 
+  writel (selfdir ^ "/ramsey_4_4_gen/" ^ its dsize) (map szip_mat matl)
+
 (* -------------------------------------------------------------------------
    Generalization
    ------------------------------------------------------------------------- *) 
@@ -255,10 +260,12 @@ fun loop_cover_para expname ncore leafs =
    Glueing pairs using Cadical
    ------------------------------------------------------------------------- *)
 
+val satprefix = "r45"
+
 fun glue buildheapdir (ci,di)  = 
   let
     val dir = OS.Path.dir buildheapdir ^ "/sat"
-    val file = dir ^ "/r45_10-14"
+    val file = dir ^ satprefix
     val (ce,de) = (unzip_mat ci, unzip_mat di)
     val pbid = szip_mat ce ^ "-" ^ szip_mat de
     val _ = write_assignl file (read_mapping file) pbid (ce,de);
@@ -311,13 +318,14 @@ val ramseyspec : (unit, IntInf.int * IntInf.int, bool) extspec =
   read_result = read_bool
   }
 
-fun r45 ncore expname csize dsize =
+fun r45 ncore expname csize =
   let
+    val dsize = 24 - csize
     val expdir = selfdir ^ "/exp/" ^ expname
     val buildheapdir = expdir ^ "/buildheap"
     val satdir = expdir ^ "/sat"
     val _ = app mkDir_err [selfdir ^ "/exp",expdir,satdir,buildheapdir]
-    val _ = write_pb_10_14 (satdir ^ "/r45_10-14");
+    val _ = write_r45_pb (satdir ^ "/" ^ satprefix);
     val _ = cmd_in_dir selfdir ("cp cadical.sh " ^ satdir)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle 
@@ -331,6 +339,15 @@ fun r45 ncore expname csize dsize =
     if all I bl then log "UNSATISIFABLE" else log "SATISIFABLE"
   end
 
+fun no_gen csize = 
+  let
+    val dsize = 24 - csize
+    val (cl,dl) = (read35 csize, read44 dsize)
+    val (cmatl,dmatl) = (map (unzip_full csize) cl, map (unzip_full dsize) dl)
+  in
+    write35gen csize cmatl;
+    write44gen dsize dmatl
+  end
   
 end (* struct *)
 
@@ -350,13 +367,16 @@ writel ("ramsey_3_5_gen/" ^ its csize) (map szip_mat mp);
 writel "r45_cover35_10_stats" (map (its o length) cover);
 *)
 
-
+(* r45 100 "r45_10" 10; *)
 (*
 PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
 
-r45 100 (selfdir ^ "exp/r45_3-5-10" 10 14;
+
+
+no_gen 7;
+r45 100 "r45_7" 7;
 
 *)
 

@@ -142,6 +142,24 @@ fun write_pb file pb =
     write_clauses (file ^ "_clauses") pbnumbered
   end   
 
+fun write_r45_pb file =
+  let
+    val size = 24
+    val ram = ramsey_clauses size (4,5)
+  in 
+    write_pb file ram
+  end  
+
+fun write_r45_pb_wdeg csize (mindeg,maxdeg) file =
+  let
+    val size = 24
+    val ram = ramsey_clauses size (4,5)
+    val deg1 = cdeg size csize (mindeg-1,maxdeg-1)
+    val deg2 = ddeg size csize (mindeg,maxdeg)
+  in 
+    write_pb file (ram @ deg1 @ deg2)
+  end  
+
 fun write_pb_10_14 file =
   let
     val size = 24
