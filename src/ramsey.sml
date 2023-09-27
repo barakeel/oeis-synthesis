@@ -260,12 +260,12 @@ fun loop_cover_para expname ncore leafs =
    Glueing pairs using Cadical
    ------------------------------------------------------------------------- *)
 
-val satprefix = "r45"
+val satprefix = "sat"
 
 fun glue buildheapdir (ci,di)  = 
   let
     val dir = OS.Path.dir buildheapdir ^ "/sat"
-    val file = dir ^ satprefix
+    val file = dir ^ "/" ^ satprefix
     val (ce,de) = (unzip_mat ci, unzip_mat di)
     val pbid = szip_mat ce ^ "-" ^ szip_mat de
     val _ = write_assignl file (read_mapping file) pbid (ce,de);
@@ -372,8 +372,6 @@ writel "r45_cover35_10_stats" (map (its o length) cover);
 PolyML.print_depth 0;
 load "ramsey"; open aiLib kernel ramsey;
 PolyML.print_depth 10;
-
-
 
 no_gen 7;
 r45 100 "r45_7" 7;
