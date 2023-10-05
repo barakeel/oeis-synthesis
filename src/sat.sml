@@ -6,14 +6,11 @@ val ERR = mk_HOL_ERR "sat"
 
 
 (* flags conspiring to output all models *)
-val continue_flag = ref false
-val sat_flag = ref false
+val allsat_flag = ref false
 val degree_flag = ref false
 val max_blue_degree = ref 0
 val max_red_degree = ref 0
 val iso_flag = ref true
-val sbl_flag = ref false
-val del_flag = ref true
 val graphl = ref []
 
 (* -------------------------------------------------------------------------
@@ -36,7 +33,6 @@ val isod_glob = ref (eempty IntInf.compare)
 
 exception RamseyTimeout;
 
-val sat_n = ref 0
 val prop_timer = ref 0.0
 val iso_timer = ref 0.0
 val iso_timer2 = ref 0.0
@@ -52,12 +48,9 @@ val degree_conflict_counter = ref 0
 val other_counter = ref 0
 val other_timer = ref 0.0
 
-
 fun init_timer () =
   (
   graphl := [];
-  (* conel := []; *)
-  sat_n := 0;
   prop_counter := 0;
   prop_small_counter := 0;
   prop_conflict_counter := 0;
@@ -88,6 +81,8 @@ fun test_timer () =
 
 fun stats () = 
   (  
+  if null (!graphl) then log "unsat" 
+    else log ("sat " ^ its (length (!graphl)));
   log ("prop: " ^ its (!prop_counter) ^ " calls, " ^ 
                   its (!prop_small_counter) ^ " propagations, " ^ 
                   its (!prop_conflict_counter) ^ " conflicts, " ^ 
@@ -101,24 +96,18 @@ fun stats () =
                     its (!degree_conflict_counter) ^ " conflicts, " ^ 
                     rts_round 6 (!degree_timer) ^ " seconds");       
   log ("other: " ^ its (!other_counter) ^ " calls");    
-  if !sat_n > 0 andalso !continue_flag
-    then log ("models: " ^ its (!sat_n)) else ();
-  if !norm_failure > 0 
-    then log ("norm: " ^ its (!norm_failure)) else ()
+  if !norm_failure > 0 then log ("norm: " ^ its (!norm_failure)) else ();
+  !graphl
   )
 
 (* -------------------------------------------------------------------------
    Order in which the vertices should be colored
    ------------------------------------------------------------------------- *)
 
-fun pairbelowy y = List.tabulate (y+1,fn x => (x,y))
+fun pairbelowy y = List.tabulate (y,fn x => (x,y))
 
 fun search_order_undirected size = 
-  let val search_order0 = 
-    List.concat (List.tabulate (size,fn y => pairbelowy y))
-  in
-    filter (fn (x,y) => x <> y) search_order0
-  end  
+  List.concat (List.tabulate (size,fn y => pairbelowy y))
 
 fun search_order size = List.concat 
   (map (fn (x,y) => [(x,y),(y,x)]) (search_order_undirected size))
@@ -130,22 +119,6 @@ fun search_order_linear size =
 fun search_order_linear_undirected size = 
   filter (fn (x,y) => x < y)
   (cartesian_product (List.tabulate (size,I)) (List.tabulate (size,I)))
-
-fun edge_conflict edgecl =
-  let 
-    val d = ref (dempty (cpl_compare Int.compare Int.compare)) 
-    fun loop l = case l of 
-      [] => SOME (dlist (!d)) 
-    | (edge,c) :: m => 
-      (
-      case dfindo edge (!d) of
-        NONE => (d := dadd edge c (!d); loop m)
-      | SOME c' => if c = c' then loop m else NONE 
-      )
-  in
-    loop edgecl
-  end
-
 
 (* -------------------------------------------------------------------------
    Test isomorphism
@@ -208,19 +181,26 @@ fun dlv_app f dlv =
     dlv_loop f first_index
   end
 
-
+fun dlv_null dlv = 
+  let 
+    val last_index = Vector.length dlv - 1
+    val first_index = (! o snd o fst) (Vector.sub (dlv,0)) 
+  in
+    first_index = last_index 
+  end
+  
 (* -------------------------------------------------------------------------
    Conversion between edges and variables
    ------------------------------------------------------------------------- *)
 
-val convertv = Vector.fromList (search_order_undirected 50);
+val vartoedgev = Vector.fromList (search_order_undirected 50);
 
-fun unpair x = Vector.sub (convertv,x) 
-  handle Subscript => raise ERR "unpair" "";
+fun var_to_edge x = Vector.sub (vartoedgev,x) 
+  handle Subscript => raise ERR "var_to_edge" ""
 
-fun pair (x,y) = 
-  if x = y then raise ERR "pair" ""
-  else if x < y then x + ((y * (y - 1)) div 2) else pair (y,x)
+fun edge_to_var (x,y) = 
+  if x < y then x + ((y * (y - 1)) div 2) else 
+  raise ERR "edge_to_var" (its x ^ "-" ^ its y)
 
 (* -------------------------------------------------------------------------
    Debug
@@ -233,7 +213,7 @@ fun cts c =
   else raise ERR "cts_color" (its c)
 
 fun ets (edgeid,c) = 
-  let val (a,b) = unpair edgeid in
+  let val (a,b) = var_to_edge edgeid in
     its a ^ "-" ^ its b ^ ":" ^ cts c
   end
   
@@ -249,19 +229,6 @@ fun string_of_assignv assignv =
   in
     String.concatWith " " (map ets l2)
   end  
-
-
-(* -------------------------------------------------------------------------
-   Preprocessing: reduce/eliminate clauses given an edge coloring
-   ------------------------------------------------------------------------- *)
-
-fun reduce_clause edgecd acc clause = case clause of
-    [] => SOME (rev acc)
-  | (lit as ((i,j),color)) :: m => 
-    let val newcolor = mat_sub (edgecd,i,j) in
-      if newcolor = 0 then reduce_clause edgecd (lit :: acc) m
-      else if color = newcolor then reduce_clause edgecd acc m else NONE
-    end
 
 (* -------------------------------------------------------------------------
    Ramsey clauses
@@ -285,188 +252,19 @@ fun subsets_of_size_faster n (l,ln) =
 fun subsets_of_size n l =  subsets_of_size_faster n (l, length l)
 
 fun clique_of_subset (subset,color) =
-  let val pairl = all_pairs (dict_sort Int.compare subset) in
-    map (fn x => (pair x, color)) pairl
+  let val edgel = all_pairs (dict_sort Int.compare subset) in
+    map (fn x => (edge_to_var x, color)) edgel
   end
 
-fun all_clauses size (blueshape,redshape) = 
+fun ramsey_clauses size (bluesize,redsize) = 
   let
-    val bluesize = mat_size blueshape
     val bluesubsetl = subsets_of_size bluesize (List.tabulate (size,I))
-    val redsize = mat_size redshape
     val redsubsetl = subsets_of_size redsize (List.tabulate (size,I))
     val subsetl = map_assoc (fn _ => blue) bluesubsetl @
                   map_assoc (fn _ => red) redsubsetl
   in
     map clique_of_subset subsetl
   end
-
-fun clique_of_subset2 (subset,color) =
-  let val pairl = all_pairs (dict_sort Int.compare subset) in
-    map (fn x => (x, color)) pairl
-  end
-
-(* deprecated *)
-fun all_clauses2 size (bluesize,redsize) = 
-  let
-    val bluesubsetl = subsets_of_size bluesize (List.tabulate (size,I))
-    val redsubsetl = subsets_of_size redsize (List.tabulate (size,I))
-    val subsetl = map_assoc (fn _ => blue) bluesubsetl @
-                  map_assoc (fn _ => red) redsubsetl
-  in
-    map clique_of_subset2 subsetl
-  end  
-
-local
-  val colorglob = ref 0
-  val acc_glob = ref ([] : (int list * ((int * int) * int) list) list);
-  fun fadd_one (vl,el) vtop = 
-    let val newlitl = map (fn v => ((v,vtop),!colorglob)) vl in
-      acc_glob := (vtop :: vl, newlitl @ el) :: !acc_glob
-    end
-  fun fadd_loop (vl,el) start bound = 
-    if start >= bound then () else
-    (fadd_one (vl,el) start;  fadd_loop (vl,el) (start + 1) bound)
-  fun fadd bound (vl,el) = fadd_loop (vl,el) (hd vl + 1) bound
-  fun enum bound l = (acc_glob := []; app (fadd bound) l; !acc_glob)
-  fun enum_n_aux bound n acc  = 
-    if n <= 1 then acc else enum_n_aux bound (n-1) (enum bound acc)
-in 
-  fun enum_n bound n color = 
-    (colorglob := color; map snd 
-    (enum_n_aux bound n (List.tabulate (bound,fn x => ([x],[])))))
-end
-
-fun all_clauses2_faster size (bluesize,redsize) =
-  enum_n size bluesize blue @ enum_n size redsize red
-
-fun all_clauses3 size (bluesize,redsize) edgecd =
-  List.mapPartial (reduce_clause edgecd []) 
-  (all_clauses2_faster size (bluesize,redsize))
-
-(* -------------------------------------------------------------------------
-   Symmetry breaking clauses
-   ------------------------------------------------------------------------- *)
-
-val fresh_var_counter = ref 0  
-  
-fun fresh_var () = 
-  let val r = !fresh_var_counter in incr fresh_var_counter; r end
-
-fun eq_clauses_one ((i,j),k) = 
-  if i = k orelse j = k then NONE else
-  let 
-    val edge1 = (i,k)  
-    val edge2 = (j,k)
-    val eqv = (~1,fresh_var ())
-  in
-    SOME (((i,j),k),(eqv, [[(edge1,blue),(edge2,blue),(eqv,red)],
-                           [(edge1,red),(edge2,red),(eqv,red)]]))
-  end  
-
-(* slightly too many clauses *)   
-fun eq_clauses size =
-  let
-    val l0 = List.tabulate (size,I)
-    val l1 = cartesian_product (all_pairs l0) l0
-    val cmp = cpl_compare (cpl_compare Int.compare Int.compare) Int.compare
-  in
-    dnew cmp (List.mapPartial eq_clauses_one l1)
-  end
-  
-fun sbl_clauses_aux d ((i,j),k) =
-  if i = k orelse j = k then NONE else
-  let 
-    val l0 = filter (fn x => not (mem x [i,j])) (List.tabulate (k,I)) 
-    val eql = map (fn x => fst (dfind ((i,j),x) d)) l0
-  in
-    SOME (map_assoc (fn _ => blue) eql @ 
-          [((i,k),blue),((j,k),red)])
-  end
-  
-fun sbl_clauses_aux2 size =
-  let
-    val _ = fresh_var_counter := (size * (size - 1)) div 2
-    val l0 = List.tabulate (size,I)
-    val l1 = cartesian_product (all_pairs l0) l0
-    val d = eq_clauses size
-    val l2 = List.concat (map (snd o snd) (dlist d))
-  in
-    l2 @ List.mapPartial (sbl_clauses_aux d) l1
-  end
-  
-fun sbl_clauses size =
-  let 
-    val l = sbl_clauses_aux2 size 
-    fun f (a,b) = if a = ~1 then b else pair (a,b)
-  in
-    map (map_fst f) l
-  end
-
-
-(*
-PolyML.print_depth 0;
-load "ramsey"; open aiLib kernel ramsey;
-PolyML.print_depth 10;
-val (x,t) = add_time (all_clauses2 20) (4,5);
-val (x',t') = add_time (all_clauses2_faster 24) (4,5);
-*)
-
-(* -------------------------------------------------------------------------
-   Degree clauses
-   ------------------------------------------------------------------------- *)
-
-local
-  fun fadd_one acc vl vtop = acc := (vtop :: vl) :: !acc
-  fun fadd_loop acc vl start bound = 
-    if start >= bound then () else
-    (fadd_one acc vl start;  fadd_loop acc vl (start + 1) bound)
-  fun fadd acc bound vl = fadd_loop acc vl (hd vl + 1) bound
-  fun enum bound l = 
-    let val acc = ref [] in app (fadd acc bound) l; !acc end
-  fun enum_n_aux bound n acc  = 
-    if n <= 0 then [[]] else 
-    if n <= 1 then acc else enum_n_aux bound (n-1) (enum bound acc)
-in 
-  fun fixed_enum offset bound degree =
-    enum_n_aux bound degree
-      (List.tabulate (bound - offset,fn x => [x + offset]))
-  fun stars_up edgecd csize dsize color maxdegree vertex = 
-    let 
-      val degree = maxdegree - 
-        (length (neighbor_of color edgecd vertex) +
-         (if color = blue then 1 else 0))
-      val _ = if degree <= 0 then raise ERR "stars_up" "" else ()
-      val l = fixed_enum csize (csize + dsize) degree
-      fun f vl = map (fn x => ((vertex,x),color)) vl
-      val clauses = map f l
-    in
-      clauses
-    end
-  fun stars_down edgecd csize dsize color maxdegree vertex = 
-    let      
-      val degree = maxdegree - 
-        (length (neighbor_of color edgecd vertex) + 
-         (if color = red then 1 else 0))
-      val _ = if degree <= 0 then raise ERR "stars_down" "" else ()
-      val l = fixed_enum 0 csize degree
-      fun f vl = map (fn x => ((x,vertex),color)) vl
-      val clauses = map f l
-    in
-      clauses
-    end
-  fun star_clauses edgecd (bluedegree,reddegree) csize dsize = 
-    let
-      val cvl = List.tabulate (csize, I)
-      val dvl = List.tabulate (dsize, fn x => x + csize)
-    in
-      List.concat 
-        (map (stars_up edgecd csize dsize blue bluedegree) cvl @
-         map (stars_up edgecd csize dsize red reddegree) cvl @
-         map (stars_down edgecd csize dsize blue bluedegree) dvl @
-         map (stars_down edgecd csize dsize red reddegree) dvl)
-    end
-end
 
 (* -------------------------------------------------------------------------
    Move clauses into an efficient data structure for propagation
@@ -517,14 +315,13 @@ fun transform_pb (assignv,clausevv) =
     (Vector.map f1 assignv, Vector.map f2 clausevv)
   end
 
-fun init_sat size (blueshape,redshape) =
+fun init_sat size (bluesize,redsize) =
   let
     val _ = graph_glob := (Array2.array (size,size,0))
     val maxedge = (size * (size - 1)) div 2
     val assignv = Vector.tabulate (maxedge, (fn _ => (ref [], ref [])))
     val clausevv = Vector.fromList []
-    val clausel = all_clauses size (blueshape,redshape) @
-                  (if !sbl_flag then sbl_clauses size else [])
+    val clausel = ramsey_clauses size (bluesize,redsize)
     val (newassignv,newclausevv) = add_clausel clausel (assignv,clausevv)
   in
     transform_pb (newassignv,newclausevv)
@@ -536,6 +333,7 @@ fun init_sat size (blueshape,redshape) =
    ------------------------------------------------------------------------- *)
 
 exception Conflict;
+
 
 fun propagated_clause clausev = 
   let fun loop i = 
@@ -549,29 +347,16 @@ fun propagated_clause clausev =
 
 
 fun assign undol edgeid assignref color =
-  (* if edgeid < !edgel_n then *)
   let 
     val graph = !graph_glob
-    val (a,b) = unpair edgeid
-    fun back () =
-      (
-      assignref := 0;
-      mat_update (graph,a,b,0); 
-      mat_update (graph,b,a,0)
-      )  
+    val (a,b) = var_to_edge edgeid
+    fun back () = (assignref := 0; mat_update_sym (graph,a,b,0))  
   in
     assignref := color;
-    mat_update (graph,a,b,color); 
-    mat_update (graph,b,a,color);
+    mat_update_sym (graph,a,b,color);
     undol := back :: !undol
   end
-  (* 
-  else
-  let fun back () = assignref := 0 in
-    assignref := color;
-    undol := back :: !undol
-  end  
-  *)
+
 
 fun prop_sat_loop assignv clausevv queue undol = case !queue of 
     [] => (!undol, false)
@@ -644,7 +429,7 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
   in
     case 
       ((dlv_app f_prop clauses_prop; 
-        if !del_flag then dlv_app f_del clauses_del else ();
+        dlv_app f_del clauses_del;
        NONE) 
       handle Conflict => SOME (!undol,true))
     of
@@ -672,27 +457,20 @@ fun prop_sat assignv clausevv (edgeid,color) =
 fun rotate n l = 
   let val (l1,l2) = part_n n l in l2 @ l1 end
 
-fun next_assign_aux assignv edgel = case edgel of 
-    [] => NONE
-  | (i,j) :: m => 
-    let val edgeid = pair (i,j) in
-      if !(fst (Vector.sub (assignv,edgeid))) = 0 
-      then SOME edgeid
-      else next_assign_aux assignv m
-    end
-    
-fun next_assign f assignv = 
+fun next_assign_aux assignv vl =   
   let 
-    (* update array on which f is operating *)
-    val n = f ()
-    val maxn = !edgel_n
-    val edgel = if n > 0 
-      then rotate ((n-1) mod maxn) (!edgel_glob)
-      else rotate ((Int.abs n) mod maxn) (!edgel_glob)
-    val colorl = if n > 0 then [blue,red] else [red,blue]
+    fun test vi = 
+      let val (a,(dv1,dv2)) = Vector.sub (assignv,vi) in
+        !a = 0 (* andalso
+        (not (dlv_null dv1 andalso dlv_null dv2)) *)
+      end
+    val avl = filter test vl
   in
-    (next_assign_aux assignv edgel,colorl)
+    if null avl then NONE else SOME (hd avl)
   end
+    
+fun next_assign assignv =  
+  (next_assign_aux assignv (!edgel_glob),[red,blue])
 
 
 (* -------------------------------------------------------------------------
@@ -708,7 +486,7 @@ fun degree_geq n color graph x =
     val _ = incr degree_counter
     val graph  = !graph_glob
     val degree_limit = if color = red then 13 else 5
-    val (a,b) = unpair edgeid
+    val (a,b) = var_to_edge edgeid
     val reda = neighbor_of red graph a 
     val redb = neighbor_of red graph b 
     fun test (x,y) = length (commonneighbor_of red graph (x,y)) >= 9
@@ -732,7 +510,7 @@ fun test_degree (edgeid,color) =
     val graph  = !graph_glob
     val degree_limit = 
       if color = red then !max_red_degree else !max_blue_degree
-    val (a,b) = unpair edgeid
+    val (a,b) = var_to_edge edgeid
   in
     degree_geq degree_limit color graph a orelse 
     degree_geq degree_limit color graph b
@@ -744,12 +522,11 @@ fun test_degree (edgeid,color) =
    ------------------------------------------------------------------------- *)
 
 exception SatTimeout;
-val choose_global = ref (fn () => 0)
+exception Satisfiable;
 
 fun sat_solver_loop assignv clausevv path = 
   case path of 
-    [] => (if !sat_flag then log "sat" else log "unsat"; 
-           stats (); not (!sat_flag))
+    [] => stats ()
   | (undol,_,[]) :: parentl => 
     (
     debug "undo"; 
@@ -760,19 +537,12 @@ fun sat_solver_loop assignv clausevv path =
   (
   case eido of
     NONE => 
-      if !continue_flag 
-      then (sat_flag := true;
-            incr sat_n; 
-      (* graphl := zip_full (normalize_nauty (!graph_glob)) :: !graphl; *)
-       (* conel := map (fn (a,b) => 
-           mat_sub (!graph_glob,a,b)) (!edgel_glob) :: !conel; *)
-        (* log (string_of_bluegraph (!graph_glob)); *)
-        sat_solver_loop assignv clausevv ((undol,eido,[]) :: parentl))
-      else
-      (log "sat"; stats ();
-        log (string_of_bluegraph (!graph_glob));
-        log ("  " ^ string_of_bluegraph (normalize_nauty (!graph_glob)));
-        false)
+      (
+      graphl := normalize_nauty (!graph_glob) :: !graphl;
+      if !allsat_flag 
+      then sat_solver_loop assignv clausevv ((undol,eido,[]) :: parentl)
+      else stats ()
+      )
   | SOME eid =>
      let val _ = debugf "split: " ets (eid,color) in
      if !degree_flag andalso total_time degree_timer test_degree (eid,color)
@@ -803,7 +573,7 @@ fun sat_solver_loop assignv clausevv path =
           sat_solver_loop assignv clausevv ((undol,eido,colorm) :: parentl)
           )   
        else 
-         let val (neweido,newcolorl) = next_assign (!choose_global) assignv in
+         let val (neweido,newcolorl) = next_assign assignv in
             sat_solver_loop assignv clausevv
                ((newundol, neweido, newcolorl) :: 
                 (undol,eido,colorm) :: parentl) 
@@ -811,35 +581,42 @@ fun sat_solver_loop assignv clausevv path =
      end end
   )
   
-fun sat_solver size (blueshape,redshape) =
+fun sat_solver size (bluesize,redsize) =
   let
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := search_order_linear_undirected size
+    val _ = edgel_glob := map edge_to_var (search_order_undirected size)
     val _ = edgel_n := length (!edgel_glob)
-    val _ = sat_flag := false
-    val (assignv,clausevv) = init_sat size (blueshape,redshape)
-    val (eido,colorl) = next_assign (!choose_global) assignv
+    val (assignv,clausevv) = init_sat size (bluesize,redsize)
+    val (eido,colorl) = next_assign assignv
     val path = [([],eido,colorl)]
     val _ = log ("variables: " ^ its (Vector.length assignv))
     val _ = log ("clauses: " ^ its (Vector.length clausevv))
   in
     sat_solver_loop assignv clausevv path
   end
-
-(* -------------------------------------------------------------------------
-   For external sat solver
-   ------------------------------------------------------------------------- *)
-
-
-fun write_satpb file (nvar,pb) = 
-  let 
-    val header = "p cnf " ^ its nvar ^ " " ^ its (length pb) 
-    fun g (x,c) = if c = blue then "-" ^ (its (x+1)) else its (x+1)
-    fun f clause = String.concatWith " " (map g clause) ^ " 0"
+  
+  
+fun sat_solver_edgecl edgecl size (bluesize,redsize) =
+  let
+    val _ = init_timer ()
+    val _ = isod_glob := eempty IntInf.compare
+    val _ = edgel_glob := map edge_to_var (pairbelowy (size - 1))
+    val _ = edgel_n := length (!edgel_glob)
+    val (assignv,clausevv) = init_sat size (bluesize,redsize)
+    fun f (edge,color) = let val (_,conflict) = 
+        prop_sat assignv clausevv (edge_to_var edge, color) 
+      in
+        if conflict then raise ERR "sat_solver_edgecl" "conflict" else ()
+      end
+    val _ = app f edgecl
+    val (eido,colorl) = next_assign assignv
+    val path = [([],eido,colorl)]
+    val _ = log ("variables: " ^ its (Vector.length assignv))
+    val _ = log ("clauses: " ^ its (Vector.length clausevv))
   in
-    writel file (header :: map f pb)
-  end  
+    sat_solver_loop assignv clausevv path
+  end
 
 
 end (* struct *)
@@ -848,7 +625,70 @@ end (* struct *)
 PolyML.print_depth 0;
 load "sat"; open aiLib kernel graph sat;
 PolyML.print_depth 10;
-val (r,t) = add_time (sat_solver 18) (matK 4,matK 4)
+allsat_flag := true;
+val (r,t) = add_time (sat_solver 6) (4,5);
+load "gen"; open gen;
+gen_width := 5;
+val (cover,coverl) = split (compute_hcover r);
+
+val gendesc7 = map_assoc (all_leafs) gen7;
+
+exception Break;
+val ERR = mk_HOL_ERR "test";
+fun split_last m = 
+  let 
+    val size = mat_size m
+    val m1 = mat_copy m
+    val m2 = mat_copy m
+    val l = rev (search_order_undirected size)
+    fun f (i,j) = 
+      if mat_sub (m,i,j) = 0 
+      then (mat_update_sym (m1,i,j,blue); 
+            mat_update_sym (m2,i,j,red); raise Break)
+      else ()
+  in
+    app f l handle Break => ();
+    [m1,m2]
+  end;
+
+fun harmonize_one minhole m =
+  let val nhole = number_of_holes m in
+    if nhole < minhole then raise ERR "harmonize_one" ""
+    else if nhole = minhole then [m]
+    else List.concat (map (harmonize_one minhole) (split_last m))
+  end;
+  
+fun harmonize_holes ml =
+  let 
+    val minhole = list_imin (map number_of_holes ml) 
+    val l = List.concat (map (harmonize_one minhole) ml)
+  in
+    nauty_set l
+  end;
+ 
+val coverhar = harmonize_holes cover; 
+
+
+  
+fun all_models cover =
+  let fun f m = sat_solver_edgecl (mat_to_edgecl m) 7 (4,5) in
+    nauty_set (List.concat (map f cover))
+  end;
+    
+val model2 = all_models cover; length model2;
+val model2h= harmonize_holes model2; length model2h;
+
+val (cover2,coverl2) = split (compute_hcover model2h);
+
+
+val m = hd cover;
+val edgecl = 
+val (model2,t1) = add_time 
+
+
+
+
+
 *)
 
 

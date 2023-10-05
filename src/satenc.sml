@@ -232,9 +232,9 @@ val file = "r45_10-14";
 write_pb_10_14 file;
 
 val ci = random_elem (read35 10);  
-val ce = unzip_full 10 ci;  
+val ce = unzip_mat ci;  
 val di = random_elem (read44 14);  
-val de = unzip_full 14 di;  
+val de = unzip_mat di;  
  
 val x = read_mapping file;
 

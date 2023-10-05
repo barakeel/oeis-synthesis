@@ -12,10 +12,7 @@ val nauty_failure = ref false
 val nauty_limit = 64
 
 fun io_neighbors graph x =
-  if !undirected_flag 
-  then [neighbor_of blue graph x, neighbor_of red graph x]
-  else [inneighbor_of blue graph x, inneighbor_of red graph x,
-        neighbor_of blue graph x, neighbor_of red graph x]
+  [neighbor_of blue graph x, neighbor_of red graph x]
 
 fun string_of_partition part = 
   String.concatWith "|" (map (String.concatWith " " o map its) part)
@@ -172,6 +169,9 @@ fun normalize_nauty_safe graph =
   in
     if !nauty_failure then raise ERR "normalize_nauty_safe" "" else r
   end
+
+fun nauty_set l = mk_fast_set mat_compare (map normalize_nauty l)
+ 
  
 (*
 load "ramsey"; open aiLib kernel ramsey;

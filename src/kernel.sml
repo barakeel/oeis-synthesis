@@ -107,6 +107,10 @@ fun subsets_of_size_aux n (l,ln) =
 
 fun subsets_of_size n l =  subsets_of_size_aux n (l, length l)
 
+val infts = IntInf.toString
+val stinf = valOf o IntInf.fromString
+val streal = valOf o Real.fromString 
+
 (* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)

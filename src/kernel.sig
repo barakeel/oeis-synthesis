@@ -54,6 +54,9 @@ sig
   (* useful tools *)
   val range : int * int * (int -> 'a) -> 'a list
   val subsets_of_size : int -> 'a list -> 'a list list
+  val infts : IntInf.int -> string
+  val stinf : string -> IntInf.int
+  val streal : string -> real
   
   (* sequences *)
   type seq = IntInf.int list

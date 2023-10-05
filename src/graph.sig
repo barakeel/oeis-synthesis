@@ -2,18 +2,14 @@ signature graph =
 sig
 
   type mat = int Array2.array
-  
-  (* flags *)
-  val undirected_flag : bool ref
-  
+   
   (* colors *)
   val blue : int
   val red : int
   
   (* array2 shortcuts *)
   val mat_size : mat -> int
-  val mat_sub : mat * int * int -> int 
-  val mat_update : mat * int * int * int -> unit
+  val mat_sub : mat * int * int -> int
   val mat_update_sym : mat * int * int * int -> unit
   val mat_tabulate : int * (int * int -> int) -> mat
   val mat_appi : (int * int * int -> unit) -> mat -> unit
@@ -61,6 +57,8 @@ sig
   (* properties *)
   val is_ackset : mat -> bool
   val not_automorphic : mat -> bool
+  val number_of_edges : mat -> int
+  val number_of_holes : mat -> int
   
   (* converting from matrix representation to list of edges *)
   val mat_to_edgecl : mat -> ((int * int) * int) list

@@ -421,5 +421,18 @@ fun random_shape_nocycle n color =
     if has_cycle color r then random_shape_nocycle n color else r
   end
 
+fun number_of_edges m = 
+  let val y = ref 0 in
+    mat_appi (fn (i,j,x) => if i < j andalso x <> 0 then incr y else ()) m; 
+    !y
+  end
+
+fun number_of_holes m = 
+  let val y = ref 0 in
+    mat_appi (fn (i,j,x) => if i < j andalso x = 0 then incr y else ()) m; 
+    !y
+  end
+
+
 
 end (* struct *)
