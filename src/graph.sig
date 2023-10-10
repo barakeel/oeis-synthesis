@@ -12,14 +12,14 @@ sig
   val mat_sub : mat * int * int -> int
   val mat_update_sym : mat * int * int * int -> unit
   val mat_tabulate : int * (int * int -> int) -> mat
-  val mat_appi : (int * int * int -> unit) -> mat -> unit
-  val mat_app : (int -> unit) -> mat -> unit
+  val mat_traverse : (int * int * int -> unit) -> mat -> unit
   val mat_copy : mat -> mat
   
   (* comparison functions *)
   val edge_compare : (int * int) * (int * int) -> order
   val mat_compare : mat * mat -> order
   val mat_compare_fixedsize : int -> mat * mat -> order
+  val mat_set : mat list -> mat list
   
   (* I/O *)
   val zip_mat : mat -> IntInf.int
@@ -59,11 +59,12 @@ sig
   val not_automorphic : mat -> bool
   val number_of_edges : mat -> int
   val number_of_holes : mat -> int
+  val all_holes : mat -> (int * int) list
+  val number_of_blueedges : mat -> int
   
   (* converting from matrix representation to list of edges *)
   val mat_to_edgecl : mat -> ((int * int) * int) list
-  val edgecl_to_mat : ((int * int) * int) list -> mat
-  val edgecl_to_mat_size : int -> ((int * int) * int) list -> mat
+  val edgecl_to_mat : int -> ((int * int) * int) list -> mat
   
    
 end

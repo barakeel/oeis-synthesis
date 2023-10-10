@@ -234,23 +234,6 @@ fun string_of_assignv assignv =
    Ramsey clauses
    ------------------------------------------------------------------------- *)
 
-fun subsets_of_size_faster n (l,ln) = 
-  if n > ln then [] else if n = ln then [l] else
-  (
-  case l of
-    [] => if n = 0 then [[]] else []
-  | a :: m => 
-    let
-      val l1 = map (fn subset => a::subset) 
-        (subsets_of_size_faster (n - 1) (m,ln-1))
-      val l2 = subsets_of_size_faster n (m,ln-1)
-    in
-      l1 @ l2
-    end  
-  )
-
-fun subsets_of_size n l =  subsets_of_size_faster n (l, length l)
-
 fun clique_of_subset (subset,color) =
   let val edgel = all_pairs (dict_sort Int.compare subset) in
     map (fn x => (edge_to_var x, color)) edgel
@@ -457,12 +440,14 @@ fun prop_sat assignv clausevv (edgeid,color) =
 fun rotate n l = 
   let val (l1,l2) = part_n n l in l2 @ l1 end
 
+
 fun next_assign_aux assignv vl =   
   let 
     fun test vi = 
       let val (a,(dv1,dv2)) = Vector.sub (assignv,vi) in
-        !a = 0 (* andalso
-        (not (dlv_null dv1 andalso dlv_null dv2)) *)
+        !a = 0 
+        (* andalso 
+          (early_stop andalso (not (dlv_null dv1 andalso dlv_null dv2))) *)
       end
     val avl = filter test vl
   in
@@ -604,10 +589,18 @@ fun sat_solver_edgecl edgecl size (bluesize,redsize) =
     val _ = edgel_glob := map edge_to_var (pairbelowy (size - 1))
     val _ = edgel_n := length (!edgel_glob)
     val (assignv,clausevv) = init_sat size (bluesize,redsize)
-    fun f (edge,color) = let val (_,conflict) = 
-        prop_sat assignv clausevv (edge_to_var edge, color) 
-      in
-        if conflict then raise ERR "sat_solver_edgecl" "conflict" else ()
+    fun f (edge,color) = 
+      let 
+        val edgeid = edge_to_var edge
+        val prevcolor = ! (fst (Vector.sub (assignv,edgeid)))
+      in  
+        if prevcolor = color then ()
+        else if prevcolor = 3 - color
+          then raise ERR "sat_solver_edgecl" "conflict1"
+        else 
+          let val (_,conflict) = prop_sat assignv clausevv (edgeid,color) in
+            if conflict then raise ERR "sat_solver_edgecl" "conflict2" else ()
+          end
       end
     val _ = app f edgecl
     val (eido,colorl) = next_assign assignv
@@ -623,72 +616,31 @@ end (* struct *)
 
 (*
 PolyML.print_depth 0;
-load "sat"; open aiLib kernel graph sat;
+load "gen"; load "sat"; open aiLib kernel graph sat nauty gen;
 PolyML.print_depth 10;
+
 allsat_flag := true;
-val (r,t) = add_time (sat_solver 6) (4,5);
-load "gen"; open gen;
-gen_width := 5;
-val (cover,coverl) = split (compute_hcover r);
 
-val gendesc7 = map_assoc (all_leafs) gen7;
+val (model6,t) = add_time (sat_solver 6) (4,5);
+val cover6a = ggeneralize model6;
+val cover6b = minimize_cover model6 cover6a;
 
-exception Break;
-val ERR = mk_HOL_ERR "test";
-fun split_last m = 
-  let 
-    val size = mat_size m
-    val m1 = mat_copy m
-    val m2 = mat_copy m
-    val l = rev (search_order_undirected size)
-    fun f (i,j) = 
-      if mat_sub (m,i,j) = 0 
-      then (mat_update_sym (m1,i,j,blue); 
-            mat_update_sym (m2,i,j,red); raise Break)
-      else ()
-  in
-    app f l handle Break => ();
-    [m1,m2]
-  end;
+store_log := true;
+logfile := selfdir ^ "/ramsey45gen_log";
+cover_glob := [];
 
-fun harmonize_one minhole m =
-  let val nhole = number_of_holes m in
-    if nhole < minhole then raise ERR "harmonize_one" ""
-    else if nhole = minhole then [m]
-    else List.concat (map (harmonize_one minhole) (split_last m))
-  end;
-  
-fun harmonize_holes ml =
-  let 
-    val minhole = list_imin (map number_of_holes ml) 
-    val l = List.concat (map (harmonize_one minhole) ml)
-  in
-    nauty_set l
-  end;
- 
-val coverhar = harmonize_holes cover; 
+val r10 = next_cover 10 (cover6b,6);
+val r11 = next_cover 11 (hd r10);
+val r12 = next_cover 12 (hd r11);
 
-
-  
-fun all_models cover =
-  let fun f m = sat_solver_edgecl (mat_to_edgecl m) 7 (4,5) in
-    nauty_set (List.concat (map f cover))
-  end;
-    
-val model2 = all_models cover; length model2;
-val model2h= harmonize_holes model2; length model2h;
-
-val (cover2,coverl2) = split (compute_hcover model2h);
-
-
-val m = hd cover;
-val edgecl = 
-val (model2,t1) = add_time 
 
 
 
 
 
 *)
+
+
+
 
 

@@ -83,6 +83,7 @@ fun ememi x d = emem x (!d)
 fun daddi k v d = d := dadd k v (!d) 
 fun dmemi x d = dmem x (!d)
 fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
+fun ereml kl d = foldl (uncurry erem) d kl;
 
 (* -------------------------------------------------------------------------
    Other tools

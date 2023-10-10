@@ -19,11 +19,15 @@ fun mat_update_sym (m,i,j,x) =
   (mat_update (m,i,j,x); mat_update (m,j,i,x))
 
 fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
-fun mat_appi f m = 
-  let val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE} in
-    Array2.appi Array2.RowMajor f range
-  end
-fun mat_app f m = Array2.app Array2.RowMajor f m
+ 
+fun mat_traverse f m = 
+  let 
+    val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE}
+    fun g (i,j,x) = if i < j then f (i,j,x) else ()
+  in
+    Array2.appi Array2.RowMajor g range
+  end  
+
 fun mat_size m = 
   let val (a,b) = Array2.dimensions m in
     if a = b then a else raise ERR "mat_size" ""
@@ -37,8 +41,6 @@ fun mat_copy graph =
 (* -------------------------------------------------------------------------
    Helpers for undirected graphs
    ------------------------------------------------------------------------- *)
-  
-val undirected_flag = ref true
   
 fun symmetrify m = 
   mat_tabulate (mat_size m, fn (a,b) => 
@@ -67,17 +69,16 @@ fun mat_compare (a1,a2) =
   
 fun mat_compare_fixedsize size (a1,a2) = mat_compare_aux size a1 a2 0 0  
   
+val mat_set = mk_fast_set mat_compare
 
 (* -------------------------------------------------------------------------
    Initialization
    ------------------------------------------------------------------------- *)
 
-fun random_mat size = 
-  (if !undirected_flag then symmetrify else I) 
+fun random_mat size = symmetrify
   (mat_tabulate (size,fn (a,b) => if a=b then 0 else random_int (0,2)));
 
-fun random_full_mat size = 
-  (if !undirected_flag then symmetrify else I) 
+fun random_full_mat size = symmetrify
   (mat_tabulate (size,fn (a,b) => if a=b then 0 else random_int (1,2)));
 
 fun matK size = 
@@ -145,110 +146,45 @@ fun string_of_edgecl edgecl =
   end
 
 fun named_neighbor color graph = 
-  filter (not o null o snd) (number_fst 0 (all_neighbor color graph))  
-  
+  let
+    val l1 = number_fst 0 (all_neighbor color graph) 
+    fun g (i,l) = (i, filter (fn x => x > i) l)
+    val l2 = map g l1
+  in
+    filter (not o null o snd) l2
+  end
+
 fun string_of_graph graph = 
   let fun f (i,l) = its i ^ "-" ^ String.concatWith "_" (map its l) in
     String.concatWith " " (map f (named_neighbor blue graph)) ^ " | " ^
     String.concatWith " " (map f (named_neighbor red graph))
   end
 
-fun string_of_bluegraph_undirected graph = 
-  let 
-    val l1 = named_neighbor blue graph
-    fun g (i,l) = (i, filter (fn x => x > i) l)
-    val l2 = map g l1
-    val l3 = filter (not o null o snd) l2
-    fun f (i,l) = its i ^ "-" ^ String.concatWith "_" (map its l) 
-  in
-    String.concatWith ", " (map f l3)
-  end
-  
-fun string_of_bluegraph_directed graph = 
+fun string_of_bluegraph graph = 
   let fun f (i,l) = its i ^ "-" ^ String.concatWith "_" (map its l) in
     String.concatWith ", " (map f (named_neighbor blue graph))
   end
-
-fun string_of_bluegraph graph =
-  if !undirected_flag 
-  then string_of_bluegraph_undirected graph
-  else string_of_bluegraph_directed graph
-
 
 (* -------------------------------------------------------------------------
    Switching between representations
    todo: store the size at the beginning of a edgecl for easier reconstruction
    ------------------------------------------------------------------------- *)
 
-(* edgecl should contain the size *)
-
-fun mat_to_edgecl_directed m =
+fun mat_to_edgecl m =
   let 
-    val r = ref []
-    fun f (i,j,x) = if x = 0 then () else 
-      r := ((i,j),x) :: !r
+    val l = ref []
+    fun f (i,j,x) = if x <> 0 then l := ((i,j),x) :: !l else ()      
   in
-    mat_appi f m; !r
-  end
-  
-fun mat_to_edgecl_undirected m =
-  let 
-    val r = ref []
-    fun f (i,j,x) = if x = 0 orelse i >= j then () else 
-      r := ((i,j),x) :: !r
-  in
-    mat_appi f m; !r
+    mat_traverse f m; rev (!l)
   end  
 
-fun mat_to_edgecl m = 
-  if !undirected_flag 
-  then mat_to_edgecl_undirected m
-  else mat_to_edgecl_directed m
-
-(*
-fun edge_conflict edgecl =
-  let 
-    val d = ref (dempty (cpl_compare Int.compare Int.compare)) 
-    fun loop l = case l of 
-      [] => SOME (dlist (!d)) 
-    | (edge,c) :: m => 
-      (
-      case dfindo edge (!d) of
-        NONE => (d := dadd edge c (!d); loop m)
-      | SOME c' => if c = c' then loop m else NONE 
-      )
-  in
-    loop edgecl
-  end
-*)
-
-fun edgecl_to_mat edgecl =
-  let 
-    val edgel = map fst edgecl
-    val edged = dnew (cpl_compare Int.compare Int.compare) edgecl
-    val size = list_imax (List.concat (map (fn (a,b) => [a,b]) edgel)) + 1
-    fun f (i,j) = case dfindo (i,j) edged of NONE => 0 | SOME c => c 
-  in
-    mat_tabulate (size, f)
-  end
-  
-fun edgel_to_shape edgel =
-  let
-    val edged = enew (cpl_compare Int.compare Int.compare) edgel
-    val size = list_imax (List.concat (map (fn (a,b) => [a,b]) edgel)) + 1
-    fun f (i,j) = if emem (i,j) edged then 1 else 0 
-  in
-    mat_tabulate (size, f)
-  end  
-
-
-fun edgecl_to_mat_size size edgecl =
+fun edgecl_to_mat size edgecl =
   let 
     val edgel = map fst edgecl
     val edged = dnew (cpl_compare Int.compare Int.compare) edgecl
     fun f (i,j) = case dfindo (i,j) edged of NONE => 0 | SOME c => c 
   in
-    mat_tabulate (size, f)
+    symmetrify (mat_tabulate (size, f))
   end
 
 (* -------------------------------------------------------------------------
@@ -262,18 +198,20 @@ fun find_size i ln =
 local open IntInf in
 
 fun zip_mat m = 
-  let val r = ref 1 in
-    mat_appi (fn (i,j,x) => if FixedInt.>= (i,j) then () else 
-                            r := !r * 3 + IntInf.fromInt x) m; !r
+  let 
+    val r = ref 1
+    fun f (i,j,x) = r := !r * 3 + IntInf.fromInt x
+  in
+    mat_traverse f m; !r
   end
 
-fun zip_mat_indices size =
+fun all_edges size =
   let 
     val m = mat_tabulate (size, fn _ => 0)
     val r = ref []
-    fun f (i,j,x) = if FixedInt.>= (i,j) then () else r := (i,j) :: !r;
+    fun f (i,j,x) = r := (i,j) :: !r
   in
-    mat_appi f m;
+    mat_traverse f m;
     rev (!r)
   end    
 
@@ -282,10 +220,10 @@ fun unzip_mat mati =
     fun loop x = if x < 3 then [] else x mod 3 :: loop (x div 3) 
     val l1 = rev (loop mati)
     val size = find_size 1 (length l1)
-    val l2 = zip_mat_indices size
+    val l2 = all_edges size
     val edgecl = combine (l2, map IntInf.toInt l1)
   in
-    symmetrify (edgecl_to_mat_size size edgecl)
+    edgecl_to_mat size edgecl
   end      
   
 end (* local *)
@@ -298,38 +236,29 @@ fun sunzip_mat s = unzip_mat (valOf (IntInf.fromString s))
 local open IntInf in
 
 fun zip_full m =
-  let val r = ref 1 in
-    mat_appi (fn (i,j,x) => 
-      if FixedInt.>= (i,j) then () else 
-      r := !r * 2 + IntInf.fromInt (if x = blue then 1 else 0)) m; !r
-  end
-  
-fun zip_full_indices size =
   let 
-    val m = mat_tabulate (size, fn _ => 0)
-    val r = ref []
-    fun f (i,j,x) = if FixedInt.>= (i,j) then () else r := (i,j) :: !r;
+    val r = ref 1 
+    fun f (i,j,x) = r := !r * 2 + (if x = blue then 1 else 0) 
   in
-    mat_appi f m;
-    rev (!r)
-  end  
-  
+    mat_traverse f m; !r
+  end
+
 fun unzip_full size mati =
   let 
     fun loop x = if x < 2 then [] else x mod 2 :: loop (x div 2) 
     val l1 = rev (loop mati)
-    val l2 = zip_full_indices size
+    val l2 = all_edges size
     val edgecl0 = combine (l2, map IntInf.toInt l1)
     val edgecl1 = map_snd (fn b => if b = 1 then blue else red) edgecl0
   in
-    symmetrify (edgecl_to_mat_size size edgecl1)
+    edgecl_to_mat size edgecl1
   end
   
 fun unzip_full_edgecl size mati =
   let 
     fun loop x = if x < 2 then [] else x mod 2 :: loop (x div 2) 
     val l1 = rev (loop mati)
-    val l2 = zip_full_indices size
+    val l2 = all_edges size
     val edgecl0 = combine (l2, map IntInf.toInt l1)
     val edgecl1 = map_snd (fn b => if b = 1 then blue else red) edgecl0
   in
@@ -422,16 +351,41 @@ fun random_shape_nocycle n color =
   end
 
 fun number_of_edges m = 
-  let val y = ref 0 in
-    mat_appi (fn (i,j,x) => if i < j andalso x <> 0 then incr y else ()) m; 
+  let 
+    val y = ref 0 
+    fun f (i,j,x) = if x <> 0 then incr y else ()
+  in
+    mat_traverse f m; 
     !y
   end
+  
+fun number_of_blueedges m = 
+  let 
+    val y = ref 0 
+    fun f (i,j,x) = if x = 1 then incr y else ()
+  in
+    mat_traverse f m; 
+    !y
+  end  
+  
 
 fun number_of_holes m = 
-  let val y = ref 0 in
-    mat_appi (fn (i,j,x) => if i < j andalso x = 0 then incr y else ()) m; 
-    !y
+  let 
+    val y = ref 0 
+    fun f (i,j,x) = if x = 0 then incr y else ()
+  in
+    mat_traverse f m;  !y
   end
+
+fun all_holes m = 
+  let 
+    val l = ref [] 
+    fun f (i,j,x) = if x = 0 then l := (i,j) :: !l else ()
+  in
+    mat_traverse f m; !l
+  end
+
+
 
 
 

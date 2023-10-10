@@ -50,6 +50,7 @@ sig
   val ememi : 'a -> 'a Redblackset.set ref -> bool
   val daddi : 'a -> 'b -> ('a, 'b) dict ref -> unit
   val dmemi : 'a -> ('a, 'b) dict ref -> bool
+  val ereml : 'a list -> 'a Redblackset.set -> 'a Redblackset.set
 
   (* useful tools *)
   val range : int * int * (int -> 'a) -> 'a list

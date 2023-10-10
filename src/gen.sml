@@ -5,153 +5,276 @@
 structure gen :> gen =
 struct   
 
-open HolKernel Abbrev boolLib aiLib kernel graph nauty 
+open HolKernel Abbrev boolLib aiLib kernel graph nauty sat rconfig
   rconfig satenc smlParallel
 val ERR = mk_HOL_ERR "gen"
+
+val nauty_time = ref 0.0
+val normalize_nauty = total_time nauty_time normalize_nauty
 
 (* -------------------------------------------------------------------------
    Going up and down in the tree
    ------------------------------------------------------------------------- *) 
 
-fun all_parents mat = 
+fun apply_coloring m edgecl = 
+   let 
+     val newm = mat_copy m
+     fun f ((i,j),c) = mat_update_sym (newm,i,j,c) 
+   in
+     app f edgecl; newm
+   end
+
+fun all_coloring edgel = 
   let
-    val size = mat_size mat
+    val edgebothl =
+      let 
+        val l = ref []
+        fun f (i,j) = l := [((i,j),blue),((i,j),red)] :: !l 
+      in 
+        (app f edgel; !l)
+      end
+  in
+    cartesian_productl edgebothl
+  end
+        
+        
+fun all_parents m = 
+  let
     val l = ref []
     fun f (i,j,x) =
-      if i >= j orelse x = 0 then () else 
+      if x = 0 then () else 
       let 
-        val newm = mat_copy mat
+        val newm = mat_copy m
         val _ = mat_update_sym (newm,i,j,0)
       in 
         l := newm :: !l
       end
   in
-    mat_appi f mat; nauty_set (!l)
-  end;
-
-fun all_leafs mat =
-  let
-    val size = mat_size mat
-    val l = ref []
-    fun f (i,j,x) =
-      if i >= j orelse x <> 0 then () else 
-      l := [((i,j),1),((i,j),2)] :: !l
-    val newl = (mat_appi f mat; !l)
-    val edgecll = cartesian_productl newl
-    fun g edgecl = 
-      let 
-        val newm = mat_copy mat
-        fun h ((i,j),c) = mat_update_sym (newm,i,j,c) 
-      in
-        app h edgecl; newm
-      end
-    val childl = map g edgecll
-  in
-    nauty_set childl
-  end;
-
-fun all_children mat =
-  let
-    val size = mat_size mat
-    val l = ref []
-    fun f (i,j,x) =
-      if i >= j orelse x <> 0 then () else 
-        l := ((i,j),1) :: ((i,j),2) :: !l
-    val edgecl = (mat_appi f mat; !l)
-    fun g ((i,j),c) = 
-      let val newm = mat_copy mat in
-        mat_update_sym (newm,i,j,c); newm
-      end
-    val childl = map g edgecl
-  in
-    nauty_set childl
-  end;  
-  
-fun all_descendants_aux n ml =
-  if n <= 0 then ml else
-  let val l = List.concat (map all_children ml) in
-    all_descendants_aux (n-1) (mk_fast_set mat_compare l)
+    mat_traverse f m; nauty_set (!l)
   end
-fun all_descendants n m = all_descendants_aux n [m] 
+  
+fun all_children m = 
+  let
+    val l = ref []
+    fun f (i,j,x) =
+      if x <> 0 then () else 
+      let 
+        val bluem = mat_copy m
+        val _ = mat_update_sym (bluem,i,j,blue)
+        val redm = mat_copy m
+        val _ = mat_update_sym (redm,i,j,red)
+      in 
+        l := bluem :: redm :: !l
+      end
+  in
+    mat_traverse f m; nauty_set (!l)
+  end 
+  
+fun all_existing_children set m = 
+  let
+    val rset = ref (eempty mat_compare)
+    fun f (i,j,x) =
+      if x <> 0 then () else 
+      let 
+        val bluem = mat_copy m
+        val _ = mat_update_sym (bluem,i,j,blue)
+        val normbluem = normalize_nauty bluem
+        val redm = mat_copy m
+        val _ = mat_update_sym (redm,i,j,red)
+        val normredm = normalize_nauty redm
+        fun add m = if emem m set then rset := eadd m (!rset) else ()
+      in 
+        add normbluem; add normredm
+      end
+  in
+    mat_traverse f m; elist (!rset)
+  end  
+
+fun all_leafs m =
+  let
+    val edgel = all_holes m
+    val coloringl = all_coloring edgel
+    val childl = map (apply_coloring m) coloringl
+  in
+    nauty_set childl
+  end;
+
 
 (* -------------------------------------------------------------------------
-   Generalization of a set of graphs with the same size and the 
-   same number of holes in their coloring
+   Global generalization
+   ------------------------------------------------------------------------- *) 
+
+fun all_parents_fair siblingd resultd m = 
+  let
+    fun f (i,j,x) =
+      if x = 0 then () else 
+      let 
+        val sibm = mat_copy m
+        val _ = mat_update_sym (sibm,i,j,3-x)
+        val normsibm = zip_mat (normalize_nauty sibm)
+      in 
+        if emem normsibm siblingd then
+          let 
+            val parentm = mat_copy m
+            val _ = mat_update_sym (parentm,i,j,0)
+            val normparentm = zip_mat (normalize_nauty parentm)
+          in 
+            resultd := eadd normparentm (!resultd)
+          end
+        else ()
+      end
+  in
+    mat_traverse f m
+  end
+
+fun ggeneralize_one childl = 
+  let
+    fun test m = number_of_blueedges m mod 2 = 0
+    val (evenl,oddl) = partition test childl
+    val (selectl,siblingd) = 
+      if length evenl <= length oddl 
+      then (evenl, enew IntInf.compare (map zip_mat oddl))  
+      else (oddl, enew IntInf.compare (map zip_mat evenl))
+    val resultd = ref (eempty IntInf.compare)
+    val parentl = app (all_parents_fair siblingd resultd) selectl
+  in
+    map unzip_mat (elist (!resultd))
+  end;
+
+fun compute_pardescd level leafd childescd childset parentl =
+  let
+    fun lookup_desc x = dfind x childescd handle NotFound => []
+    fun all_desc m = List.concat (map lookup_desc 
+      (all_existing_children childset m))
+    fun all_desc_extra m = m :: all_desc m
+    val extral = dfind (level+1) leafd handle NotFound => [] 
+    val extraset = enew mat_compare extral
+    val _ = log ("  " ^ its (elength extraset) ^ " extra")
+    val parentnotextral = filter (fn x => not (emem x extraset)) parentl
+    val parentandextral = 
+      map_assoc (mat_set o all_desc) parentnotextral @
+      map_assoc (mat_set o all_desc_extra) extral           
+  in
+    dnew mat_compare parentandextral
+  end
+  
+fun loop_ggen level leafd childescd result = 
+  let
+    val childl = dkeys childescd
+    val childset = enew mat_compare childl
+    val (parentl,t) = add_time ggeneralize_one childl
+    val _ = log (its (level+1) ^ ": " ^ 
+      its (length parentl) ^ " parents in "  ^ 
+      rts_round 4 t ^ " seconds")
+    val (pardescd,t) = add_time 
+      (compute_pardescd level leafd childescd childset) parentl
+    val _ = log ("  " ^ its (dlength pardescd) ^ 
+      " parents with descendants in " ^ rts_round 4 t ^ " seconds")  
+    val childset_small = enew mat_compare 
+      (List.concat (map (all_existing_children childset) (dkeys pardescd)))   
+    val _ = log ("  " ^ its (elength childset_small) ^ " children")
+    val orphanl = filter (fn (x,_) => not (emem x childset_small)) 
+      (dlist childescd)
+    val newresult = orphanl @ result
+    val _ = log ("  " ^ its (length orphanl) ^ " orphans")
+    val newleafd = drem level leafd
+  in
+    if dlength pardescd <= 0 andalso dlength newleafd <= 0 
+    then newresult 
+    else loop_ggen (level + 1) newleafd pardescd newresult
+  end
+
+fun ggeneralize leafl = 
+  let 
+    val leafd = dregroup Int.compare 
+      (map swap (map_assoc number_of_holes leafl))
+    val minlevel = list_imin (dkeys leafd) 
+    val extral = dfind minlevel leafd
+    val childescd = dnew mat_compare (map (fn x => (x,[x])) extral)
+    val orphanl = loop_ggen minlevel leafd childescd []
+    val leafset1 = dict_sort mat_compare leafl
+    val leafset2 = mk_fast_set mat_compare (List.concat (map snd orphanl))
+  in
+    if list_compare mat_compare (leafset1,leafset2) <> EQUAL
+    then raise ERR "ggeneralize" 
+      (its (length leafset1) ^ " <> " ^ its (length leafset2))
+    else orphanl
+  end
+  
+(* -------------------------------------------------------------------------
+   Minimizing a cover
    ------------------------------------------------------------------------- *)
 
-val gen_width = ref 10  
-     
-fun next_hgen minhole leafd l = 
-  let  
-    val l1 = mk_fast_set mat_compare (List.concat (map all_parents l))
-    val ndiff = number_of_holes (hd l1) - minhole
-      handle Empty => raise ERR "next_hgen" ""
-    fun is_fullanc m = all (fn x => emem x leafd) (all_descendants ndiff m)
-    val l2 = filter is_fullanc l1;
-  in
-    random_subset (!gen_width) l2
-  end;
+fun dreml l d = foldl (uncurry drem) d l
 
-fun loop_hgen ngen minhole leafd l =
+fun minimize_cover_aux cover leafset result = 
+  if elength leafset <= 0 then rev result else 
+  if null cover then raise ERR "minimize_cover" (its (elength leafset)) else
+  let 
+    val coveri = map_assoc (elength o snd) cover
+    val ((best,bestd),sc) = hd (dict_sort compare_imax coveri)
+    val newleafset = ereml (elist bestd) leafset
+    val _ = log ("covering " ^ its sc ^ " remaining " ^ 
+                           its (elength newleafset))
+    fun f (x,d) =
+      let val newd = ereml (elist bestd) d in
+        if elength newd <= 0 then NONE else SOME (x,newd)
+      end
+    val newcover = List.mapPartial f cover
+  in
+    minimize_cover_aux newcover newleafset (best :: result)
+  end
+
+fun minimize_cover leafl cover =
   let
-    val (nextl,t) = add_time (next_hgen minhole leafd) l
-    val _ = print_endline (its (ngen+1) ^ ": " ^ 
-      its (length nextl) ^ " in " ^ rts_round 4 t ^ " seconds")
+    val leafset = enew mat_compare leafl
+    val cover' = map_snd (enew mat_compare) cover
+    val (result,t) = add_time (minimize_cover_aux cover' leafset) []
+    val _ = log ("mini: " ^ rts_round 4 t)
   in
-    if null nextl then l else loop_hgen (ngen + 1) minhole leafd nextl
-  end;
-  
-fun hgeneralize minhole leafd leaf = 
-  loop_hgen 0 minhole leafd [leaf]
+    result
+  end
 
-fun cover_score minhole coverd mp =
-  let val ndiff = number_of_holes mp - minhole in
-    length (filter (fn x => not (emem x coverd)) (all_descendants ndiff mp))
-  end
-  
-fun find_best_mpl minhole coverd mpl =
-  let 
-    val f = cover_score minhole coverd
-    val l = dict_sort compare_imax (map_assoc f mpl) 
-  in
-    hd l
-  end
-  
-fun loop_hcover minhole leafs leafd coverd uncover result =
-  if null uncover then rev result else
-  let 
-    val m0 = random_elem uncover
-    val (mpl,t1) = add_time (hgeneralize minhole leafd) m0
-    val ((mp,sc),t2) = add_time (find_best_mpl minhole coverd) mpl
-    val ndiff = number_of_holes mp - minhole
-    val mcover = filter (fn x => not (emem x coverd)) (all_descendants ndiff mp) 
-    val mcoverd = enew mat_compare mcover
-    val newcoverd = eaddl mcover coverd
-    val newuncover = filter (fn x => not (emem x mcoverd)) uncover
-    val _ = print_endline (
-      "Covering " ^ its sc ^ " graphs (" ^ 
-      its (length newuncover) ^ " remaining)" ^
-      " in " ^ rts_round 4 t1 ^ " seconds and in " ^ 
-      rts_round 4 t2 ^ " seconds")
-  in  
-    loop_hcover minhole leafs leafd newcoverd newuncover ((mp,mcover) :: result)
+(* -------------------------------------------------------------------------
+   Search algorithm
+   ------------------------------------------------------------------------- *)
+
+fun all_models n cover =
+  let fun f m = sat_solver_edgecl (mat_to_edgecl m) n (4,5) in
+    nauty_set (List.concat (map f cover))
   end;
   
-fun compute_hcover leafs = 
+val cover_glob = ref []
+fun next_cover stopn (cover,n) =
   let 
-    val leafd = enew mat_compare leafs 
-    val minhole = number_of_holes (hd leafs)  
-  in 
-    loop_hcover minhole leafs leafd (eempty mat_compare) leafs [] 
-  end  
-   
+    val _ = log ("## START SIZE " ^ its (n+1) ^ " ##")
+    val (model',t) = add_time (all_models (n+1)) cover
+    val model = nauty_set model'
+    val _ = log ("### MODEL: " ^ its (length model) ^
+      " in " ^ rts_round 4 t ^ " seconds")
+    val (covera,t) = add_time ggeneralize model
+    val _ = log ("### COVERA: " ^ its (length covera) ^
+      " in " ^ rts_round 4 t ^ " seconds")
+    val leafset = enew mat_compare model
+    val (coverb,t) = add_time (minimize_cover model) covera
+    val _ = log ("### COVERB: " ^ its (length coverb) ^
+      " in " ^ rts_round 4 t ^ " seconds")
+    val _ = log ("## END SIZE " ^ its (n+1) ^ " ##")
+  in
+    cover_glob := (coverb,n+1) :: !cover_glob;
+    if n+1 >= stopn then !cover_glob else next_cover stopn (coverb,n+1)  
+  end
+
 (* -------------------------------------------------------------------------
    Generalization (from a set of leafs)
    ------------------------------------------------------------------------- *) 
 
+val gen_width = ref 10  
+val gen_depth = ref 100
+
 fun next_gen leafd l = 
   let  
-    val l1 = mk_fast_set mat_compare (List.concat (map all_parents l))
+    val l1 = mat_set (List.concat (map all_parents l))
     fun is_fullanc m = all (fn x => emem x leafd) (all_leafs m)
     val l2 = filter is_fullanc l1;
   in
@@ -161,7 +284,7 @@ fun next_gen leafd l =
 fun loop_gen ngen leafd l result =
   let
     val (nextl,t) = add_time (next_gen leafd) l
-    val _ = print_endline (its (ngen+1) ^ ": " ^ 
+    val _ = log (its (ngen+1) ^ ": " ^ 
       its (length nextl) ^ " in " ^ rts_round 4 t ^ " seconds")
   in
     if null nextl then rev result else 
@@ -174,11 +297,7 @@ fun cover_score coverd mp =
   length (filter (fn x => not (emem x coverd)) (all_leafs mp))
 
 fun find_best_mpl coverd mpl =
-  let val l = 
-    dict_sort compare_imax (map_assoc (cover_score coverd) mpl)
-  in
-    hd l
-  end
+  hd (dict_sort compare_imax (map_assoc (cover_score coverd) mpl))
 
 fun find_best_mpll coverd mpll = 
   let 
@@ -201,7 +320,7 @@ fun loop_cover leafs leafd coverd uncover result =
     val mcoverd = enew mat_compare mcover
     val newcoverd = eaddl mcover coverd
     val newuncover = filter (fn x => not (emem x mcoverd)) uncover
-    val _ = print_endline (
+    val _ = log (
       "Covering " ^ its (~sc) ^ " graphs (" ^ 
       its (length newuncover) ^ " remaining)" ^
       " at depth " ^ its (length mpll - 1) ^ "," ^ its depth ^ 
