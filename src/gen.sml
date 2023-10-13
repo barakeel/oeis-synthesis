@@ -70,6 +70,18 @@ fun all_children m =
     mat_traverse f m; nauty_set (!l)
   end 
   
+fun random_children_pair m = 
+  let 
+    val (i,j) = random_elem (all_holes m)
+    val bluem = mat_copy m
+    val _ = mat_update_sym (bluem,i,j,blue)
+    val redm = mat_copy m
+    val _ = mat_update_sym (redm,i,j,red)
+  in
+    [bluem,redm]
+  end
+  
+  
 fun all_existing_children set m = 
   let
     val rset = ref (eempty mat_compare)
@@ -103,6 +115,44 @@ fun all_leafs m =
 (* -------------------------------------------------------------------------
    Global generalization
    ------------------------------------------------------------------------- *) 
+
+
+fun all_parents_ramsey (bluen,redn) resultd topm = 
+  let
+    val bluem = mat_copy topm 
+    fun f (i,j,x) = if x = 0 then mat_update_sym (bluem,i,j,blue) else ()
+    val _ = mat_traverse f topm
+    val redm = mat_copy topm
+    fun f (i,j,x) = if x = 0 then mat_update_sym (redm,i,j,red) else ()
+    val _ = mat_traverse f topm
+    fun f (i,j,x) =
+      if x = 0 then () else 
+      let 
+        val sibcolor = 3 - x
+        val sibm = mat_copy (if sibcolor = blue then bluem else redm)
+        val _ =  mat_update_sym (sibm,i,j,sibcolor)
+      in 
+        if is_ramsey_edge (bluen,redn) sibm ((i,j),sibcolor) then
+          let 
+            val parentm = mat_copy topm
+            val _ = mat_update_sym (parentm,i,j,0)
+            val normparentm = zip_mat (normalize_nauty parentm)
+          in 
+            resultd := eadd normparentm (!resultd)
+          end
+        else ()
+      end
+  in
+    mat_traverse f topm
+  end
+
+fun rgeneralize_one (bluen,redn) childl = 
+  let
+    val resultd = ref (eempty IntInf.compare)
+    val parentl = app (all_parents_ramsey (bluen,redn) resultd) childl
+  in
+    map unzip_mat (elist (!resultd))
+  end;
 
 fun all_parents_fair siblingd resultd m = 
   let
@@ -190,15 +240,19 @@ fun ggeneralize leafl =
       (map swap (map_assoc number_of_holes leafl))
     val minlevel = list_imin (dkeys leafd) 
     val extral = dfind minlevel leafd
+    val _ = log ("  " ^ its (length extral) ^ " extra")
     val childescd = dnew mat_compare (map (fn x => (x,[x])) extral)
     val orphanl = loop_ggen minlevel leafd childescd []
     val leafset1 = dict_sort mat_compare leafl
     val leafset2 = mk_fast_set mat_compare (List.concat (map snd orphanl))
+    val _ = log "Verifying that all leafs are covered"
+    val _ = 
+      if list_compare mat_compare (leafset1,leafset2) <> EQUAL
+      then raise ERR "ggeneralize" 
+        (its (length leafset1) ^ " <> " ^ its (length leafset2))
+      else ()
   in
-    if list_compare mat_compare (leafset1,leafset2) <> EQUAL
-    then raise ERR "ggeneralize" 
-      (its (length leafset1) ^ " <> " ^ its (length leafset2))
-    else orphanl
+    orphanl
   end
   
 (* -------------------------------------------------------------------------
@@ -240,23 +294,27 @@ fun minimize_cover leafl cover =
    ------------------------------------------------------------------------- *)
 
 fun all_models n cover =
-  let fun f m = sat_solver_edgecl (mat_to_edgecl m) n (4,5) in
+  let fun f m = sat_solver_edgecl m n (4,5) in
     nauty_set (List.concat (map f cover))
   end;
   
 val cover_glob = ref []
 fun next_cover stopn (cover,n) =
   let 
+    fun checkr45 ml = if all (is_ramsey (4,5)) ml then ()
+      else raise ERR "next_cover" "not ramsey"
     val _ = log ("## START SIZE " ^ its (n+1) ^ " ##")
-    val (model',t) = add_time (all_models (n+1)) cover
-    val model = nauty_set model'
+    val (model,t) = add_time (all_models (n+1)) cover
+    val _ = checkr45 model
     val _ = log ("### MODEL: " ^ its (length model) ^
       " in " ^ rts_round 4 t ^ " seconds")
     val (covera,t) = add_time ggeneralize model
+    val _ = checkr45 (map fst covera)
     val _ = log ("### COVERA: " ^ its (length covera) ^
       " in " ^ rts_round 4 t ^ " seconds")
     val leafset = enew mat_compare model
     val (coverb,t) = add_time (minimize_cover model) covera
+    val _ = checkr45 coverb
     val _ = log ("### COVERB: " ^ its (length coverb) ^
       " in " ^ rts_round 4 t ^ " seconds")
     val _ = log ("## END SIZE " ^ its (n+1) ^ " ##")
@@ -266,19 +324,111 @@ fun next_cover stopn (cover,n) =
   end
 
 (* -------------------------------------------------------------------------
+   Faster generalization (from a set of leafs)
+   ------------------------------------------------------------------------- *) 
+
+fun abstractable_edgel leafd m l = 
+  let
+    val sibm = mat_copy m 
+    fun f (i,j) = mat_update_sym (sibm,i,j, 3 - mat_sub(m,i,j))
+    val _ = app f l
+  in
+    emem (normalize_nauty sibm) leafd
+  end;
+
+fun add_edge edgell aedgel1 = 
+  let 
+    val l1 = cartesian_product edgell aedgel1
+    fun f (a,b) = 
+      let 
+        val set0 = List.concat [a,b]
+        val set1 = mk_fast_set edge_compare set0
+      in
+        if length set0 = length set1 then SOME set1 else NONE
+      end
+  in
+    mk_fast_set (list_compare edge_compare) (List.mapPartial f l1)
+  end;
+
+fun test_edgel set edgel = 
+  let 
+    val subsets = subsets_of_size (length edgel - 1) edgel 
+    fun test subset = emem (dict_sort edge_compare subset) set
+  in
+    all test subsets
+  end;
+ 
+fun fgen_loop (leafd,aedgel1,m) aedgel result =
+  let 
+    fun f () =
+      let val set = enew (list_compare edge_compare) aedgel
+          val oedgel = add_edge aedgel aedgel1
+          val tedgel = filter (test_edgel set) oedgel;
+          val newaedgel = filter (abstractable_edgel leafd m) tedgel
+      in
+        newaedgel
+      end
+    val (newaedgel,t) = add_time f ()
+    val _ = log (its (length newaedgel) ^ " in " ^ rts_round 4 t ^ " seconds")
+  in
+    if null newaedgel then result else
+    fgen_loop (leafd,aedgel1,m) newaedgel (newaedgel :: result)
+  end;
+
+fun fgeneralize leafd m =
+  let 
+    val tedgel = map (fn (x,_) => [x]) (mat_to_edgecl m)
+    val aedgel1 = filter (abstractable_edgel leafd m) tedgel
+    fun mk_parent m edgel = 
+      let
+        val parm = mat_copy m 
+        fun f (i,j) = mat_update_sym (parm,i,j,0)
+      in
+        app f edgel; parm
+      end
+    fun mk_parentl m edgell = nauty_set (map (mk_parent m) edgell)
+    val r = fgen_loop (leafd,aedgel1,m) aedgel1 [aedgel1]
+  in
+    map (mk_parentl m) r
+  end;
+
+
+(*
+PolyML.print_depth 0;
+load "gen"; load "ramsey"; open ramsey kernel aiLib gen graph;
+PolyML.print_depth 10;
+
+val leafl = map unzip_mat (read35 10); length leafl; 
+val leafd = enew mat_compare leafl;
+val (cover,covered) = split (compute_cover leafl);
+length cover; map length covered;
+
+val leafl = map unzip_mat (read44 10); length leafl; 
+val leafd = enew mat_compare leafl;
+fgen_flag := true;
+val (cover44,covered44) = split (compute_cover leafl);
+length cover44; map length covered44;
+
+
+*)
+
+
+(* -------------------------------------------------------------------------
    Generalization (from a set of leafs)
    ------------------------------------------------------------------------- *) 
 
-val gen_width = ref 10  
+val gen_width = ref 100  
 val gen_depth = ref 100
+
 
 fun next_gen leafd l = 
   let  
+    val childset = enew mat_compare l
     val l1 = mat_set (List.concat (map all_parents l))
     fun is_fullanc m = all (fn x => emem x leafd) (all_leafs m)
     val l2 = filter is_fullanc l1;
   in
-    random_subset (!gen_width) l2
+    (* random_subset (!gen_width) *) l2
   end;
 
 fun loop_gen ngen leafd l result =
@@ -292,6 +442,12 @@ fun loop_gen ngen leafd l result =
   end;
   
 fun generalize leafd leaf = loop_gen 0 leafd [leaf] []
+
+(* -------------------------------------------------------------------------
+   Computing best cover
+   ------------------------------------------------------------------------- *) 
+
+val fgen_flag = ref false
 
 fun cover_score coverd mp =
   length (filter (fn x => not (emem x coverd)) (all_leafs mp))
@@ -313,8 +469,11 @@ fun find_best_mpll coverd mpll =
 fun loop_cover leafs leafd coverd uncover result =
   if null uncover then rev result else
   let 
-    val m0 = random_elem uncover
-    val (mpll,t1) = add_time (generalize leafd) m0
+    val m0 = random_elem uncover    
+    val (mpll,t1) = 
+       if !fgen_flag 
+       then add_time (fgeneralize leafd) m0
+       else add_time (generalize leafd) m0
     val ((mp,(sc,depth)),t2) = add_time (find_best_mpll coverd) mpll
     val mcover = filter (fn x => not (emem x coverd)) (all_leafs mp) 
     val mcoverd = enew mat_compare mcover
@@ -334,12 +493,121 @@ fun compute_cover leafs =
   let val leafd = enew mat_compare leafs in 
     loop_cover leafs leafd (eempty mat_compare) leafs [] 
   end
+
+(* -------------------------------------------------------------------------
+   Fast cover
+   ------------------------------------------------------------------------- *)
+
+fun enc_color (x,c) = if c = 1 then 2 * x else 2 * x + 1;
+fun enc_edgec (e,c) = enc_color (edge_to_var e,c);
+fun dec_edgec x = (var_to_edge (x div 2), (x mod 2) + 1);
+
+fun init_sgen size (bluen,redn) = 
+  let
+    val clauses1 = sat.ramsey_clauses size (bluen,redn)
+    val clauses2 = map (map enc_color) clauses1
+    val clausev = Vector.fromList clauses2;
+    val claused = dnew (list_compare Int.compare) (number_snd 0 clauses2)
+    fun g clause = map_assoc (fn _ => clause) clause
+    val clauses3 = List.concat (map g clauses2)
+    val clauses4 = dlist (dregroup Int.compare clauses3)
+    val clauses5 = map_snd (map (fn x => dfind x claused)) clauses4
+    val clauses6 = map_snd (dict_sort Int.compare) clauses5
+    val varv = Vector.fromList (map snd clauses6)
+  in
+    (varv,clausev)
+  end;
   
+(* Warning: only works for 4,4 *)
+fun all_in_one size (bluen,redn) leaf =
+  let
+    val (varv,clausev) = init_sgen size (bluen,redn) 
+    val sizev = Vector.map (fn x => length x - 1) clausev
+    val inita = Array.array (Vector.length clausev,0)
+    fun opposite (e,x) = (e,3 - x)
+    fun update_numbera a v = 
+      let 
+        val il = Vector.sub (varv,v) 
+        fun g i = Array.update (a,i, Array.sub(a,i) + 1) 
+      in
+        app g il
+      end
+    val edgecl = mat_to_edgecl leaf
+    val _ = app (update_numbera inita) (map enc_edgec edgecl)
+    fun try () = 
+      let
+        val locala = Array.tabulate 
+          (Array.length inita, fn i => Array.sub (inita,i))
+        val vlopp = shuffle (map (enc_edgec o opposite) edgecl)
+        fun test v = 
+          let val clausel = Vector.sub (varv,v) in
+            all (fn x => Array.sub (locala, x) < Vector.sub(sizev,x)) clausel
+          end
+        fun sgen_loop vl result = case filter test vl of
+            [] => rev result
+          | v :: rem => (update_numbera locala v; sgen_loop rem (v :: result))
+      in
+        map (fst o dec_edgec) (sgen_loop vlopp [])
+      end
+    val edgell = List.tabulate (100,fn _ => try ())  
+  in  
+    fst (hd (dict_sort compare_imax (map_assoc length edgell)))
+  end;
+
+fun build_parent leaf edgel = 
+  let
+    val parent = mat_copy leaf
+    fun f (i,j) = mat_update_sym (parent,i,j,0)
+    val _ = app f edgel
+  in
+    parent
+  end;
+
+fun minimize_parent_aux uset (parent,parentleafs) = 
+  if number_of_holes parent <= 0 then (parent,parentleafs) else
+  let 
+    fun score uset leafs = 
+      length (filter (fn x => emem x uset) leafs)
+    val parentsc = score uset parentleafs
+    val children = random_children_pair parent
+    fun test (child,childleafs) = score uset childleafs >= parentsc    
+  in
+    case (List.find test (map_assoc all_leafs children)) of
+      NONE => (parent,parentleafs)
+    | SOME x => minimize_parent_aux uset x
+  end;
+
+fun minimize_parent uset parent =
+  minimize_parent_aux uset (parent, all_leafs parent)
+
+fun loop_scover (bluen,redn) uset result =
+  if elength uset <= 0 then rev result else
+  let 
+    val leaf = random_elem (elist uset)    
+    val (edgel,t1) = add_time (all_in_one (mat_size leaf) (bluen,redn)) leaf
+    val parent = build_parent leaf edgel
+    val ((minparent,parentleafs),t2) = add_time (minimize_parent uset) parent
+    val pcover = filter (fn x => emem x uset) parentleafs
+    val newuset = ereml pcover uset
+    val _ = log (
+      "Covering " ^ its (length pcover) ^ " graphs (" ^ 
+      its (elength newuset) ^ " remaining)" ^
+      " at depth " ^ its (number_of_holes parent) ^ 
+      "," ^ its (number_of_holes minparent) ^ 
+      " in " ^ rts_round 4 t1 ^ " seconds and in " ^ 
+      rts_round 4 t2 ^ " seconds")
+  in  
+    loop_scover (bluen,redn) newuset (minparent :: result)
+  end;
+
+fun compute_scover (bluen,redn) leafl = 
+  loop_scover (bluen,redn) (enew mat_compare leafl) [];
+
+
 (* -------------------------------------------------------------------------
    Parallel generalization and cover
    ------------------------------------------------------------------------- *)
 (* 
-
 fun mat_depth m =
   let 
     val counter = ref 0 
@@ -429,8 +697,24 @@ fun loop_cover_para expname ncore leafs =
 end (* struct *)
 
 (* 
-load "gen"; open kernel aiLib gen;
+load "ramsey"; load "gen"; 
+open kernel aiLib gen ramsey graph;
+PolyML.print_depth 10;
+val leaf = unzip_mat (random_elem (read44 14));
+val leafd = enew mat_compare (map unzip_mat (read44 14));
 
-
+fun rgen_loop childl result = 
+  let 
+    val (parentl,t) = add_time (rgeneralize_one (4,4)) childl 
+    val _ = print_endline
+      (its (length parentl) ^ " in " ^ rts_round 4 t ^ " seconds")
+  in
+    if null parentl then result else rgen_loop parentl (parentl :: result)
+  end;
+ 
+val r = rgen_loop [leaf] [[leaf]];
+map length r;
+val r2 = fgeneralize leafd leaf;
+  
 
 *)

@@ -61,6 +61,9 @@ sig
   val number_of_holes : mat -> int
   val all_holes : mat -> (int * int) list
   val number_of_blueedges : mat -> int
+  val is_ramsey : (int * int) -> mat -> bool
+  val all_cedges : mat -> (int * int) list
+  val is_ramsey_edge : (int * int) -> mat -> ((int * int) * int) -> bool
   
   (* converting from matrix representation to list of edges *)
   val mat_to_edgecl : mat -> ((int * int) * int) list

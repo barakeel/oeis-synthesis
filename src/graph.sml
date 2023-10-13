@@ -359,6 +359,8 @@ fun number_of_edges m =
     !y
   end
   
+  
+  
 fun number_of_blueedges m = 
   let 
     val y = ref 0 
@@ -384,7 +386,57 @@ fun all_holes m =
   in
     mat_traverse f m; !l
   end
+  
+fun all_cedges m = 
+  let 
+    val l = ref [] 
+    fun f (i,j,x) = if x <> 0 then l := (i,j) :: !l else ()
+  in
+    mat_traverse f m; !l
+  end 
 
+fun is_ramsey (bluen,redn) topm = 
+  let 
+    val vertexl = List.tabulate (mat_size topm,I)
+    val bluem = mat_copy topm 
+    fun f (i,j,x) = if x = 0 then mat_update_sym (bluem,i,j,blue) else ()
+    val _ = mat_traverse f topm
+    val redm = mat_copy topm
+    fun f (i,j,x) = if x = 0 then mat_update_sym (redm,i,j,red) else ()
+    val _ = mat_traverse f topm
+    fun is_clique m color l = 
+      let val l' = map pair_of_list (subsets_of_size 2 l) in
+        all (fn (a,b) => mat_sub (m,a,b) = color) l'
+      end
+  in
+    not (exists (is_clique bluem blue) (subsets_of_size bluen vertexl)) andalso
+    not (exists (is_clique redm red) (subsets_of_size redn vertexl)) 
+  end
+
+fun is_ramsey_edge (bluen,redn) topm ((xi,xj),color) = 
+  let 
+    val vertexl = filter (fn x => x <> xi andalso x <> xj)    
+      (List.tabulate (mat_size topm,I))
+    val bluem = mat_copy topm 
+    fun f (i,j,x) = if x = 0 then mat_update_sym (bluem,i,j,blue) else ()
+    val _ = mat_traverse f topm
+    val redm = mat_copy topm
+    fun f (i,j,x) = if x = 0 then mat_update_sym (redm,i,j,red) else ()
+    val _ = mat_traverse f topm
+    fun is_clique m color l = 
+      let 
+        val l0 = xi :: xj :: l
+        val l1 = map pair_of_list (subsets_of_size 2 l0) 
+      in
+        all (fn (a,b) => mat_sub (m,a,b) = color) l1
+      end
+  in
+    if color = blue 
+    then not (exists (is_clique bluem blue) 
+      (subsets_of_size (bluen - 2) vertexl))
+    else not (exists (is_clique redm red) 
+      (subsets_of_size (redn - 2) vertexl))
+  end
 
 
 

@@ -6,7 +6,7 @@ val ERR = mk_HOL_ERR "sat"
 
 
 (* flags conspiring to output all models *)
-val allsat_flag = ref false
+val allsat_flag = ref true
 val degree_flag = ref false
 val max_blue_degree = ref 0
 val max_red_degree = ref 0
@@ -445,9 +445,10 @@ fun next_assign_aux assignv vl =
   let 
     fun test vi = 
       let val (a,(dv1,dv2)) = Vector.sub (assignv,vi) in
-        !a = 0 
-        (* andalso 
-          (early_stop andalso (not (dlv_null dv1 andalso dlv_null dv2))) *)
+        if !a <> 0 then false 
+        (* else if snd (var_to_edge vi) = !edgel_n - 1 then true *)
+        else if dlv_null dv1 andalso dlv_null dv2 then false
+        else true
       end
     val avl = filter test vl
   in
@@ -582,12 +583,14 @@ fun sat_solver size (bluesize,redsize) =
   end
   
   
-fun sat_solver_edgecl edgecl size (bluesize,redsize) =
+fun sat_solver_edgecl m size (bluesize,redsize) =
   let
+    val edgecl = mat_to_edgecl m
     val _ = init_timer ()
     val _ = isod_glob := eempty IntInf.compare
-    val _ = edgel_glob := map edge_to_var (pairbelowy (size - 1))
-    val _ = edgel_n := length (!edgel_glob)
+    val edge_order = pairbelowy (size - 1) @ all_holes m
+    val _ = edgel_glob := map edge_to_var edge_order
+    val _ = edgel_n := size
     val (assignv,clausevv) = init_sat size (bluesize,redsize)
     fun f (edge,color) = 
       let 
@@ -616,31 +619,12 @@ end (* struct *)
 
 (*
 PolyML.print_depth 0;
-load "gen"; load "sat"; open aiLib kernel graph sat nauty gen;
+load "ramsey"; load "gen"; load "sat"; 
+open ramsey aiLib kernel graph sat nauty gen rconfig;
 PolyML.print_depth 10;
 
-allsat_flag := true;
-
-val (model6,t) = add_time (sat_solver 6) (4,5);
-val cover6a = ggeneralize model6;
-val cover6b = minimize_cover model6 cover6a;
-
-store_log := true;
-logfile := selfdir ^ "/ramsey45gen_log";
-cover_glob := [];
-
-val r10 = next_cover 10 (cover6b,6);
-val r11 = next_cover 11 (hd r10);
-val r12 = next_cover 12 (hd r11);
-
-
-
-
-
+val leafl = map unzip_mat (read44 12);
+val (r,t) = add_time (compute_scover (4,4)) leafl;
+length r;
 
 *)
-
-
-
-
-

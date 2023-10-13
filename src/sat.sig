@@ -20,6 +20,6 @@ sig
   (* sat *)
   val allsat_flag : bool ref
   val sat_solver : int -> int * int -> mat list
-  val sat_solver_edgecl : ((int * int) * int) list -> int -> int * int -> mat list
+  val sat_solver_edgecl : mat -> int -> int * int -> mat list
   
 end
