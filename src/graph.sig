@@ -2,7 +2,7 @@ signature graph =
 sig
 
   type mat = int Array2.array
-   
+  type coloring = ((int * int) * int) list
   (* colors *)
   val blue : int
   val red : int
@@ -18,6 +18,7 @@ sig
   (* comparison functions *)
   val edge_compare : (int * int) * (int * int) -> order
   val mat_compare : mat * mat -> order
+  val mat_eq : mat -> mat -> bool
   val mat_compare_fixedsize : int -> mat * mat -> order
   val mat_set : mat list -> mat list
   
@@ -35,6 +36,8 @@ sig
   val string_of_edgecl : ((int * int) * int) list -> string
   val string_of_graph : mat -> string
   val string_of_bluegraph : mat -> string
+  val string_of_mat : mat -> string
+  val print_mat : mat -> unit
   
   (* initialization *)
   val random_mat : int -> mat
@@ -46,6 +49,7 @@ sig
   (* mat_permute also can also be used to reduce the size of the graph *)
   val mat_permute : mat * int -> (int -> int) -> mat
   val mk_permf : int list -> (int -> int)
+  val invert_perm : int list -> int list
   val symmetrify : mat -> mat
   val permutations : 'a list -> 'a list list
  
@@ -53,7 +57,7 @@ sig
   val neighbor_of : int -> mat -> int -> int list
   val commonneighbor_of : int -> mat -> int * int -> int list
   val inneighbor_of : int -> mat -> int -> int list
- 
+  
   (* properties *)
   val is_ackset : mat -> bool
   val not_automorphic : mat -> bool
@@ -63,11 +67,11 @@ sig
   val number_of_blueedges : mat -> int
   val is_ramsey : (int * int) -> mat -> bool
   val all_cedges : mat -> (int * int) list
+  val all_edges : int -> (int * int) list
   val is_ramsey_edge : (int * int) -> mat -> ((int * int) * int) -> bool
   
   (* converting from matrix representation to list of edges *)
-  val mat_to_edgecl : mat -> ((int * int) * int) list
-  val edgecl_to_mat : int -> ((int * int) * int) list -> mat
-  
+  val mat_to_edgecl : mat -> coloring
+  val edgecl_to_mat : int -> coloring -> mat
    
 end

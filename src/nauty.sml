@@ -8,15 +8,11 @@ val ERR = mk_HOL_ERR "nauty"
    Nauty algorithm
    ------------------------------------------------------------------------- *)
 
-val nauty_failure = ref false
-val nauty_limit = 64
-
 fun io_neighbors graph x =
   [neighbor_of blue graph x, neighbor_of red graph x]
 
 fun string_of_partition part = 
   String.concatWith "|" (map (String.concatWith " " o map its) part)
-
 
 fun dpeek x d = Redblackmap.peek (d,x)
 fun count_elements arr l =
@@ -27,6 +23,13 @@ fun count_elements arr l =
   in
     countHelper l
   end
+ 
+fun array_compare size a1 a2 i = 
+  if i >= size then EQUAL else
+  case Int.compare (Array.sub (a1,i),Array.sub (a2,i)) of
+    EQUAL => array_compare size a1 a2 (i+1)
+  | x => x 
+
 fun gather_colors numcolors colorv neighl =
   let
     val colorl = map (fn x => Array.sub(colorv,x)) neighl
@@ -59,7 +62,6 @@ fun refine_partition_aux acc partition = case partition of
 
 fun refine_partition partition = 
   refine_partition_aux [] partition
-
 
 fun unify_partitions graph graphsize partl = case partl of
     [] => []
@@ -114,26 +116,19 @@ fun equitable_partition graph =
     equitable_partition_aux graphsize ioneighl [vertexl]
   end
 
-fun refine_partition_loop limit graph ioneighl partl = 
-  if length partl > limit 
-  then (nauty_failure := true; first_n limit partl) 
-  else
+fun refine_partition_loop graph ioneighl partl = 
   let
     val graphsize = mat_size graph
     val partl1 = List.concat (map refine_partition partl)
     val partl2 = map (equitable_partition_aux graphsize ioneighl) partl1
     val partl3 = unify_partitions graph graphsize partl2
     val (partl4,partl5) = partition (fn x => length x = graphsize) partl3
-    val newlimit = limit - length partl4
   in
-    if null partl5 
-    then partl4 
-    else partl4 @ refine_partition_loop newlimit graph ioneighl partl5
+    if null partl5 then partl4 
+    else partl4 @ refine_partition_loop graph ioneighl partl5
   end
 
-(* warning: limited to "limit" partitions, 
-   some partition might give the same graph *)
-fun nauty_partition limit graph parttop =
+fun nauty_partition graph parttop =
   let
     val graphsize = mat_size graph
     val vertexl = List.tabulate (graphsize,I)
@@ -141,48 +136,58 @@ fun nauty_partition limit graph parttop =
     val part = equitable_partition_aux graphsize ioneighl parttop
   in
     if length part = graphsize then [part] else 
-    refine_partition_loop limit graph ioneighl [part]
+    refine_partition_loop graph ioneighl [part]
   end
  
 fun normalize_nauty_aux graph parttop =
   let
     val graphsize = mat_size graph
-    fun f x = mat_permute (graph,graphsize) (mk_permf x)
-    val partl = nauty_partition nauty_limit graph parttop
+    fun f x = (x, mat_permute (graph,graphsize) (mk_permf x))
+    val partl = nauty_partition graph parttop
   in
     case partl of [part] => f (List.concat part) | _ =>
       let 
         val perml0 = map List.concat partl
         val matl = map f perml0
       in
-        hd (dict_sort (mat_compare_fixedsize graphsize) matl)
+        hd (dict_sort (snd_compare (mat_compare_fixedsize graphsize)) matl)
       end
   end
- 
-fun normalize_nauty graph =
-  normalize_nauty_aux graph [List.tabulate (mat_size graph,I)]
-  
-fun normalize_nauty_safe graph = 
+
+fun normalize_nauty_wperm graph =
   let 
-    val _ = nauty_failure := false
-    val r = normalize_nauty graph
+    val vertexl = List.tabulate (mat_size graph,I)
+    val (perm,m) = normalize_nauty_aux graph [vertexl]
   in
-    if !nauty_failure then raise ERR "normalize_nauty_safe" "" else r
+    (m, perm)
   end
+  
+fun normalize_nauty graph = 
+  let val vertexl = List.tabulate (mat_size graph,I) in 
+    snd (normalize_nauty_aux graph [vertexl])
+  end
+
+(* -------------------------------------------------------------------------
+   Derived functions
+   ------------------------------------------------------------------------- *)
 
 fun nauty_set l = mk_fast_set mat_compare (map normalize_nauty l)
  
+fun subgraphs m size =   
+  let
+    val perml = subsets_of_size size (List.tabulate (mat_size m,I))
+    val permfl = map mk_permf perml
+    val ml = map (mat_permute (m,size)) permfl
+  in
+    nauty_set ml
+  end
  
 (*
-load "ramsey"; open aiLib kernel ramsey;
-val x = symmetrify (random_shape 5 1);
-val x = matK 5;
-val isovl = iso_vertices x;
-val part = [List.tabulate (5,I)];
-val y1 =  refine_partition part;
-val y2 = List.concat (map refine_partition y1);
-val isoel = iso_edges x;
-mat_to_edgecl x;
+load "nauty"; open aiLib kernel graph nauty;
+val m = random_mat 10;
+val (m',perm) = normalize_nauty_wperm m;
+val m'' = mat_permute (m',mat_size m') (mk_permf (invert_perm perm));
+mat_eq m m'';
 *)
 
 end (* struct *)

@@ -5,6 +5,7 @@ open HolKernel Abbrev boolLib aiLib kernel smlParallel
 val ERR = mk_HOL_ERR "graph"
 
 type mat = int Array2.array
+type coloring = ((int * int) * int) list
 
 val blue = 1
 val red =2
@@ -26,7 +27,7 @@ fun mat_traverse f m =
     fun g (i,j,x) = if i < j then f (i,j,x) else ()
   in
     Array2.appi Array2.RowMajor g range
-  end  
+  end 
 
 fun mat_size m = 
   let val (a,b) = Array2.dimensions m in
@@ -66,9 +67,12 @@ fun mat_compare (a1,a2) =
   case Int.compare (mat_size a1, mat_size a2) of
     EQUAL => mat_compare_aux (mat_size a1) a1 a2 0 0
   | x => x 
-  
+
+fun mat_eq a1 a2 = mat_compare (a1,a2) = EQUAL
+
+(* same as mat_compare but faster if the size are equal *)
 fun mat_compare_fixedsize size (a1,a2) = mat_compare_aux size a1 a2 0 0  
-  
+    
 val mat_set = mk_fast_set mat_compare
 
 (* -------------------------------------------------------------------------
@@ -131,14 +135,13 @@ fun inneighbor_of color graph x =
   end
 
 (* -------------------------------------------------------------------------
-   Neighbors I/O
+   Debug
    ------------------------------------------------------------------------- *)
 
 fun string_of_edgel edgel = 
   let fun f (i,j)= its i ^ "-" ^ its j in
     String.concatWith " " (map f edgel)
   end
-  
 
 fun string_of_edgecl edgecl = 
   let fun f ((i,j),x) = its i ^ "-" ^ its j ^ ":" ^ its x in
@@ -164,6 +167,14 @@ fun string_of_bluegraph graph =
   let fun f (i,l) = its i ^ "-" ^ String.concatWith "_" (map its l) in
     String.concatWith ", " (map f (named_neighbor blue graph))
   end
+  
+fun mat_to_ll m = 
+  List.tabulate (mat_size m, fn i => vector_to_list (Array2.row (m,i)));
+
+fun string_of_mat m = String.concatWith "\n" (map ilts (mat_to_ll m))
+
+fun print_mat m = print_endline (string_of_mat m); 
+  
 
 (* -------------------------------------------------------------------------
    Switching between representations
@@ -302,8 +313,13 @@ fun mk_permf perm =
     fun f n = Vector.sub (permv,n) 
   in 
     f 
-  end 
-
+  end
+  
+fun invert_perm perm = 
+  let val permd = dnew Int.compare (number_snd 0 perm) in
+    List.tabulate (dlength permd, fn i => dfind i permd)
+  end   
+  
 (* -------------------------------------------------------------------------
    Properties
    ------------------------------------------------------------------------- *)
@@ -358,9 +374,7 @@ fun number_of_edges m =
     mat_traverse f m; 
     !y
   end
-  
-  
-  
+
 fun number_of_blueedges m = 
   let 
     val y = ref 0 
@@ -369,7 +383,6 @@ fun number_of_blueedges m =
     mat_traverse f m; 
     !y
   end  
-  
 
 fun number_of_holes m = 
   let 

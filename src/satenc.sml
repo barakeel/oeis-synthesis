@@ -127,7 +127,7 @@ fun write_clauses file clauses =
   in
     writel file (map f clauses)
   end
-  
+   
 fun write_pb file pb =
   let
     val allvar = mk_fast_set String.compare (List.concat (map (map fst) pb));
@@ -227,6 +227,11 @@ end (* struct *)
 PolyML.print_depth 0;
 load "satenc"; load "ramsey"; open aiLib kernel graph satenc ramsey;
 PolyML.print_depth 10;
+
+
+val pb = ramsey_clauses 24 (4,5) @ edgecl_clauses (ecl44 @ ecl35);
+val file = "aatest";
+write_pb file pb;
 
 val file = "r45_10-14";
 write_pb_10_14 file;

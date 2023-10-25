@@ -255,73 +255,7 @@ fun ggeneralize leafl =
     orphanl
   end
   
-(* -------------------------------------------------------------------------
-   Minimizing a cover
-   ------------------------------------------------------------------------- *)
 
-fun dreml l d = foldl (uncurry drem) d l
-
-fun minimize_cover_aux cover leafset result = 
-  if elength leafset <= 0 then rev result else 
-  if null cover then raise ERR "minimize_cover" (its (elength leafset)) else
-  let 
-    val coveri = map_assoc (elength o snd) cover
-    val ((best,bestd),sc) = hd (dict_sort compare_imax coveri)
-    val newleafset = ereml (elist bestd) leafset
-    val _ = log ("covering " ^ its sc ^ " remaining " ^ 
-                           its (elength newleafset))
-    fun f (x,d) =
-      let val newd = ereml (elist bestd) d in
-        if elength newd <= 0 then NONE else SOME (x,newd)
-      end
-    val newcover = List.mapPartial f cover
-  in
-    minimize_cover_aux newcover newleafset (best :: result)
-  end
-
-fun minimize_cover leafl cover =
-  let
-    val leafset = enew mat_compare leafl
-    val cover' = map_snd (enew mat_compare) cover
-    val (result,t) = add_time (minimize_cover_aux cover' leafset) []
-    val _ = log ("mini: " ^ rts_round 4 t)
-  in
-    result
-  end
-
-(* -------------------------------------------------------------------------
-   Search algorithm
-   ------------------------------------------------------------------------- *)
-
-fun all_models n cover =
-  let fun f m = sat_solver_edgecl m n (4,5) in
-    nauty_set (List.concat (map f cover))
-  end;
-  
-val cover_glob = ref []
-fun next_cover stopn (cover,n) =
-  let 
-    fun checkr45 ml = if all (is_ramsey (4,5)) ml then ()
-      else raise ERR "next_cover" "not ramsey"
-    val _ = log ("## START SIZE " ^ its (n+1) ^ " ##")
-    val (model,t) = add_time (all_models (n+1)) cover
-    val _ = checkr45 model
-    val _ = log ("### MODEL: " ^ its (length model) ^
-      " in " ^ rts_round 4 t ^ " seconds")
-    val (covera,t) = add_time ggeneralize model
-    val _ = checkr45 (map fst covera)
-    val _ = log ("### COVERA: " ^ its (length covera) ^
-      " in " ^ rts_round 4 t ^ " seconds")
-    val leafset = enew mat_compare model
-    val (coverb,t) = add_time (minimize_cover model) covera
-    val _ = checkr45 coverb
-    val _ = log ("### COVERB: " ^ its (length coverb) ^
-      " in " ^ rts_round 4 t ^ " seconds")
-    val _ = log ("## END SIZE " ^ its (n+1) ^ " ##")
-  in
-    cover_glob := (coverb,n+1) :: !cover_glob;
-    if n+1 >= stopn then !cover_glob else next_cover stopn (coverb,n+1)  
-  end
 
 (* -------------------------------------------------------------------------
    Faster generalization (from a set of leafs)
@@ -603,118 +537,97 @@ fun loop_scover (bluen,redn) uset result =
 fun compute_scover (bluen,redn) leafl = 
   loop_scover (bluen,redn) (enew mat_compare leafl) [];
 
-
 (* -------------------------------------------------------------------------
-   Parallel generalization and cover
+   Cone generalization
    ------------------------------------------------------------------------- *)
-(* 
-fun mat_depth m =
+
+val cone_compare = list_compare Int.compare
+val cone_set = mk_fast_set cone_compare   
+
+fun parents cl = case cl of 
+    [] => []
+  | a :: m => 
+      if a <> 0 
+      then (0 :: m) :: map (fn x => a :: x) (parents m)
+      else map (fn x => a :: x) (parents m)
+  
+fun instances cl = 
+  let val cl' =  map (fn x => if x = 0 then [1,2] else [x]) cl in 
+    cartesian_productl cl'
+  end
+  
+fun cnext cset childl = 
+  let  
+    val childset = enew (list_compare Int.compare) childl
+    val l1 = cone_set (List.concat (map parents childl))
+    fun is_fullanc m = all (fn x => emem x cset) (instances m)
+    val l2 = filter is_fullanc l1
+  in
+    (* random_subset (!gen_width) *) l2
+  end;
+
+fun cloop cset childl =
+  let val parentl = cnext cset childl
+  in
+    if null parentl
+    then (random_elem childl)
+    else cloop cset parentl
+  end;
+  
+fun cgeneralize cset leaf = cloop cset [leaf];
+  
+fun n_hole cl = length (filter (fn x => x = 0) cl);  
+  
+fun ccover_loop uset = 
+  if elength uset <= 0 then [] else 
   let 
-    val counter = ref 0 
-    fun f (i,j,x) = if i >= j orelse x <> 0 then () else incr counter
+    val (parentl,t) = add_time (map (cgeneralize uset)) (elist uset)
+    val parentlsc = map_assoc n_hole parentl
+    val (parent,sc) = hd (dict_sort compare_imax parentlsc)
+    val leafs = instances parent
+    val newuset = ereml leafs uset
+    val _ = log (its (elength newuset) ^ " " ^ rts_round 2 t)
   in
-    mat_appi f m; !counter
+    parent :: ccover_loop newuset
   end
-   
-fun write_mat file m = writel file [szip_mat m] 
-fun read_mat file = sunzip_mat (singleton_of_list (readl file)) 
-
-fun write_matl file ml = writel file (map szip_mat ml)
-fun read_matl file = map sunzip_mat (readl file)
-  
-val coverspec : (mat list, mat, mat list) extspec =
-  {
-  self_dir = selfdir,
-  self = "ramsey.coverspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote 
-      (!smlExecScripts.buildheap_dir)] 
-    ^ ")"),
-  function = generalize2,
-  write_param = write_matl,
-  read_param = read_matl,
-  write_arg = write_mat,
-  read_arg = read_mat,
-  write_result = write_matl,
-  read_result = read_matl
-  }
-
-fun covscore coverd mp =
-  (~ (length (filter (fn x => not (emem x coverd)) (all_leafs mp))),
-   mat_depth mp)
-
-fun best_mpl coverd mpl =
-  let 
-    val cmp = snd_compare (cpl_compare Int.compare Int.compare)
-    val l = dict_sort cmp (map_assoc (covscore coverd) mpl)
-  in
-    fst (hd l)
-  end
-  
-fun add_mpl (mpl,(coverd,uncover,result)) =
-  let
-    val mp = best_mpl coverd mpl
-    val mcover = filter (fn x => not (emem x coverd)) (all_leafs mp) 
-    val mcoverd = enew mat_compare mcover
-    val newcoverd = eaddl mcover coverd
-    val newuncover = filter (fn x => not (emem x mcoverd)) uncover
-    val newresult = (mp,mcover) :: result
-  in
-    (newcoverd,newuncover,newresult)
-  end
-  
-fun loop_cover_parallel ncore leafs (coverd,uncover,result) =
-  if null uncover then rev result else
-  let 
-    val ml = random_subset 4 uncover
-    val param = leafs
-    val ncore' = Int.min (ncore, length ml)
-    val (mpll,t1) = add_time (parmap_queue_extern ncore' coverspec param) ml
-    val _ = log ("Parallel cover in " ^ rts_round 4 t1 ^ " seconds")
-    val ((newcoverd,newuncover,newresult),t2) = 
-      add_time (foldl add_mpl (coverd,uncover,result)) mpll
-    val _ = log (its (elength newcoverd) ^ " covered in " ^
-         rts_round 4 t2 ^ " seconds")
-  in  
-    loop_cover_parallel ncore leafs (newcoverd,newuncover,newresult)
-  end; 
-  
-fun loop_cover_para expname ncore leafs =
-  let
-    val expdir = selfdir ^ "/exp/" ^ expname
-    val _ = app mkDir_err [selfdir ^ "/exp", expdir]
-    val _ = smlExecScripts.buildheap_dir := expdir
-    val _ = store_log := true
-    val _ = logfile := expdir ^ "/log"
-  in
-    loop_cover_parallel ncore leafs (eempty mat_compare,leafs,[])
-  end
-
-*)
+      
+fun ccover conel = ccover_loop (enew cone_compare conel)
 
 end (* struct *)
 
-(* 
-load "ramsey"; load "gen"; 
-open kernel aiLib gen ramsey graph;
-PolyML.print_depth 10;
-val leaf = unzip_mat (random_elem (read44 14));
-val leafd = enew mat_compare (map unzip_mat (read44 14));
+(*
+load "gen"; open gen sat;
 
-fun rgen_loop childl result = 
-  let 
-    val (parentl,t) = add_time (rgeneralize_one (4,4)) childl 
-    val _ = print_endline
-      (its (length parentl) ^ " in " ^ rts_round 4 t ^ " seconds")
-  in
-    if null parentl then result else rgen_loop parentl (parentl :: result)
-  end;
- 
-val r = rgen_loop [leaf] [[leaf]];
-map length r;
-val r2 = fgeneralize leafd leaf;
-  
+(* creating all cones *)
+PolyML.print_depth 0;
+load "ramsey"; load "gen"; load "sat"; 
+open ramsey aiLib kernel graph sat nauty gen rconfig;
+PolyML.print_depth 10;
+
+val size = 14;
+val m = unzip_mat (random_elem (read44 size));
+val matl = sat_solver_edgecl (mat_to_edgecl m) (size+1) (4,5);
+fun pairbelowy y = List.tabulate (y,fn x => (x,y));
+val edgel = pairbelowy size;
+fun mat_to_list mx = map (fn (x,y) => mat_sub (mx,x,y)) edgel; 
+val cl = map mat_to_list matl;
+val cset =  cl;
+val cover = ccover cset;
+writel ("ramsey_cone/" ^ szip_mat m) (map ilts cover);
+
+
+
+fun switch_color m = mat_tabulate (mat_size m, fn (i,j) => 
+  if mat_sub (m,i,j) = 0 then 0 else 3 - mat_sub (m,i,j));
+
+val m449 = unzip_mat (random_elem (read44 9));
+val m3510 = unzip_mat (random_elem (read35 10));
+val m4410 = unzip_mat (random_elem (read44 10));
+val m5311 = switch_color (unzip_mat (random_elem (read35 11)));
+
 
 *)
+
+
+
+

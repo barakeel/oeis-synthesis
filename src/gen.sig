@@ -12,22 +12,17 @@ sig
 
   (* generalization *)
   val rgeneralize_one : int * int -> mat list -> mat list
-  
   val fgeneralize : mat Redblackset.set -> mat -> mat list list
   val ggeneralize : mat list -> (mat * mat list) list
-
-  (* minimization *)
-  val minimize_cover : mat list -> (mat * mat list) list -> mat list
-
-  (* search *)
-  val cover_glob : (mat list * int) list ref
-  val next_cover : int -> mat list * int -> (mat list * int) list
 
   (* cover *)
   val gen_width : int ref
   val gen_depth : int ref
   val compute_cover : mat list -> (mat * mat list) list
   val compute_scover : (int * int) -> mat list -> mat list
+  
+  (* cones *)
+  val ccover : int list list -> int list list
   
   (* parallelization *)
   (*

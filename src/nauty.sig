@@ -1,11 +1,13 @@
 signature nauty =
 sig
 
-  val refine_partition : int list list -> int list list list
-  val normalize_nauty : int Array2.array -> int Array2.array
-  val normalize_nauty_safe : int Array2.array -> int Array2.array
-  val nauty_set : int Array2.array list -> int Array2.array list
+  type mat = int Array2.array
   
+  val refine_partition : int list list -> int list list list
+  val normalize_nauty : mat -> mat
+  val normalize_nauty_wperm : mat -> mat * int list
+  val nauty_set : mat list -> mat list
+  val subgraphs : mat -> int -> mat list
   
 
 end

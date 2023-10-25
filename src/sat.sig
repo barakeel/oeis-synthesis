@@ -1,6 +1,7 @@
 signature sat =
 sig
-
+  
+  include Abbrev
   type mat = int Array2.array
   
   (* vector with constant time deletion *)
@@ -16,10 +17,19 @@ sig
   
   (* clauses *)
   val ramsey_clauses : int -> int * int -> (int * int) list list
-
-  (* sat *)
+  
+  (* flags and memories *)
+  val final_thm : thm ref
+  val thmv_glob : thm vector ref
+  val thm_of_graph : mat -> thm
+  val proof_flag : bool ref
+  val iso_flag : bool ref
+  val isod_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val allsat_flag : bool ref
+  
+  (* solver *)
   val sat_solver : int -> int * int -> mat list
-  val sat_solver_edgecl : mat -> int -> int * int -> mat list
+  val sat_solver_edgecl : ((int * int) * int) list -> int -> int * int -> mat list
+  
   
 end

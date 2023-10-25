@@ -82,7 +82,7 @@ fun eaddi x d = d := eadd x (!d)
 fun ememi x d = emem x (!d)
 fun daddi k v d = d := dadd k v (!d) 
 fun dmemi x d = dmem x (!d)
-fun dfindo k d = SOME (dfind k d) handle NotFound => NONE
+fun dfindo k d = Redblackmap.peek (d,k)
 fun ereml kl d = foldl (uncurry erem) d kl;
 
 (* -------------------------------------------------------------------------
@@ -111,6 +111,9 @@ fun subsets_of_size n l =  subsets_of_size_aux n (l, length l)
 val infts = IntInf.toString
 val stinf = valOf o IntInf.fromString
 val streal = valOf o Real.fromString 
+
+fun ilts il = String.concatWith " " (map its il)
+fun stil s = map string_to_int (String.tokens Char.isSpace s)
 
 (* -------------------------------------------------------------------------
    Sequences

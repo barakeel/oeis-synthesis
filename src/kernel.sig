@@ -58,6 +58,8 @@ sig
   val infts : IntInf.int -> string
   val stinf : string -> IntInf.int
   val streal : string -> real
+  val stil : string -> int list
+  val ilts : int list -> string
   
   (* sequences *)
   type seq = IntInf.int list
