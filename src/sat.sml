@@ -23,8 +23,6 @@ fun normalize_nauty_wperm x =
    Globals
    ------------------------------------------------------------------------- *)
 
-val edgel_glob = ref []
-val edgel_n = ref 0
 val limit_glob = 
   (if abstract_time > 0 then SOME abstract_time else NONE, 
    if real_time > 0.0 then SOME (Time.fromReal real_time) else NONE)
@@ -123,7 +121,11 @@ fun test_timer () =
     ()
   end
 
+val hide_stats = ref false
+
 fun stats () = 
+  (
+  if !hide_stats then () else 
   (  
   if null (!graphl) then log "unsat" 
     else log ("sat " ^ its (length (!graphl)));
@@ -141,9 +143,9 @@ fun stats () =
                     its (!degree_conflict_counter) ^ " conflicts, " ^ 
                     rts_round 6 (!degree_timer) ^ " seconds");       
   log ("other: " ^ its (!other_counter) ^ " calls, " ^ 
-                   rts_round 6 (!other_timer) ^ " seconds");    
-  log ("intermediate: " ^ its (!graphl_n));
-  if !norm_failure > 0 then log ("norm: " ^ its (!norm_failure)) else ();
+                   rts_round 6 (!other_timer) ^ " seconds")
+  )
+  ;
   !graphl
   )
 
@@ -471,9 +473,7 @@ fun by_iso (normgraph,perm2) =
   if !iso_flag 
   then (incr iso_counter; total_time iso_timer by_iso_aux (normgraph,perm2))
   else NONE
-  
 
-  
 (* -------------------------------------------------------------------------
    Doubly-linked vector with constant time deletion
    ------------------------------------------------------------------------- *)
@@ -625,12 +625,72 @@ fun init_sat size (bluen,redn) =
     val _ = if clausel = clausel_alt then () else 
       raise ERR "init_sat" "unexpected"
     val _ = init_thms size (bluen,redn)
-    val _ = thmv_glob := Vector.fromList (map thm_of_clause clausel)
     val _ = graph_glob := Array2.array (size,size,0)
     val _ = reason_glob := Array.array (Vector.length newassignv, ~1)
   in
     transform_pb (newassignv,newclausevv)
   end
+
+
+(* -------------------------------------------------------------------------
+   Makes it so that multiple calls of the sat solver on the 
+   same set of clauses takes less time
+   ------------------------------------------------------------------------- *)
+
+
+fun transform_pb_noref (assignv,clausevv) = 
+  let fun f1 (l1,l2) = (rev (!l1), rev (!l2)) in
+    (Vector.map f1 assignv, clausevv)
+  end
+
+val initsat_cache = ref (dempty (list_compare Int.compare))
+
+fun init_sat_bare size (bluen,redn) =
+  let
+    val maxedge = (size * (size - 1)) div 2
+    val assignv = Vector.tabulate (maxedge, (fn _ => (ref [], ref [])))
+    val clausevv = Vector.fromList []
+    val clausel = ramsey_clauses size (bluen,redn)
+    val (newassignv,newclausevv) = add_clausel clausel (assignv,clausevv)
+    val r = transform_pb_noref (newassignv,newclausevv)
+  in
+    r
+  end
+
+fun init_sat_noref size (bluen,redn) =
+  dfind [size,bluen,redn] (!initsat_cache) handle NotFound =>
+  let
+    val maxedge = (size * (size - 1)) div 2
+    val assignv = Vector.tabulate (maxedge, (fn _ => (ref [], ref [])))
+    val clausevv = Vector.fromList []
+    val clausel = ramsey_clauses size (bluen,redn)
+    val (newassignv,newclausevv) = add_clausel clausel (assignv,clausevv)
+    val r = transform_pb_noref (newassignv,newclausevv)
+  in
+    initsat_cache := dadd [size,bluen,redn] r (!initsat_cache);
+    r
+  end
+  
+fun transform_pb_fromnoref (assignv,clausevv) = 
+  let 
+    fun f1 (l1,l2) = (ref 0, (dlv_fromlist (~1,~1) l1, dlv_fromlist (~1,~1) l2))
+    fun f2 x = (Vector.map (fn y => (ref false, y)) x, ref 0)
+  in
+    (Vector.map f1 assignv, Vector.map f2 clausevv)
+  end  
+
+fun init_sat_fromnoref size (assignv,clausevv) = 
+  let
+    val _ = graph_glob := Array2.array (size,size,0)
+    val _ = reason_glob := Array.array (Vector.length assignv, ~1)  
+  in
+    transform_pb_fromnoref (assignv,clausevv)
+  end
+  
+fun init_sat_cached size (bluen,redn) = 
+  init_sat_fromnoref size (init_sat_noref size (bluen,redn))
+
+
 
 (* -------------------------------------------------------------------------
    Propagation
@@ -748,12 +808,6 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
 fun prop_sat assignv clausevv (edgeid,color) =
   let
     val undol = ref []
-    (*
-    val _ = decision_glob := (edgeid,color)
-    val _ = Array.update (!dec_glob, edgeid, true)
-    fun undof () = Array.update (!dec_glob, edgeid, false)
-    val _ = undol := undof :: !undol
-    *)
     val assignref = fst (Vector.sub (assignv,edgeid))
       handle Subscript => raise ERR "assignv" (ets (edgeid,color))
     val queue = ref [(edgeid,color)]    
@@ -812,7 +866,6 @@ fun sat_solver_loop assignv clausevv path =
   | (undol, decv, color :: colorm, thml, g1) :: parentl =>  
     let
      val _ = msg_split (decv,color)
-     val _ = prop_glob := dadd decv (mat_copy (!graph_glob)) (!prop_glob);
      (* val _ =  *)
      val (newundol,conflict,(confv,confclause)) = 
        total_time prop_timer (prop_sat assignv clausevv) (decv,color)
@@ -855,7 +908,9 @@ fun sat_solver_loop assignv clausevv path =
           val newpath = (undol, decv, colorm, decthm :: thml,g1) :: parentl  
         in
           debug "sat";
-          graphl := normgraph :: !graphl;
+          if !iso_flag 
+            then graphl := normgraph :: !graphl
+            else graphl := mat_copy (!graph_glob) :: !graphl;
           app (fn f => f ()) newundol;
           frec newpath
         end
@@ -879,11 +934,10 @@ fun sat_solver_wisod size (bluen,redn) isod =
     val _ = init_timer ()
     val _ = isod_glob := isod
     val _ = prop_glob := dempty Int.compare
-    val _ = edgel_glob := map edge_to_var (search_order_undirected size)
-    val _ = edgel_n := length (!edgel_glob)
     val _ = size_glob := size
     val (assignv,clausevv) = init_sat size (bluen,redn)
     val path = [([],0,colorl_glob,[],normalize_nauty_wperm (!graph_glob))]
+    
     val _ = log ("variables: " ^ its (Vector.length assignv))
     val _ = log ("clauses: " ^ its (Vector.length clausevv))
   in
@@ -898,12 +952,7 @@ fun sat_solver_edgecl edgecl size (bluen,redn) =
     val _ = init_timer ()
     val _ = iso_flag := false
     val _ = proof_flag := false
-    val edgel = all_edges size 
-    val edgeclset = enew edge_compare (map fst edgecl)
-    val edge_order = filter (fn x => not (emem x edgeclset)) edgel
-    val _ = edgel_glob := map edge_to_var edge_order
-    val _ = edgel_n := size
-    val (assignv,clausevv) = init_sat size (bluen,redn)
+    val (assignv,clausevv) = init_sat_cached size (bluen,redn)
     fun f (edge,color) = 
       let 
         val edgeid = edge_to_var edge
@@ -923,8 +972,9 @@ fun sat_solver_edgecl edgecl size (bluen,redn) =
     val eido = next_dec assignv (~1)
     val path = [([],valOf eido,colorl_glob,[],
       normalize_nauty_wperm (!graph_glob))]
-    val _ = log ("variables: " ^ its (Vector.length assignv))
-    val _ = log ("clauses: " ^ its (Vector.length clausevv))
+    val _ = if !hide_stats then () else 
+            (log ("variables: " ^ its (Vector.length assignv));
+             log ("clauses: " ^ its (Vector.length clausevv)))
   in
     sat_solver_loop assignv clausevv path
   end  
@@ -942,7 +992,7 @@ fun ELIM_COND size thm =
     fun test x = not (is_gcterm x orelse is_forall x)
     val arithl = filter test (hyp thm1)
     val thm2 = foldl (uncurry DISCH) thm1 arithl
-    val thm3 = SIMP_RULE (bool_ss ++ numSimps.ARITH_ss) [] thm2
+    val thm3 = let open bossLib in SIMP_RULE (bool_ss ++ ARITH_ss) [] thm2 end
   in
     thm3
   end 
@@ -954,107 +1004,6 @@ PolyML.print_depth 0;
 load "sat"; open sat aiLib;
 PolyML.print_depth 10;
 iso_flag := true; debug_flag := false; proof_flag := false;
-
 val (satl,t) = add_time (sat_solver 11) (4,4);
 val thm = ELIM_COND 9 (!final_thm);
-
-
-PolyML.print_depth 0;
-load "sat"; open sat aiLib;
-PolyML.print_depth 10;
-iso_flag := true; debug_flag := false; proof_flag := false;
-
-val (satl,t) = add_time (sat_solver 14) (3,5);
-
-
-(* creating R3_5_7 *)
-PolyML.print_depth 0;
-load "gen"; load "sat"; open sat aiLib graph gen;
-PolyML.print_depth 10;
-iso_flag := true; debug_flag := false; proof_flag := false;
-val bluen = 3;
-val redn = 5;
-val size = 7;
-
-val (satl,t) = add_time (sat_solver size) (bluen,redn);
-length satl;
-
-val coverl = compute_scover (bluen,redn) satl;
-val genl = map fst coverl;
-
-
-val vl = List.tabulate (size, X);
-fun f v = numSyntax.mk_less (v,numSyntax.term_of_int size);
-val boundl = map f vl;
-val pairvl = map pair_of_list (kernel.subsets_of_size 2 vl)
-val diffl = map (fn (a,b) => mk_neg (mk_eq (a,b))) pairvl;
-val preterm = list_mk_imp (boundl @ diffl,F);
-fun term_of_graph graph = 
-  let 
-    val edgecl = mat_to_edgecl graph
-    val litl = map hlit (map_fst edge_to_var edgecl)
-  in
-    list_mk_forall (vl, list_mk_imp (litl,preterm)) 
-  end;
-
-val terml = map term_of_graph genl;
-
-fun f i tm = 
-  let 
-    val s = "G" ^ its bluen ^ its redn ^ its size ^ its i 
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E), tm)
-  in
-    new_definition (s ^ "_DEF", eqtm)
-  end;
-  
-val defl = mapi f terml;
-
-
-val conj = list_mk_conj (map (lhs o concl o SPEC_ALL) defl);
-val conjdef =
-  let 
-    val s = "G" ^ its bluen ^ its redn ^ its size
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E),conj)
-  in
-    new_definition (s ^ "_DEF",  eqtm)
-  end;
-val thml = CONJUNCTS (UNDISCH (fst (EQ_IMP_RULE (SPEC_ALL conjdef))));
-val thml2 = combine (thml, map SPEC_ALL defl);
-val thml3 = map (fn (a,b) => EQ_MP b a) thml2;
-val thml4 = map (UNDISCH_ALL o SPEC_ALL) thml3;
-
-val gthml = combine (genl,thml4);
-val pard = dnew mat_compare gthml;
-
-
-
-val ERR = mk_HOL_ERR "test";
-
-fun save_normgraph ((normgraph,perm),thm) = 
-  let val graphi = zip_mat normgraph in
-    case kernel.dfindo graphi (!isod_glob) of
-      NONE => isod_glob := dadd graphi (thm,perm) (!isod_glob)
-    | SOME _ => raise ERR "save_normgraph" ""
-  end;
-  
-fun f (pargraph,graphperml) =
-  let fun g (graph,perm) = 
-    let val thm = dfind pargraph pard in
-      save_normgraph ((graph,perm),thm)
-    end
-  in
-    app g graphperml
-  end;
-  
-isod_glob := dempty IntInf.compare;
-app f coverl;
-dlength (!isod_glob);
-  
-  
-iso_flag := true; debug_flag := true; proof_flag := true;
-val (satl,t) = add_time (sat_solver_wisod size (bluen,redn)) (!isod_glob) ;
-val thm = ELIM_COND size (!final_thm);
-
 *)

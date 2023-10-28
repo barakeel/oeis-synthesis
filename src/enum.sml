@@ -125,7 +125,121 @@ fun main size (bluen,redn) =
     enum_proof size (bluen,redn) pard coverl 
   end
 
+(* -------------------------------------------------------------------------
+   Parallel bottom-up enumeration without proof for R,4,4,k graphs
+   ------------------------------------------------------------------------- *)
 
+fun add_vertex44 set graphi =
+  let 
+    val _ = hide_stats := true
+    val graph = unzip_mat graphi
+    val size = mat_size graph + 1
+    val graphl = sat_solver_edgecl (mat_to_edgecl graph) size (4,4)
+    val il = map (zip_mat o nauty.normalize_nauty) graphl  
+  in
+    set := eaddl il (!set)
+  end
+
+fun worker44 (i,il) = 
+  let  
+    val set = ref (eempty IntInf.compare) 
+    val dir = !smlExecScripts.buildheap_dir ^ "/graphs"
+    val file = dir ^ "/" ^ its i
+  in
+    app (add_vertex44 set) il;
+    mkDir_err dir;
+    writel file (map IntInf.toString (elist (!set)))
+  end
+
+fun merge_one set file = 
+  let 
+    val sl = readl file
+    val il = map stinf sl 
+  in
+    set := eaddl il (!set)
+  end
+    
+fun merge_graphs dir = 
+  let 
+    val set = ref (eempty IntInf.compare) 
+    val filel = map (fn x => dir ^ "/" ^ x) (listDir dir)
+  in
+    app (merge_one set) filel; !set
+  end  
+
+fun write_iil file (i,il) =
+  writel file (its i :: map infts il)
+
+fun read_iil file =
+  let 
+    val sl = readl file   
+    val i = string_to_int (hd sl)
+    val il = map stinf (tl sl)
+  in 
+    (i,il)
+  end
+
+val enumspec : (unit, (int * IntInf.int list), unit) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "enum.enumspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () x = worker44 x in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_iil,
+  read_arg = read_iil,
+  write_result = let fun f _ () = () in f end,
+  read_result = let fun f _ = () in f end
+  }
+
+fun parallel_extend ncore expname set =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val graphill = number_fst 0 (mk_batch_full 1000 (elist set))
+    val (_,t) = add_time 
+       (smlParallel.parmap_queue_extern ncore enumspec ()) graphill
+  in
+    merge_graphs (dir ^ "/graphs")
+  end
+    
+fun extend set = 
+  let
+    val newset = ref (eempty IntInf.compare)
+    val ((),t) = add_time (Redblackset.app (add_vertex44 newset)) set   
+  in
+    !newset
+  end
+  
+fun loop44 ncore i set = 
+  let
+    val expname = "R44" ^ its (i+1)
+    val newset =
+      if ncore <= 1 orelse elength set <= 1000 
+      then extend set 
+      else parallel_extend ncore expname set
+    val _ = mkDir_err (selfdir ^ "/ramsey_4_4")
+    val il = map infts (elist newset)
+    val _ = writel (selfdir ^ "/ramsey_4_4/" ^ its (i+1)) il
+  in
+    if elength newset <= 0 then () else loop44 ncore (i+1) newset
+  end;
+  
+fun start44 ncore = 
+  let val set = enew IntInf.compare [zip_mat (Array2.array (1,1,0))] in
+    loop44 ncore 1 set
+  end
+    
 end (* struct *)
 
 (*
@@ -133,17 +247,49 @@ PolyML.print_depth 0;
 load "enum"; open sat aiLib graph gen enum;
 PolyML.print_depth 10;
 
-load "enum"; open enum;
-val thm357 = main 7 (3,5);
-val thm358 = main 8 (3,5);
-val thm359 = main 9 (3,5);
-val thm3510 = main 10 (3,5);
-val thm3511 = main 11 (3,5);
-val thm3512 = main 12 (3,5);
-val thm3513 = main 13 (3,5);
-val thm3514 = main 14 (3,5);
+start44 3;
+*)
 
+    
+
+(*
+
+val ramsey_3_5_7 = main 7 (3,5);
+val ramsey_3_5_8 = main 8 (3,5);
+val ramsey_3_5_9 = main 9 (3,5);
+val ramsey_3_5_10 = main 10 (3,5);
+val ramsey_3_5_11 = main 11 (3,5);
+val ramsey_3_5_12 = main 12 (3,5);
+val ramsey_3_5_13 = main 13 (3,5);
+val ramsey_3_5_14 = main 14 (3,5);
+
+load "enum"; open enum;
+new_theory "ramsey_4_4_11";
 val thm4411 = main 11 (4,4);
+val ramsey_4_4_11 = save_thm ("ramsey_4_4_11",thm4411);
+export_theory ();
+
+load "enum"; open enum;
+new_theory "ramsey_4_4_12";
+val thm4412 = main 12 (4,4);
+val ramsey_4_4_12 = save_thm ("ramsey_4_4_12",thm4412);
+export_theory ();
+
+load "enum"; open enum;
+
+fun gen_theory44 size = 
+  let 
+    val id = "ramsey_4_4_" ^ int_to_string size
+    val _ = new_theory id;
+    val thm = main size (4,4);
+    val _ = save_thm (id,thm);
+  in
+    export_theory ()
+  end;
+  
+gen_theory44 18;  
+
+
 val thm4412 = main 12 (4,4);
 (* val thm4413 = main 13 (4,4); *)
 val thm4414 = main 14 (4,4);
@@ -151,9 +297,5 @@ val thm3511 = main 15 (4,4);
 val thm3512 = main 16 (4,4);
 val thm3513 = main 17 (4,4);
 val thm3514 = main 18 (4,4);
-
-todo: 
-  zip the graphs (only unzip when necessary) to use less memory and 
-  cache the results of all_leafs when trying to minize an example
 
 *)

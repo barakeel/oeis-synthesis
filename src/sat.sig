@@ -36,6 +36,7 @@ sig
   val iso_flag : bool ref
   val isod_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val allsat_flag : bool ref
+  val hide_stats : bool ref
   
   (* solver *)
   val sat_solver : int -> int * int -> mat list
