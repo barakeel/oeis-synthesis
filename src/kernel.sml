@@ -115,6 +115,8 @@ val streal = valOf o Real.fromString
 fun ilts il = String.concatWith " " (map its il)
 fun stil s = map string_to_int (String.tokens Char.isSpace s)
 
+val timer_glob = ref 0.0
+
 (* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)

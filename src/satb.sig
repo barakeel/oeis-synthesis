@@ -1,4 +1,4 @@
-signature sat =
+signature satb =
 sig
   
   include Abbrev
@@ -13,6 +13,7 @@ sig
   val hlit : (int * int) -> term
   val is_lit : term -> bool
   val noclique : int -> int * bool -> term
+  val clausev_of_thm : thm -> int vector
   
   (* vector with constant time deletion *)
   val dlv_fromlist : 'a -> 'a list -> ((int ref * int ref) * 'a) vector
@@ -39,8 +40,6 @@ sig
   
   (* solver *)
   val sat_solver : int -> int * int -> mat list
-  val sat_solver_wisod : int -> int * int -> 
-    (IntInf.int, thm * int list) Redblackmap.dict -> mat list
   val sat_solver_edgecl : ((int * int) * int) list -> int -> int * int -> mat list
   
   (* post-processing *)

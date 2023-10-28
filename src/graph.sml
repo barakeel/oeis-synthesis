@@ -169,7 +169,9 @@ fun string_of_bluegraph graph =
   end
   
 fun mat_to_ll m = 
-  List.tabulate (mat_size m, fn i => vector_to_list (Array2.row (m,i)));
+  let val size = mat_size m in
+    List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
+  end
 
 fun string_of_mat m = String.concatWith "\n" (map ilts (mat_to_ll m))
 

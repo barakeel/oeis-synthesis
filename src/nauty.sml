@@ -8,47 +8,47 @@ val ERR = mk_HOL_ERR "nauty"
    Nauty algorithm
    ------------------------------------------------------------------------- *)
 
-fun io_neighbors graph x =
-  [neighbor_of blue graph x, neighbor_of red graph x]
+fun rb_neigh graph x =
+  let 
+    val (bluel,redl) = (ref [],ref [])
+    fun loop size y = 
+      if y >= size then () else
+      let val color = mat_sub (graph,x,y) in
+        if color = blue then bluel := y :: !bluel 
+        else if color = red then redl := y :: !redl
+        else ();
+        loop size (y+1)
+      end
+  in
+    loop (mat_size graph) 0; [!bluel,!redl]
+  end
 
 fun string_of_partition part = 
   String.concatWith "|" (map (String.concatWith " " o map its) part)
 
-fun dpeek x d = Redblackmap.peek (d,x)
-fun count_elements arr l =
-  let
-    fun countHelper [] = ()
-      | countHelper (x::xs) = 
-        (Array.update (arr, x, Array.sub(arr, x) + 1); countHelper xs)
-  in
-    countHelper l
-  end
- 
-fun array_compare size a1 a2 i = 
+fun array_compare_aux size a1 a2 i = 
   if i >= size then EQUAL else
   case Int.compare (Array.sub (a1,i),Array.sub (a2,i)) of
-    EQUAL => array_compare size a1 a2 (i+1)
+    EQUAL => array_compare_aux size a1 a2 (i+1)
   | x => x 
+
+fun array_compare (a1,a2) = array_compare_aux (Array.length a1) a1 a2 0
 
 fun gather_colors numcolors colorv neighl =
   let
-    val colorl = map (fn x => Array.sub(colorv,x)) neighl
-    val countsArr = Array.array(numcolors,0)
-    val _ = count_elements countsArr colorl
-    fun f (color,occ,acc) = 
-      if occ > 0 then (color,occ) :: acc else acc
+    val counta = Array.array(numcolors,0)
+    fun f neigh = 
+      let val color = Array.sub(colorv,neigh) in
+        Array.update (counta, color, Array.sub(counta, color) + 1)
+      end
   in
-    Array.foldri f [] countsArr
+    app f neighl; counta
   end
  
-fun gather_iocolors numcolors colorv ioneighl = 
-  map (gather_colors numcolors colorv) ioneighl
+fun gather_iocolors numcolors colorv brneighv = 
+  map (gather_colors numcolors colorv) brneighv
 
-fun inv_cmp cmp (a,b) = cmp (b,a)
-val inv_int_compare = inv_cmp Int.compare
-
-val charac_cmp = cpl_compare Int.compare
-  (list_compare (list_compare (cpl_compare inv_int_compare inv_int_compare)))
+val charac_cmp = list_compare array_compare
 
 fun decompose acc l = case l of
     [] => []
@@ -85,17 +85,31 @@ fun colorv_of graphsize partition =
    colorv
  end
 
-fun equitable_partition_aux graphsize ioneighl partition =
+fun split_partition_one ncolor colorv brneighv vl = case vl of [a] => [[a]] 
+  | _ =>
+  let
+    fun f v = 
+      let val ioentry = Vector.sub (brneighv,v) in
+        (gather_iocolors ncolor colorv ioentry, v)
+      end
+    val d = dregroup charac_cmp (map f vl)
+    val newpartition = map snd (dlist d) 
+  in
+    newpartition
+  end
+
+fun split_partition ncolor colorv brneighv partition =
+  List.concat (map (split_partition_one ncolor colorv brneighv) partition)
+  
+
+fun equitable_partition_aux graphsize brneighv partition =
   let val ncolor = length partition in
   if ncolor = graphsize then partition else
   let
     val colorv = colorv_of graphsize partition
-    fun f (x,ioentry) = 
-      ((Array.sub (colorv,x), gather_iocolors ncolor colorv ioentry), x)
-    val characl1 = map f ioneighl
-    val d = dregroup charac_cmp characl1
-    val newncolor = dlength d
-    val newpartition = map snd (dlist d) 
+    val newpartition = (* total_time timer_glob *)
+      (split_partition ncolor colorv brneighv) partition
+    val newncolor = length newpartition
   in
     if newncolor < ncolor then 
       raise ERR "equitable_partition_aux" 
@@ -103,7 +117,7 @@ fun equitable_partition_aux graphsize ioneighl partition =
          string_of_partition newpartition)
     else if newncolor = graphsize orelse newncolor = ncolor then
       newpartition
-    else equitable_partition_aux graphsize ioneighl newpartition
+    else equitable_partition_aux graphsize brneighv newpartition
   end
   end
   
@@ -111,32 +125,31 @@ fun equitable_partition graph =
   let
     val graphsize = mat_size graph
     val vertexl = List.tabulate (graphsize,I)
-    val ioneighl = map_assoc (io_neighbors graph) vertexl
+    val brneighv = Vector.tabulate (graphsize,rb_neigh graph)
   in
-    equitable_partition_aux graphsize ioneighl [vertexl]
+    equitable_partition_aux graphsize brneighv [vertexl]
   end
 
-fun refine_partition_loop graph ioneighl partl = 
+fun refine_partition_loop graph brneighv partl = 
   let
     val graphsize = mat_size graph
     val partl1 = List.concat (map refine_partition partl)
-    val partl2 = map (equitable_partition_aux graphsize ioneighl) partl1
+    val partl2 = map (equitable_partition_aux graphsize brneighv) partl1
     val partl3 = unify_partitions graph graphsize partl2
     val (partl4,partl5) = partition (fn x => length x = graphsize) partl3
   in
     if null partl5 then partl4 
-    else partl4 @ refine_partition_loop graph ioneighl partl5
+    else partl4 @ refine_partition_loop graph brneighv partl5
   end
 
 fun nauty_partition graph parttop =
   let
     val graphsize = mat_size graph
-    val vertexl = List.tabulate (graphsize,I)
-    val ioneighl = map_assoc (io_neighbors graph) vertexl
-    val part = equitable_partition_aux graphsize ioneighl parttop
+    val brneighv = Vector.tabulate (graphsize,rb_neigh graph)
+    val part = equitable_partition_aux graphsize brneighv parttop
   in
     if length part = graphsize then [part] else 
-    refine_partition_loop graph ioneighl [part]
+    refine_partition_loop graph brneighv [part]
   end
  
 fun normalize_nauty_aux graph parttop =

@@ -19,7 +19,8 @@ sig
   val gen_width : int ref
   val gen_depth : int ref
   val compute_cover : mat list -> (mat * mat list) list
-  val compute_scover : (int * int) -> mat list -> mat list
+  val compute_scover : (int * int) -> mat list -> 
+    (IntInf.int * (IntInf.int * int list) list) list
   
   (* cones *)
   val ccover : int list list -> int list list

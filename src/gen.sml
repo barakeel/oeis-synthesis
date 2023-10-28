@@ -112,6 +112,40 @@ fun all_leafs m =
   end;
 
 
+fun all_leafs_wperm m =
+  let
+    val edgel = all_holes m
+    val coloringl = all_coloring edgel
+    val childl = map (apply_coloring m) coloringl
+    val childl_ext = map normalize_nauty_wperm childl
+  in
+    mk_fast_set (fst_compare mat_compare) childl_ext
+  end;
+
+
+
+fun all_leafs_wperm_cache cache m =
+  let
+    val edgel = all_holes m
+    val coloringl = all_coloring edgel
+    val childl = map (apply_coloring m) coloringl
+    fun normalize child = 
+      let val childi = zip_mat child in
+        dfind childi (!cache) handle NotFound =>
+        let 
+          val (normm,perm) = normalize_nauty_wperm child 
+          val r  = (zip_mat normm,perm)
+        in
+          cache := dadd childi r (!cache);
+          r
+        end
+      end
+    val childl_ext = map normalize childl
+  in
+    mk_fast_set (fst_compare IntInf.compare) childl_ext
+  end
+
+
 (* -------------------------------------------------------------------------
    Global generalization
    ------------------------------------------------------------------------- *) 
@@ -342,10 +376,7 @@ val leafd = enew mat_compare leafl;
 fgen_flag := true;
 val (cover44,covered44) = split (compute_cover leafl);
 length cover44; map length covered44;
-
-
 *)
-
 
 (* -------------------------------------------------------------------------
    Generalization (from a set of leafs)
@@ -435,6 +466,7 @@ fun compute_cover leafs =
 fun enc_color (x,c) = if c = 1 then 2 * x else 2 * x + 1;
 fun enc_edgec (e,c) = enc_color (edge_to_var e,c);
 fun dec_edgec x = (var_to_edge (x div 2), (x mod 2) + 1);
+fun opposite (e,x) = (e,3 - x)
 
 fun init_sgen size (bluen,redn) = 
   let
@@ -453,12 +485,11 @@ fun init_sgen size (bluen,redn) =
   end;
   
 (* Warning: only works for 4,4 *)
-fun all_in_one size (bluen,redn) leaf =
+fun sgeneralize size (bluen,redn) leaf =
   let
     val (varv,clausev) = init_sgen size (bluen,redn) 
     val sizev = Vector.map (fn x => length x - 1) clausev
-    val inita = Array.array (Vector.length clausev,0)
-    fun opposite (e,x) = (e,3 - x)
+    val inita = Array.array (Vector.length clausev,0)    
     fun update_numbera a v = 
       let 
         val il = Vector.sub (varv,v) 
@@ -497,32 +528,41 @@ fun build_parent leaf edgel =
     parent
   end;
 
-fun minimize_parent_aux uset (parent,parentleafs) = 
+fun minimize_parent_aux cache uset (parent,parentleafs) = 
   if number_of_holes parent <= 0 then (parent,parentleafs) else
   let 
     fun score uset leafs = 
-      length (filter (fn x => emem x uset) leafs)
+      length (filter (fn x => emem x uset) (map fst leafs))
     val parentsc = score uset parentleafs
-    val children = random_children_pair parent
-    fun test (child,childleafs) = score uset childleafs >= parentsc    
+    fun search childl = case childl of [] => NONE | child :: m =>
+      let val childleafs = all_leafs_wperm_cache cache child in
+        if score uset childleafs >= parentsc
+        then SOME (child,childleafs)
+        else search m
+      end
   in
-    case (List.find test (map_assoc all_leafs children)) of
+    case search (all_children parent) of
       NONE => (parent,parentleafs)
-    | SOME x => minimize_parent_aux uset x
+    | SOME x => minimize_parent_aux cache uset x
   end;
 
 fun minimize_parent uset parent =
-  minimize_parent_aux uset (parent, all_leafs parent)
-
+  let 
+    val cache = ref (dempty IntInf.compare) 
+    val parentleafs = all_leafs_wperm_cache cache parent  
+  in
+    minimize_parent_aux cache uset (parent,parentleafs)
+  end
+  
 fun loop_scover (bluen,redn) uset result =
   if elength uset <= 0 then rev result else
-  let 
-    val leaf = random_elem (elist uset)    
-    val (edgel,t1) = add_time (all_in_one (mat_size leaf) (bluen,redn)) leaf
+  let
+    val leaf = unzip_mat (random_elem (elist uset))   
+    val (edgel,t1) = add_time (sgeneralize (mat_size leaf) (bluen,redn)) leaf
     val parent = build_parent leaf edgel
     val ((minparent,parentleafs),t2) = add_time (minimize_parent uset) parent
-    val pcover = filter (fn x => emem x uset) parentleafs
-    val newuset = ereml pcover uset
+    val pcover = filter (fn x => emem (fst x) uset) parentleafs
+    val newuset = ereml (map fst pcover) uset
     val _ = log (
       "Covering " ^ its (length pcover) ^ " graphs (" ^ 
       its (elength newuset) ^ " remaining)" ^
@@ -531,11 +571,13 @@ fun loop_scover (bluen,redn) uset result =
       " in " ^ rts_round 4 t1 ^ " seconds and in " ^ 
       rts_round 4 t2 ^ " seconds")
   in  
-    loop_scover (bluen,redn) newuset (minparent :: result)
+    loop_scover (bluen,redn) newuset ((zip_mat minparent,pcover) :: result)
   end;
 
 fun compute_scover (bluen,redn) leafl = 
-  loop_scover (bluen,redn) (enew mat_compare leafl) [];
+  let val uset = enew IntInf.compare (map zip_mat leafl) in
+    loop_scover (bluen,redn) uset []
+  end
 
 (* -------------------------------------------------------------------------
    Cone generalization
@@ -624,7 +666,6 @@ val m449 = unzip_mat (random_elem (read44 9));
 val m3510 = unzip_mat (random_elem (read35 10));
 val m4410 = unzip_mat (random_elem (read44 10));
 val m5311 = switch_color (unzip_mat (random_elem (read35 11)));
-
 
 *)
 

@@ -1,8 +1,8 @@
-structure sat :> sat =
+structure satb :> satb =
 struct   
 
 open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig
-val ERR = mk_HOL_ERR "sat"
+val ERR = mk_HOL_ERR "satb"
 
 fun debug_mat m = if !debug_flag then graph.print_mat m else ()
 
@@ -43,8 +43,26 @@ val size_glob = ref 0
 val pos_thm = ref TRUTH
 val neg_thm = ref TRUTH
 
+val empty_il = [] : int list
+val empty_iil = [] : (int * int) list
+val empty_iv = Vector.fromList empty_il
+val block_thm = ref TRUTH
+val learna_free = ref 0
+val learna = ref (Array.array (1,(empty_iv, TRUTH)))
+val watcha = ref (Array.array (1, empty_iil))
+val w_upl = ref empty_il
+
+fun init_wla watchsize learnsize =
+  (
+  watcha := Array.array (watchsize,empty_iil);
+  learna := Array.array (learnsize,(empty_iv, TRUTH));
+  learna_free := 0
+  )
+  
+
 fun get_color assignv v = !(fst (Vector.sub (assignv,v)))
 fun get_lit assignv v = (v, get_color assignv v)
+
 
 (* 
 fun prev_dec v = 
@@ -133,7 +151,6 @@ fun stats () =
                   rts_round 6 (!prop_timer) ^ " seconds");
   log ("iso: " ^ its (!iso_counter) ^ " calls, " ^ 
        its (!iso_conflict_counter) ^ " conflicts, " ^
-       "iso: " ^ its (dlength (!isod_glob)) ^ " size, " ^ 
        rts_round 6 (!iso_timer) ^ " seconds, " ^
        rts_round 6 (!iso_timer2) ^ " seconds"
        );
@@ -142,6 +159,7 @@ fun stats () =
                     rts_round 6 (!degree_timer) ^ " seconds");       
   log ("other: " ^ its (!other_counter) ^ " calls, " ^ 
                    rts_round 6 (!other_timer) ^ " seconds");    
+  log ("learn: " ^ its (!learna_free) ^ " learned clauses");
   log ("intermediate: " ^ its (!graphl_n));
   if !norm_failure > 0 then log ("norm: " ^ its (!norm_failure)) else ();
   !graphl
@@ -200,6 +218,21 @@ fun hlit (v,c) =
   if c = 2 then mk_neg (hvar v) 
   else raise ERR "hlit" "" ;
 
+fun hlit_to_edge tm = 
+  let 
+    val tm' = if is_neg tm then dest_neg tm else tm
+    val (_,argl) = strip_comb tm'
+  in
+    pair_of_list (map Xnum argl)
+  end
+  handle HOL_ERR e => (print_endline (term_to_string tm); raise HOL_ERR e)
+
+fun hlit_to_var tm = edge_to_var (hlit_to_edge tm)
+fun hlit_to_vc tm = (hlit_to_var tm, if is_neg tm then red else blue)
+fun hlit_to_vci tm = 2 * hlit_to_var tm + (if is_neg tm then 1 else 0)
+  
+
+
 fun noclique n (cliquen,b) = 
   let
     val vl = List.tabulate (cliquen,X)
@@ -223,40 +256,14 @@ val tm = noclique 6 (3,false);
    Proof reconstruction in HOL
    ------------------------------------------------------------------------- *)
 
-fun mk_cdef size (bluen,redn) b tm = 
-  let
-    val s = "C" ^ its bluen ^ its redn ^ its size ^ 
-      (if b then "b" else "r")
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E), tm)
-  in
-    new_definition (s ^ "_DEF", eqtm)
-  end
-
 fun init_thms size (bluen,redn) =
-  if not (!proof_flag) then () else 
   let
     val postm = noclique size (bluen,true)
     val negtm = noclique size (redn,false)
-    val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
-    val posdef = mk_cdef size (bluen,redn) true postm
-    val negdef = mk_cdef size (bluen,redn) false negtm
   in
-    pos_thm := f posdef;
-    neg_thm := f negdef
+    pos_thm := ASSUME postm;
+    neg_thm := ASSUME negtm
   end
-
-fun hlit_to_edge tm = 
-  let 
-    val tm' = if is_neg tm then dest_neg tm else tm
-    val (_,argl) = strip_comb tm'
-  in
-    pair_of_list (map Xnum argl)
-  end
-  handle HOL_ERR e => (print_endline (term_to_string tm); raise HOL_ERR e)
-
-fun hlit_to_var tm = edge_to_var (hlit_to_edge tm)
-fun hlit_to_vc tm = (hlit_to_var tm, if is_neg tm then red else blue)
 
 fun thm_of_graph graph = 
   let
@@ -275,7 +282,6 @@ fun thm_of_graph graph =
 
 
 fun thm_of_clause clause = 
-  if not (!proof_flag) then TRUTH else 
   let 
     val b = snd (hd clause) = blue 
     fun f (a,b) = [a,b] 
@@ -319,12 +325,17 @@ fun SMART_DISCH v thm =
       ) *)
   end
   
-fun CONFLICT thm1 thm2 =
+fun CONFLICT_AUX thm1 thm2 =
   if term_eq (concl thm1) F then thm1 
   else if term_eq (concl thm2) F then thm2
   else if is_neg (concl thm1) 
     then MP thm1 thm2 
     else MP thm2 thm1
+
+fun CONFLICT thml = case thml of
+    [thm] => thm
+  | [thma,thmb] => CONFLICT_AUX thma thmb
+  | _ => raise ERR "CONFLICT" ""
 
 
 fun SAVE_ISO' ((normgraph,perm),thm) = 
@@ -342,7 +353,7 @@ fun SAVE_ISO' ((normgraph,perm),thm) =
               raise ERR "SAVE_ISO" "should not save the same graph again")
   end
   
-fun SAVE_ISO ((normgraph,perm),thm) = 
+fun SAVE_ISO ((normgraph,perm),thm) =
   if !iso_flag then SAVE_ISO' ((normgraph,perm),thm) else ()
 
 
@@ -404,11 +415,39 @@ fun dec_thm decv (confv,confclause) = case prop_thmo confv of
       val _ = debugf "old reason: " thm_to_string thm1
       val thm2 = SMART_DISCH confv (Vector.sub (!thmv_glob,confclause))
       val _ = debugf "new reason: " thm_to_string thm2
-      val thmF = CONFLICT thm1 thm2
+      val thmF = CONFLICT [thm1,thm2]
       val _ = debugf "conflict: " thm_to_string thmF
     in
       SMART_DISCH decv (BACK_PROP decv thmF) 
     end
+    
+fun learn_thm decv thmF =
+  let val _ = debugf "conflict: " thm_to_string thmF in
+    SMART_DISCH decv (BACK_PROP decv thmF) 
+  end
+
+(* -------------------------------------------------------------------------
+   Safety checks
+   ------------------------------------------------------------------------- *)
+
+fun ordered_lit lit =
+  let val (i,j) = hlit_to_edge lit in i < j end
+
+fun ordered_litl litl = 
+  list_compare Term.compare (dict_sort Term.compare litl, litl) = EQUAL
+
+fun check_thmF assignv thmF = 
+  let 
+    val vcl = map hlit_to_vc (filter is_lit (hyp thmF))
+    fun test (v,c) = get_color assignv v = c
+  in
+    if all test vcl then () else 
+    (
+    debug_mat (!graph_glob);
+    print_endline (thm_to_string thmF);
+    raise ERR "check_thmF" ""
+    )
+  end
 
 (* -------------------------------------------------------------------------
    Test isomorphism
@@ -448,7 +487,7 @@ fun PERMUTE_LIT' thm1 perm1 perm2 =
     val sub = List.mapPartial f vertexl
     val thm2 = INST sub thm1
     val lemmal = (List.mapPartial NORM_HYP) (hyp thm2)
-    val thm3 = (foldl (uncurry SAFE_PROVE_HYP) thm2) lemmal
+    val thm3 =(foldl (uncurry SAFE_PROVE_HYP) thm2) lemmal
   in
     thm3
   end
@@ -533,13 +572,12 @@ fun cts c =
   else if c = 0 then "w"
   else raise ERR "cts_color" (its c)
 
-fun ets (edgeid,c) = 
-  let val (a,b) = var_to_edge edgeid in
-    its a ^ "-" ^ its b ^ ":" ^ cts c
-  end
-  
+fun ets (a,b) = its a ^ "-" ^ its b
+val vts = ets o var_to_edge
+fun vcts (v,c) = vts v ^ ":" ^ cts c
+
 fun string_of_clausev clausev = 
-  let fun f (bref,lit) = bts (!bref) ^ "@" ^ ets (fst (fst lit), snd lit) in
+  let fun f (bref,lit) = bts (!bref) ^ "@" ^ vcts (fst (fst lit), snd lit) in
     String.concatWith " " (map f (vector_to_list clausev))
   end
 
@@ -548,7 +586,7 @@ fun string_of_assignv assignv =
     val l1 = map (! o fst) (vector_to_list assignv)
     val l2 = number_fst 0 l1
   in
-    String.concatWith " " (map ets l2)
+    String.concatWith " " (map vcts l2)
   end  
 
 (* -------------------------------------------------------------------------
@@ -648,12 +686,16 @@ fun propagated_clause clausev =
   end
   handle Subscript => raise ERR "propagated_clause" (string_of_clausev clausev)
 
+fun vc_to_int (edgeid,color) = 
+  2 * edgeid + (if color = blue then 0 else 1)
+
 fun assign undol edgeid assignref color =
   let 
     val graph = !graph_glob
     val (a,b) = var_to_edge edgeid
     fun back () = (assignref := 0; mat_update_sym (graph,a,b,0))  
   in
+    w_upl := vc_to_int (edgeid,color) :: !w_upl;
     assignref := color;
     mat_update_sym (graph,a,b,color);
     undol := back :: !undol
@@ -666,7 +708,7 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
   let
     val _ = queue := tl (!queue)    
     val (_, (blue_clauses, red_clauses)) = Vector.sub (assignv,edgeid)
-      handle Subscript => raise ERR "assignv" (ets (edgeid,edgecolor))
+      handle Subscript => raise ERR "assignv" (vcts (edgeid,edgecolor))
     val (clauses_prop,clauses_del) = 
       if edgecolor = blue then (blue_clauses, red_clauses) 
                           else (red_clauses, blue_clauses)
@@ -693,14 +735,14 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
           val ((confv,_),tempcolor) = propagated_clause clausev
           val propcolor = 3 - tempcolor
           val assigncolor = fst (Vector.sub (assignv, confv))
-            handle Subscript => raise ERR "assignv" (ets (confv,propcolor))
+            handle Subscript => raise ERR "assignv" (vcts (confv,propcolor))
         in
           if !assigncolor = propcolor then () 
           else if !assigncolor = tempcolor then 
             (debug "conflict"; raise Conflict (confv,clauseid))
           else 
             let 
-              fun msg () = ets (confv, propcolor)
+              fun msg () = vcts (confv, propcolor)
               val _ = debugf "prop: " msg ()
               val _ = incr prop_small_counter
               val _ = Array.update (!reason_glob,confv,clauseid)
@@ -725,7 +767,7 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
             val dlv = if color = blue then fst bothdlv else snd bothdlv
             val undof = dlv_del ecid dlv
               handle Subscript => raise ERR "dlv_del" 
-                (ets (edgeid,color) ^ "~" ^ its ecid)
+                (vcts (edgeid,color) ^ "~" ^ its ecid)
           in 
             undol := undof :: !undol
           end
@@ -748,6 +790,7 @@ fun prop_sat_loop assignv clausevv queue undol = case !queue of
 fun prop_sat assignv clausevv (edgeid,color) =
   let
     val undol = ref []
+    val _ = w_upl := []
     (*
     val _ = decision_glob := (edgeid,color)
     val _ = Array.update (!dec_glob, edgeid, true)
@@ -755,11 +798,98 @@ fun prop_sat assignv clausevv (edgeid,color) =
     val _ = undol := undof :: !undol
     *)
     val assignref = fst (Vector.sub (assignv,edgeid))
-      handle Subscript => raise ERR "assignv" (ets (edgeid,color))
+      handle Subscript => raise ERR "assignv" (vcts (edgeid,color))
     val queue = ref [(edgeid,color)]    
   in
     assign undol edgeid assignref color;
     prop_sat_loop assignv clausevv queue undol
+  end
+
+(* -------------------------------------------------------------------------
+   Blocking clauses (poor man CDCL): 
+   update the watch literal in each learned clause.
+   Learned clause are only preventing the exploration of branches
+   and not propagating.
+   ------------------------------------------------------------------------- *)
+
+exception Break
+
+fun is_free assignv w = get_color assignv (w div 2) <> 1 + w mod 2
+
+fun next_pos_aux assignv clausev porg x = 
+  if x >= Vector.length clausev then next_pos_aux assignv clausev porg 0
+  else if x = porg then NONE   
+  else if is_free assignv (Vector.sub (clausev,x)) then SOME x
+  else next_pos_aux assignv clausev porg (x + 1)
+
+fun next_pos assignv clausev porg = 
+  next_pos_aux assignv clausev porg (porg + 1)
+
+fun find_pos assignv clausev x = 
+  if x >= Vector.length clausev then NONE 
+  else if is_free assignv (Vector.sub (clausev,x)) then SOME x
+  else find_pos assignv clausev (x + 1)
+
+fun update_watch clausev (clause,pos) =
+  let 
+    val neww = Vector.sub (clausev,pos) 
+    val newclausel = (clause,pos) :: Array.sub (!watcha,neww)
+  in
+    Array.update (!watcha, neww, newclausel)
+  end  
+
+fun blocking_aux assignv =
+  let
+    fun update_watch_top w = 
+      let 
+        val clausel = Array.sub (!watcha,w)
+        fun f (clause,pos) = 
+          let 
+            val (clausev,thm) = Array.sub (!learna,clause) in
+            case next_pos assignv clausev pos of
+              NONE => (block_thm := thm; raise Break) 
+            | SOME newpos => update_watch clausev (clause,newpos)
+          end   
+      in
+        app f clausel
+      end
+  in
+    app update_watch_top (!w_upl);
+    app (fn w => Array.update (!watcha,w,[])) (!w_upl)
+  end
+
+fun blocking assignv = 
+  (blocking_aux assignv; false) handle Break => true 
+
+
+fun clausev_of_thm thm =
+  if not (term_eq (concl thm) F) then raise ERR "thm_to_clause" "" else
+  let val litl = filter is_lit (hyp thm) in
+    Vector.fromList (map hlit_to_vci litl)
+  end
+
+fun update_wla assignv thm =
+  let 
+    val clause = !learna_free
+    val clausev = clausev_of_thm thm
+    val _ = debug_mat (!graph_glob)
+    val _ = debugf (its clause ^ ": ") thm_to_string thm
+  in
+    if clause >= Array.length (!learna)
+      then raise ERR "update_wla" "limit reached" else
+    (
+    case find_pos assignv clausev 0 of
+      NONE => false
+    | SOME pos => 
+      (
+      if Vector.length clausev >= 40 then () else
+       (Array.update (!learna, clause, (clausev,thm));
+       incr learna_free; 
+       update_watch clausev (clause,pos))
+      ;
+      true
+      )
+    )
   end
 
 (* -------------------------------------------------------------------------
@@ -771,11 +901,10 @@ exception Satisfiable;
 
 val colorl_glob = [red,blue]
 
-
 fun msg_split (decv,color) =
   let
-    val _ = if !debug_flag then debug_mat (!graph_glob) else ()
-    val _ = debugf "split: " ets (decv,color)
+    val _ = debug_mat (!graph_glob)
+    val _ = debugf "split: " vcts (decv,color)
     val _ = incr prop_counter
   in
     ()
@@ -786,28 +915,49 @@ fun time_out () =
      !prop_counter + !prop_small_counter > abstract_time
   then raise SatTimeout else ()
 
+(* can backtrack to parents of parents and so on *)
+fun backtrack assignv clausevv path =
+  case path of (undol1,_,[],thml1,g1) :: 
+    (undol2,decv,colorl,thml2,g2) :: parentl => 
+  let
+    val _ = debugf "decv: " vts decv
+    val thmF' = if not (!proof_flag) then TRUTH else 
+      let
+        val thmF = CONFLICT thml1
+        val _ = SAVE_ISO (g1,thmF)   
+      in
+        BACK_PROP decv thmF
+      end
+    val decthm = if not (!proof_flag) then TRUTH else SMART_DISCH decv thmF'
+    val _ = (debug "undo"; app (fn f => f ()) undol1)  
+    val r = update_wla assignv thmF'
+  in
+    if r 
+    then (undol2, decv, colorl, decthm :: thml2, g2) :: parentl
+    else (
+         if term_eq (concl decthm) F then () 
+         else raise ERR "backtrack" "unexpected";
+         debug "undo-jump";
+         backtrack assignv clausevv
+         ((undol2, decv, [], decthm :: thml2, g2) :: parentl)
+         )
+  end
+  | _ => path
+   
+   
+   
 fun sat_solver_loop assignv clausevv path = 
   let 
     val _ = time_out ()
     fun frec x = sat_solver_loop assignv clausevv x 
   in
   case path of 
-    [(undol,_,[],[thma,thmb],_)] =>
-    (if !proof_flag then final_thm := CONFLICT thma thmb else ();
+    [(undol,_,[],thml,_)] =>
+    (if !proof_flag then final_thm := CONFLICT thml else ();
      stats ())  
-  | (undol,_,[],[thma,thmb],g1) :: (undol',decv,colorl,thml,g2) :: parentl => 
-    let
-      val decthm = if not (!proof_flag) then TRUTH else 
-        let 
-          val thmF = CONFLICT thma thmb 
-          val _ = SAVE_ISO (g1,thmF)   
-        in
-          SMART_DISCH decv (BACK_PROP decv thmF) 
-        end
-      val _ = (debug "undo"; app (fn f => f ()) undol)  
-      val newparentl = (undol', decv, colorl, decthm :: thml, g2) :: parentl
-    in
-      frec newparentl
+  | (_,_,[],_,_) :: parentl => 
+    let val newpath = backtrack assignv clausevv path in
+      frec newpath
     end
   | (undol, decv, color :: colorm, thml, g1) :: parentl =>  
     let
@@ -820,20 +970,30 @@ fun sat_solver_loop assignv clausevv path =
     in
       if conflict then 
         let
-          val _ = (debug "conflict"; incr prop_conflict_counter)
+          val _ = (debug "conflict: prop"; incr prop_conflict_counter)
           val decthm = if not (!proof_flag) then TRUTH else
-            dec_thm decv (confv,confclause)  
+            dec_thm decv (confv,confclause)
           val newpath = (undol,decv,colorm, decthm :: thml, g1) :: parentl  
         in
           app (fn f => f ()) newundol;
           frec newpath
         end
       else 
+      if !proof_flag andalso blocking assignv then
+        let
+          val _ = (debug "conflict: learn"; incr degree_conflict_counter)
+          val decthm = learn_thm decv (!block_thm) 
+          val newpath = (undol,decv,colorm, decthm :: thml, g1) :: parentl  
+        in
+          app (fn f => f ()) newundol;
+          frec newpath
+        end
+      else
       let val (normgraph,perm) = normalize_nauty_wperm (!graph_glob) in
       case by_iso (normgraph,perm) of 
         SOME thmF =>
         let
-          val _ = (debug "iso"; incr iso_conflict_counter)
+          val _ = (debug "conflict: iso"; incr iso_conflict_counter)
           val decthm = if not (!proof_flag) then TRUTH else 
             SMART_DISCH decv (BACK_PROP decv thmF)
           val newpath = (undol,decv,colorm, decthm :: thml, g1) :: parentl
@@ -873,11 +1033,11 @@ fun sat_solver_loop assignv clausevv path =
   | _ => raise ERR "sat_solver" "match"
   end
   
-
-fun sat_solver_wisod size (bluen,redn) isod =
+  
+fun sat_solver size (bluen,redn) =
   let
     val _ = init_timer ()
-    val _ = isod_glob := isod
+    val _ = isod_glob := dempty IntInf.compare
     val _ = prop_glob := dempty Int.compare
     val _ = edgel_glob := map edge_to_var (search_order_undirected size)
     val _ = edgel_n := length (!edgel_glob)
@@ -886,12 +1046,10 @@ fun sat_solver_wisod size (bluen,redn) isod =
     val path = [([],0,colorl_glob,[],normalize_nauty_wperm (!graph_glob))]
     val _ = log ("variables: " ^ its (Vector.length assignv))
     val _ = log ("clauses: " ^ its (Vector.length clausevv))
+    val _ = init_wla (2 * Vector.length assignv) 10000
   in
     sat_solver_loop assignv clausevv path
   end
-
-fun sat_solver size (bluen,redn) = 
-  sat_solver_wisod size (bluen,redn) (dempty IntInf.compare)
 
 fun sat_solver_edgecl edgecl size (bluen,redn) =
   let
@@ -929,18 +1087,12 @@ fun sat_solver_edgecl edgecl size (bluen,redn) =
     sat_solver_loop assignv clausevv path
   end  
   
-fun is_gcterm x = 
-  let val oper = fst (strip_comb x) in 
-    is_const oper andalso mem (hd_string (fst (dest_const oper))) [#"G",#"C"]
-  end
-  
 fun ELIM_COND size thm = 
   let
     val sub = List.tabulate (size, fn i => {redex = X i, residue = 
       numSyntax.term_of_int i});
-    val thm1 = INST sub thm
-    fun test x = not (is_gcterm x orelse is_forall x)
-    val arithl = filter test (hyp thm1)
+    val thm1 = INST sub thm;
+    val arithl = filter (not o is_forall) (hyp thm1)
     val thm2 = foldl (uncurry DISCH) thm1 arithl
     val thm3 = SIMP_RULE (bool_ss ++ numSimps.ARITH_ss) [] thm2
   in
@@ -951,110 +1103,11 @@ end (* struct *)
 
 (*
 PolyML.print_depth 0;
-load "sat"; open sat aiLib;
+load "satb"; open satb aiLib;
 PolyML.print_depth 10;
-iso_flag := true; debug_flag := false; proof_flag := false;
-
-val (satl,t) = add_time (sat_solver 11) (4,4);
-val thm = ELIM_COND 9 (!final_thm);
-
-
-PolyML.print_depth 0;
-load "sat"; open sat aiLib;
-PolyML.print_depth 10;
-iso_flag := true; debug_flag := false; proof_flag := false;
-
+iso_flag := true; debug_flag := false; proof_flag := true;
 val (satl,t) = add_time (sat_solver 14) (3,5);
 
 
-(* creating R3_5_7 *)
-PolyML.print_depth 0;
-load "gen"; load "sat"; open sat aiLib graph gen;
-PolyML.print_depth 10;
-iso_flag := true; debug_flag := false; proof_flag := false;
-val bluen = 3;
-val redn = 5;
-val size = 7;
-
-val (satl,t) = add_time (sat_solver size) (bluen,redn);
-length satl;
-
-val coverl = compute_scover (bluen,redn) satl;
-val genl = map fst coverl;
-
-
-val vl = List.tabulate (size, X);
-fun f v = numSyntax.mk_less (v,numSyntax.term_of_int size);
-val boundl = map f vl;
-val pairvl = map pair_of_list (kernel.subsets_of_size 2 vl)
-val diffl = map (fn (a,b) => mk_neg (mk_eq (a,b))) pairvl;
-val preterm = list_mk_imp (boundl @ diffl,F);
-fun term_of_graph graph = 
-  let 
-    val edgecl = mat_to_edgecl graph
-    val litl = map hlit (map_fst edge_to_var edgecl)
-  in
-    list_mk_forall (vl, list_mk_imp (litl,preterm)) 
-  end;
-
-val terml = map term_of_graph genl;
-
-fun f i tm = 
-  let 
-    val s = "G" ^ its bluen ^ its redn ^ its size ^ its i 
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E), tm)
-  in
-    new_definition (s ^ "_DEF", eqtm)
-  end;
-  
-val defl = mapi f terml;
-
-
-val conj = list_mk_conj (map (lhs o concl o SPEC_ALL) defl);
-val conjdef =
-  let 
-    val s = "G" ^ its bluen ^ its redn ^ its size
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E),conj)
-  in
-    new_definition (s ^ "_DEF",  eqtm)
-  end;
-val thml = CONJUNCTS (UNDISCH (fst (EQ_IMP_RULE (SPEC_ALL conjdef))));
-val thml2 = combine (thml, map SPEC_ALL defl);
-val thml3 = map (fn (a,b) => EQ_MP b a) thml2;
-val thml4 = map (UNDISCH_ALL o SPEC_ALL) thml3;
-
-val gthml = combine (genl,thml4);
-val pard = dnew mat_compare gthml;
-
-
-
-val ERR = mk_HOL_ERR "test";
-
-fun save_normgraph ((normgraph,perm),thm) = 
-  let val graphi = zip_mat normgraph in
-    case kernel.dfindo graphi (!isod_glob) of
-      NONE => isod_glob := dadd graphi (thm,perm) (!isod_glob)
-    | SOME _ => raise ERR "save_normgraph" ""
-  end;
-  
-fun f (pargraph,graphperml) =
-  let fun g (graph,perm) = 
-    let val thm = dfind pargraph pard in
-      save_normgraph ((graph,perm),thm)
-    end
-  in
-    app g graphperml
-  end;
-  
-isod_glob := dempty IntInf.compare;
-app f coverl;
-dlength (!isod_glob);
-  
-  
-iso_flag := true; debug_flag := true; proof_flag := true;
-val (satl,t) = add_time (sat_solver_wisod size (bluen,redn)) (!isod_glob) ;
-val thm = ELIM_COND size (!final_thm);
 
 *)
