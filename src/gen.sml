@@ -682,6 +682,8 @@ fun loop_scover_para ncore (bluen,redn) uset result =
     loop_scover_para ncore (bluen,redn) newuset newresult
   end
   
+
+  
 fun compute_scover_para ncore (bluen,redn) uset = 
   let
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
@@ -690,21 +692,31 @@ fun compute_scover_para ncore (bluen,redn) uset =
     loop_scover_para ncore (bluen,redn) uset []
   end 
 
+fun store_cover size (bluen,redn) cover = 
+  let 
+    val dir = selfdir ^ "/ramsey_data";
+    val file = dir ^ "/cover" ^ its bluen ^ its redn ^ its size;
+    fun f (p,cperml) = 
+      let fun g (c,perm) = infts c ^ "_" ^ 
+        String.concatWith "_" (map its perm) 
+      in
+        String.concatWith " " (infts p :: map g cperml)
+      end
+  in
+    mkDir_err dir;
+    writel file (map f cover)
+  end  
+  
 (*
 load "gen"; open aiLib kernel gen;
 val bluen = 4; val redn = 4; val size = 11;
 val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size;
 val uset = enew IntInf.compare (map stinf (readl filein));
-val (result,t) = add_time (compute_scover_para 60 (bluen,redn)) uset;
+val (cover,t) = add_time (compute_scover_para 60 (bluen,redn)) uset;
+store_cover size (bluen,redn) cover;
 
-fun f (p,cperml) = 
-  let fun g (c,perm) = infts c ^ "_" ^ String.concatWith "_" (map its perm) in
-    String.concatWith " " (infts p :: map g cperml)
-  end
-val dir = selfdir ^ "/ramsey_data";
-val file = dir ^ "/cover" ^ its bluen ^ its redn ^ its size;
-mkDir_err dir;
-writel file (map f result);
+
+
 *)
 
 (* -------------------------------------------------------------------------
