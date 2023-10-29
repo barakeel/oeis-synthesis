@@ -716,7 +716,7 @@ fun all_cover ncore (bluen,redn) (minsize,maxsize) =
         store_cover size (bluen,redn) cover
       end  
   in
-    range (minsize,maxsize,f)
+    ignore (range (minsize,maxsize,f))
   end
   
 (*

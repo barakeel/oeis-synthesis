@@ -32,5 +32,6 @@ sig
     (IntInf.int * (IntInf.int * int list) list) list
   val store_cover :  int -> int * int ->
     (IntInf.int * (IntInf.int * int list) list) list -> unit
+  val all_cover : int -> int * int -> int * int -> unit
   
 end
