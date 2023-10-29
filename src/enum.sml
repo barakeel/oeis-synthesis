@@ -206,7 +206,7 @@ fun parallel_extend ncore expname set =
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
-    val graphill = number_fst 0 (mk_batch_full 1000 (elist set))
+    val batchl = number_fst 0 (cut_n (3 * ncore) (elist set))
     val (_,t) = add_time 
        (smlParallel.parmap_queue_extern ncore enumspec ()) graphill
   in
@@ -247,7 +247,7 @@ PolyML.print_depth 0;
 load "enum"; open sat aiLib graph gen enum;
 PolyML.print_depth 10;
 
-start44 3;
+start44 60;
 *)
 
     

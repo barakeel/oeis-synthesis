@@ -484,7 +484,6 @@ fun init_sgen size (bluen,redn) =
     (varv,clausev)
   end;
   
-(* Warning: only works for 4,4 *)
 fun sgeneralize size (bluen,redn) leaf =
   let
     val (varv,clausev) = init_sgen size (bluen,redn) 
@@ -578,6 +577,131 @@ fun compute_scover (bluen,redn) leafl =
   let val uset = enew IntInf.compare (map zip_mat leafl) in
     loop_scover (bluen,redn) uset []
   end
+
+(* -------------------------------------------------------------------------
+   Parallel version of scover 
+   (dropping half of the candidates or more)
+   minimization expensive happens inside the threads
+   ------------------------------------------------------------------------- *)
+
+
+fun sgen_worker ((bluen,redn),uset) mati =
+  let
+    val leaf = unzip_mat mati
+    val edgel = sgeneralize (mat_size leaf) (bluen,redn) leaf
+    val parent = build_parent leaf edgel
+    val (minparent,parentleafs) = minimize_parent uset parent
+    val pcover = filter (fn x => emem (fst x) uset) parentleafs
+  in
+    (zip_mat minparent, pcover)
+  end
+
+fun write_infset file ((a,b),set) = writel file 
+  (its a :: its b :: map infts (elist set))
+fun read_infset file = case readl file of
+  sa :: sb :: m => ((string_to_int sa,string_to_int sb), 
+                    enew IntInf.compare (map stinf m))
+  | _ => raise ERR "read_infset" ""
+ 
+fun write_inf file i = writel file [infts i]
+fun read_inf file = stinf (singleton_of_list (readl file))
+
+fun write_par file (p,cperml) = 
+  let 
+    val ps = infts p
+    fun f (c,perm) = infts c ^ " " ^ ilts perm
+  in
+    writel file (ps :: map f cperml)
+  end
+
+fun read_par file = 
+  let 
+    val sl = readl file
+    fun f s = 
+      let val sl' = String.tokens Char.isSpace s in
+        (stinf (hd sl'), map string_to_int (tl sl'))
+      end
+  in
+    (stinf (hd sl), map f (tl sl))
+  end
+  
+
+val genspec : ((int * int) * IntInf.int Redblackset.set, IntInf.int, 
+  IntInf.int * (IntInf.int * int list) list) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "gen.genspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = sgen_worker,
+  write_param = write_infset,
+  read_param = read_infset,
+  write_arg = write_inf,
+  read_arg = read_inf,
+  write_result = write_par,
+  read_result = read_par
+  }
+
+
+fun update_uset norg ncur pdl (uset,result) =
+  if null pdl orelse ncur <= norg div 2 then (uset,result) else
+  let 
+    val l1 = map_assoc (dlength o snd) pdl
+    val l2 = dict_sort compare_imax l1
+    val (bestp,bestd) = fst (hd l2)
+    val keyl = dkeys bestd
+    val newuset = ereml keyl uset
+    val newresult = (bestp, dlist bestd) :: result 
+    fun test (p,d) = if p = bestp then NONE else SOME (p,dreml keyl d)
+    val newpdl = List.mapPartial test pdl 
+    val _ = log ("Covering " ^ its (dlength bestd) ^ " graphs (" ^ 
+                 its (elength newuset) ^ " remaining)" ^
+                 " at depth " ^ its (number_of_holes (unzip_mat bestp)))
+  in
+    update_uset norg (ncur - 1) newpdl (newuset,newresult)
+  end
+
+fun loop_scover_para ncore (bluen,redn) uset result = 
+  if elength uset <= 0 then rev result else
+  let
+    val ul = random_subset (Int.min (ncore * 10, elength uset)) (elist uset)
+    val (pl,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore genspec ((bluen,redn),uset)) ul  
+    val pdl = map_snd (dnew IntInf.compare) pl
+    val norg = length pdl
+    val (newuset,newresult) = update_uset norg norg pdl (uset,result)
+  in
+    loop_scover_para ncore (bluen,redn) newuset newresult
+  end
+  
+fun compute_scover_para ncore (bluen,redn) uset = 
+  let
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000)
+  in
+    loop_scover_para ncore (bluen,redn) uset []
+  end 
+
+(*
+load "gen"; open aiLib kernel gen;
+val bluen = 4; val redn = 4; val size = 11;
+
+val uset = enew IntInf.compare (map stinf (readl "ramsey_4_4/" ^ its size));
+val result = compute_scover_para 60 (bluen,redn) uset;
+
+fun f (p,cperml) = 
+  let fun g (c,perm) = infts c ^ "_" ^ String.concatWith "_" (map its perm) in
+    String.concatWith " " (infts p :: map g cperml)
+  end
+val dir = selfdir ^ "ramsey_data";
+val file = dir ^ "/cover" ^ its bluen ^ its redn ^ its size
+mkDir_err dir;
+writel file (map f result);
+*)
 
 (* -------------------------------------------------------------------------
    Cone generalization

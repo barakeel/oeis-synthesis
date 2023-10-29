@@ -84,6 +84,7 @@ fun daddi k v d = d := dadd k v (!d)
 fun dmemi x d = dmem x (!d)
 fun dfindo k d = Redblackmap.peek (d,k)
 fun ereml kl d = foldl (uncurry erem) d kl;
+fun dreml kl d = foldl (uncurry drem) d kl;
 
 (* -------------------------------------------------------------------------
    Other tools

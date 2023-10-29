@@ -51,7 +51,8 @@ sig
   val daddi : 'a -> 'b -> ('a, 'b) dict ref -> unit
   val dmemi : 'a -> ('a, 'b) dict ref -> bool
   val ereml : 'a list -> 'a Redblackset.set -> 'a Redblackset.set
-
+  val dreml : 'a list -> ('a,'b) dict -> ('a,'b) dict
+  
   (* useful tools *)
   val range : int * int * (int -> 'a) -> 'a list
   val subsets_of_size : int -> 'a list -> 'a list list

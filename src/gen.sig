@@ -26,10 +26,11 @@ sig
   val ccover : int list list -> int list list
   
   (* parallelization *)
-  (*
-  val coverspec : (mat list, mat, mat list) smlParallel.extspec
-  val loop_cover_para :  string -> int -> mat list -> (mat * mat list) list
-  *)
+  val genspec : ((int * int) * IntInf.int Redblackset.set, IntInf.int, 
+    IntInf.int * (IntInf.int * int list) list) smlParallel.extspec
+  val compute_scover_para : int -> int * int ->
+    IntInf.int Redblackset.set -> 
+    (IntInf.int * (IntInf.int * int list) list) list
   
   
   
