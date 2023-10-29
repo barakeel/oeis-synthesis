@@ -656,7 +656,10 @@ fun update_uset norg ncur pdl (uset,result) =
     val keyl = dkeys bestd
     val newuset = ereml keyl uset
     val newresult = (bestp, dlist bestd) :: result 
-    fun test (p,d) = if p = bestp then NONE else SOME (p,dreml keyl d)
+    fun test (p,d) = if p = bestp then NONE else 
+      let val d' = dreml keyl d in 
+        if dlength d' <= 0 then NONE else SOME (p,d')
+      end
     val newpdl = List.mapPartial test pdl 
     val _ = log ("Covering " ^ its (dlength bestd) ^ " graphs (" ^ 
                  its (elength newuset) ^ " remaining)" ^
@@ -668,7 +671,7 @@ fun update_uset norg ncur pdl (uset,result) =
 fun loop_scover_para ncore (bluen,redn) uset result = 
   if elength uset <= 0 then rev result else
   let
-    val ul = random_subset (Int.min (ncore * 10, elength uset)) (elist uset)
+    val ul = random_subset (Int.min (ncore * 3, elength uset)) (elist uset)
     val (pl,t) = add_time 
       (smlParallel.parmap_queue_extern ncore genspec ((bluen,redn),uset)) ul  
     val pdl = map_snd (dnew IntInf.compare) pl
@@ -689,8 +692,8 @@ fun compute_scover_para ncore (bluen,redn) uset =
 (*
 load "gen"; open aiLib kernel gen;
 val bluen = 4; val redn = 4; val size = 11;
-
-val uset = enew IntInf.compare (map stinf (readl "ramsey_4_4/" ^ its size));
+val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size;
+val uset = enew IntInf.compare (map stinf (readl filein));
 val result = compute_scover_para 60 (bluen,redn) uset;
 
 fun f (p,cperml) = 
