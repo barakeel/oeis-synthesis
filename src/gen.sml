@@ -704,22 +704,24 @@ fun store_cover size (bluen,redn) cover =
     mkDir_err dir;
     writel file (map f cover)
   end  
+
+fun all_cover ncore (bluen,redn) (minsize,maxsize) =  
+  let
+    fun f size =
+      let
+        val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size
+        val uset = enew IntInf.compare (map stinf (readl filein));
+        val (cover,t) = add_time (compute_scover_para ncore (bluen,redn)) uset
+      in
+        store_cover size (bluen,redn) cover
+      end  
+  in
+    range (minsize,maxsize,f)
+  end
   
 (*
 load "gen"; open aiLib kernel gen;
-fun all_in_one size =
-  let
-    val bluen = 4; val redn = 4; val size = 12;
-    val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size;
-    val uset = enew IntInf.compare (map stinf (readl filein));
-    val (cover,t) = add_time (compute_scover_para 60 (bluen,redn)) uset;
-  in
-    store_cover size (bluen,redn) cover
-  end;
-  
-app (fn x => if x <= 1 then () else all_in_one x) (List.tabulate (18,I));
-
-
+val (_,t) = add_time (all_cover 60 (4,4)) (2,17);
 *)
 
 (* -------------------------------------------------------------------------
