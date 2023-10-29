@@ -711,7 +711,9 @@ fun all_cover ncore (bluen,redn) (minsize,maxsize) =
   let
     fun f size =
       let
-        val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size
+        val _ = print_endline ("SIZE " ^ its size) 
+        val filein = (selfdir ^ 
+          "/ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size)
         val uset = enew IntInf.compare (map stinf (readl filein));
         val (cover,t) = add_time (compute_scover_para ncore (bluen,redn)) uset
       in
@@ -723,7 +725,7 @@ fun all_cover ncore (bluen,redn) (minsize,maxsize) =
   
 (*
 load "gen"; open aiLib kernel gen;
-val (_,t) = add_time (all_cover 60 (4,4)) (2,17);
+val (_,t) = add_time (all_cover 2 (4,4)) (4,17);
 *)
 
 (* -------------------------------------------------------------------------
