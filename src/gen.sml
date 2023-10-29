@@ -513,7 +513,7 @@ fun sgeneralize size (bluen,redn) leaf =
       in
         map (fst o dec_edgec) (sgen_loop vlopp [])
       end
-    val edgell = List.tabulate (10000,fn _ => try ())  
+    val edgell = List.tabulate (1000,fn _ => try ())  
   in  
     fst (hd (dict_sort compare_imax (map_assoc length edgell)))
   end;
@@ -672,7 +672,7 @@ fun update_uset norg ncur pdl (uset,result) =
 fun loop_scover_para ncore (bluen,redn) uset result = 
   if elength uset <= 0 then rev result else
   let
-    val ul = random_subset (Int.min (ncore * 3, elength uset)) (elist uset)
+    val ul = random_subset (Int.min (ncore * 4, elength uset)) (elist uset)
     val (pl,t) = add_time 
       (smlParallel.parmap_queue_extern ncore genspec ((bluen,redn),uset)) ul  
     val pdl = map_snd (dnew IntInf.compare) pl
@@ -681,9 +681,7 @@ fun loop_scover_para ncore (bluen,redn) uset result =
   in
     loop_scover_para ncore (bluen,redn) newuset newresult
   end
-  
 
-  
 fun compute_scover_para ncore (bluen,redn) uset = 
   let
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
@@ -709,12 +707,17 @@ fun store_cover size (bluen,redn) cover =
   
 (*
 load "gen"; open aiLib kernel gen;
-val bluen = 4; val redn = 4; val size = 11;
-val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size;
-val uset = enew IntInf.compare (map stinf (readl filein));
-val (cover,t) = add_time (compute_scover_para 60 (bluen,redn)) uset;
-store_cover size (bluen,redn) cover;
-
+fun all_in_one size =
+  let
+    val bluen = 4; val redn = 4; val size = 12;
+    val filein = "ramsey_" ^ its bluen ^ "_" ^ its redn ^ "/" ^ its size;
+    val uset = enew IntInf.compare (map stinf (readl filein));
+    val (cover,t) = add_time (compute_scover_para 60 (bluen,redn)) uset;
+  in
+    store_cover size (bluen,redn) cover
+  end;
+  
+app (fn x => if x <= 1 then () else all_in_one x) (List.tabulate (18,I));
 
 
 *)
