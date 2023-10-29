@@ -672,9 +672,11 @@ fun update_uset norg ncur pdl (uset,result) =
 fun loop_scover_para ncore (bluen,redn) uset result = 
   if elength uset <= 0 then rev result else
   let
-    val ul = random_subset (Int.min (ncore * 4, elength uset)) (elist uset)
+    val n = Int.min (ncore * 4, elength uset)
+    val ul = random_subset n (elist uset)
     val (pl,t) = add_time 
-      (smlParallel.parmap_queue_extern ncore genspec ((bluen,redn),uset)) ul  
+      (smlParallel.parmap_queue_extern (Int.min (n,ncore))
+        genspec ((bluen,redn),uset)) ul  
     val pdl = map_snd (dnew IntInf.compare) pl
     val norg = length pdl
     val (newuset,newresult) = update_uset norg norg pdl (uset,result)
