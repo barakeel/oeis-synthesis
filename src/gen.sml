@@ -8,13 +8,13 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel graph nauty sat rconfig
   rconfig satenc smlParallel
 val ERR = mk_HOL_ERR "gen"
-type vleafs = int * (IntInf.int * int list) list  
+type vleafs = int * int * (IntInf.int * int list) list  
 
 val nauty_time = ref 0.0
 val normalize_nauty = total_time nauty_time normalize_nauty
 
 (* -------------------------------------------------------------------------
-   Going up and down in the tree
+   Getting all_leafs of 
    ------------------------------------------------------------------------- *) 
 
 fun apply_coloring m edgecl = 
@@ -37,112 +37,27 @@ fun all_coloring edgel =
   in
     cartesian_productl edgebothl
   end
-     
-fun all_parents m = 
-  let
-    val l = ref []
-    fun f (i,j,x) =
-      if x = 0 then () else 
-      let
-        val newm = mat_copy m
-        val _ = mat_update_sym (newm,i,j,0)
-      in 
-        l := newm :: !l
-      end
-  in
-    mat_traverse f m; nauty_set (!l)
-  end
-  
-fun all_children m = 
-  let
-    val l = ref []
-    fun f (i,j,x) =
-      if x <> 0 then () else 
-      let 
-        val bluem = mat_copy m
-        val _ = mat_update_sym (bluem,i,j,blue)
-        val redm = mat_copy m
-        val _ = mat_update_sym (redm,i,j,red)
-      in 
-        l := bluem :: redm :: !l
-      end
-  in
-    mat_traverse f m; nauty_set (!l)
-  end 
-  
-fun random_children_pair m = 
-  let 
-    val (i,j) = random_elem (all_holes m)
-    val bluem = mat_copy m
-    val _ = mat_update_sym (bluem,i,j,blue)
-    val redm = mat_copy m
-    val _ = mat_update_sym (redm,i,j,red)
-  in
-    [bluem,redm]
-  end
 
-fun all_existing_children set m = 
-  let
-    val rset = ref (eempty mat_compare)
-    fun f (i,j,x) =
-      if x <> 0 then () else 
-      let 
-        val bluem = mat_copy m
-        val _ = mat_update_sym (bluem,i,j,blue)
-        val normbluem = normalize_nauty bluem
-        val redm = mat_copy m
-        val _ = mat_update_sym (redm,i,j,red)
-        val normredm = normalize_nauty redm
-        fun add m = if emem m set then rset := eadd m (!rset) else ()
-      in 
-        add normbluem; add normredm
-      end
-  in
-    mat_traverse f m; elist (!rset)
-  end  
-
-fun all_leafs m =
-  let
-    val edgel = all_holes m
-    val coloringl = all_coloring edgel
-    val childl = map (apply_coloring m) coloringl
-  in
-    nauty_set childl
-  end;
-
-fun all_leafs_wperm m =
-  let
-    val edgel = all_holes m
-    val coloringl = all_coloring edgel
-    val childl = map (apply_coloring m) coloringl
-    fun f x = 
-      let val (normm,perm) = normalize_nauty_wperm x in
-        (zip_mat normm,perm)
-      end
-    val childl_ext = map f childl
-  in
-    mk_fast_set (fst_compare IntInf.compare) childl_ext
-  end;
-  
-fun all_leafso_wperm uset m =
+fun all_leafs_wperm uset m =
   let
     val edgel = all_holes m
     val coloringltop = all_coloring edgel
     val d = ref (dempty IntInf.compare)
-    fun loop d coloringl = case coloringl of 
-        [] => SOME (dlist d) 
+    fun loop d e coloringl = case coloringl of 
+        [] => (d,e)
       | coloring :: cont =>
         let 
           val child = apply_coloring m coloring     
           val (normm,perm) = normalize_nauty_wperm child
           val normi = zip_mat normm
+          val newe = eadd normi e
         in
           if emem normi uset
-          then loop (dadd normi perm d) cont   
-          else NONE
+          then loop (dadd normi perm d) newe cont   
+          else loop d newe cont
         end
   in
-    loop (dempty IntInf.compare) coloringltop 
+    loop (dempty IntInf.compare) (eempty IntInf.compare) coloringltop 
   end
 
 (* -------------------------------------------------------------------------
@@ -188,8 +103,17 @@ fun build_sibling leaf edgel (itop,jtop) =
     sibling
   end
 
-fun sgeneralize size (bluen,redn) uset leaf =
+fun concat_cpermll (leafi,vleafsl) = 
+  let val idperm = List.tabulate (mat_size (unzip_mat leafi),I) in
+    mk_fast_set (fst_compare IntInf.compare)
+      ((leafi,idperm) :: List.concat (map #3 vleafsl))
+  end
+  
+
+fun sgeneralize (bluen,redn) uset leafi =
   let
+    val leaf = unzip_mat leafi
+    val size = mat_size leaf
     val (varv,clausev) = init_sgen size (bluen,redn) 
     val sizev = Vector.map (fn x => length x - 1) clausev
     val inita = Array.array (Vector.length clausev,0)    
@@ -215,36 +139,31 @@ fun sgeneralize size (bluen,redn) uset leaf =
             [] => rev result
           | v :: rem => 
             let 
-              val edgel = map (fst o dec_edgec o fst) result
+              val edgel = map (fst o dec_edgec o #1) result
               val edge = fst (dec_edgec v)
               val sibling = build_sibling leaf edgel edge
-              val leafso = all_leafso_wperm uset sibling
+              val (d,e) = all_leafs_wperm uset sibling
+              val maxn = elength e
             in
-              case leafso of 
-                NONE => sgen_loop rem result
-              | SOME leafs => 
-                (update_numbera locala v; 
-                 sgen_loop (filter test rem) ((v,leafs) :: result)) 
+              if 2 * dlength d  > maxn
+              then (update_numbera locala v; 
+                    sgen_loop (filter test rem) ((v,maxn,dlist d) :: result)) 
+              else sgen_loop rem result
             end   
       in
         sgen_loop (filter test vlopp) []
-      end
+      end 
   in  
     try ()
   end;
 
-
 (* -------------------------------------------------------------------------
-   Parallel version of scover 
-   (dropping half of the candidates or more)
-   minimization expensive happens inside the threads
+   Finding generalizations not overlapping too much
    ------------------------------------------------------------------------- *)
    
 fun sgen_worker ((bluen,redn),uset) leafi =
   let
-    val leaf = unzip_mat leafi
-    val vleafsl = sgeneralize (mat_size leaf) (bluen,redn) uset leaf
-  in
+    val vleafsl = sgeneralize (bluen,redn) uset leafi in
     (leafi, vleafsl)
   end
 
@@ -265,11 +184,11 @@ fun cperm_of_string s = case String.tokens (fn x => x = #"_") s of
     a :: m => (stinf a, map string_to_int m)
   | _ => raise ERR "cperm_of_string" ""
 
-fun string_of_vleafs (v,cperml) = 
-  String.concatWith " " (its v :: map string_of_cperm cperml)
+fun string_of_vleafs (v,maxn,cperml) = 
+  String.concatWith " " (its v :: its maxn :: map string_of_cperm cperml)
 
 fun vleafs_of_string s = case String.tokens Char.isSpace s of
-    a :: m => (string_to_int a, map cperm_of_string m)
+    a :: b :: m => (string_to_int a, string_to_int b, map cperm_of_string m)
   | _ => raise ERR "vleafs_of_string" ""
 
 fun write_result file (leafi,vleafsl)  =
@@ -301,34 +220,21 @@ val genspec : ((int * int) * IntInf.int Redblackset.set, IntInf.int,
 
 fun remove_vleafsl_aux uset (leafi,vleafsl) acc = case vleafsl of
     [] => SOME (leafi, rev acc)
-  | (v,cperml) :: m =>  
-    if not (all (fn x => emem (fst x) uset) cperml)
-    then SOME (leafi, rev acc)
-    else remove_vleafsl_aux uset (leafi,m) ((v,cperml) :: acc)
+  | (v,maxn,cperml) :: m =>  
+    let val newcperml = filter (fn x => emem (fst x) uset) cperml in
+      if 2 * length newcperml > maxn 
+      then remove_vleafsl_aux uset (leafi,m) ((v,maxn,newcperml) :: acc)
+      else NONE
+    end
 
 fun remove_vleafsl uset (leafi,vleafsl) = 
   if not (emem leafi uset) then NONE else 
   remove_vleafsl_aux uset (leafi,vleafsl) []
 
-(*
-fun remove_vleafsl uset (leafi,vleafsl) =
-  case vleafsl of
-    [] => if emem leafi uset then SOME (leafi,[]) else NONE
-  | (v,cperml) :: m => 
-    if all (fn x => emem (fst x) uset) cperml
-    then SOME (leafi,vleafsl)
-    else remove_vleafsl uset (leafi,m)
-*)
 
 val select_number1 = ref 240
 val select_number2 = ref 120
 
-fun concat_cpermll (leafi,vleafsl) = 
-  let val idperm = List.tabulate (mat_size (unzip_mat leafi),I) in
-    mk_fast_set (fst_compare IntInf.compare)
-      ((leafi,idperm) :: List.concat (map snd vleafsl))
-  end
-  
 fun update_uset selectn pl (uset,result) =
   if elength uset <= 0 orelse 
      null pl orelse selectn >= !select_number2 then (uset,result) else
@@ -337,8 +243,9 @@ fun update_uset selectn pl (uset,result) =
     val l2 = dict_sort compare_imax l1
     val (leafi,vleafsl) = fst (hd l2) 
     val cperml = concat_cpermll (leafi,vleafsl)
-    val newuset = ereml (map fst cperml) uset
-    val edgel = map (fst o dec_edgec o fst) vleafsl
+    val keyl = map fst cperml
+    val newuset = ereml keyl uset
+    val edgel = map (fst o dec_edgec o #1) vleafsl
     val pari = zip_mat (build_parent (unzip_mat leafi) edgel)
     val newresult = (pari,cperml) :: result
     val newpl = List.mapPartial (remove_vleafsl newuset) pl
@@ -372,7 +279,7 @@ fun compute_scover_para ncore size (bluen,redn) =
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000)
   in
     loop_scover_para ncore (bluen,redn) uset []
-  end 
+  end
 
 fun store_cover size (bluen,redn) cover = 
   let 
@@ -413,7 +320,7 @@ val ncore = 60;
 val (_,t0) = add_time (enum ncore) (3,5);
 val (_,t1) = add_time (enum ncore) (4,4);
 
-select_number1 := 1000;
+select_number1 := 313;
 select_number2 := 1;
 val (_,t2) = add_time (gen ncore (3,5)) (5,13);
 

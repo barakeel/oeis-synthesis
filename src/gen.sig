@@ -2,12 +2,7 @@ signature gen =
 sig
 
   type mat = int Array2.array
-  type vleafs = int * (IntInf.int * int list) list  
-  
-  (* generalization tree *)
-  val all_children : mat -> mat list
-  val all_parents : mat -> mat list
-  val all_leafs : mat -> mat list
+  type vleafs = int * int * (IntInf.int * int list) list  
   
   (* parameters *)
   val select_number1 : int ref
