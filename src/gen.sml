@@ -109,6 +109,7 @@ fun concat_cpermll (leafi,vleafsl) =
       ((leafi,idperm) :: List.concat (map #3 vleafsl))
   end
   
+val threshold = 4 (* percentage of newly covered graph *)
 
 fun sgeneralize (bluen,redn) uset leafi =
   let
@@ -145,7 +146,7 @@ fun sgeneralize (bluen,redn) uset leafi =
               val (d,e) = all_leafs_wperm uset sibling
               val maxn = elength e
             in
-              if 2 * dlength d  > maxn
+              if threshold * dlength d  > maxn
               then (update_numbera locala v; 
                     sgen_loop (filter test rem) ((v,maxn,dlist d) :: result)) 
               else sgen_loop rem result
@@ -222,7 +223,7 @@ fun remove_vleafsl_aux uset (leafi,vleafsl) acc = case vleafsl of
     [] => SOME (leafi, rev acc)
   | (v,maxn,cperml) :: m =>  
     let val newcperml = filter (fn x => emem (fst x) uset) cperml in
-      if 2 * length newcperml > maxn 
+      if threshold * length newcperml > maxn 
       then remove_vleafsl_aux uset (leafi,m) ((v,maxn,newcperml) :: acc)
       else NONE
     end
@@ -320,12 +321,17 @@ val ncore = 60;
 val (_,t0) = add_time (enum ncore) (3,5);
 val (_,t1) = add_time (enum ncore) (4,4);
 
+
+PolyML.print_depth 0;
+load "enum"; load "gen"; open sat aiLib kernel graph gen enum;
+PolyML.print_depth 10;
+val ncore = 60;
 select_number1 := 313;
 select_number2 := 1;
 val (_,t2) = add_time (gen ncore (3,5)) (5,13);
 
-select_number1 := 240;
-select_number2 := 120;
+select_number1 := 1000;
+select_number2 := 100;
 val (_,t3) = add_time (gen ncore (4,4)) (4,17);
 *)
 
