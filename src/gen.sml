@@ -109,7 +109,7 @@ fun concat_cpermll (leafi,vleafsl) =
       ((leafi,idperm) :: List.concat (map #3 vleafsl))
   end
   
-val threshold = 4 (* percentage of newly covered graph *)
+val threshold = 8 (* percentage of newly covered graph *)
 
 fun sgeneralize (bluen,redn) uset leafi =
   let
