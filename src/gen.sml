@@ -43,7 +43,7 @@ fun all_parents m =
     val l = ref []
     fun f (i,j,x) =
       if x = 0 then () else 
-      let 
+      let
         val newm = mat_copy m
         val _ = mat_update_sym (newm,i,j,0)
       in 

@@ -28,7 +28,6 @@ fun enum_worker br (i,il) =
     val file = dir ^ "/" ^ its i
   in
     app (add_vertex br set) il;
-    mkDir_err dir;
     (writel file (map IntInf.toString (elist (!set)))
      handle SysErr _ => raise ERR "enum_worker" file)
   end
@@ -85,7 +84,6 @@ fun parallel_extend ncore expname br set =
     val _ = smlExecScripts.buildheap_dir := dir
     val batchl = number_fst 0 (cut_n (3 * ncore) (elist set))
     val _ = clean_dir (selfdir ^ "/parallel_search")
-    val _ = smlParallel.parmap_queue_extern ncore enumspec br batchl
   in
     merge_graphs (dir ^ "/graphs")
   end
