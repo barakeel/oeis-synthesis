@@ -6,14 +6,13 @@ val ERR = mk_HOL_ERR "enum"
 
 fun debug_mat m = if !debug_flag then graph.print_mat m else ()
 
-
 (* -------------------------------------------------------------------------
    First enumeration without proof
    ------------------------------------------------------------------------- *)
 
 fun enum size (bluen,redn) = 
   let
-    val _ = (iso_flag := true; proof_flag := false)
+    val _ = (disable_log := true; iso_flag := true; proof_flag := false)
     val (graphl,t) = add_time (sat_solver size) (bluen,redn);
     val _ = print_endline ("enum " ^ its bluen ^ its redn ^ 
       its size ^ ": " ^ rts_round 4 t)
@@ -22,35 +21,13 @@ fun enum size (bluen,redn) =
   end
 
 (* -------------------------------------------------------------------------
-   Term
-   ------------------------------------------------------------------------- *)
-   
-fun mk_domain vl size =
-  let
-    fun f v = numSyntax.mk_less (v,numSyntax.term_of_int size)
-    val boundl = map f vl
-    val pairvl = map pair_of_list (kernel.subsets_of_size 2 vl)
-    val diffl = map (fn (a,b) => mk_neg (mk_eq (a,b))) pairvl
-  in
-    list_mk_imp (boundl @ diffl,F)
-  end
-  
-fun term_of_graph vl domain graph = 
-  let 
-    val edgecl = mat_to_edgecl graph
-    val litl = map hlit (map_fst edge_to_var edgecl)
-  in
-    list_mk_forall (vl, list_mk_imp (litl,domain)) 
-  end
-
-(* -------------------------------------------------------------------------
    Definitions to make terms shorter
    ------------------------------------------------------------------------- *)
 
-fun mk_gdefi size (bluen,redn) vl domain i graphi = 
+fun mk_gdef size (bluen,redn) (i,graphi) = 
   let
     val graph = unzip_mat graphi
-    val tm = term_of_graph vl domain graph
+    val tm = term_of_graph graph
     val s = "G" ^ its bluen ^ its redn ^ its size ^ "_" ^ its i 
     val v = mk_var (s,``:(num -> num -> bool) -> bool``)
     val eqtm = mk_eq (mk_comb (v,E), tm)
@@ -70,9 +47,7 @@ fun mk_conjdef size (bluen,redn) conj =
 fun create_pard size (bluen,redn) parl = 
   if null parl then dempty IntInf.compare else
   let
-    val vl = List.tabulate (size, X)
-    val domain = mk_domain vl size
-    val defl = mapi (mk_gdefi size (bluen,redn) vl domain) parl
+    val defl = map (mk_gdef size (bluen,redn)) (number_fst 0 parl)
     val conj = list_mk_conj (map (lhs o concl o SPEC_ALL) defl)
     val conjdef = mk_conjdef size (bluen,redn) conj
     val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
@@ -126,39 +101,35 @@ fun main size (bluen,redn) =
   end
 
 (* -------------------------------------------------------------------------
-   Parallel bottom-up enumeration without proof for R,4,4,k graphs
+   Parallel bottom-up enumeration without proof for 
+   R,bluen,redn,size graphs.
    ------------------------------------------------------------------------- *)
 
-fun add_vertex44 set graphi =
-  let 
-    val _ = hide_stats := true
+fun add_vertex (bluen,redn) set graphi =
+  let
     val graph = unzip_mat graphi
     val size = mat_size graph + 1
-    val graphl = sat_solver_edgecl (mat_to_edgecl graph) size (4,4)
+    val _ = (iso_flag := false; debug_flag := false; proof_flag := false)
+    val graphl = sat_solver_edgecl (mat_to_edgecl graph) size (bluen,redn)
     val il = map (zip_mat o nauty.normalize_nauty) graphl  
   in
     set := eaddl il (!set)
   end
 
-fun worker44 (i,il) = 
+fun enum_worker br (i,il) = 
   let  
     val set = ref (eempty IntInf.compare) 
     val dir = !smlExecScripts.buildheap_dir ^ "/graphs"
     val file = dir ^ "/" ^ its i
   in
-    app (add_vertex44 set) il;
+    app (add_vertex br set) il;
     mkDir_err dir;
     writel file (map IntInf.toString (elist (!set)))
   end
 
 fun merge_one set file = 
-  let 
-    val sl = readl file
-    val il = map stinf sl 
-  in
-    set := eaddl il (!set)
-  end
-    
+  set := eaddl (map stinf (readl file)) (!set)
+
 fun merge_graphs dir = 
   let 
     val set = ref (eempty IntInf.compare) 
@@ -167,19 +138,17 @@ fun merge_graphs dir =
     app (merge_one set) filel; !set
   end  
 
-fun write_iil file (i,il) =
-  writel file (its i :: map infts il)
+fun write_iil file (i,il) = writel file (its i :: map infts il)
 
 fun read_iil file =
-  let 
-    val sl = readl file   
-    val i = string_to_int (hd sl)
-    val il = map stinf (tl sl)
-  in 
-    (i,il)
+  let val sl = readl file in
+    (string_to_int (hd sl), map stinf (tl sl))
   end
 
-val enumspec : (unit, (int * IntInf.int list), unit) smlParallel.extspec =
+fun write_br file (bluen,redn) = writel file [its bluen, its redn]
+fun read_br file = pair_of_list (map string_to_int (readl file))
+
+val enumspec : (int * int, int * IntInf.int list, unit) smlParallel.extspec =
   {
   self_dir = selfdir,
   self = "enum.enumspec",
@@ -189,55 +158,64 @@ val enumspec : (unit, (int * IntInf.int list), unit) smlParallel.extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote 
       (!smlExecScripts.buildheap_dir)] 
     ^ ")"),
-  function = let fun f () x = worker44 x in f end,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
+  function = enum_worker,
+  write_param = write_br,
+  read_param = read_br,
   write_arg = write_iil,
   read_arg = read_iil,
   write_result = let fun f _ () = () in f end,
   read_result = let fun f _ = () in f end
   }
 
-fun parallel_extend ncore expname set =
+fun parallel_extend ncore expname br set =
   let  
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
-    val _ = mkDir_err dir
+    val _ = clean_dir dir
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
     val batchl = number_fst 0 (cut_n (3 * ncore) (elist set))
-    val (_,t) = add_time 
-       (smlParallel.parmap_queue_extern ncore enumspec ()) graphill
+    val _ = clean_dir (selfdir ^ "/parallel_search")
+    val _ = smlParallel.parmap_queue_extern ncore enumspec br batchl
   in
     merge_graphs (dir ^ "/graphs")
   end
     
-fun extend set = 
-  let
-    val newset = ref (eempty IntInf.compare)
-    val ((),t) = add_time (Redblackset.app (add_vertex44 newset)) set   
+fun serial_extend br set = 
+  let val newset = ref (eempty IntInf.compare) in
+    Redblackset.app (add_vertex br newset) set; !newset
+  end
+
+fun store_enum size (bluen,redn) set =
+  let 
+    val dir = selfdir ^ "/ramsey_data"
+    val enumname = "enum" ^ its bluen ^ its redn ^ its size
+    val il = map infts (elist set) 
   in
-    !newset
+    mkDir_err dir;
+    writel (dir ^ "/" ^ enumname) il;
+    print_endline ("Stored: " ^ enumname)
   end
   
-fun loop44 ncore i set = 
+fun extend_loop ncore size (br as (bluen,redn)) set = 
   let
-    val expname = "R44" ^ its (i+1)
-    val newset =
-      if ncore <= 1 orelse elength set <= 1000 
-      then extend set 
-      else parallel_extend ncore expname set
-    val _ = mkDir_err (selfdir ^ "/ramsey_4_4")
-    val il = map infts (elist newset)
-    val _ = writel (selfdir ^ "/ramsey_4_4/" ^ its (i+1)) il
+    val expname = "R" ^ its bluen ^ its redn ^ its size
+    val newset = 
+      let val n = Int.min (ncore,elength set) in
+        if n <= 1
+        then serial_extend br set
+        else parallel_extend n expname br set
+      end
+    val _ = store_enum size br newset
   in
-    if elength newset <= 0 then () else loop44 ncore (i+1) newset
+    if elength newset <= 0 then () else 
+    extend_loop ncore (size+1) (bluen,redn) newset
   end;
   
-fun start44 ncore = 
+fun enum ncore (bluen,redn) = 
   let val set = enew IntInf.compare [zip_mat (Array2.array (1,1,0))] in
-    loop44 ncore 1 set
+    extend_loop ncore 2 (bluen,redn) set
   end
     
 end (* struct *)
@@ -247,13 +225,13 @@ PolyML.print_depth 0;
 load "enum"; open sat aiLib graph gen enum;
 PolyML.print_depth 10;
 
-start44 60;
+enum 2 (4,4);
+enum 2 (3,5);
 *)
 
     
 
 (*
-
 val ramsey_3_5_7 = main 7 (3,5);
 val ramsey_3_5_8 = main 8 (3,5);
 val ramsey_3_5_9 = main 9 (3,5);
@@ -262,40 +240,4 @@ val ramsey_3_5_11 = main 11 (3,5);
 val ramsey_3_5_12 = main 12 (3,5);
 val ramsey_3_5_13 = main 13 (3,5);
 val ramsey_3_5_14 = main 14 (3,5);
-
-load "enum"; open enum;
-new_theory "ramsey_4_4_11";
-val thm4411 = main 11 (4,4);
-val ramsey_4_4_11 = save_thm ("ramsey_4_4_11",thm4411);
-export_theory ();
-
-load "enum"; open enum;
-new_theory "ramsey_4_4_12";
-val thm4412 = main 12 (4,4);
-val ramsey_4_4_12 = save_thm ("ramsey_4_4_12",thm4412);
-export_theory ();
-
-load "enum"; open enum;
-
-fun gen_theory44 size = 
-  let 
-    val id = "ramsey_4_4_" ^ int_to_string size
-    val _ = new_theory id;
-    val thm = main size (4,4);
-    val _ = save_thm (id,thm);
-  in
-    export_theory ()
-  end;
-  
-gen_theory44 18;  
-
-
-val thm4412 = main 12 (4,4);
-(* val thm4413 = main 13 (4,4); *)
-val thm4414 = main 14 (4,4);
-val thm3511 = main 15 (4,4);
-val thm3512 = main 16 (4,4);
-val thm3513 = main 17 (4,4);
-val thm3514 = main 18 (4,4);
-
 *)

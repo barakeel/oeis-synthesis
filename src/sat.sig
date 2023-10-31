@@ -13,7 +13,8 @@ sig
   val hlit : (int * int) -> term
   val is_lit : term -> bool
   val noclique : int -> int * bool -> term
-  
+  val term_of_graph : mat -> term
+
   (* vector with constant time deletion *)
   val dlv_fromlist : 'a -> 'a list -> ((int ref * int ref) * 'a) vector
   val dlv_del : int -> ((int ref * int ref) * 'a) vector -> unit -> unit
@@ -35,16 +36,33 @@ sig
   val proof_flag : bool ref
   val iso_flag : bool ref
   val isod_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
+  val gthmd_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val allsat_flag : bool ref
-  val hide_stats : bool ref
   
   (* solver *)
   val sat_solver : int -> int * int -> mat list
   val sat_solver_wisod : int -> int * int -> 
     (IntInf.int, thm * int list) Redblackmap.dict -> mat list
-  val sat_solver_edgecl : ((int * int) * int) list -> int -> int * int -> mat list
+  val sat_solver_edgecl : ((int * int) * int) list -> 
+    int -> int * int -> mat list
   
-  (* post-processing *)
+  
+  (* preprocessing *)
+  val mk_both_cdef : int -> int * int -> thm * thm
+  val init_gthmd : (IntInf.int, thm) Redblackmap.dict ->
+    (IntInf.int * (IntInf.int * int list) list) list -> unit
+  val read_cover : int -> int * int -> 
+    (IntInf.int * (IntInf.int * int list) list) list
+
+
+  (* postprocessing *)
   val ELIM_COND : int -> thm -> thm
+  val ELIM_COND_GRAPH : mat -> thm -> thm
+  val PROVE_HYPL : thm list -> thm -> thm
+  val DISCHL : term list -> thm -> thm
+  val PROVE_HYP_EQ : thm -> thm -> thm
+  val LESS_THAN_NEXT : int -> thm
+  
+  
   
 end

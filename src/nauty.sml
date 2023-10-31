@@ -201,6 +201,13 @@ val m = random_mat 10;
 val (m',perm) = normalize_nauty_wperm m;
 val m'' = mat_permute (m',mat_size m') (mk_permf (invert_perm perm));
 mat_eq m m'';
+
+val sl = ["0 2 2 2","2 0 2 2","2 2 0 1","2 2 1 0"];
+val il = List.concat (map stil sl);
+val slref = ref il;
+val m = mat_tabulate (4, fn _ => 
+  let val a = hd (!slref) in slref := tl (!slref); a end);
+val (m',perm) = normalize_nauty_wperm m;
 *)
 
 end (* struct *)
