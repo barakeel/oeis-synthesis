@@ -235,14 +235,14 @@ fun remove_vleafsl uset (leafi,vleafsl) =
 
 val select_number1 = ref 240
 val select_number2 = ref 120
-(*
+
 fun size_of_vleafsl vleafsl = sum_int (map (length o #3) vleafsl)
-*)
+
 fun update_uset selectn pl (uset,result) =
   if elength uset <= 0 orelse 
      null pl orelse selectn >= !select_number2 then (uset,result) else
   let 
-    val l1 = map_assoc (length o snd) pl
+    val l1 = map_assoc (size_of_vleafsl o snd) pl
     val l2 = dict_sort compare_imax l1
     val (leafi,vleafsl) = fst (hd l2) 
     val cperml = concat_cpermll (leafi,vleafsl)
