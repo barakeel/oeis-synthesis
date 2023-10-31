@@ -1,104 +1,8 @@
 structure enum :> enum =
 struct   
 
-open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig sat gen
+open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig sat
 val ERR = mk_HOL_ERR "enum"
-
-fun debug_mat m = if !debug_flag then graph.print_mat m else ()
-
-(* -------------------------------------------------------------------------
-   First enumeration without proof
-   ------------------------------------------------------------------------- *)
-
-fun enum size (bluen,redn) = 
-  let
-    val _ = (disable_log := true; iso_flag := true; proof_flag := false)
-    val (graphl,t) = add_time (sat_solver size) (bluen,redn);
-    val _ = print_endline ("enum " ^ its bluen ^ its redn ^ 
-      its size ^ ": " ^ rts_round 4 t)
-  in
-    graphl
-  end
-
-(* -------------------------------------------------------------------------
-   Definitions to make terms shorter
-   ------------------------------------------------------------------------- *)
-
-fun mk_gdef size (bluen,redn) (i,graphi) = 
-  let
-    val graph = unzip_mat graphi
-    val tm = term_of_graph graph
-    val s = "G" ^ its bluen ^ its redn ^ its size ^ "_" ^ its i 
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E), tm)
-  in
-    new_definition (s ^ "_DEF", eqtm)
-  end
-
-fun mk_conjdef size (bluen,redn) conj = 
-  let 
-    val s = "G" ^ its bluen ^ its redn ^ its size
-    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
-    val eqtm = mk_eq (mk_comb (v,E),conj)
-  in
-    new_definition (s ^ "_DEF",  eqtm)
-  end
-
-fun create_pard size (bluen,redn) parl = 
-  if null parl then dempty IntInf.compare else
-  let
-    val defl = map (mk_gdef size (bluen,redn)) (number_fst 0 parl)
-    val conj = list_mk_conj (map (lhs o concl o SPEC_ALL) defl)
-    val conjdef = mk_conjdef size (bluen,redn) conj
-    val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
-    val thml = CONJUNCTS (f conjdef)
-    val thml2 = combine (thml, map SPEC_ALL defl)
-    val thml3 = map (fn (a,b) => EQ_MP b a) thml2
-    val thml4 = map (UNDISCH_ALL o SPEC_ALL) thml3
-    val gthml = combine (parl,thml4)
-  in
-    dnew IntInf.compare gthml
-  end
-
-(* -------------------------------------------------------------------------
-   Enumeration with proof
-   ------------------------------------------------------------------------- *)
-
-fun update_isod_one ((graphi,perm),thm) = 
-  case dfindo graphi (!isod_glob) of
-    NONE => isod_glob := dadd graphi (thm,perm) (!isod_glob)
-  | SOME _ => raise ERR "save_normgraph" ""
-
-fun update_isod pard (pari,graphiperml) =
-  let fun g (graphi,perm) = 
-    let val thm = dfind pari pard in
-      update_isod_one ((graphi,perm),thm)
-    end
-  in
-    app g graphiperml
-  end
-
-fun enum_proof size (bluen,redn) pard coverl =
-  let 
-    val _ = isod_glob := dempty IntInf.compare;
-    val _ = app (update_isod pard) coverl
-    val _ = (iso_flag := true; proof_flag := true)
-    val (satl,t) = add_time (sat_solver_wisod size (bluen,redn)) (!isod_glob)
-    val _ = print_endline ("enum_proof " ^ its bluen ^ its redn ^ 
-      its size ^ ": " ^ rts_round 4 t)
-  in
-    ELIM_COND size (!final_thm)
-  end
-    
-fun main size (bluen,redn) = 
-  let
-    val graphl = enum size (bluen,redn)
-    val coverl = compute_scover (bluen,redn) graphl
-    val parl = map fst coverl
-    val pard = create_pard size (bluen,redn) parl
-  in
-    enum_proof size (bluen,redn) pard coverl 
-  end
 
 (* -------------------------------------------------------------------------
    Parallel bottom-up enumeration without proof for 
@@ -109,7 +13,8 @@ fun add_vertex (bluen,redn) set graphi =
   let
     val graph = unzip_mat graphi
     val size = mat_size graph + 1
-    val _ = (iso_flag := false; debug_flag := false; proof_flag := false)
+    val _ = (disable_log := true; debug_flag := false)
+    val _ = (iso_flag := false;  proof_flag := false)
     val graphl = sat_solver_edgecl (mat_to_edgecl graph) size (bluen,redn)
     val il = map (zip_mat o nauty.normalize_nauty) graphl  
   in
@@ -232,12 +137,5 @@ enum 2 (3,5);
     
 
 (*
-val ramsey_3_5_7 = main 7 (3,5);
-val ramsey_3_5_8 = main 8 (3,5);
-val ramsey_3_5_9 = main 9 (3,5);
-val ramsey_3_5_10 = main 10 (3,5);
-val ramsey_3_5_11 = main 11 (3,5);
-val ramsey_3_5_12 = main 12 (3,5);
-val ramsey_3_5_13 = main 13 (3,5);
-val ramsey_3_5_14 = main 14 (3,5);
+
 *)

@@ -4,6 +4,50 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig sat enum
 val ERR = mk_HOL_ERR "enump"
 
+(* -------------------------------------------------------------------------
+   Definitions of generalized graphs
+   ------------------------------------------------------------------------- *)
+
+fun mk_gdef size (bluen,redn) (i,graphi) = 
+  let
+    val graph = unzip_mat graphi
+    val tm = term_of_graph graph
+    val s = "G" ^ its bluen ^ its redn ^ its size ^ "_" ^ its i 
+    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
+    val eqtm = mk_eq (mk_comb (v,E), tm)
+  in
+    new_definition (s ^ "_DEF", eqtm)
+  end
+
+fun mk_conjdef size (bluen,redn) conj = 
+  let 
+    val s = "G" ^ its bluen ^ its redn ^ its size
+    val v = mk_var (s,``:(num -> num -> bool) -> bool``)
+    val eqtm = mk_eq (mk_comb (v,E),conj)
+  in
+    new_definition (s ^ "_DEF",  eqtm)
+  end
+
+fun create_pard size (bluen,redn) parl = 
+  if null parl then dempty IntInf.compare else
+  let
+    val defl = map (mk_gdef size (bluen,redn)) (number_fst 0 parl)
+    val conj = list_mk_conj (map (lhs o concl o SPEC_ALL) defl)
+    val conjdef = mk_conjdef size (bluen,redn) conj
+    val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
+    val thml = CONJUNCTS (f conjdef)
+    val thml2 = combine (thml, map SPEC_ALL defl)
+    val thml3 = map (fn (a,b) => EQ_MP b a) thml2
+    val thml4 = map (UNDISCH_ALL o SPEC_ALL) thml3
+    val gthml = combine (parl,thml4)
+  in
+    dnew IntInf.compare gthml
+  end
+
+(* -------------------------------------------------------------------------
+   Proves that ramsey clauses on bigger graphs imply ramsey clauses
+   on smaller graphs
+   ------------------------------------------------------------------------- *)
 
 fun Cid size (bluen,redn) b = 
   "C" ^ its bluen ^ its redn ^ its size ^ (if b then "b" else "r")
@@ -29,6 +73,21 @@ fun C_SMALLER size (bluen,redn) b =
     thm5
   end
 
+(* -------------------------------------------------------------------------
+   Construct Ramsey theorems from Ramsey theorems at smaller sizes
+   ------------------------------------------------------------------------- *)
+
+fun R_THM size (bluen,redn) =
+  let
+    val cover = read_cover size (bluen,redn)
+    val pard = create_pard size (bluen,redn) (map fst cover)
+    val _ = init_gthmd pard cover
+    val _ = (iso_flag := false; debug_flag := false; proof_flag := true)
+    val _ = sat_solver size (bluen,redn)
+  in
+    ELIM_COND size (!final_thm)
+  end
+  
 fun NEXT_R_THM size (bluen,redn) prevthm = 
   let
     val gs = "G" ^ its bluen ^ its redn ^ its (size - 1)
@@ -60,18 +119,8 @@ fun NEXT_R_THM size (bluen,redn) prevthm =
        C_SMALLER (size - 1) (bluen,redn) false);
   in
     PROVE_HYPL [thmb,thmr] thm4
-  end
+  end  
   
-fun R_THM size (bluen,redn) =
-  let
-    val cover = read_cover size (bluen,redn)
-    val pard = create_pard size (bluen,redn) (map fst cover)
-    val _ = init_gthmd pard cover
-    val _ = (iso_flag := false; debug_flag := false; proof_flag := true)
-    val _ = sat_solver size (bluen,redn)
-  in
-    ELIM_COND size (!final_thm)
-  end
 
   
 end (* struct *)

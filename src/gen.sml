@@ -212,10 +212,10 @@ fun sgeneralize size (bluen,redn) uset leaf =
             all (fn x => Array.sub (locala, x) < Vector.sub(sizev,x)) clausel
           end
         fun sgen_loop vl result = case vl of
-            [] => result
+            [] => rev result
           | v :: rem => 
             let 
-              val edgel = map (fst o dec_edgec) result
+              val edgel = map (fst o dec_edgec o fst) result
               val edge = fst (dec_edgec v)
               val sibling = build_sibling leaf edgel edge
               val leafso = all_leafso_wperm uset sibling
@@ -267,7 +267,7 @@ fun cperm_of_string s = case String.tokens (fn x => x = #"_") s of
   | _ => raise ERR "cperm_of_string" ""
 
 fun string_of_vleafs (v,cperml) = 
-  String.concatWith " " [its v :: map string_of_cperm cperml]
+  String.concatWith " " (its v :: map string_of_cperm cperml)
 
 fun vleafs_of_string s = case String.tokens Char.isSpace s of
     a :: m => (string_to_int a, map cperm_of_string m)
@@ -300,34 +300,49 @@ val genspec : ((int * int) * IntInf.int Redblackset.set, IntInf.int,
   read_result = read_result
   }
 
-fun remove_vleafsl uset (leafi,vleafsl) = case vleafsl of
+fun remove_vleafsl_aux uset (leafi,vleafsl) acc = case vleafsl of
+    [] => SOME (leafi, rev acc)
+  | (v,cperml) :: m =>  
+    if not (all (fn x => emem (fst x) uset) cperml)
+    then SOME (leafi, rev acc)
+    else remove_vleafsl_aux uset (leafi,m) ((v,cperml) :: acc)
+
+fun remove_vleafsl uset (leafi,vleafsl) = 
+  if not (emem leafi uset) then NONE else 
+  remove_vleafsl_aux uset (leafi,vleafsl) []
+
+(*
+fun remove_vleafsl uset (leafi,vleafsl) =
+  case vleafsl of
     [] => if emem leafi uset then SOME (leafi,[]) else NONE
   | (v,cperml) :: m => 
     if all (fn x => emem (fst x) uset) cperml
     then SOME (leafi,vleafsl)
     else remove_vleafsl uset (leafi,m)
+*)
 
 val select_number1 = ref 240
 val select_number2 = ref 120
 
 fun concat_cpermll (leafi,vleafsl) = 
   let val idperm = List.tabulate (mat_size (unzip_mat leafi),I) in
-    mk_fast_set (fst_compare InfInf.compare)
+    mk_fast_set (fst_compare IntInf.compare)
       ((leafi,idperm) :: List.concat (map snd vleafsl))
   end
   
 fun update_uset selectn pl (uset,result) =
-  if null pl orelse selectn >= !select_number2 then (uset,result) else
+  if elength uset <= 0 orelse 
+     null pl orelse selectn >= !select_number2 then (uset,result) else
   let 
-    val l1 = map_assoc (length o #3) pl
+    val l1 = map_assoc (length o snd) pl
     val l2 = dict_sort compare_imax l1
     val (leafi,vleafsl) = fst (hd l2) 
     val cperml = concat_cpermll (leafi,vleafsl)
     val newuset = ereml (map fst cperml) uset
-    val edgel = map (fst o dec_edgev o fst) vleafsl
+    val edgel = map (fst o dec_edgec o fst) vleafsl
     val pari = zip_mat (build_parent (unzip_mat leafi) edgel)
     val newresult = (pari,cperml) :: result
-    val newpl = List.mapPartial remove_vleafsl pl 
+    val newpl = List.mapPartial (remove_vleafsl newuset) pl
     val _ = log ("Covering " ^ its (length cperml) ^ " graphs (" ^ 
                  its (elength newuset) ^ " remaining)" ^
                  " at depth " ^ its (length vleafsl))
@@ -349,8 +364,11 @@ fun loop_scover_para ncore (bluen,redn) uset result =
     loop_scover_para ncore (bluen,redn) newuset newresult
   end
 
-fun compute_scover_para ncore (bluen,redn) uset = 
+fun compute_scover_para ncore size (bluen,redn) = 
   let
+    val id = its bluen ^ its redn ^ its size
+    val file = selfdir ^ "/ramsey_data/enum" ^ id
+    val uset = enew IntInf.compare (map stinf (readl file));
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000)
   in
@@ -372,15 +390,12 @@ fun store_cover size (bluen,redn) cover =
     writel file (map f cover)
   end  
 
-fun all_cover ncore (bluen,redn) (minsize,maxsize) =  
+fun gen ncore (bluen,redn) (minsize,maxsize) =  
   let
     fun f size =
       let
-        val _ = print_endline ("SIZE " ^ its size) 
-        val id = its bluen ^ its redn ^ its size
-        val file = selfdir ^ "/ramsey_data/enum" ^ id
-        val uset = enew IntInf.compare (map stinf (readl file));
-        val (cover,t) = add_time (compute_scover_para ncore (bluen,redn)) uset
+        val _ = print_endline ("SIZE " ^ its size)
+        val cover = compute_scover_para ncore size (bluen,redn)
       in
         store_cover size (bluen,redn) cover
       end  
@@ -389,11 +404,23 @@ fun all_cover ncore (bluen,redn) (minsize,maxsize) =
   end
   
 (*
-load "gen"; open aiLib kernel gen;
-val (_,t1) = add_time (all_cover 2 (4,4)) (4,8); (* (4,17) *)
-val (_,t2) = add_time (all_cover 3 (3,5)) (5,13);
+PolyML.print_depth 0;
+load "enum"; load "gen"; open sat aiLib graph gen enum;
+PolyML.print_depth 10;
 
-(* bugs when trying numbers below max clique size. *)
+cleandir (selfdir ^ "/ramsey_data");
+
+val ncore = 60;
+val (_,t0) = add_time (enum ncore) (3,5);
+val (_,t1) = add_time (enum ncore) (4,4);
+
+select_number1 := 1000;
+select_number2 := 1;
+val (_,t2) = add_time (gen ncore (3,5)) (5,13);
+
+select_number1 := 240;
+select_number2 := 120;
+val (_,t3) = add_time (gen ncore (4,4)) (4,17);
 *)
 
 (* -------------------------------------------------------------------------
@@ -471,8 +498,6 @@ val cl = map mat_to_list matl;
 val cset =  cl;
 val cover = ccover cset;
 writel ("ramsey_cone/" ^ szip_mat m) (map ilts cover);
-
-
 
 fun switch_color m = mat_tabulate (mat_size m, fn (i,j) => 
   if mat_sub (m,i,j) = 0 then 0 else 3 - mat_sub (m,i,j));
