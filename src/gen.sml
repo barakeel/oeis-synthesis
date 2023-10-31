@@ -235,9 +235,9 @@ fun remove_vleafsl uset (leafi,vleafsl) =
 
 val select_number1 = ref 240
 val select_number2 = ref 120
-
+(*
 fun size_of_vleafsl vleafsl = sum_int (map (length o #3) vleafsl)
-
+*)
 fun update_uset selectn pl (uset,result) =
   if elength uset <= 0 orelse 
      null pl orelse selectn >= !select_number2 then (uset,result) else
