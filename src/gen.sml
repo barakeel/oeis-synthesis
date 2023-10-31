@@ -239,8 +239,7 @@ fun sgeneralize size (bluen,redn) uset leaf =
    (dropping half of the candidates or more)
    minimization expensive happens inside the threads
    ------------------------------------------------------------------------- *)
-
-
+   
 fun sgen_worker ((bluen,redn),uset) leafi =
   let
     val leaf = unzip_mat leafi
@@ -405,10 +404,10 @@ fun gen ncore (bluen,redn) (minsize,maxsize) =
   
 (*
 PolyML.print_depth 0;
-load "enum"; load "gen"; open sat aiLib graph gen enum;
+load "enum"; load "gen"; open sat aiLib kernel graph gen enum;
 PolyML.print_depth 10;
 
-cleandir (selfdir ^ "/ramsey_data");
+clean_dir (selfdir ^ "/ramsey_data");
 
 val ncore = 60;
 val (_,t0) = add_time (enum ncore) (3,5);

@@ -29,8 +29,10 @@ fun enum_worker br (i,il) =
   in
     app (add_vertex br set) il;
     mkDir_err dir;
-    writel file (map IntInf.toString (elist (!set)))
+    (writel file (map IntInf.toString (elist (!set)))
+     handle SysErr _ => raise ERR "enum_worker" file)
   end
+  
 
 fun merge_one set file = 
   set := eaddl (map stinf (readl file)) (!set)
@@ -77,6 +79,7 @@ fun parallel_extend ncore expname br set =
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = clean_dir dir
+    val _ = clean_dir (dir ^ "/graphs")
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
