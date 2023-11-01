@@ -1013,6 +1013,41 @@ fun ELIM_COND size thm =
     thm3
   end 
 
+(* -------------------------------------------------------------------------
+   Intializing gthmd
+   ------------------------------------------------------------------------- *)
+
+fun read_cover size (bluen,redn) =
+  let 
+    val file = selfdir ^ "/ramsey_data/gen" ^ 
+      its bluen ^ its redn ^ its size
+    val sl = readl file
+    fun f s = 
+      let 
+        val sl1 = String.tokens Char.isSpace s
+        val sll2 = map (String.tokens (fn x => x = #"_")) (tl sl1)
+        fun g sl2 = (stinf (hd sl2), map string_to_int (tl sl2))
+      in
+        (stinf (hd sl1), map g sll2)
+      end
+  in
+    map f sl
+  end
+
+fun update_gthmd pard (pari: IntInf.int,graphiperml) =
+  let fun g (graphi,perm) = 
+    let val thm = dfind pari pard in
+      gthmd_glob := dadd graphi (thm,perm) (!gthmd_glob)
+    end
+  in
+    app g graphiperml
+  end;  
+
+fun init_gthmd pard cover =
+  (
+  gthmd_glob := dempty IntInf.compare;
+  app (update_gthmd pard) cover
+  )
 
 (* -------------------------------------------------------------------------
    Proving that C(n,m,k+1) implies C(n,m,k).
@@ -1029,38 +1064,8 @@ fun LESS_THAN_NEXT size =
   in
     thm
   end
-
-fun read_cover size (bluen,redn) =
-  let 
-    val file = selfdir ^ "/ramsey_data/cover" ^ 
-      its bluen ^ its redn ^ its size
-    val sl = readl file
-    fun f s = 
-      let 
-        val sl1 = String.tokens Char.isSpace s
-        val sll2 = map (String.tokens (fn x => x = #"_")) (tl sl1)
-        fun g sl2 = (stinf (hd sl2), map string_to_int (tl sl2))
-      in
-        (stinf (hd sl1), map g sll2)
-      end
-  in
-    map f sl
-  end
   
-fun update_gthmd pard (pari: IntInf.int,graphiperml) =
-  let fun g (graphi,perm) = 
-    let val thm = dfind pari pard in
-      gthmd_glob := dadd graphi (thm,perm) (!gthmd_glob)
-    end
-  in
-    app g graphiperml
-  end;  
 
-fun init_gthmd pard cover =
-  (
-  gthmd_glob := dempty IntInf.compare;
-  app (update_gthmd pard) cover
-  )
 
 fun PROVE_HYPL lemmal thm = foldl (uncurry PROVE_HYP) thm lemmal
 fun DISCHL tml thm = foldl (uncurry DISCH) thm (rev tml)

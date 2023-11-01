@@ -4,6 +4,7 @@ struct
 open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig sat enum
 val ERR = mk_HOL_ERR "enump"
 
+
 (* -------------------------------------------------------------------------
    Definitions of generalized graphs
    ------------------------------------------------------------------------- *)
