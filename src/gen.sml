@@ -141,23 +141,15 @@ fun sgeneralize (bluen,redn) uset leafi =
           | v :: rem => 
             let 
               val edgel = map (fst o dec_edgec o #1) result
-              fun f vloc = 
-                let 
-                  val edge = fst (dec_edgec vloc)
-                  val sibling = build_sibling leaf edgel edge
-                  val (d,e) = all_leafs_wperm uset sibling
-                in 
-                  ((vloc,elength e,d), dlength d)
-                end
-              val candl = dict_sort compare_imax (map f vl)
-              val (bestv,beste,bestd) = fst (hd candl)
-              val bestrem = filter (fn x => x <> bestv) rem
-              val newresult = (bestv,beste,dlist bestd) :: result
+              val edge = fst (dec_edgec v)
+              val sibling = build_sibling leaf edgel edge
+              val (d,e) = all_leafs_wperm uset sibling
+              val maxn = elength e
             in
-              if threshold * dlength bestd  > beste
-              then (update_numbera locala bestv; 
-                    sgen_loop (filter test bestrem) newresult) 
-              else rev result
+              if threshold * dlength d  > maxn
+              then (update_numbera locala v; 
+                    sgen_loop (filter test rem) ((v,maxn,dlist d) :: result)) 
+              else sgen_loop rem result
             end   
       in
         sgen_loop (filter test vlopp) []
@@ -327,6 +319,8 @@ fun gen ncore (bluen,redn) (minsize,maxsize) =
 PolyML.print_depth 0;
 load "enum"; open sat aiLib kernel graph enum;
 PolyML.print_depth 10;
+
+clean_dir (selfdir ^ "/ramsey_data");
 
 val ncore = 60;
 val (_,t0) = add_time (enum ncore) (3,5);
