@@ -137,19 +137,25 @@ fun sgeneralize (bluen,redn) uset leafi =
             all (fn x => Array.sub (locala, x) < Vector.sub(sizev,x)) clausel
           end
         fun sgen_loop vl result = case vl of
-            [] => rev result
+            [] => result
           | v :: rem => 
             let 
               val edgel = map (fst o dec_edgec o #1) result
-              val edge = fst (dec_edgec v)
-              val sibling = build_sibling leaf edgel edge
-              val (d,e) = all_leafs_wperm uset sibling
-              val maxn = elength e
+              fun f vloc = 
+                let 
+                  val edge = fst (dec_edgec vloc)
+                  val sibling = build_sibling leaf edgel edge
+                  val (d,e) = all_leafs_wperm uset sibling
+                in 
+                  ((d,elength e), dlength d)
+                end
+              val candl = dict_sort compare_imax (map f vl)
+              val (d,maxn) = fst (hd candl)
             in
               if threshold * dlength d  > maxn
               then (update_numbera locala v; 
                     sgen_loop (filter test rem) ((v,maxn,dlist d) :: result)) 
-              else sgen_loop rem result
+              else result
             end   
       in
         sgen_loop (filter test vlopp) []
@@ -229,18 +235,21 @@ fun remove_vleafsl_aux uset (leafi,vleafsl) acc = case vleafsl of
     end
 
 fun remove_vleafsl uset (leafi,vleafsl) = 
-  if not (emem leafi uset) then NONE else 
-  remove_vleafsl_aux uset (leafi,vleafsl) []
-
+  if not (emem leafi uset) 
+  then NONE 
+  else remove_vleafsl_aux uset (leafi,vleafsl) []
 
 val select_number1 = ref 240
 val select_number2 = ref 120
 
+(* some graphs are counted multiple time due to isomorphic instantiations *)
 fun size_of_vleafsl vleafsl = sum_int (map (length o #3) vleafsl)
 
 fun update_uset selectn pl (uset,result) =
   if elength uset <= 0 orelse 
-     null pl orelse selectn >= !select_number2 then (uset,result) else
+     null pl orelse 
+     selectn >= !select_number2 
+     then (uset,result) else
   let 
     val l1 = map_assoc (size_of_vleafsl o snd) pl
     val l2 = dict_sort compare_imax l1
@@ -314,7 +323,7 @@ fun gen ncore (bluen,redn) (minsize,maxsize) =
   
 (*
 PolyML.print_depth 0;
-load "enum"; load "gen"; open sat aiLib kernel graph gen enum;
+load "enum"; open sat aiLib kernel graph enum;
 PolyML.print_depth 10;
 
 clean_dir (selfdir ^ "/ramsey_data");
@@ -325,7 +334,7 @@ val (_,t1) = add_time (enum ncore) (4,4);
 
 
 PolyML.print_depth 0;
-load "enum"; load "gen"; open sat aiLib kernel graph gen enum;
+load "gen"; open sat aiLib kernel graph gen;
 PolyML.print_depth 10;
 val ncore = 60;
 select_number1 := 313;
