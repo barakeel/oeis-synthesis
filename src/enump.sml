@@ -149,6 +149,7 @@ fun write_enumscript size (bluen,redn) (batchi,igraphl) =
 fun write_enumscripts batchsize size (bluen,redn) = 
   let
     val enum = read_enum size (bluen,redn);
+    val _ = print_endline ("enum: " ^ its (length enum))
     val l = number_fst 0 (mk_batch_full batchsize (number_fst 0 enum))
   in
     app (write_enumscript size (bluen,redn)) l
@@ -161,6 +162,9 @@ end (* struct *)
 PolyML.print_depth 0;
 load "enump"; open sat aiLib kernel graph nauty sat gen enum enump;
 PolyML.print_depth 10;
+
+val _ = range (8, 8, fn size => 
+  (print_endline (its size); write_enumscripts 1000 size (4,4)));
 
 val _ = range (8, 18, fn size => 
   (print_endline (its size); write_enumscripts 1000 size (4,4)));

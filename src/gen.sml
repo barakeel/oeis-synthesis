@@ -322,7 +322,7 @@ fun read_par size (bluen,redn) =
 
 fun write_cover size (bluen,redn) cover = 
   let 
-    val dir = selfdir ^ "/ramsey_data";
+    val dir = selfdir ^ "/ramsey_data"
     val file = dir ^ "/gen" ^ its bluen ^ its redn ^ its size
     fun f (p,cperml) = 
       let fun g (c,perm) = infts c ^ "_" ^ 
