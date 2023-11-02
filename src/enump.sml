@@ -164,10 +164,10 @@ load "enump"; open sat aiLib kernel graph nauty sat gen enum enump;
 PolyML.print_depth 10;
 
 val _ = range (8, 8, fn size => 
-  (print_endline (its size); write_enumscripts 20 size (4,4)));
+  (print_endline (its size); write_enumscripts 100 size (4,4)));
 
 val _ = range (8, 18, fn size => 
-  (print_endline (its size); write_enumscripts 20 size (4,4)));
+  (print_endline (its size); write_enumscripts 100 size (4,4)));
 
 fun cut_mod
 
