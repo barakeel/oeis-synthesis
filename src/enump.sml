@@ -115,9 +115,8 @@ fun NEXT_R_THM size (bluen,redn) prevthm =
     val prevgthm = (snd o EQ_IMP_RULE o SPEC_ALL) prevgdef
     val thm3 = MP prevgthm thm2
     val thm4 = PROVE_HYP thm3 prevthm
-    val (thmb,thmr) = 
-      (C_SMALLER (size - 1) (bluen,redn) true, 
-       C_SMALLER (size - 1) (bluen,redn) false);
+    val (thmb,thmr) = (C_SMALLER (size - 1) (bluen,redn) true, 
+                       C_SMALLER (size - 1) (bluen,redn) false);
   in
     PROVE_HYPL [thmb,thmr] thm4
   end
@@ -148,9 +147,10 @@ fun write_enumscript size (bluen,redn) (batchi,igraphl) =
 
 fun write_enumscripts batchsize size (bluen,redn) = 
   let
-    val enum = read_enum (size-1) (bluen,redn);
-    val _ = print_endline ("enum: " ^ its (length enum))
-    val l = number_fst 0 (mk_batch_full batchsize (number_fst 0 enum))
+    val parl = read_par (size-1) (bluen,redn)
+    val ncut = (length parl div batchsize) + 1
+    val _ = print_endline ("par: " ^ its (length parl))
+    val l = number_fst 0 (cut_modulo ncut (number_fst 0 parl))
   in
     app (write_enumscript size (bluen,redn)) l
   end
@@ -164,10 +164,13 @@ load "enump"; open sat aiLib kernel graph nauty sat gen enum enump;
 PolyML.print_depth 10;
 
 val _ = range (8, 8, fn size => 
-  (print_endline (its size); write_enumscripts 1000 size (4,4)));
+  (print_endline (its size); write_enumscripts 20 size (4,4)));
 
 val _ = range (8, 18, fn size => 
-  (print_endline (its size); write_enumscripts 1000 size (4,4)));
+  (print_endline (its size); write_enumscripts 20 size (4,4)));
+
+fun cut_mod
+
 *)
   
 
