@@ -5,8 +5,7 @@
 structure gen :> gen =
 struct   
 
-open HolKernel Abbrev boolLib aiLib kernel graph nauty sat rconfig
-  rconfig satenc smlParallel
+open HolKernel Abbrev boolLib aiLib kernel graph nauty sat rconfig ramseySyntax
 val ERR = mk_HOL_ERR "gen"
 type vleafs = int * int * (IntInf.int * int list) list  
 
@@ -287,7 +286,41 @@ fun compute_scover_para ncore size (bluen,redn) =
     loop_scover_para ncore (bluen,redn) uset []
   end
 
-fun store_cover size (bluen,redn) cover = 
+(* -------------------------------------------------------------------------
+   Generalizations I/O
+   ------------------------------------------------------------------------- *)
+
+fun read_cover size (bluen,redn) =
+  let 
+    val file = selfdir ^ "/ramsey_data/gen" ^ 
+      its bluen ^ its redn ^ its size
+    val sl = readl file
+    fun f s = 
+      let 
+        val sl1 = String.tokens Char.isSpace s
+        val sll2 = map (String.tokens (fn x => x = #"_")) (tl sl1)
+        fun g sl2 = (stinf (hd sl2), map string_to_int (tl sl2))
+      in
+        (stinf (hd sl1), map g sll2)
+      end
+  in
+    map f sl
+  end
+  
+fun read_par size (bluen,redn) =
+  let 
+    val file = selfdir ^ "/ramsey_data/gen" ^ 
+      its bluen ^ its redn ^ its size
+    val sl = readl file
+    fun f s = 
+      let val sl1 = String.tokens Char.isSpace s in
+        stinf (hd sl1)
+      end
+  in
+    map f sl
+  end  
+
+fun write_cover size (bluen,redn) cover = 
   let 
     val dir = selfdir ^ "/ramsey_data";
     val file = dir ^ "/gen" ^ its bluen ^ its redn ^ its size
@@ -302,6 +335,10 @@ fun store_cover size (bluen,redn) cover =
     writel file (map f cover)
   end  
 
+(* -------------------------------------------------------------------------
+   Generalization main function
+   ------------------------------------------------------------------------- *)
+
 fun gen ncore (bluen,redn) (minsize,maxsize) =  
   let
     fun f size =
@@ -309,7 +346,7 @@ fun gen ncore (bluen,redn) (minsize,maxsize) =
         val _ = print_endline ("SIZE " ^ its size)
         val cover = compute_scover_para ncore size (bluen,redn)
       in
-        store_cover size (bluen,redn) cover
+        write_cover size (bluen,redn) cover
       end  
   in
     ignore (range (minsize,maxsize,f))
@@ -395,6 +432,11 @@ fun ccover_loop uset =
   end
       
 fun ccover conel = ccover_loop (enew cone_compare conel)
+
+
+
+
+
 
 (*
 load "gen"; open gen sat;

@@ -2,6 +2,7 @@ structure sat :> sat =
 struct   
 
 open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig bossLib
+  ramseySyntax
 val ERR = mk_HOL_ERR "sat"
 
 fun debug_mat m = if !debug_flag then graph.print_mat m else ()
@@ -111,8 +112,6 @@ fun test_timer () =
     ()
   end
 
-
-
 fun stats () = 
   (  
   if null (!graphl) then log "unsat" 
@@ -134,111 +133,15 @@ fun stats () =
                    rts_round 6 (!other_timer) ^ " seconds");
   !graphl
   )
-  
-(* -------------------------------------------------------------------------
-   Order in which the vertices should be colored
-   ------------------------------------------------------------------------- *)
 
-fun pairbelowy y = List.tabulate (y,fn x => (x,y))
-
-fun search_order_undirected size = 
-  List.concat (List.tabulate (size,fn y => pairbelowy y))
-
-fun search_order size = List.concat 
-  (map (fn (x,y) => [(x,y),(y,x)]) (search_order_undirected size))
-
-fun search_order_linear size = 
-  filter (fn (x,y) => x <> y)
-  (cartesian_product (List.tabulate (size,I)) (List.tabulate (size,I)))
-
-fun search_order_linear_undirected size = 
-  filter (fn (x,y) => x < y)
-  (cartesian_product (List.tabulate (size,I)) (List.tabulate (size,I)))
-
-(* -------------------------------------------------------------------------
-   Conversion between edges and variables
-   ------------------------------------------------------------------------- *)
-
-val vartoedgev = Vector.fromList (search_order_undirected 50);
-
-fun var_to_edge x = Vector.sub (vartoedgev,x) 
-  (* handle Subscript => raise ERR "var_to_edge" (its x) *)
-
-fun edge_to_var (x,y) = 
-  if x < y then x + ((y * (y - 1)) div 2) else 
-  raise ERR "edge_to_var" (its x ^ "-" ^ its y)
 
 
 (* -------------------------------------------------------------------------
-   Syntax
+   Permutes vertices in a theorem
    ------------------------------------------------------------------------- *)
 
-val E = mk_var ("E",``:num -> num -> bool``)
-fun X i = mk_var ("x" ^ its i,``:num``)
-fun Xnum x = (string_to_int o tl_string o fst o dest_var) x
-fun hvarij (i,j) = list_mk_comb (E,[X i,X j]);
-fun hvar v = hvarij (var_to_edge v)
-fun is_lit tm = 
-  let val tm' = if is_neg tm then dest_neg tm else tm in
-    term_eq (fst (strip_comb tm')) E 
-  end
-  
-fun hlit (v,c) = 
-  if c = 1 then hvar v else 
-  if c = 2 then mk_neg (hvar v) 
-  else raise ERR "hlit" "" ;
-
-fun hlit_to_edge tm = 
-  let 
-    val tm' = if is_neg tm then dest_neg tm else tm
-    val (_,argl) = strip_comb tm'
-  in
-    pair_of_list (map Xnum argl)
-  end
-  handle HOL_ERR e => (print_endline (term_to_string tm); raise HOL_ERR e)
-
-fun hlit_to_var tm = edge_to_var (hlit_to_edge tm)
-  handle HOL_ERR _ => raise ERR "hlit_to_var" ""
-fun hlit_to_vc tm = (hlit_to_var tm, if is_neg tm then red else blue)
-  
-fun mk_domain vl size =
-  let
-    fun f v = numSyntax.mk_less (v,numSyntax.term_of_int size)
-    val boundl = map f vl
-    val pairvl = map pair_of_list (kernel.subsets_of_size 2 vl)
-    val diffl = map (fn (a,b) => mk_neg (mk_eq (a,b))) pairvl
-  in
-    list_mk_imp (boundl @ diffl,F)
-  end
-  
-fun term_of_graph graph = 
-  let 
-    val size = mat_size graph
-    val vl = List.tabulate (size,X)
-    val domain = mk_domain vl size
-    val edgecl = mat_to_edgecl graph
-    val litl = map hlit (map_fst edge_to_var edgecl)
-  in
-    list_mk_forall (vl, list_mk_imp (litl,domain)) 
-  end
-
-fun noclique size (cliquen,b) = 
-  let
-    val vl = List.tabulate (cliquen,X)
-    val domain = mk_domain vl size
-    val pairvl = map pair_of_list (subsets_of_size 2 vl)
-    val litl = map (fn (a,b) => list_mk_comb (E,[a,b])) pairvl
-    val litl' = map (fn x => if b then x else mk_neg x) litl
-  in
-    list_mk_forall (vl, list_mk_imp (litl',domain)) 
-  end
-
-
-(*
-load "sat"; open sat;
-val tm = noclique 6 (3,true);
-val tm = noclique 6 (3,false);
-*)
+val E_SYM = ASSUME ``!(x:num)(y:num). (E x y : bool) = E y x``
+val E_SYM_NOT = GENL [``x:num``,``y:num``] (AP_TERM negation (SPEC_ALL E_SYM))
 
 fun SAFE_PROVE_HYP thm1 thm2 = 
   if not (!debug_flag) then PROVE_HYP thm1 thm2 else
@@ -248,17 +151,8 @@ fun SAFE_PROVE_HYP thm1 thm2 =
         print_endline (thm_to_string thm2);
         raise ERR "SAFE_PROVE_HYP" "")
 
-(* -------------------------------------------------------------------------
-   Permutes vertices in a theorem
-   ------------------------------------------------------------------------- *)
-
-val NOT_NOT = CONJUNCT1 boolTheory.NOT_CLAUSES;
-val E_SYM = 
-  ASSUME ``!(x:num)(y:num). (E x y : bool) = E y x``;
-val E_SYM_NOT = 
-  GENL [``x:num``,``y:num``] (AP_TERM negation (SPEC_ALL E_SYM));
-
 val PROVE_HYP_EQ = PROVE_HYP o UNDISCH o fst o EQ_IMP_RULE
+fun PROVE_HYPL lemmal thm = foldl (uncurry PROVE_HYP) thm lemmal
 
 (*
 load "sat"; open sat;
@@ -281,17 +175,17 @@ fun NORM_HYP lit =
 fun PERMUTE_LIT' thm1 perm1 perm2 = 
   let 
     val vertexl = List.tabulate (!size_glob, I)
-    fun permf x = ((mk_permf perm2) o mk_permf (invert_perm perm1)) x
+    val permf = (mk_permf perm2) o mk_permf (invert_perm perm1)
     val _ = if !debug_flag then 
       print_endline ("perm: " ^ ilts (List.tabulate (!size_glob,permf)))
       else ()
     fun f i = let val i' = permf i in
         if i <> i' then SOME {redex = X i, residue = X i'} else NONE
       end
-    val sub = List.mapPartial f vertexl
-    val thm2 = INST sub thm1
-    val lemmal = (List.mapPartial NORM_HYP) (hyp thm2)
-    val thm3 = (foldl (uncurry SAFE_PROVE_HYP) thm2) lemmal
+    val sub = total_time timer_glob4 (List.mapPartial f) vertexl
+    val thm2 = total_time timer_glob1 (INST sub) thm1
+    val lemmal = total_time timer_glob2 (List.mapPartial NORM_HYP) (hyp thm2)
+    val thm3 = total_time timer_glob3 (PROVE_HYPL lemmal) thm2
   in
     thm3
   end
@@ -321,16 +215,17 @@ fun mk_both_cdef size (bluen,redn) =
     val negdef = mk_cdef size (bluen,redn) false negtm
   in
     (posdef,negdef)
-  end
-
+  end  
+  
+(* fetching from the future *)
 fun init_thms size (bluen,redn) =
   if not (!proof_flag) then () else 
   let 
     val s = "C" ^ its bluen ^ its redn ^ its size
     val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
   in
-    pos_thm := f (DB.fetch "scratch" (s ^ "b_DEF"));
-    neg_thm := f (DB.fetch "scratch" (s ^ "r_DEF"))
+    pos_thm := f (DB.fetch "ramseyDef" (s ^ "b_DEF"));
+    neg_thm := f (DB.fetch "ramseyDef" (s ^ "r_DEF"))
   end
 
 
@@ -369,24 +264,16 @@ fun thm_of_clause clause =
     raise ERR "thm_of_clause" ""
     )
   end
-  
-fun thm_of_assignv assignv =
-  let 
-    fun f (i,x) = (i,!(fst x))
-    val clause = vector_to_list (Vector.mapi f assignv)
-  in
-    thm_of_clause clause
-  end
 
 fun SMART_DISCH v thm = 
   if v < 0 then raise ERR "SMART_DISCH" (its v) else
   let 
     val var = hvar v
-    val hypl = hyp thm 
+    val hypl = hypset thm 
   in 
-    if tmem var hypl 
+    if HOLset.member (hypl,var)
       then NOT_INTRO (DISCH var thm)
-    else if tmem (mk_neg var) hypl
+    else if HOLset.member (hypl,mk_neg var) 
       then CCONTR var thm
     else thm
   end
@@ -483,8 +370,6 @@ fun dec_thm decv (confv,confclause) = case prop_thmo confv of
    Test isomorphism
    ------------------------------------------------------------------------- *)
 
-
-   
 fun by_iso_aux (normgraph,perm2) =
   let val graphid = zip_mat normgraph in
     case dfindo graphid (!isod_glob) of
@@ -871,10 +756,10 @@ fun sat_solver_loop assignv clausevv path =
     let
       val decthm = if not (!proof_flag) then TRUTH else 
         let 
-          val thmF = CONFLICT thma thmb 
+          val thmF = total_time degree_timer (CONFLICT thma) thmb
           val _ = SAVE_ISO (g1,thmF)   
         in
-          SMART_DISCH decv (BACK_PROP decv thmF) 
+          total_time degree_timer (SMART_DISCH decv) (BACK_PROP decv thmF) 
         end
       val _ = (debug "undo"; app (fn f => f ()) undol)  
       val newparentl = (undol', decv, colorl, decthm :: thml, g2) :: parentl
@@ -906,7 +791,7 @@ fun sat_solver_loop assignv clausevv path =
         let
           val _ = (debug "iso"; incr iso_conflict_counter)
           val decthm = if not (!proof_flag) then TRUTH else 
-            SMART_DISCH decv (BACK_PROP decv thmF)
+            total_time degree_timer (SMART_DISCH decv) (BACK_PROP decv thmF)
           val newpath = (undol,decv,colorm, decthm :: thml, g1) :: parentl
         in
           app (fn f => f ()) newundol;
@@ -919,8 +804,8 @@ fun sat_solver_loop assignv clausevv path =
         let
           val decthm = 
             if not (!proof_flag) then TRUTH else 
-            let val thmF = thm_of_graph (!graph_glob) in
-              SMART_DISCH decv (BACK_PROP decv thmF)
+            let val thmF = total_time iso_timer thm_of_graph (!graph_glob) in
+              total_time degree_timer (SMART_DISCH decv) (BACK_PROP decv thmF)
             end
           val newpath = (undol, decv, colorm, decthm :: thml,g1) :: parentl  
         in
@@ -1064,10 +949,7 @@ fun LESS_THAN_NEXT size =
   in
     thm
   end
-  
 
-
-fun PROVE_HYPL lemmal thm = foldl (uncurry PROVE_HYP) thm lemmal
 fun DISCHL tml thm = foldl (uncurry DISCH) thm (rev tml)
 
 val NOEQSYM = 
@@ -1109,12 +991,6 @@ end (* struct *)
 PolyML.print_depth 0;
 load "sat"; load "enum"; open enum sat aiLib kernel graph nauty;
 PolyML.print_depth 10;
-
 val c44l = range (4,18, fn x => mk_both_cdef x (4,4));
 val R444_THM = GET_R_THM 4 (4,4);
-
-
-
-
-
 *)

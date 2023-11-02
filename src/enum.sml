@@ -93,16 +93,24 @@ fun serial_extend br set =
     Redblackset.app (add_vertex br newset) set; !newset
   end
 
-fun store_enum size (bluen,redn) set =
+fun write_enum size (bluen,redn) il =
   let 
     val dir = selfdir ^ "/ramsey_data"
     val enumname = "enum" ^ its bluen ^ its redn ^ its size
-    val il = map infts (elist set) 
+    val sl = map infts il
   in
     mkDir_err dir;
-    writel (dir ^ "/" ^ enumname) il;
+    writel (dir ^ "/" ^ enumname) sl;
     print_endline ("Stored: " ^ enumname)
   end
+  
+fun read_enum size (bluen,redn) =
+  let 
+    val dir = selfdir ^ "/ramsey_data"
+    val enumname = "enum" ^ its bluen ^ its redn ^ its size
+  in
+    map stinf (readl (dir ^ "/" ^ enumname))
+  end  
   
 fun extend_loop ncore size (br as (bluen,redn)) set = 
   let
@@ -113,7 +121,7 @@ fun extend_loop ncore size (br as (bluen,redn)) set =
         then serial_extend br set
         else parallel_extend n expname br set
       end
-    val _ = store_enum size br newset
+    val _ = write_enum size br (elist newset)
   in
     if elength newset <= 0 then () else 
     extend_loop ncore (size+1) (bluen,redn) newset

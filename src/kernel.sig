@@ -61,7 +61,11 @@ sig
   val streal : string -> real
   val stil : string -> int list
   val ilts : int list -> string
-  val timer_glob : real ref
+  val timer_glob1 : real ref
+  val timer_glob2 : real ref
+  val timer_glob3 : real ref
+  val timer_glob4 : real ref
+  val timer_glob5 : real ref
   
   (* sequences *)
   type seq = IntInf.int list
