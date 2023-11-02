@@ -148,7 +148,7 @@ fun write_enumscript size (bluen,redn) (batchi,igraphl) =
 
 fun write_enumscripts batchsize size (bluen,redn) = 
   let
-    val enum = read_enum size (bluen,redn);
+    val enum = read_enum (size-1) (bluen,redn);
     val _ = print_endline ("enum: " ^ its (length enum))
     val l = number_fst 0 (mk_batch_full batchsize (number_fst 0 enum))
   in
