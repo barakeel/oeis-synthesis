@@ -153,6 +153,9 @@ fun cones45 ncore size (bluen,redn) =
     val dir = expdir ^ "/cone" ^ s
     val _ = app mkDir_err [expdir,dir]
     val _ = smlExecScripts.buildheap_dir := dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle 
+       NotFound => 10000) 
     val par = read_par size (bluen,redn)
     val parn = length par
     val _ = log ("par : " ^ its parn)
@@ -169,7 +172,10 @@ load "gen"; load "sat"; load "cone";
 open aiLib kernel graph sat nauty gen rconfig cone;
 PolyML.print_depth 10;
 
-cones45 3 14 (4,4);
+
+val ncore = 60;
+range (14,17, fn i => cones45 ncore i (4,4));
+range (12,13, fn i => cones45 ncore i (3,5));
 
 *)
 
