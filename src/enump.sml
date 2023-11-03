@@ -163,13 +163,66 @@ PolyML.print_depth 0;
 load "enump"; open sat aiLib kernel graph nauty sat gen enum enump;
 PolyML.print_depth 10;
 
-val _ = range (8, 8, fn size => 
-  (print_endline (its size); write_enumscripts 100 size (4,4)));
+(* requires creating an empty gen4418 and an empty gen3514 *)
+erase_file "ramsey_data/gen4418";
+erase_file "ramsey_data/gen3514";
 
-val _ = range (8, 18, fn size => 
+write_enumscripts 1 8 (4,4);
+write_enumscripts 1 9 (4,4);
+write_enumscripts 1 10 (4,4);
+write_enumscripts 10 11 (4,4);
+val _ = range (10, 18, fn size => 
   (print_endline (its size); write_enumscripts 100 size (4,4)));
+*)
+ 
+ (* -------------------------------------------------------------------------
+    Special case: after generating the scripts 
+    remove ramsey4410_0Script.sml because it is too hard. 
+    Replace it by the following 
+    ------------------------------------------------------------------------- *)
+ 
+(*
+ 
+val par = hd (read_par 9 (4,4));
+val parm = unzip_mat par;
 
-fun cut_mod
+fun apply_coloring m edgecl = 
+   let 
+     val newm = mat_copy m
+     fun f ((i,j),c) = mat_update_sym (newm,i,j,c) 
+   in
+     app f edgecl; newm
+   end
+
+fun all_coloring edgel = 
+  let
+    val edgebothl =
+      let 
+        val l = ref []
+        fun f (i,j) = l := [((i,j),blue),((i,j),red)] :: !l 
+      in 
+        (app f edgel; !l)
+      end
+  in
+    cartesian_productl edgebothl
+  end
+
+fun split_par n parm =
+  let 
+    val l1 = all_holes parm
+    val l2 = dict_sort Int.compare (map ramseySyntax.edge_to_var l1)
+    val l3 = map ramseySyntax.var_to_edge l2
+    val l4 = first_n n l3
+    val coloringl = all_coloring l4
+  in
+    map (apply_coloring parm) coloringl
+  end;
+  
+val parml = map zip_mat (split_par 8 parm);
+val parml' = map (fn (a,b) => (a,[(a,b)])) (number_fst 1000 parml);
+  
+app (write_enumscript 10 (4,4)) parml';
+  
 
 *)
   

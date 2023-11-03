@@ -5,7 +5,7 @@
 structure gen :> gen =
 struct   
 
-open HolKernel Abbrev boolLib aiLib kernel graph nauty sat rconfig ramseySyntax
+open HolKernel Abbrev boolLib aiLib kernel graph nauty rconfig ramseySyntax
 val ERR = mk_HOL_ERR "gen"
 type vleafs = int * int * (IntInf.int * int list) list  
 
@@ -376,98 +376,6 @@ select_number1 := 1000;
 select_number2 := 100;
 val (_,t3) = add_time (gen ncore (4,4)) (4,17);
 *)
-
-(* -------------------------------------------------------------------------
-   Cone generalization
-   ------------------------------------------------------------------------- *)
-
-val cone_compare = list_compare Int.compare
-val cone_set = mk_fast_set cone_compare   
-
-fun parents cl = case cl of 
-    [] => []
-  | a :: m => 
-      if a <> 0 
-      then (0 :: m) :: map (fn x => a :: x) (parents m)
-      else map (fn x => a :: x) (parents m)
-  
-fun instances cl = 
-  let val cl' =  map (fn x => if x = 0 then [1,2] else [x]) cl in 
-    cartesian_productl cl'
-  end
-  
-fun cnext cset childl = 
-  let  
-    val childset = enew (list_compare Int.compare) childl
-    val l1 = cone_set (List.concat (map parents childl))
-    fun is_fullanc m = all (fn x => emem x cset) (instances m)
-    val l2 = filter is_fullanc l1
-  in
-    (* random_subset (!gen_width) *) l2
-  end;
-
-fun cloop cset childl =
-  let val parentl = cnext cset childl
-  in
-    if null parentl
-    then (random_elem childl)
-    else cloop cset parentl
-  end;
-  
-fun cgeneralize cset leaf = cloop cset [leaf];
-  
-fun n_hole cl = length (filter (fn x => x = 0) cl);  
-  
-fun ccover_loop uset = 
-  if elength uset <= 0 then [] else 
-  let 
-    val (parentl,t) = add_time (map (cgeneralize uset)) (elist uset)
-    val parentlsc = map_assoc n_hole parentl
-    val (parent,sc) = hd (dict_sort compare_imax parentlsc)
-    val leafs = instances parent
-    val newuset = ereml leafs uset
-    val _ = log (its (elength newuset) ^ " " ^ rts_round 2 t)
-  in
-    parent :: ccover_loop newuset
-  end
-      
-fun ccover conel = ccover_loop (enew cone_compare conel)
-
-
-
-
-
-
-(*
-load "gen"; open gen sat;
-
-(* creating all cones *)
-PolyML.print_depth 0;
-load "ramsey"; load "gen"; load "sat"; 
-open ramsey aiLib kernel graph sat nauty gen rconfig;
-PolyML.print_depth 10;
-
-val size = 14;
-val m = unzip_mat (random_elem (read44 size));
-val matl = sat_solver_edgecl (mat_to_edgecl m) (size+1) (4,5);
-fun pairbelowy y = List.tabulate (y,fn x => (x,y));
-val edgel = pairbelowy size;
-fun mat_to_list mx = map (fn (x,y) => mat_sub (mx,x,y)) edgel; 
-val cl = map mat_to_list matl;
-val cset =  cl;
-val cover = ccover cset;
-writel ("ramsey_cone/" ^ szip_mat m) (map ilts cover);
-
-fun switch_color m = mat_tabulate (mat_size m, fn (i,j) => 
-  if mat_sub (m,i,j) = 0 then 0 else 3 - mat_sub (m,i,j));
-
-val m449 = unzip_mat (random_elem (read44 9));
-val m3510 = unzip_mat (random_elem (read35 10));
-val m4410 = unzip_mat (random_elem (read44 10));
-val m5311 = switch_color (unzip_mat (random_elem (read35 11)));
-
-*)
-
 
 end (* struct *)
 
