@@ -12,6 +12,7 @@ sig
   
   (* clauses *)
   val ramsey_clauses : int -> int * int -> (int * int) list list
+  val ramsey_clauses_bare : int -> int * int -> ((int * int) * int) list list
   
   (* flags and memories *)
   val final_thm : thm ref

@@ -6,30 +6,6 @@ smlParallel
 val ERR = mk_HOL_ERR "ramsey"
 
 (* -------------------------------------------------------------------------
-   Importing 3,5 and 4,4 graphs (precomputed)
-   ------------------------------------------------------------------------- *) 
-
-val infts = IntInf.toString
-val stinf = valOf o IntInf.fromString
-
-fun read35 csize = map stinf
-  (readl (selfdir ^ "/ramsey_3_5/" ^ its csize))
-fun read44 dsize = map stinf
-  (readl (selfdir ^ "/ramsey_4_4/" ^ its dsize)) 
-
-fun read35gen csize = map stinf
-  (readl (selfdir ^ "/ramsey_3_5_gen/" ^ its csize))
-fun read44gen dsize = map stinf
-  (readl (selfdir ^ "/ramsey_4_4_gen/" ^ its dsize)) 
-
-fun write35gen csize matl = 
-  writel (selfdir ^ "/ramsey_3_5_gen/" ^ its csize) (map szip_mat matl)
-fun write44gen dsize matl = 
-  writel (selfdir ^ "/ramsey_4_4_gen/" ^ its dsize) (map szip_mat matl)
-
-
-
-(* -------------------------------------------------------------------------
    Glueing pairs using Cadical
    ------------------------------------------------------------------------- *)
 

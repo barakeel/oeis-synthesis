@@ -2,13 +2,7 @@ signature ramsey =
 sig
 
   type mat = int Array2.array
- 
-  (* precompute 3,5 and 4,4 graphs *) 
-  val read35 : int -> IntInf.int list
-  val read44 : int -> IntInf.int list
-  val read35gen : int -> IntInf.int list
-  val read44gen : int -> IntInf.int list
-  
+
   (* I/O tools *)  
   val convert : string -> string -> unit
   val read_stats : string -> ((mat * mat) * real) list

@@ -1,3 +1,9 @@
+(* =========================================================================
+   DPLL sat solver modulo isomorphism 
+   Todo : faster reconstruction of the proof 
+   (e.g topologically sorting variable to avoid duplicated work)
+   ========================================================================= *)
+
 structure sat :> sat =
 struct   
 
@@ -468,20 +474,26 @@ fun string_of_assignv assignv =
    Ramsey clauses
    ------------------------------------------------------------------------- *)
 
-fun clique_of_subset (subset,color) =
+fun clique_of_subset_f f (subset,color) =
   let val edgel = all_pairs (dict_sort Int.compare subset) in
-    map (fn x => (edge_to_var x, color)) edgel
+    map (fn x => (f x, color)) edgel
   end
 
-fun ramsey_clauses size (bluen,redn) = 
+fun ramsey_clauses_f f size (bluen,redn) = 
   let
     val bluesubsetl = subsets_of_size bluen (List.tabulate (size,I))
     val redsubsetl = subsets_of_size redn (List.tabulate (size,I))
     val subsetl = map_assoc (fn _ => blue) bluesubsetl @
                   map_assoc (fn _ => red) redsubsetl
   in
-    map clique_of_subset subsetl
+    map (clique_of_subset_f f) subsetl
   end
+  
+fun ramsey_clauses_bare size (bluen,redn) = 
+  ramsey_clauses_f I size (bluen,redn)
+  
+fun ramsey_clauses size (bluen,redn) =
+  ramsey_clauses_f edge_to_var size (bluen,redn)
 
 (* -------------------------------------------------------------------------
    Move clauses into an efficient data structure for propagation

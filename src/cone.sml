@@ -162,7 +162,7 @@ fun cones45 ncore size (bluen,redn) =
     val n' = Int.min (parn,ncore)
     val (_,t) = add_time (smlParallel.parmap_queue_extern n' conespec (4,5)) par
   in
-    log ("cones_44_to_45: " ^ rts_round 4 t)
+    log ("cones: " ^ rts_round 4 t)
   end
 
 
@@ -174,7 +174,7 @@ PolyML.print_depth 10;
 
 
 val ncore = 60;
-range (14,17, fn i => cones45 ncore i (4,4));
+range (14,14, fn i => cones45 ncore i (4,4));
 range (12,13, fn i => cones45 ncore i (3,5));
 
 *)
