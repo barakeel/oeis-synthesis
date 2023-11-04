@@ -23,6 +23,7 @@ sig
   val isod_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val gthmd_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val allsat_flag : bool ref
+  val conep_flag : bool ref
   
   (* solver *)
   val sat_solver : int -> int * int -> mat list
@@ -36,9 +37,9 @@ sig
   val mk_both_cdef : int -> int * int -> thm * thm
   val init_gthmd : (IntInf.int, thm) Redblackmap.dict ->
     (IntInf.int * (IntInf.int * int list) list) list -> unit
-  val read_cover : int -> int * int -> 
-    (IntInf.int * (IntInf.int * int list) list) list
-
+  val init_conethmd : (int list, thm) Redblackmap.dict -> 
+    (int list * int list list) list -> unit
+  
 
   (* postprocessing *)
   val ELIM_COND : int -> thm -> thm

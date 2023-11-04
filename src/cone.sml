@@ -172,10 +172,46 @@ load "gen"; load "sat"; load "cone";
 open aiLib kernel graph sat nauty gen rconfig cone;
 PolyML.print_depth 10;
 
-
 val ncore = 60;
-range (14,14, fn i => cones45 ncore i (4,4));
+range (14,17, fn i => cones45 ncore i (4,4));
 range (12,13, fn i => cones45 ncore i (3,5));
+
+*)
+
+
+(* cone proof 
+PolyML.print_depth 0;
+load "gen"; load "sat"; load "cone";
+open aiLib kernel graph sat nauty gen rconfig cone;
+PolyML.print_depth 10;
+
+val mati = hd (read_par 14 (4,4));
+val mat = unzip_mat mati;
+val size = mat_size mat;
+val cone = read_cone (4,5) mati; 
+val conegen = map fst cone;
+
+val _ = conep_flag := true;
+
+fun create_parconethmd (bluen,redn) mi = 
+  let val parl = map fst (read_cone (bluen,redn) mi) in
+    if null parl then dempty list_compare Int.compare else
+    let
+      val id = 
+      val conjdef = 
+      val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
+      val thml = map (UNDISCH_ALL o SPEC_ALL) (CONJUNCTS (f conjdef))
+      val gthml = combine (parl,thml)
+    in
+      dnew IntInf.compare gthml
+    end
+  end
+
+
+val _ = (disable_log := true;conep_flag := true;
+         iso_flag := false; proof_flag := true; debug_flag := false);
+val matl = sat_solver_edgecl (mat_to_edgecl mat) (size+1) (bluen,redn)
+
 
 *)
 

@@ -76,6 +76,7 @@ fun mk_domain size =
     domain_cache := dadd size r (!domain_cache); r
   end
 
+(* need to be full graph *)
 fun term_of_graph graph = 
   let 
     val size = mat_size graph 
@@ -107,6 +108,16 @@ fun noclique size (cliquen,b) =
   in
     list_mk_forall (vl, list_mk_imp (litl',domain)) 
   end
+  
+fun term_of_edgecl size edgecl =   
+  let 
+    val edgecl' = filter (fn (_,c) => c <> 0) edgecl 
+    val (vl,domain) = mk_domain size
+    val litl = map hlit (map_fst edge_to_var edgecl')
+  in
+    list_mk_forall (vl, list_mk_imp (litl,domain)) 
+  end
+  
 
 end (* struct *)
 

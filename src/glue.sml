@@ -98,7 +98,7 @@ fun write_gluescript cone_flag (b1,r1,size1) (b2,r2,size2) (bluen,redn)
     val s2 = its b2 ^ its r2 ^ its size2
     val id = s1 ^ "_" ^ s2
     val thyname = "ramseyGlue_" ^ id ^ "_" ^ its batchi
-    val filename = selfdir ^ "/RamseyGlue/" ^ thyname ^ "_Script.sml"
+    val filename = selfdir ^ "/RamseyGlue/" ^ thyname ^ "Script.sml"
     val param = "(" ^ its bluen ^ "," ^ its redn ^ ")"
     val open_cmd = ["open HolKernel boolLib kernel glue"]
     val newtheory_cmd = ["val _ = new_theory " ^ mlquote thyname]
@@ -143,26 +143,14 @@ fun write_gluescripts batchsize cone_flag
 end (* struct *)
 
 (*
-
 PolyML.print_depth 0;
 load "glue"; load "gen"; open aiLib kernel graph rconfig sat gen glue ramseySyntax;
 PolyML.print_depth 10;
 
-val size44 = 14;
-val size35 = 10;
-val m4414l = read_par size44 (4,4);
-val m3510l = read_par size35 (3,5);
-val m44i = hd (read_par size44 (4,4));
-val m35i = hd (read_par size35 (3,5));
-val thm = glue true (4,5) m44i m35i;
-
-write_gluescripts 50 false (4,4,17) (3,5,7) (4,5);
-write_gluescripts 50 false (4,4,16) (3,5,8) (4,5);
-
-
-write_gluescripts 50 false (4,4,15) (3,5,9) (4,5);
-
-write_gluescripts 50 false (4,4,16) (3,5,8) (4,5);
+write_gluescripts 1 true (4,4,17) (3,5,7) (4,5);
+write_gluescripts 1 true (4,4,16) (3,5,8) (4,5);
+write_gluescripts 50 true (4,4,15) (3,5,9) (4,5);
+write_gluescripts 50 true (4,4,14) (3,5,10) (4,5);
 
 *)
 
