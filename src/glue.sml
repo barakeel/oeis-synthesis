@@ -91,14 +91,15 @@ fun glue cone_flag (bluen,redn) m1i m2i =
    Write gluing scripts
    ------------------------------------------------------------------------- *)
 
-fun write_gluescript cone_flag (b1,r1,size1) (b2,r2,size2) (bluen,redn)    
+fun write_gluescript dirname 
+  cone_flag (b1,r1,size1) (b2,r2,size2) (bluen,redn)    
   (batchi,ipairl) = 
   let 
     val s1 = its b1 ^ its r1 ^ its size1
     val s2 = its b2 ^ its r2 ^ its size2
     val id = s1 ^ "_" ^ s2
     val thyname = "ramseyGlue_" ^ id ^ "_" ^ its batchi
-    val filename = selfdir ^ "/RamseyGlue/" ^ thyname ^ "Script.sml"
+    val filename = selfdir ^ "/" ^ dirname ^ "/" ^ thyname ^ "Script.sml"
     val param = "(" ^ its bluen ^ "," ^ its redn ^ ")"
     val open_cmd = ["open HolKernel boolLib kernel glue"]
     val newtheory_cmd = ["val _ = new_theory " ^ mlquote thyname]
@@ -118,10 +119,10 @@ fun write_gluescript cone_flag (b1,r1,size1) (b2,r2,size2) (bluen,redn)
        map save_cmd ipairl @ export_cmd)
   end
 
-fun write_gluescripts batchsize cone_flag 
+fun write_gluescripts dirname batchsize cone_flag 
   (b1,r1,size1) (b2,r2,size2) (bluen,redn) = 
   let
-    val _ = mkDir_err (selfdir ^ "/RamseyGlue")
+    val _ = mkDir_err (selfdir ^ "/" ^ dirname)
     val parl1 = read_par size1 (b1,r1)
     val _ = print_endline ("parl1: " ^ its (length parl1))
     val parl2 = read_par size2 (b2,r2)
@@ -135,7 +136,7 @@ fun write_gluescripts batchsize cone_flag
     val ncut = (length sortedl div batchsize) + 1
     val batchl = number_fst 0 (cut_modulo ncut (number_fst 0 sortedl))
   in
-    app (write_gluescript cone_flag 
+    app (write_gluescript dirname cone_flag 
            (b1,r1,size1) (b2,r2,size2) (bluen,redn))
     batchl
   end
@@ -147,10 +148,15 @@ PolyML.print_depth 0;
 load "glue"; load "gen"; open aiLib kernel graph rconfig sat gen glue ramseySyntax;
 PolyML.print_depth 10;
 
-write_gluescripts 1 true (4,4,17) (3,5,7) (4,5);
-write_gluescripts 1 true (4,4,16) (3,5,8) (4,5);
-write_gluescripts 50 true (4,4,15) (3,5,9) (4,5);
-write_gluescripts 50 true (4,4,14) (3,5,10) (4,5);
+write_gluescripts "RamseyGlue" 1 true (4,4,17) (3,5,7) (4,5);
+write_gluescripts "RamseyGlue" 1 true (4,4,16) (3,5,8) (4,5);
+write_gluescripts "RamseyGlue" 50 true (4,4,15) (3,5,9) (4,5);
+write_gluescripts "RamseyGlue" 50 true (4,4,14) (3,5,10) (4,5);
+
+
+write_gluescripts "RamseyGlueAlt" 50 true (3,5,12) (4,4,12) (4,5);
+write_gluescripts "RamseyGlueAlt" 50 true (3,5,13) (4,4,11) (4,5);
+
 
 *)
 

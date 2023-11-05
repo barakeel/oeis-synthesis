@@ -21,6 +21,6 @@ sig
   val is_lit : term -> bool
   val noclique : int -> int * bool -> term
   val term_of_graph : mat -> term
-  val term_of_edgecl : int -> int -> term
+  val term_of_edgecl : int -> ((int * int) * int) list -> term
  
 end

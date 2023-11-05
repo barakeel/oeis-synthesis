@@ -3,6 +3,8 @@ sig
 
   val attempts_glob : int ref
 
+  val cone_compare : int list * int list -> order
+ 
   val write_cone : 
     int * int -> IntInf.int -> (int list * int list list) list -> unit
   val read_cone : 

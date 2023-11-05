@@ -248,7 +248,8 @@ fun cone_of_graph graph =
     val col2 = map (fn (i,j) => mat_sub (graph,i,j)) col1 
   in
     col2
-  end    
+  end
+
 
 fun thm_of_graph graph =
   if !conep_flag then

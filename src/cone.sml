@@ -182,7 +182,7 @@ range (12,13, fn i => cones45 ncore i (3,5));
 (* cone proof 
 PolyML.print_depth 0;
 load "gen"; load "sat"; load "cone";
-open aiLib kernel graph sat nauty gen rconfig cone;
+open aiLib kernel graph sat nauty gen rconfig cone ramseySyntax;
 PolyML.print_depth 10;
 
 val mati = hd (read_par 14 (4,4));
@@ -193,19 +193,29 @@ val conegen = map fst cone;
 
 val _ = conep_flag := true;
 
+
 fun create_parconethmd (bluen,redn) mi = 
-  let val parl = map fst (read_cone (bluen,redn) mi) in
-    if null parl then dempty list_compare Int.compare else
+  let 
+    val parl = map fst (read_cone (bluen,redn) mi) 
+    val size = mat_size (unzip_mat mi)
+    val col = List.tabulate (size,fn i => (i,size))
+  in
+    if null parl then dempty cone_compare else
     let
-      val id = 
-      val conjdef = 
-      val f = UNDISCH o fst o EQ_IMP_RULE o SPEC_ALL
-      val thml = map (UNDISCH_ALL o SPEC_ALL) (CONJUNCTS (f conjdef))
-      val gthml = combine (parl,thml)
+      fun f parcone =
+        let
+          val colc = combine (col,parcone)
+          val term = term_of_edgecl (size + 1) colc
+        in
+          ASSUME term
+        end
     in
-      dnew IntInf.compare gthml
+      dnew cone_compare (map_assoc f parl)
     end
   end
+
+val parconethmd = create_parconethmd (4,5) mati;
+
 
 
 val _ = (disable_log := true;conep_flag := true;
