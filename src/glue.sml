@@ -148,15 +148,14 @@ PolyML.print_depth 0;
 load "glue"; load "gen"; open aiLib kernel graph rconfig sat gen glue ramseySyntax;
 PolyML.print_depth 10;
 
+
 write_gluescripts "RamseyGlue" 1 true (4,4,17) (3,5,7) (4,5);
 write_gluescripts "RamseyGlue" 1 true (4,4,16) (3,5,8) (4,5);
 write_gluescripts "RamseyGlue" 50 true (4,4,15) (3,5,9) (4,5);
 write_gluescripts "RamseyGlue" 50 true (4,4,14) (3,5,10) (4,5);
 
-
 write_gluescripts "RamseyGlueAlt" 50 true (3,5,12) (4,4,12) (4,5);
 write_gluescripts "RamseyGlueAlt" 50 true (3,5,13) (4,4,11) (4,5);
-
 
 *)
 
