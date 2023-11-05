@@ -21,6 +21,8 @@ val max_red_degree = ref 0
 val iso_flag = ref true
 val proof_flag = ref true
 val graphl = ref []
+val conegen_flag = ref false
+val coneset_glob = ref (eempty (list_compare Int.compare))
 
 fun normalize_nauty_wperm x = 
   if !iso_flag then nauty.normalize_nauty_wperm x else (x,[])
@@ -94,6 +96,7 @@ fun init_timer () =
   show_assums := true;
   final_thm := TRUTH;
   graphl := [];
+  coneset_glob := eempty (list_compare Int.compare);
   prop_counter := 0;
   prop_small_counter := 0;
   prop_conflict_counter := 0;
@@ -845,9 +848,12 @@ fun sat_solver_loop assignv clausevv path =
           val newpath = (undol, decv, colorm, decthm :: thml,g1) :: parentl  
         in
           debug "sat";
-          if !iso_flag 
-            then graphl := normgraph :: !graphl
-            else graphl := mat_copy (!graph_glob) :: !graphl;
+          if !iso_flag then graphl := normgraph :: !graphl
+            else if !conegen_flag 
+            then coneset_glob := eadd 
+            (cone_of_graph (!graph_glob)) (!coneset_glob) 
+            else graphl := mat_copy (!graph_glob) :: !graphl
+          ;
           app (fn f => f ()) newundol;
           frec newpath
         end

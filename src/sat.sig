@@ -24,6 +24,8 @@ sig
   val gthmd_glob : (IntInf.int, thm * int list) Redblackmap.dict ref
   val allsat_flag : bool ref
   val conep_flag : bool ref
+  val conegen_flag : bool ref
+  val coneset_glob : int list Redblackset.set ref
   
   (* solver *)
   val sat_solver : int -> int * int -> mat list

@@ -64,7 +64,7 @@ fun mk_cone_clause conel column =
     list_mk_disj l3
   end
     
-fun cone_clauses_ground (bluen,redn) m1i m2i =
+fun vertical_cone_clauses_ground (bluen,redn) m1i m2i =
   let 
     val conel = map fst (read_cone (bluen,redn) m1i)  
     val size1 = mat_size (unzip_mat m1i)
@@ -74,12 +74,32 @@ fun cone_clauses_ground (bluen,redn) m1i m2i =
   in
     map (mk_cone_clause conel) columns 
   end
+  
+fun horizontal_cone_clauses_ground (bluen,redn) m1i m2i =
+  let 
+    val conel = map fst (read_cone (bluen,redn) m2i)  
+    val size1 = mat_size (unzip_mat m1i)
+    val size2  = mat_size (unzip_mat m2i)
+    fun mk_row i = List.tabulate (size2,fn j => (i,size1 + j))
+    val rows = List.tabulate (size1,mk_row)
+  in
+    map (mk_cone_clause conel) rows 
+  end
+  
+  
+
+val both_flag = ref false
 
 fun glue_pb cone_flag (bluen,redn) m1i m2i =
   let
     val rclauses = ramsey_clauses_ground (bluen,redn) m1i m2i
     val cclauses = 
-      if cone_flag then cone_clauses_ground (bluen,redn) m1i m2i else []
+      if !both_flag then  
+        (vertical_cone_clauses_ground (bluen,redn) m1i m2i @
+         horizontal_cone_clauses_ground (bluen,redn) m1i m2i)
+      else if cone_flag then 
+        vertical_cone_clauses_ground (bluen,redn) m1i m2i 
+      else []
   in
     mk_neg (list_mk_conj (cclauses @ rclauses))
   end
