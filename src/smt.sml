@@ -118,7 +118,7 @@ fun export_smt2_one flag dir ((p1,p2),anumltop) =
     val file = dir ^ "/" ^ "A" ^ its (hd anuml) ^ ".smt2" 
     val seq = valOf (Array.sub (bloom.oseq,hd anuml))
     val _ = (index := 0; decl := []; defl := [])
-    val _ = (smtdef ("small",p1), smtdef ("fast",p2))
+    val _ = (smtdefspec "small" 1 (smt p1), smtdefspec "fast" 1 (smt p2))
     val header =  
       [";; sequence(s): " ^ anums,
        ";; terms: " ^ string_of_seq (first_n 20 seq),
@@ -150,8 +150,13 @@ fun export_smt2 flag dir file =
     val _ = print_endline ("unique program pairs: " ^ its (length l4))
     val lver = ref []
     val lnonver = ref []
+    val i = ref 0
     fun test (pp,anuml) = 
-      let val (b1,b2) =  verify_eq (1000000,100) pp in
+      let 
+        val (b1,b2) =  verify_eq (1000000,100) pp 
+        val _ = print_endline (its (!i))
+        val _ = incr i  
+      in
         if (not b1) then b1 else
         if b2 
         then (lver := hd (dict_sort Int.compare anuml) :: !lver; b1)
@@ -166,16 +171,29 @@ fun export_smt2 flag dir file =
     write_anuml (dir ^ "/all_nonverified100") (!lnonver);
     app (export_smt2_one flag (dir ^ "/pb")) l5
   end
+  
 
-(* -------------------------------------------------------------------------
-   Command to export problems from the files 
-   "model/itsol209" to SMTlib (not compatible with z_flag)
-   ------------------------------------------------------------------------- *)
-
-(*
-load "smt"; open kernel aiLib human smt;
-export_smt2 true "oeis-smt-updcom" "model/itsol209";
-*)
+fun export_smt2_anuml flag anumltop dir file =
+  let
+    val l1 = read_itprogl file
+    val _ = print_endline ("sequences: " ^ its (length l1))
+    val l2 = List.mapPartial (fn (x,l) => 
+      if length l <> 2 then NONE else SOME (x, pair_of_list 
+      (dict_sort prog_compare_size (map snd l)))) l1
+    val _ = print_endline ("with at least 2 programs: " ^ its (length l2))
+    val l3 = map swap l2
+    val l4 = dlist (dregroup (cpl_compare prog_compare prog_compare) l3)
+    val _ = print_endline ("unique program pairs: " ^ its (length l4))
+    val lver = ref []
+    val lnonver = ref []
+    val i = ref 0
+    fun test (pp,anuml) = mem (hd (dict_sort Int.compare anuml)) anumltop
+    val l5 = filter test l4
+    val _ = print_endline ("further verification: " ^ its (length l5))
+  in
+    mkDir_err (dir ^ "/pb");
+    app (export_smt2_one flag (dir ^ "/pb")) l5
+  end
 
 (* -------------------------------------------------------------------------
    Listing problems that likely require induction:
@@ -276,6 +294,31 @@ fun test_pp test (p1,p2) =
 fun ind_pb test l = dict_sort Int.compare 
   (map fst (filter (test_pp test o snd) l));
 
+fun anum_of_string s = 
+  (string_to_int o tl_string) (hd (String.tokens (fn x => x = #".") s))
+
+(* -------------------------------------------------------------------------
+   Command to export problems from the files 
+   "model/itsol209" to SMTlib (not compatible with z_flag)
+   Checking is slow.
+   ------------------------------------------------------------------------- *)
+
+(*
+load "smt"; open kernel aiLib human smt;
+export_smt2 true "oeis-smt" "model/itsol209";
+*)
+
+(* -------------------------------------------------------------------------
+   Command to re-export problems from the files  (mv pb to pb-old)
+   ------------------------------------------------------------------------- *)
+
+(*
+load "smt"; open aiLib kernel smt;
+val anuml = map anum_of_string (readl "oeis-smt/all_pb");
+export_smt2_anuml true anuml "oeis-smt" "model/itsol209";
+
+*)
+
 (* -------------------------------------------------------------------------
    Command to create the subbenchmarks
    ------------------------------------------------------------------------- *)
@@ -284,8 +327,7 @@ fun ind_pb test l = dict_sort Int.compare
 load "smt"; open aiLib kernel smt;
 
 cmd_in_dir "oeis-smt" "ls pb | wc -l > all_pb";
-val smt1 = map 
-  (fn x => (string_to_int o tl_string) (hd (String.tokens (fn x => x = #".") x))) (readl "oeis-smt/all_pb");
+val smt1 = map anum_of_string (readl "oeis-smt/all_pb");
 length smt1;
 val org = read_itprogl "model/itsol209"; 
 length org;
