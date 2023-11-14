@@ -532,11 +532,17 @@ fun merge_pgen fileo =
    and a hash function saying which program are simiarl.
    ------------------------------------------------------------------------- *)
 
+(* Please define the score *)
+fun ramsey_score p = NONE
+
+
 (* data structures 
 ramseyd: contains list of ramsey entries sorted by score then compare_prog_size
 ramseyh: contains the set of hashes from ramseyd
 when stored on a file ramsey is a list of key and values.
 *)
+
+
 
 val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
 val ramseyd = ref (dempty compare_ramsey)
@@ -585,7 +591,7 @@ fun hash_prog p =
     sum_int (map f (dlist (count_dict (dempty Int.compare) l)))
   end
  
-fun checkonline_ramsey (p,exec) = case ramsey.ramsey_score p of 
+fun checkonline_ramsey (p,exec) = case ramsey_score p of 
     NONE => ()
   | SOME sc => update_ramseyd ((~sc,p),(sc,sc,sc,sc))
  
