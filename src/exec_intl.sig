@@ -11,5 +11,9 @@ sig
   val edgev_glob : (int ref *
        (((int ref * int ref) * (int * int)) vector *
        ((int ref * int ref) * (int * int)) vector)) vector ref 
+
+  (* parallel execution (wip) *)
+  val execspec : (unit, kernel.prog list, kernel.seq list) smlParallel.extspec
+  val parallel_exec : int -> string -> unit
   
 end

@@ -23,7 +23,8 @@ local open IntInf in
   fun large_int x = x > maxint orelse x < minint
 end
 
-fun cost costn x = if large_int x then IntInf.log2 (IntInf.abs x) else costn
+fun cost costn x = 
+  if large_int x then IntInf.log2 (IntInf.abs x) else costn
 
 fun testn costn f x =
   let 
@@ -182,7 +183,6 @@ fun create_compr f =
       else loop i [aincr (hd x)]
     val _ = catch_perror (loop 0) [azero] (fn () => ())
     val v = Vector.fromList (rev (!l))
-    (* val _ = print_endline ("len: " ^ its (Vector.length v)) *)
     val r = ref 0
   in
     (fn x => 
@@ -291,6 +291,72 @@ fun verify_wtime r (anum,p) =
   in
     (seq1 = seq2, is_prefix seq2 seq1)
   end
+
+
+(* -------------------------------------------------------------------------
+   Parallel execution
+   ------------------------------------------------------------------------- *)
+
+fun execspec_fun pl =
+  let  
+    val i = ref 0;
+    fun f p = (
+      max_compr_number := 1000;
+      incr i; 
+      print_endline (its (!i)); 
+      penum_wtime 10000000 p 1000);
+  in
+    map f pl
+  end
+
+val execspec : (unit, prog list, seq list) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "exec.execspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () pl = execspec_fun pl in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_progl,
+  read_arg = read_progl,
+  write_result = write_seql,
+  read_result = read_seql
+  }
+
+fun parallel_exec ncore expname =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sl = readl (dir ^ "/input")
+    val pl = map prog_of_gpt sl
+    val pll = cut_n (10*ncore) pl
+    val (ill,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore execspec ()) pll
+    val il = List.concat ill
+    val pseql = combine (pl,il)
+    fun g (p,seq) = its (length seq) ^ ", " ^ 
+      gpt_of_prog p ^ ", " ^ string_of_seq seq;
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    writel (dir ^ "/output") (map g pseql)
+  end
+
+(*  
+load "exec_intl"; open aiLib kernel exec_intl;
+parallel_exec 60 "lmfdb3";
+*)  
+
+
+
 
 end (* struct *)
 
