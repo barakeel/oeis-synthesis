@@ -312,7 +312,7 @@ fun execspec_fun pl =
 val execspec : (unit, prog list, seq list) smlParallel.extspec =
   {
   self_dir = selfdir,
-  self = "exec.execspec",
+  self = "exec_intl.execspec",
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
