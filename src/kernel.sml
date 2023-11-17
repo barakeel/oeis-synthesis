@@ -56,8 +56,11 @@ val long_compr = iflagnoref "long_compr" 200
 
 val memo_number = iflagnoref "memo_number" 100000
 val memo_flag = bflag "memo_flag"
-val reprocess_flag = if !memo_flag then ref true else bflag "reprocess_flag"
+val reprocess_flag = bflag "reprocess_flag"
 val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
+
+
+val memo_number = iflagnoref "memo_number" 100000
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

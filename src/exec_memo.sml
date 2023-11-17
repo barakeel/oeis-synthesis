@@ -38,9 +38,9 @@ fun mk_progb (Ins (id,pl)) =
 
 val meml_free = ref []
 val meml_used = ref []
+
 val empty_infl = []: IntInf.int list
 val default_entry = (empty_infl, empty_infl)
-
 
 fun get_mem () = case !meml_free of
     [] =>
@@ -60,6 +60,7 @@ fun store_mem ((mema,memn),n,x) =
   if n >= Array.length mema then () 
   else if n <> !memn then raise ERR "store_mem" "should not happen" 
   else (Array.update (mema,n,x); memn := n + 1)
+
 
 (* -------------------------------------------------------------------------
    Time limit wrappers
@@ -120,6 +121,7 @@ fun mk_quintf2 opf fl = case fl of
    ------------------------------------------------------------------------- *)
 
 local open IntInf in  
+
 val zero_f = mk_nullf (fn (x,y) => [azero])
 val one_f = mk_nullf (fn (x,y) => [aone])
 val two_f = mk_nullf (fn (x,y) => [atwo])
@@ -131,13 +133,14 @@ fun mk_e f (l1,l2) = case (l1,l2) of
   | (_,[]) => raise Empty
   | (a1 :: m1, a2 :: m2) => (f (a1,a2) :: m1)
   
-
 val addi_f = mk_binf 1 (mk_e (op +))
 val diff_f = mk_binf 1 (mk_e (op -))
 val mult_f = mk_binf 1 (mk_e (op *))
 val divi_f = mk_binf 5 (mk_e (op div))
 val modu_f = mk_binf 5 (mk_e (op mod))
+
 end
+
 
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
@@ -210,6 +213,7 @@ fun loopm_f_aux () =
   
 fun loopm_f () = mk_ternf1 (loopm_f_aux ())
 
+
 (* -------------------------------------------------------------------------
    Loops
    ------------------------------------------------------------------------- *)
@@ -248,7 +252,7 @@ fun compr_loop mem f n i x =
   end
    
 val comprstart = [IntInf.fromInt (~1)]   
-         
+      
 fun compr_wrap f =
   let
     val mema = get_mem ()
@@ -332,7 +336,7 @@ fun mk_exec_onev p =
 
 fun coverf_oeis exec = 
   let fun g x = hd (exec ([x], [azero])) in scover_oeis g end
-  
+ 
 (* -------------------------------------------------------------------------
    Verifiy cover
    ------------------------------------------------------------------------- *)
@@ -349,7 +353,6 @@ fun penum_aux p n =
       loop (i+1) (aincr x)
       )
     val _ = catch_perror (loop 0) azero (fn () => ())
-    (* val _ = loop 0 azero *)
   in  
     rev (!l)
   end
@@ -484,7 +487,5 @@ timeincr := 100000000;
 
 val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
 !abstimer;
-
-
-
 *)  
+
