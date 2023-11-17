@@ -9,19 +9,20 @@ The following installation instructions are for the Ubuntu OS.
 ### Web interface
 Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
-### Install dependencies: MKL,polyml,HOL,OpenBLAS (takes about 20min)
+### Install dependencies: MKL,polyml,HOL,OpenBLAS + download old model
+This takes about 15 min to complete
+
 ``` 
 sudo apt install -y libgmp-dev rlwrap intel-mkl
 sh install_dep.sh
 ```
 
-Tip: Installing `intel-mkl` requires 2GB but is not necessary if you only want to run the checker.
+Tip: Installing `intel-mkl` requires 2GB but is not necessary 
+if you only want to run the checker.
 
 ### Install oeis-synthesis
 ```
 cd src
-wget http://grid01.ciirc.cvut.cz/~thibault/model.tar.gz
-tar -xvf model.tar.gz
 sh install.sh
 ```
 
@@ -55,7 +56,6 @@ Go to the `src` directory and run:
 ```
 sh rl.sh expname
 ```
-
 - To change training options, 
   edit the `config` file and run `sh install.sh` again.
 - You may change `expname` to reflect the aim of your experiment.
