@@ -279,6 +279,36 @@ fun cover_oeis f = catch_perror cover_oeis_aux2 f
   (fn () => (!anlref, !ncoveri, !anlrefpart))
 
 (* -------------------------------------------------------------------------
+   Checking if a program covers an OEIS sequence (simple version)
+   ------------------------------------------------------------------------- *)
+
+fun scover_oeis_aux f i ot = case ot of
+    Oleaf (an2,[]) => anlref := (an2,!abstimer) :: !anlref
+  | Oleaf (an2,a2 :: m2) => 
+    if f i = a2 then
+      (incr_timer (); scover_oeis_aux f (aincr i) (Oleaf (an2,m2)))
+    else ()
+  | Odict (anl,d) =>
+    let val _ = anlref := map (fn x => (x,!abstimer)) anl @ !anlref in
+      let val a1 = f i in
+        case dfindo a1 d of 
+          NONE => ()
+        | SOME newot => (incr_timer (); scover_oeis_aux f (aincr i) newot)
+      end
+    end
+
+fun scover_oeis_aux2 f = 
+  let 
+    val _ = anlref := []
+    val _ = init_timer ();
+    val _ = scover_oeis_aux f azero otree
+  in
+    !anlref
+  end
+
+fun scover_oeis f = catch_perror scover_oeis_aux2 f (fn () => !anlref)
+
+(* -------------------------------------------------------------------------
    Checking if a program covers a user-given sequence
    ------------------------------------------------------------------------- *)
 

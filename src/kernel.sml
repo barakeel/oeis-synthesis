@@ -50,6 +50,9 @@ val maxproglen = iflagnoref "maxproglen" 10000
 val maxintsize = iflagnoref "maxintsize" 285
 val reprocess_flag = bflag "reprocess_flag"
 
+
+val memo_number = iflagnoref "memo_number" 100000
+
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val newseq_flag = bflag "newseq_flag"
@@ -67,7 +70,8 @@ val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
 val turing_flag = bflag "turing_flag"
 val her_flag = bflag "her_flag"
-val intl_flag = bflag "intl_flag"
+val memo_flag = bflag "memo_flag"
+val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
 val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
@@ -396,13 +400,13 @@ fun init_fast_test () =
 fun init_slow_test () = 
   (max_compr_number := long_compr; timeincr := long_timeincr)
 
-fun catch_perror f x g =
-  f x handle 
-             Empty => g ()
-           | Div => g () 
-           | ProgTimeout => g () 
-           | Overflow => g ()
- 
+fun catch_perror f x g = f x handle 
+     Empty => g ()
+   | Div => g () 
+   | ProgTimeout => g () 
+   | Overflow => g ()
+   | Subscript => g ()
+   
 (* -------------------------------------------------------------------------
    NMT interface
    ------------------------------------------------------------------------- *)

@@ -39,6 +39,8 @@ sig
   val short_timeincr : int
   val long_timeincr : int
   val temperature : real
+  val memo_flag : bool ref
+  val memo_number : int
   val maxproglen : int
   val maxintsize : int
   val reprocess_flag : bool ref
@@ -113,6 +115,9 @@ sig
   val arity_of_oper : int -> int
   val name_of_oper : int -> string
   val oper_of_name : string -> int
+  val ho_ariv : int vector
+  val x_id : int
+  val y_id : int
   
   (* timer *)
   exception ProgTimeout
