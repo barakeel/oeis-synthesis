@@ -41,17 +41,23 @@ val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
+
+val temperature = rflagnoref "temperature" 1.0
+val maxproglen = iflagnoref "maxproglen" 10000
+val maxintsize = iflagnoref "maxintsize" 285
+
+
+(* deprecated *)
 val short_timeincr = iflagnoref "short_timeincr" 1000
 val long_timeincr = iflagnoref "long_timeincr" 100000
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
-val temperature = rflagnoref "temperature" 1.0
-val maxproglen = iflagnoref "maxproglen" 10000
-val maxintsize = iflagnoref "maxintsize" 285
-val reprocess_flag = bflag "reprocess_flag"
 
 
 val memo_number = iflagnoref "memo_number" 100000
+val memo_flag = bflag "memo_flag"
+val reprocess_flag = if !memo_flag then ref true else bflag "reprocess_flag"
+val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
@@ -70,8 +76,6 @@ val _ = if !pgen_flag then notarget_flag := true else ()
 val fs_flag = bflag "fs_flag"
 val turing_flag = bflag "turing_flag"
 val her_flag = bflag "her_flag"
-val memo_flag = bflag "memo_flag"
-val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
 val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
@@ -389,7 +393,7 @@ exception ProgTimeout;
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
 val abstimer = ref 0
-val max_compr_number = ref short_compr
+val max_compr_number = ref short_compr (* deprecated *)
 val graph = ref []
 val graphb = ref 0
 

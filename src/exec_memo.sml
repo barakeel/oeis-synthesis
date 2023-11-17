@@ -57,7 +57,8 @@ fun reset_mem () =
   )
 
 fun store_mem ((mema,memn),n,x) = 
-  if n <> !memn then raise ERR "store_mem" "should not happen" 
+  if n >= Array.length mema then () 
+  else if n <> !memn then raise ERR "store_mem" "should not happen" 
   else (Array.update (mema,n,x); memn := n + 1)
 
 (* -------------------------------------------------------------------------
@@ -70,8 +71,6 @@ local open IntInf in
   val atwo = fromInt 2
   fun aincr x = x + aone
   fun adecr x = x - aone
-  fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
-  fun pow2 b = arb_pow atwo (fromInt b)
   val maxint = fromInt (valOf (Int.maxInt))
   val minint = fromInt (valOf (Int.minInt))
   fun large_int x = x > maxint orelse x < minint
@@ -119,7 +118,8 @@ fun mk_quintf2 opf fl = case fl of
 (* -------------------------------------------------------------------------
    Basic intructions
    ------------------------------------------------------------------------- *)
- 
+
+local open IntInf in  
 val zero_f = mk_nullf (fn (x,y) => [azero])
 val one_f = mk_nullf (fn (x,y) => [aone])
 val two_f = mk_nullf (fn (x,y) => [atwo])
@@ -131,11 +131,13 @@ fun mk_e f (l1,l2) = case (l1,l2) of
   | (_,[]) => raise Empty
   | (a1 :: m1, a2 :: m2) => (f (a1,a2) :: m1)
   
+
 val addi_f = mk_binf 1 (mk_e (op +))
 val diff_f = mk_binf 1 (mk_e (op -))
 val mult_f = mk_binf 1 (mk_e (op *))
 val divi_f = mk_binf 5 (mk_e (op div))
 val modu_f = mk_binf 5 (mk_e (op mod))
+end
 
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
@@ -172,6 +174,7 @@ fun helperm_loop mem f1 f2 n ncur x1 x2 =
   end
  
 fun helperm (mema,memn) f1 f2 n x1 x2 =
+  if n < 0 then x1 else 
   if n < !memn then fst (Array.sub (mema,n)) else
   if !memn <= 0 then 
     (store_mem ((mema,memn),0,(x1,x2));
@@ -193,10 +196,10 @@ fun loop2m_f_aux () =
     fn (f1,f2,n,x1,x2) => helperm mem f1 f2 (IntInf.toInt (hd n)) x1 x2
   end
 
-val loop2m_f = mk_quintf2 (loop2m_f_aux ())
+fun loop2m_f () = mk_quintf2 (loop2m_f_aux ())
 
 fun loopm_f_aux () =
-  let 
+  let
     val mema = get_mem ()
     val memn = ref 0
     val mem = (mema,memn)
@@ -205,7 +208,7 @@ fun loopm_f_aux () =
     fn (f1,n,x1) => helperm mem f1 f2 (IntInf.toInt (hd n)) x1 [aone]
   end
   
-val loopm_f = mk_ternf1 (loopm_f_aux ())
+fun loopm_f () = mk_ternf1 (loopm_f_aux ())
 
 (* -------------------------------------------------------------------------
    Loops
@@ -305,11 +308,11 @@ fun wrap_const f =
 fun wrap_loop p id fl = case p of
     Insb (9,b,[p1,p2,p3]) => 
     if not b andalso is_const p3 
-    then loopm_f fl
+    then (loopm_f ()) fl
     else Vector.sub (execv,id) fl
   | Insb (13,b,[p1,p2,p3,p4,p5]) =>
     if not b andalso is_const p4 andalso is_const p5 
-    then loop2m_f fl
+    then (loop2m_f ()) fl
     else Vector.sub (execv,id) fl
   | _ => Vector.sub (execv,id) fl
   
@@ -322,13 +325,13 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
     f2
   end
   
-fun mk_exec p = mk_exec_loop (mk_progb p)
+fun mk_exec p = (reset_mem (); mk_exec_loop (mk_progb p))
 
 fun mk_exec_onev p = 
   let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
 
 fun coverf_oeis exec = 
-  let fun g x = hd (exec ([x], [azero])) in cover_oeis g end
+  let fun g x = hd (exec ([x], [azero])) in scover_oeis g end
   
 (* -------------------------------------------------------------------------
    Verifiy cover
@@ -346,6 +349,7 @@ fun penum_aux p n =
       loop (i+1) (aincr x)
       )
     val _ = catch_perror (loop 0) azero (fn () => ())
+    (* val _ = loop 0 azero *)
   in  
     rev (!l)
   end
@@ -360,6 +364,19 @@ fun verify_wtime r (anum,p) =
     (seq1 = seq2, is_prefix seq2 seq1)
   end
 
+fun verify_file tim file = 
+  let 
+    val itsol = read_itprogl file
+    val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol) 
+    val _ = print_endline ("solutions: " ^ its (length isol))
+    val (bbl,t) = add_time (map_assoc (verify_wtime tim)) isol
+    val lbad1 = filter (not o fst o snd) bbl
+    val lbad2 = filter (not o snd o snd) bbl
+  in 
+    print_endline 
+      (rts_round 4 t ^ ": " ^ its (length lbad1) ^ " " ^ its (length lbad2));
+    map fst lbad1
+  end
 
 (* -------------------------------------------------------------------------
    Parallel execution
@@ -432,22 +449,9 @@ end (* struct *)
 
 (*
 PolyML.print_depth 10;
+load "human"; open human;
 load "exec_memo";  open kernel aiLib exec_memo;
-
-val itsol = read_itprogl "model/itsol209"; 
-val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol); 
-length isol;
-
-val (bbl,t) = add_time (map_assoc (verify_wtime 100000)) isol;
-val lbad1 = filter (not o fst o snd) bbl; length lbad1;
-val lbad2 = filter (not o snd o snd) bbl; length lbad2;
-val lbad = map fst lbad1;
-length lbad1; length lbad2; t;
-
-fun f (i,p) = its i ^ ": " ^ humanf p;
-map f lbad;
-write_iprogl "lbad" lbad;
-val lbad = read_iprogl "lbad";
+val badl = verify_file 1000000 (selfdir ^ "/model/itsol209");
 *)
 
 (* -------------------------------------------------------------------------
@@ -457,21 +461,30 @@ val lbad = read_iprogl "lbad";
 (* 
 load "exec_memo"; open exec_memo; 
 load "human"; open kernel human aiLib;
+
 val p =  parse_human "(loop ( * 2 x) x 1)";
-val p = parse_human "(loop ( * x x) x  2)";
 val p = parse_human "(% x 2)";
 val p = parse_human "(% (- (loop ( * 2 x) x 1) 2) x) "; 
+val p =  parse_human "(loop ( * 2 x) x 1)";
+val p = parse_human "(loop ( * x x) x 2)";
+
+val p =  parse_human "(- (loop ( * 2 x) x 1) (loop ( * 2 x) x 1))";
+val (anum,p) = hd lbad;
+val seq = valOf (Array.sub (bloom.oseq, anum));
 humanf p;
+
+
+val p = parse_human "(loop2 (+ x y) x x 2 1)";
+
+abstimer := 0;
 val f = mk_exec_onev p;
-
-penum_wtime r p n
-
-List.tabulate (10, fn x => f (x + 3));
-val f = mk_exec_onev p;
-List.tabulate (10, fn x => f (IntInf.fromInt (x + 3)));
-
-val (l1,t) = add_time (penum p) 7;
+f 100;
+timeincr := 100000000;
 !abstimer;
-val l = penum_prime p;
+
+val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
 !abstimer;
+
+
+
 *)  

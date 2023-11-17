@@ -137,9 +137,18 @@ fun checkf nnvalue (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
 
+fun checkf_memo p = 
+  let
+    val anumtl = exec_memo.coverf_oeis (exec_memo.mk_exec p)
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end
+
 fun checkf_intl (nnvalue:real) p = 
   let
-    val (anumtl,cov,anumlpart) = exec_intl.coverf_oeis (exec_intl.mk_exec p)
+    val (anumtl,cov,anumlpart) = 
+      exec_intl.coverf_oeis (exec_intl.mk_exec p)
     fun f (anum,t) = 
       if !think_flag orelse !run_flag
       then update_wind wind (anum,[(Real.round (~nnvalue * 1000000000.0),p)])
@@ -157,6 +166,8 @@ fun checkf_intl (nnvalue:real) p =
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
+  
+  
 
 fun checkinit () =
   (
@@ -174,6 +185,7 @@ fun checkf_seq (p,exec) =
   
 fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
+  else if !memo_flag then checkf_memo p 
   else if !intl_flag then checkf_intl nnvalue p 
   else checkf nnvalue (p,exec)
 
@@ -211,7 +223,9 @@ fun checkpl pl =
     fun f p = (
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
-      if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p)
+      if !memo_flag then checkf_memo p
+      else if !intl_flag then checkf_intl 0.0 p 
+      else checkf 0.0 (p, mk_exec p)
       )
   in
     checkinit (); app f pl; checkfinal ()
@@ -256,6 +270,7 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_slow_test (); 
+       if !memo_flag then checkf_memo p else
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
@@ -400,9 +415,8 @@ fun parallel_check expname =
       if !reprocess_flag 
       then (
            cmd_in_dir dir "cat cand solold_reprocess > candx1";
-           cmd_in_dir dir "sort -u candx1 > candx2";
-           cmd_in_dir dir "split -l 10000 candx2 split/cand";
-           cmd_in_dir dir "rm candx1; rm candx2"
+           cmd_in_dir dir "split -l 10000 candx1 split/cand";
+           cmd_in_dir dir "rm candx1"
            )
       else cmd_in_dir dir "split -l 10000 cand split/cand"
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
