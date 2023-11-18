@@ -248,7 +248,9 @@ fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
 
 
 (* -------------------------------------------------------------------------
-   Instructions
+   Instructions:
+   A B C D E F G H I    J    K L M     N    O    P
+   0 1 2 + - * / % cond loop x y compr loop push pop
    ------------------------------------------------------------------------- *)
 
 val org_operl = [("zero",0),("one",0),("two",0),
