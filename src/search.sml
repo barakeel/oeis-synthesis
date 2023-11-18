@@ -143,8 +143,10 @@ fun collect_children nnvalue boarde = case boarde of
     let 
       val _ = if not (!locsearch_flag) 
               then (
-                   incr prog_counter; 
-                   if !ramsey_flag then
+                   incr prog_counter;
+                   if !memo_flag andalso !prog_counter mod 10000 = 0
+                     then exec_memo.clean_memo ()
+                   else if !ramsey_flag then
                      checkonline_ramsey (p,exec)
                    else if !pgen_flag 
                    then checkonline_pgen (p,exec)

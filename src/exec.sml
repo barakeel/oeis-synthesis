@@ -656,7 +656,7 @@ fun parallel_exec ncore expname =
 (*  
 load "exec"; open aiLib kernel exec;
 parallel_exec 30 "lmfdb1";
-*)  
+*)
 
 
 

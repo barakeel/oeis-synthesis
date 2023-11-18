@@ -61,6 +61,7 @@ fun store_mem ((mema,memn),n,x) =
   (* else if n <> !memn then raise ERR "store_mem" "should not happen" *)
   else (Array.update (mema,n,x); memn := n + 1)
 
+fun clean_memo () = (meml_free := []; meml_used := [])
 
 (* -------------------------------------------------------------------------
    Time limit wrappers
