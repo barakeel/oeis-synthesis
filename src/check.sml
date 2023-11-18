@@ -279,7 +279,8 @@ fun checkmll mll =
 
 fun check_file file =
   let 
-    val mll = map (rev o movel_of_gpt) (readl file)
+    val f = if !reverse_nmtoutput then rev else I
+    val mll = map (f o movel_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
   in
     checkmll mll; 

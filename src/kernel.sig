@@ -44,6 +44,7 @@ sig
   val maxproglen : int
   val maxintsize : int
   val reprocess_flag : bool ref
+  val reverse_nmtoutput : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
