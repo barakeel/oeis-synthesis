@@ -71,7 +71,7 @@ fun get_mem () = ref (Array.array (16, default_entry))
 
 fun resize_array a = 
   let val n = Array.length (!a) in
-    if n > memo_number then () else
+    if n >= memo_number then () else
     let val dest = Array.array (2 * n, default_entry) in
       Array.copy {src = !a, dst = dest, di = 0};
       a := dest
