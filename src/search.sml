@@ -144,7 +144,7 @@ fun collect_children nnvalue boarde = case boarde of
       val _ = if not (!locsearch_flag) 
               then (
                    incr prog_counter;
-                   else if !ramsey_flag then
+                   if !ramsey_flag then
                      checkonline_ramsey (p,exec)
                    else if !pgen_flag 
                    then checkonline_pgen (p,exec)
