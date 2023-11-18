@@ -38,6 +38,10 @@ fun mk_progb (Ins (id,pl)) =
 
 val meml_free = ref []
 val meml_used = ref []
+val undol = ref [] (* used for cheap cleaning of arrays *)
+
+
+fun clean_memo () = (meml_free := []; meml_used := [])
 
 val empty_infl = []: IntInf.int list
 val default_entry = (empty_infl, empty_infl)
@@ -59,9 +63,14 @@ fun reset_mem () =
 fun store_mem ((mema,memn),n,x) = 
   if n >= Array.length mema then () 
   (* else if n <> !memn then raise ERR "store_mem" "should not happen" *)
-  else (Array.update (mema,n,x); memn := n + 1)
+  else 
+  (
+  undol := (fn () => Array.update (mema,n,default_entry)) :: !undol;
+  Array.update (mema,n,x); 
+  memn := n + 1
+  )
 
-fun clean_memo () = (meml_free := []; meml_used := [])
+
 
 (* -------------------------------------------------------------------------
    Time limit wrappers
@@ -336,7 +345,14 @@ fun mk_exec_onev p =
   let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
 
 fun coverf_oeis exec = 
-  let fun g x = hd (exec ([x], [azero])) in scover_oeis g end
+  let 
+    val _ = undol := []
+    fun g x = hd (exec ([x], [azero])) 
+    val r = scover_oeis g 
+  in 
+    app (fn f => f ()) (!undol);
+    r
+  end
  
 (* -------------------------------------------------------------------------
    Verifiy cover
@@ -344,6 +360,7 @@ fun coverf_oeis exec =
 
 fun penum_aux p n = 
   let 
+    val _ = undol := []
     val f = mk_exec_onev p
     val _ = init_timer ()
     val l = ref []
@@ -355,6 +372,7 @@ fun penum_aux p n =
       )
     val _ = catch_perror (loop 0) azero (fn () => ())
   in  
+    app (fn f => f ()) (!undol); 
     rev (!l)
   end
   

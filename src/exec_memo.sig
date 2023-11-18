@@ -7,17 +7,16 @@ sig
   
   val mk_exec : prog -> exec
   val mk_exec_onev : prog -> (IntInf.int -> IntInf.int)
-  val clean_memo : unit -> unit
-  
+
   (* match oeis *)
   val coverf_oeis : exec -> (int * int) list
   
+  (* enumerate *)
+  val penum_wtime : int -> prog -> int -> seq
   
   (* verfiy that it is covering an OEIS sequence *)
   val verify_wtime : int -> int * prog -> bool * bool 
   val verify_file : int -> string -> (int * kernel.prog) list
-  (* enumerate *)
-  val penum_wtime : int -> prog -> int -> seq
 
   (* parallel execution *)
   val execspec : (unit, prog list, seq list) smlParallel.extspec

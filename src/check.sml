@@ -282,7 +282,6 @@ fun check_file file =
     val f = if !reverse_nmtoutput then rev else I
     val mll = map (f o movel_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
-    val _ = if !memo_flag then exec_memo.clean_memo () else ()
   in
     checkmll mll; 
     let 

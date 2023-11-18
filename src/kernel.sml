@@ -46,7 +46,6 @@ val temperature = rflagnoref "temperature" 1.0
 val maxproglen = iflagnoref "maxproglen" 10000
 val maxintsize = iflagnoref "maxintsize" 285
 
-
 (* deprecated *)
 val short_timeincr = iflagnoref "short_timeincr" 1000
 val long_timeincr = iflagnoref "long_timeincr" 100000
@@ -54,9 +53,8 @@ val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 
 
-
 val memo_flag = bflag "memo_flag"
-val memo_number = iflagnoref "memo_number" 10000
+val memo_number = iflagnoref "memo_number" 100000
 
 val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
 val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
