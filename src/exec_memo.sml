@@ -62,10 +62,12 @@ fun reset_mem () =
   undol := (fn () => Array.update (!mema,n,default_entry)) :: !undol;
 *)
 
-fun get_mem () = ref (Array.array (16,default_entry))
+
 
 val empty_infl = []: IntInf.int list
 val default_entry = (empty_infl, empty_infl)
+
+fun get_mem () = ref (Array.array (16, default_entry))
 
 fun resize_array a = 
   let val n = Array.length (!a) in
@@ -348,7 +350,7 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
     f2
   end
   
-fun mk_exec p = (reset_mem (); mk_exec_loop (mk_progb p))
+fun mk_exec p = (* reset_mem (); *) mk_exec_loop (mk_progb p)
 
 fun mk_exec_onev p = 
   let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
