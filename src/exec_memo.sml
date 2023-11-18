@@ -9,6 +9,7 @@ type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 
 (* load "kernel"; open kernel aiLib; *)
 
+
 (* -------------------------------------------------------------------------
    Mark constants programs with true (does not support z)
    ------------------------------------------------------------------------- *)
@@ -36,15 +37,13 @@ fun mk_progb (Ins (id,pl)) =
    Memory reused across different programs to avoid unnecessary reallocation.
    ------------------------------------------------------------------------- *)
 
+(* old method with global arrays 
 val meml_free = ref []
 val meml_used = ref []
 val undol = ref [] (* used for cheap cleaning of arrays *)
 
-
 fun clean_memo () = (meml_free := []; meml_used := [])
 
-val empty_infl = []: IntInf.int list
-val default_entry = (empty_infl, empty_infl)
 
 fun get_mem () = case !meml_free of
     [] =>
@@ -60,17 +59,27 @@ fun reset_mem () =
   meml_used := []
   )
 
+  undol := (fn () => Array.update (!mema,n,default_entry)) :: !undol;
+*)
+
+fun get_mem () = ref (Array.array (16,default_entry))
+
+val empty_infl = []: IntInf.int list
+val default_entry = (empty_infl, empty_infl)
+
+fun resize_array a = 
+  let val n = Array.length (!a) in
+    if n > memo_number then () else
+    let val dest = Array.array (2 * n, default_entry) in
+      Array.copy {src = !a, dst = dest, di = 0};
+      a := dest
+    end
+  end
+
 fun store_mem ((mema,memn),n,x) = 
-  if n >= Array.length mema then () 
+  if n >= Array.length (!mema) then resize_array mema
   (* else if n <> !memn then raise ERR "store_mem" "should not happen" *)
-  else 
-  (
-  undol := (fn () => Array.update (mema,n,default_entry)) :: !undol;
-  Array.update (mema,n,x); 
-  memn := n + 1
-  )
-
-
+  else (Array.update (!mema,n,x); memn := n + 1)
 
 (* -------------------------------------------------------------------------
    Time limit wrappers
@@ -188,14 +197,14 @@ fun helperm_loop mem f1 f2 n ncur x1 x2 =
  
 fun helperm (mema,memn) f1 f2 n x1 x2 =
   if n < 0 then x1 else 
-  if n < !memn then fst (Array.sub (mema,n)) else
+  if n < !memn then fst (Array.sub (!mema,n)) else
   if !memn <= 0 then 
     (store_mem ((mema,memn),0,(x1,x2));
      helperm_loop (mema,memn) f1 f2 n 0 x1 x2)
   else
   let 
     val lastn = !memn - 1
-    val (newx1,newx2) = Array.sub (mema,lastn) 
+    val (newx1,newx2) = Array.sub (!mema,lastn) 
   in
     helperm_loop (mema,memn) f1 f2 n lastn newx1 newx2
   end
@@ -269,11 +278,11 @@ fun compr_wrap f =
     val memn = ref 0
     fun newf n =
       if n < 0 then raise Div else
-      if n < !memn then fst (Array.sub (mema,n)) else 
+      if n < !memn then fst (Array.sub (!mema,n)) else 
       if !memn <= 0 then compr_loop (mema,memn) f n (~1) comprstart else
       let 
         val i = !memn - 1
-        val x = fst (Array.sub (mema,i)) 
+        val x = fst (Array.sub (!mema,i)) 
       in
         compr_loop (mema,memn) f n i x
       end
@@ -346,11 +355,11 @@ fun mk_exec_onev p =
 
 fun coverf_oeis exec = 
   let 
-    val _ = undol := []
+    (* val _ = undol := [] *)
     fun g x = hd (exec ([x], [azero])) 
     val r = scover_oeis g 
   in 
-    app (fn f => f ()) (!undol);
+    (* app (fn f => f ()) (!undol); *)
     r
   end
  
@@ -360,7 +369,7 @@ fun coverf_oeis exec =
 
 fun penum_aux p n = 
   let 
-    val _ = undol := []
+    (* val _ = undol := [] *)
     val f = mk_exec_onev p
     val _ = init_timer ()
     val l = ref []
@@ -372,7 +381,7 @@ fun penum_aux p n =
       )
     val _ = catch_perror (loop 0) azero (fn () => ())
   in  
-    app (fn f => f ()) (!undol); 
+    (* app (fn f => f ()) (!undol); *)
     rev (!l)
   end
   
@@ -408,7 +417,6 @@ fun execspec_fun pl =
   let  
     val i = ref 0;
     fun f p = (
-      max_compr_number := 1000;
       incr i; 
       print_endline (its (!i)); 
       penum_wtime 10000000 p 1000);
