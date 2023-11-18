@@ -58,7 +58,7 @@ fun reset_mem () =
 
 fun store_mem ((mema,memn),n,x) = 
   if n >= Array.length mema then () 
-  else if n <> !memn then raise ERR "store_mem" "should not happen" 
+  (* else if n <> !memn then raise ERR "store_mem" "should not happen" *)
   else (Array.update (mema,n,x); memn := n + 1)
 
 
@@ -455,6 +455,29 @@ PolyML.print_depth 10;
 load "human"; open human;
 load "exec_memo";  open kernel aiLib exec_memo;
 val badl = verify_file 1000000 (selfdir ^ "/model/itsol209");
+val badl = verify_file 1000000 (selfdir ^ "/exp/intl3/hist/itsol2088");
+
+
+val itsol = read_itprogl file
+val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol);
+val _ = print_endline ("solutions: " ^ its (length isol));
+
+
+fun get_bad isol = case isol of 
+    [] => NONE
+  | a :: m => 
+    if ((verify_wtime 100000 a; false) handle Option => true)
+    then SOME a
+    else get_bad m
+    
+val (anum,p) = valOf (get_bad isol);
+val (bbl,t) = add_time (map_assoc (verify_wtime tim)) isol
+val lbad1 = filter (not o fst o snd) bbl
+val lbad2 = filter (not o snd o snd) bbl
+
+
+val file = (selfdir ^ "/exp/intl3/hist/itsol2088");
+val read_itprogl 
 *)
 
 (* -------------------------------------------------------------------------
