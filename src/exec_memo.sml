@@ -69,19 +69,19 @@ val default_entry = (empty_infl, empty_infl)
 
 fun get_mem () = ref (Array.array (16, default_entry))
 
-fun resize_array a = 
-  let val n = Array.length (!a) in
-    if n >= memo_number then () else
-    let val dest = Array.array (2 * n, default_entry) in
-      Array.copy {src = !a, dst = dest, di = 0};
-      a := dest
-    end
+fun resize_array a n = 
+  let val dest = Array.array (2 * n, default_entry) in
+    Array.copy {src = !a, dst = dest, di = 0};
+    a := dest
   end
 
 fun store_mem ((mema,memn),n,x) = 
-  if n >= Array.length (!mema) then resize_array mema
-  (* else if n <> !memn then raise ERR "store_mem" "should not happen" *)
-  else (Array.update (!mema,n,x); memn := n + 1)
+  if n >= memo_number then () else
+  let val meman = Array.length (!mema) in
+    if n >= meman then resize_array mema meman else ();
+    Array.update (!mema,n,x); 
+    memn := n + 1
+  end
 
 (* -------------------------------------------------------------------------
    Time limit wrappers
