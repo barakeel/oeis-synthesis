@@ -422,8 +422,6 @@ fun parallel_check expname =
     val filel = map (fn x => splitdir ^ "/" ^ x) (listDir splitdir) 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = init_merge ()
-
-    
     val (_,t) = add_time (parmap_queue_extern ncore checkspec ()) 
       (rev filel)
     val _ = log ("checking time: " ^ rts_round 6 t)
