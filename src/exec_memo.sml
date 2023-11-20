@@ -165,7 +165,7 @@ end
 
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
-    (fn x => checktimerc 1 (if hd (f1 x) <= azero then f2 x else f3 x))
+    (fn x => checktimer (if hd (f1 x) <= azero then f2 x else f3 x))
   | _ => raise ERR "mk_condf" ""
 
 fun push_f fl = case fl of
