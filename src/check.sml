@@ -68,7 +68,6 @@ val update_fastest = update_solcmp [is_faster]
 val update_sol2 = update_solcmp [is_smaller, is_faster]
 val update_optimal = update_solcmp [is_smaller, is_optimal, is_faster]
 
-
 fun get_pareto tpl =
   let
     val tpnl = map_assoc (fn (t,p) => prog_size p) tpl
@@ -100,7 +99,6 @@ val update_f =
   else if !sol2_flag then update_sol2
   else if !t_flag    then update_fastest
   else update_smallest
-  
   
 fun update_wind d (anum,toptpl) =
   case dfindo anum (!d) of 
@@ -348,8 +346,20 @@ fun merge_itsol_default dir =
     val _ = if !reprocess_flag orelse 
                 not (exists_file oldsolfile) then ()
             else merge_itsol_file d oldsolfile
+    fun f (anum,tpl) = 
+      if length tpl <= 2 then (anum,tpl) else
+        let 
+          val middle = butlast (tl tpl) 
+          val newtpl = hd tpl :: 
+            map random_elem (cut_n (pareto_number - 2) middle) @ 
+            [last tpl]
+        in
+          (anum,newtpl)
+        end
   in
-    dlist (!d)
+    if !pareto_flag andalso pareto_number > 2 
+      then map f (dlist (!d))
+      else dlist (!d)
   end
 
 
