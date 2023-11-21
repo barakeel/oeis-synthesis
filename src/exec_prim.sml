@@ -60,7 +60,7 @@ val r0 = (azero,aone)
 val r1 = (aone,aone)
 val r2 = (atwo,aone)
 
-(* counts the number of division and modulo + 1 *)
+(* time estimating by counting number of modulo *)
 fun gcd_aux a b = 
   if b = azero then a else gcd_aux b (tmodu a b)
 
@@ -134,8 +134,6 @@ fun rfloor (p1,q1) = (tdivi p1 q1, aone)
 fun rnumer (p1,q1) = (checktimer (); (p1,aone))
 fun rdenom (p1,q1) = (checktimer (); (q1,aone))
 
-
-
 (* -------------------------------------------------------------------------
    Complex primitives
    ------------------------------------------------------------------------- *)
@@ -201,11 +199,5 @@ fun cdenom (a1,b1) =
   if is_rzero b1 then (rdenom a1, b1) else raise Div
 fun cfloor (a1,b1) = 
   if is_rzero b1 then (rfloor a1, b1) else raise Div
-  
-  
-(* Given a rational x, 
-   how do I get the numerator of the reduced fraction? *)
-  
-    
   
 end (* struct *)

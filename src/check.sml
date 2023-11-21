@@ -59,11 +59,29 @@ fun update_nomerge d anum tpl = d := dadd anum tpl (!d)
 val update_smallest = update_solcmp [is_smaller]
 val update_fastest = update_solcmp [is_faster]
 val update_sol2 = update_solcmp [is_smaller, is_faster]
+
+fun get_pareto tpl =
+  let
+    val d = dict_sort (snd_compare prog_compare size) tpl
+    val l = dlist d
+    val r = ref []
+    val mintime = fst (hd l) + 1
+    fun f (t,p) = 
+      if t < mintime 
+      then (mintime := r; r := (t,p) :: !r)
+      else ()
+  in 
+    app f l; !r
+  end
+  
+fun update_pareto d anum tpl = d := dadd anum (get_pareto newtpl) (!d)
+
 val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
   is_smaller_kid 12, is_smaller_kid 13]
 
 val update_f =
   if !nomerge_flag then update_nomerge
+  else if !pareto_flag then update_pareto
   else if !solm_flag then update_solm
   else if !sol2_flag then update_sol2
   else if !t_flag    then update_fastest
