@@ -100,19 +100,19 @@ end
 
 fun checktimer y = 
   (
-  incr abstimer;
+  incr abstimer; 
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
 
 fun mylog x = if x = 0 then 1 else IntInf.log2 x
   
 fun costadd costn x1 x2 y = 
-  if large_int x1 orelse large_int x2 orelse large_int y 
+  if large_int x1 orelse large_int x2 orelse large_int y
   then Int.max (mylog (IntInf.abs x1), mylog (IntInf.abs x2))
   else costn  
   
 fun costmult costn x1 x2 y = 
-  if large_int x1 orelse large_int x2 orelse large_int y 
+  if large_int x1 orelse large_int x2 orelse large_int y
   then mylog (IntInf.abs x1) + mylog (IntInf.abs x2)
   else costn
 
