@@ -60,6 +60,36 @@ val r0 = (azero,aone)
 val r1 = (aone,aone)
 val r2 = (atwo,aone)
 
+(* counts the number of division and modulo + 1 *)
+fun gcd_aux a b = 
+  if b = azero then a else gcd_aux b (tmodu a b)
+
+fun gcd a b = 
+  let 
+    val (a1,b1) = (IntInf.abs a, IntInf.abs b)
+    val (a2,b2) = if a1 >= b1 then (a1,b1) else (b1,a1)
+  in
+    gcd_aux a2 b2
+  end
+
+fun tgcd (a,b) = 
+  let
+    val _ = checktimer ()
+    val (a',b') = if b <= azero then (~a, ~b) else (a,b)
+    val r = gcd a' b'
+  in
+    r
+  end
+  
+fun treduce (a,b) = 
+  let
+    val _ = checktimer ()
+    val (a',b') = if b <= azero then (~a, ~b) else (a,b)
+    val r = gcd a' b'
+  in 
+    (tdivi a' r, tdivi b' r) 
+  end
+
 fun rzero () = (checktimer (); r0)
 fun rone () = (checktimer (); r1)
 fun rtwo () = (checktimer (); r2)
@@ -67,36 +97,44 @@ fun rtwo () = (checktimer (); r2)
 fun raddi (p1,q1) (p2,q2) = 
   if q1 = aone andalso q2 = aone 
   then (taddi p1 p2, aone)
-  else (taddi (tmult p1 q2) (tmult p2 q1), tmult q1 q2)
+  else treduce (taddi (tmult p1 q2) (tmult p2 q1), tmult q1 q2)
   
 fun rdiff (p1,q1) (p2,q2) = 
   if q1 = aone andalso q2 = aone 
   then (tdiff p1 p2, aone)
-  else (tdiff (tmult p1 q2) (tmult p2 q1), tmult q1 q2) 
+  else treduce (tdiff (tmult p1 q2) (tmult p2 q1), tmult q1 q2) 
 
 fun rmult (p1,q1) (p2,q2) = 
   if q1 = aone andalso q2 = aone
   then (tmult p1 p2, aone)
-  else (tmult p1 p2, tmult q1 q2)
+  else treduce (tmult p1 p2, tmult q1 q2)
  
 fun rdivr (p1,q1) (p2,q2) =  
-  if p2 = azero then raise Div else
-  (tmult p1 q2, tmult q1 p2)
+  if p2 = azero then raise Div else 
+  treduce (tmult p1 q2, tmult q1 p2)
 
 fun rdivi (p1,q1) (p2,q2) = 
   if q1 = aone andalso q2 = aone
-  then (tdivi p1 p2,aone)
+  then (tdivi p1 p2, aone)
   else raise Div
   
 fun rmodu (p1,q1) (p2,q2) = 
   if q1 = aone andalso q2 = aone
-  then (tmodu p1 p2,aone)
+  then (tmodu p1 p2, aone)
+  else raise Div
+
+(* this three functions will cost 5 *)
+fun rgcd (p1,q1) (p2,q2) =
+  if q1 = aone andalso q2 = aone
+  then (tgcd (p1,p2), aone)
   else raise Div
 
 fun is_rzero ((p1,q1):rat) = p1 = azero
+fun rfloor (p1,q1) = (tdivi p1 q1, aone)
+fun rnumer (p1,q1) = (checktimer (); (p1,aone))
+fun rdenom (p1,q1) = (checktimer (); (q1,aone))
 
-fun numerator (p1,q1) = (checktimer (); (p1,aone))
-fun denominator (p1,q1) = (checktimer (); (q1,aone))
+
 
 (* -------------------------------------------------------------------------
    Complex primitives
@@ -145,14 +183,29 @@ fun cdivi (a1,b1) (a2,b2) =
   if is_rzero b1 andalso is_rzero b2
   then (rdivi a1 a2, r0)
   else raise Div
-  
 fun cmodu (a1,b1) (a2,b2) =
   if is_rzero b1 andalso is_rzero b2
   then (rmodu a1 a2, r0)
+  else raise Div
+fun cgcd (a1,b1) (a2,b2) =
+  if is_rzero b1 andalso is_rzero b2
+  then (rgcd a1 a2, r0)
   else raise Div
 
 fun crealpart (a1,b1) = (checktimer (); (a1,r0))
 fun cimagpart (a1,b1) = (checktimer (); (b1,r0))
 
-
+fun cnumer (a1,b1) = 
+  if is_rzero b1 then (rnumer a1, b1) else raise Div
+fun cdenom (a1,b1) = 
+  if is_rzero b1 then (rdenom a1, b1) else raise Div
+fun cfloor (a1,b1) = 
+  if is_rzero b1 then (rfloor a1, b1) else raise Div
+  
+  
+(* Given a rational x, 
+   how do I get the numerator of the reduced fraction? *)
+  
+    
+  
 end (* struct *)
