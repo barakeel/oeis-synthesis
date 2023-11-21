@@ -14,6 +14,7 @@ sig
   val nomerge_flag : bool ref (* keep all solutions *)
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val solm_flag : bool ref
+  val pareto_flag : bool ref
   val notarget_flag : bool ref (* train without looking at the target *)
   val array_flag : bool ref
   val beam_flag : bool ref

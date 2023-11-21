@@ -62,19 +62,18 @@ val update_sol2 = update_solcmp [is_smaller, is_faster]
 
 fun get_pareto tpl =
   let
-    val d = dict_sort (snd_compare prog_compare size) tpl
-    val l = dlist d
+    val l = dict_sort (snd_compare prog_compare_size) tpl
     val r = ref []
-    val mintime = fst (hd l) + 1
+    val mintime = ref (fst (hd l) + 1)
     fun f (t,p) = 
-      if t < mintime 
-      then (mintime := r; r := (t,p) :: !r)
+      if t < (!mintime) 
+      then (mintime := t; r := (t,p) :: !r)
       else ()
   in 
     app f l; !r
   end
   
-fun update_pareto d anum tpl = d := dadd anum (get_pareto newtpl) (!d)
+fun update_pareto d anum tpl = d := dadd anum (get_pareto tpl) (!d)
 
 val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
   is_smaller_kid 12, is_smaller_kid 13]
