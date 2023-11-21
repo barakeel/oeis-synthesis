@@ -350,10 +350,9 @@ fun merge_itsol_default dir =
       if length tpl <= 2 then (anum,tpl) else
       if pareto_number = 2 then (anum, [hd tpl,last tpl]) else
         let 
-          val middle = butlast (tl tpl) 
-          val newtpl = hd tpl :: 
-            map random_elem (cut_n (pareto_number - 2) middle) @ 
-            [last tpl]
+          val middle = butlast tpl
+          val newtpl = 
+            map hd (cut_n (pareto_number - 1) middle) @ [last tpl]
         in
           (anum,newtpl)
         end
