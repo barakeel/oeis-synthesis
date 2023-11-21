@@ -348,6 +348,7 @@ fun merge_itsol_default dir =
             else merge_itsol_file d oldsolfile
     fun f (anum,tpl) = 
       if length tpl <= 2 then (anum,tpl) else
+      if pareto_number = 2 then (anum, [hd tpl,last tpl]) else
         let 
           val middle = butlast (tl tpl) 
           val newtpl = hd tpl :: 
@@ -357,7 +358,7 @@ fun merge_itsol_default dir =
           (anum,newtpl)
         end
   in
-    if !pareto_flag andalso pareto_number > 2 
+    if !pareto_flag andalso pareto_number >= 2 
       then map f (dlist (!d))
       else dlist (!d)
   end
