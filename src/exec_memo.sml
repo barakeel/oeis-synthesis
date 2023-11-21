@@ -104,7 +104,7 @@ fun checktimer y =
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
 
-fun mylog x = if x <= 0 then 1 else IntInf.log2 (IntInf.abs x1)
+fun mylog x = if x = 0 then 1 else IntInf.log2 x
   
 fun costadd costn x1 x2 y = 
   if large_int x1 orelse large_int x2 orelse large_int y 
