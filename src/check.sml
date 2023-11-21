@@ -22,6 +22,13 @@ fun prog_compare_size_kid kid (p1,p2) =
 fun is_smaller_kid kid (t1,p1) (t2,p2) =
   prog_compare_size_kid kid (p1,p2) = LESS
 
+fun score_optimal (t,p) = 
+  Math.pow (Real.fromInt t, optimal_coeff) * Real.fromInt (prog_size p)
+
+fun is_optimal (t1,p1) (t2,p2) = 
+  cpl_compare Real.compare prog_compare_size 
+    ((score_optimal (t1,p1), p1),(score_optimal (t2,p2),p2)) = LESS
+
 fun is_faster (t1,p1) (t2,p2) =   
   cpl_compare Int.compare prog_compare_size ((t1,p1),(t2,p2)) = LESS
 
@@ -59,6 +66,8 @@ fun update_nomerge d anum tpl = d := dadd anum tpl (!d)
 val update_smallest = update_solcmp [is_smaller]
 val update_fastest = update_solcmp [is_faster]
 val update_sol2 = update_solcmp [is_smaller, is_faster]
+val update_optimal = update_solcmp [is_smaller, is_optimal, is_faster]
+
 
 fun get_pareto tpl =
   let
@@ -81,6 +90,7 @@ val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
 val update_f =
   if !nomerge_flag then update_nomerge
   else if !pareto_flag then update_pareto
+  else if !optimal_flag then update_optimal
   else if !solm_flag then update_solm
   else if !sol2_flag then update_sol2
   else if !t_flag    then update_fastest

@@ -15,6 +15,8 @@ sig
   val sol2_flag : bool ref (* train on smallest and fastest solutions *)
   val solm_flag : bool ref
   val pareto_flag : bool ref
+  val optimal_flag : bool ref
+  val optimal_coeff : real
   val notarget_flag : bool ref (* train without looking at the target *)
   val array_flag : bool ref
   val beam_flag : bool ref
