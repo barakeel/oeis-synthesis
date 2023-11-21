@@ -104,12 +104,25 @@ fun checktimer y =
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
   
-fun cost costn x = 
-  if large_int x then IntInf.log2 (IntInf.abs x) else costn
-    
-fun checktimerc costn y =
+fun costadd costn x1 x2 y = 
+  if large_int x1 orelse large_int x2 orelse large_int y 
+  then Int.max (IntInf.log2 (IntInf.abs x1), IntInf.log2 (IntInf.abs x2))
+  else costn  
+  
+fun costmult costn x1 x2 y = 
+  if large_int x1 orelse large_int x2 orelse large_int y 
+  then IntInf.log2 (IntInf.abs x1) + IntInf.log2 (IntInf.abs x2)
+  else costn
+
+fun checktimeradd costn x1 x2 y =
   (
-  abstimer := !abstimer + cost costn (hd y);
+  abstimer := !abstimer + costadd costn (hd x1) (hd x2) (hd y);
+  if !abstimer > !timelimit then raise ProgTimeout else y
+  )
+
+fun checktimermult costn x1 x2 y =
+  (
+  abstimer := !abstimer + costmult costn (hd x1) (hd x2) (hd y);
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
 
@@ -121,9 +134,27 @@ fun mk_nullf opf fl = case fl of
    [] => (fn x => checktimer (opf x))
   | _ => raise ERR "mk_nullf" ""
 
-fun mk_binf costn opf fl = case fl of
-   [f1,f2] => (fn x => checktimerc costn (opf (f1 x, f2 x)))
-  | _ => raise ERR "mk_binf" ""
+fun mk_binfadd costn opf fl = case fl of
+   [f1,f2] => (fn x => 
+     let 
+       val (x1,x2) = (f1 x,f2 x) 
+       val y  = opf (x1,x2)
+     in
+       checktimeradd costn x1 x2 y
+     end)
+  | _ => raise ERR "mk_binfadd" ""
+
+fun mk_binfmult costn opf fl = case fl of
+   [f1,f2] => (fn x => 
+     let 
+       val (x1,x2) = (f1 x,f2 x) 
+       val y  = opf (x1,x2)
+     in
+       checktimermult costn x1 x2 y
+     end)
+  | _ => raise ERR "mk_binfmult" ""
+
+
 
 fun mk_ternf opf fl = case fl of
    [f1,f2,f3] => (fn x => checktimer (opf (f1 x, f2 x, f3 x)))
@@ -154,11 +185,11 @@ fun mk_e f (l1,l2) = case (l1,l2) of
   | (_,[]) => raise Empty
   | (a1 :: m1, a2 :: m2) => (f (a1,a2) :: m1)
   
-val addi_f = mk_binf 1 (mk_e (op +))
-val diff_f = mk_binf 1 (mk_e (op -))
-val mult_f = mk_binf 1 (mk_e (op *))
-val divi_f = mk_binf 5 (mk_e (op div))
-val modu_f = mk_binf 5 (mk_e (op mod))
+val addi_f = mk_binfadd 1 (mk_e (op +))
+val diff_f = mk_binfadd 1 (mk_e (op -))
+val mult_f = mk_binfmult 1 (mk_e (op *))
+val divi_f = mk_binfmult 5 (mk_e (op div))
+val modu_f = mk_binfmult 5 (mk_e (op mod))
 
 end
 
