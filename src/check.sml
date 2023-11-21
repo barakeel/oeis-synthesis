@@ -71,14 +71,14 @@ val update_optimal = update_solcmp [is_smaller, is_optimal, is_faster]
 
 fun get_pareto tpl =
   let
-    val d = dregroup Int.compare 
-      (map swap (map_assoc prog_size tpl))
+    val tpnl = map_assoc (fn (t,p) => prog_size p) tpl
+    val d = dregroup Int.compare (map swap tpnl)
     val l0 = map snd (dlist d)
     fun get_best l = 
       hd (dict_sort (cpl_compare Int.compare prog_compare_size) l)
     val l1 = map get_best l0
     val r = ref []
-    val mintime = ref (fst (hd l) + 1)
+    val mintime = ref (fst (hd l1) + 1)
     fun f (t,p) = 
       if t < (!mintime) 
       then (mintime := t; r := (t,p) :: !r)
