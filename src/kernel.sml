@@ -65,7 +65,8 @@ val ctree_flag = bflag "ctree_flag"
 val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
 
-val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
+val intl_flag = if !memo_flag orelse !ctree_flag 
+  then ref true else bflag "intl_flag"
 val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
 val reprocess_flag = bflag "reprocess_flag"
 
