@@ -61,7 +61,7 @@ val long_timeincr = iflagnoref "long_timeincr" 100000
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 
-
+val ctree_flag = bflag "ctree_flag"
 val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
 

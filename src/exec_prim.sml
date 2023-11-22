@@ -48,6 +48,7 @@ fun tdiff a1 a2 = checktimerf Int.max 1 a1 a2 (a1 - a2)
 fun tmult a1 a2 = checktimerf FixedInt.+ 1 a1 a2 (a1 * a2)
 fun tdivi a1 a2 = checktimerf FixedInt.+ 5 a1 a2 (a1 div a2)
 fun tmodu a1 a2 = checktimerf FixedInt.+ 5 a1 a2 (a1 mod a2)
+fun tleq0 a1 = a1 <= azero (* warning: no timer on leq0 *)
 end
 
 (* -------------------------------------------------------------------------
@@ -59,10 +60,9 @@ type rat = IntInf.int * IntInf.int
 val r0 = (azero,aone)
 val r1 = (aone,aone)
 val r2 = (atwo,aone)
+val rm1  =(IntInf.fromInt (~1),aone)
 
-(* time estimating by counting number of modulo *)
-fun gcd_aux a b = 
-  if b = azero then a else gcd_aux b (tmodu a b)
+fun gcd_aux a b = if b = azero then a else gcd_aux b (tmodu a b)
 
 fun gcd a b = 
   let 
@@ -134,6 +134,8 @@ fun rfloor (p1,q1) = (tdivi p1 q1, aone)
 fun rnumer (p1,q1) = (checktimer (); (p1,aone))
 fun rdenom (p1,q1) = (checktimer (); (q1,aone))
 
+fun rleq0 (p1,q1) = tleq0 p1
+
 (* -------------------------------------------------------------------------
    Complex primitives
    ------------------------------------------------------------------------- *)
@@ -144,6 +146,7 @@ val c0 = (r0,r0)
 val c1 = (r1,r0)
 val c2 = (r2,r0)
 val ci = (r0,r1)
+val cm1 = (rm1,r0)
 
 fun czero () = (checktimer (); c0)
 fun cone () = (checktimer (); c1)
@@ -160,14 +163,12 @@ fun cdiff (a1,b1) (a2,b2) =
   then (rdiff a1 a2, r0)
   else (rdiff a1 a2, rdiff b1 b2)
 
-(* (a + ib) * (c + id) = (ac - bd, bc + ad) *)
 fun cmult (a1,b1) (a2,b2) = 
   if is_rzero b1 andalso is_rzero b2
   then (rmult a1 a2, r0)
   else (rdiff (rmult a1 a2) (rmult b1 b2), 
         raddi (rmult b1 a2) (rmult a1 b2)) 
  
-(* (a + ib) / (c + id) = (ac + bd, bc - ad) / c^2+d^2 *) 
 fun cdivr (a1,b1) (a2,b2) =
   if is_rzero b1 andalso is_rzero b2
   then (rdivr a1 a2, r0)
@@ -199,5 +200,65 @@ fun cdenom (a1,b1) =
   if is_rzero b1 then (rdenom a1, b1) else raise Div
 fun cfloor (a1,b1) = 
   if is_rzero b1 then (rfloor a1, b1) else raise Div
+  
+fun cleq0 (a1,b1) = rleq0 a1
+ 
+fun cincr ((p,q),(r,s))= ((p+1,q),(r,s)) 
+  
+(* -------------------------------------------------------------------------
+   Tree primitives
+   ------------------------------------------------------------------------- *)  
+
+datatype 'a ctree =
+  CLeaf of 'a | 
+  CNode1 of 'a * 'a ctree | 
+  CNode2 of 'a * 'a ctree * 'a ctree
+  
+fun pop_aux tree = case tree of 
+    CLeaf c => CLeaf c
+  | CNode1 (c,t) => t
+  | CNode2 (c,t1,t2) => t1
+fun pop tree = (checktimer (); pop_aux tree)
+  
+fun popr_aux tree = case tree of
+    CLeaf c => CLeaf c
+  | CNode1 (c,t) => CNode1 (c,t)
+  | CNode2 (c,t1,t2) => t2 
+fun popr tree = (checktimer (); popr_aux tree)  
+
+fun root tree =  case tree of
+    CLeaf c => c
+  | CNode1 (c,t) => c
+  | CNode2 (c,t1,t2) => c
+  
+fun push tree1 tree2 = 
+  (checktimer (); CNode1 (root tree1,tree2))
+
+fun push2 tree1 tree2 tree3 = 
+  (checktimer (); CNode2 (root tree1,tree2,tree3))
+  
+fun mk_ctree c = CLeaf c
+
+fun ctincr ct = mk_ctree (cincr (root ct))
+  
+val ctzero = mk_ctree c0  
+val ctone = mk_ctree c1
+val ctmone = mk_ctree cm1  
+
+fun mk_bound ct = 
+  let val (a,b) = root ct in
+    if is_rzero b andalso snd a = aone
+    then IntInf.toInt (fst a) 
+    else (IntInf.toInt o fst o rfloor o fst o crealpart o root) ct
+  end
+
+fun mk_return ct = 
+  let val (a,b) = root ct in
+    if is_rzero b andalso snd a = aone
+    then fst a
+    else (fst o rfloor o fst o crealpart o root) ct
+  end
+
+
   
 end (* struct *)

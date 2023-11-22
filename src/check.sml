@@ -87,8 +87,8 @@ fun get_pareto tpl =
   
 fun update_pareto d anum tpl = d := dadd anum (get_pareto tpl) (!d)
 
-val update_solm = update_solcmp [is_smaller, is_faster, is_smaller_kid 9,
-  is_smaller_kid 12, is_smaller_kid 13]
+val update_solm = update_solcmp [is_smaller, is_faster, 
+  is_smaller_kid 9, is_smaller_kid 12, is_smaller_kid 13]
 
 val update_f =
   if !nomerge_flag then update_nomerge
@@ -174,6 +174,15 @@ fun checkf_memo p =
     app f anumtl
   end
 
+fun checkf_ctree p = 
+  let
+    val anumtl = exec_ctree.coverf_oeis (exec_ctree.mk_exec p)
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end  
+  
+
 fun checkf_intl (nnvalue:real) p = 
   let
     val (anumtl,cov,anumlpart) = 
@@ -214,7 +223,8 @@ fun checkf_seq (p,exec) =
   
 fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
-  else if !memo_flag then checkf_memo p 
+  else if !memo_flag then checkf_memo p
+  else if !ctree_flag then checkf_ctree p 
   else if !intl_flag then checkf_intl nnvalue p 
   else checkf nnvalue (p,exec)
 
@@ -253,6 +263,7 @@ fun checkpl pl =
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
       if !memo_flag then checkf_memo p
+      else if !ctree_flag then checkf_ctree p
       else if !intl_flag then checkf_intl 0.0 p 
       else checkf 0.0 (p, mk_exec p)
       )
@@ -300,6 +311,7 @@ fun checkmll mll =
        if !counter mod 10000 = 0 then print "." else ();
        init_slow_test (); 
        if !memo_flag then checkf_memo p else
+       if !ctree_flag then checkf_ctree p else
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in
