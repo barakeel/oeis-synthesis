@@ -277,7 +277,8 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
   end
   
 fun mk_exec p = mk_exec_loop (mk_progb p)
-
+  handle ProgTimeout => raise ERR "mk_exec" (its (!abstimer))
+   
 fun mk_complex x = (((x,1),(0,1)) : complex)
 
 fun mk_exec_onev p = 
@@ -286,13 +287,10 @@ fun mk_exec_onev p =
   end
 
 fun coverf_oeis exec = 
-  let fun g x = 
-    mk_return (exec (mk_ctree (mk_complex x),ctzero)) 
-    handle ProgTimeout => raise ERR "coverf_oeis: g" (its (!abstimer))
-  in
+  let fun g x = mk_return (exec (mk_ctree (mk_complex x),ctzero)) in
     scover_oeis g 
   end
-  handle ProgTimeout => raise ERR "coverf_oeis" (its (!abstimer))
+ 
   
 (* -------------------------------------------------------------------------
    Verifiy cover
