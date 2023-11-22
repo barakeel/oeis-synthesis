@@ -166,6 +166,42 @@ fun cluster expname ncluster =
   in   
     appi f (cluster_aux ncluster proglset)
   end
+  
+(* -------------------------------------------------------------------------
+   Clustering algorithm 2
+   ------------------------------------------------------------------------- *)
+
+fun random_cluster2 (feav,symweight) csize pl =
+  knn (symweight,feav) csize (random_elem pl)
+
+fun cluster2 expname ncluster csize =
+  let
+    val dir = selfdir ^ "/exp/" ^ expname
+    val sl = readl (dir ^ "/input")
+    val sl' = mk_fast_set String.compare sl
+    val progl = map prog_of_gpt sl'
+    val proglset = mk_fast_set prog_compare_size progl
+    (* val csize = (length proglset div ncluster) + 1 *)
+    val feav = map_assoc fea_of_prog proglset
+    val symweight = mlFeature.learn_tfidf feav
+    fun loop n feavloc =
+      if null feavloc then [] else
+      if n <= 0 then [] else
+      (* if n <= 1 then [map fst feavloc] else *)
+      let
+        val _ = print_endline (its n)      
+        val sel = random_cluster2 (feavloc,symweight) csize (map fst feavloc)
+        val d = enew prog_compare sel
+        val newfeav = filter (fn x => not (emem (fst x) d)) feavloc
+      in
+        sel :: loop (n-1) newfeav
+      end
+    fun f i x = writel (dir ^ "/cluster" ^ its i) (map gpt_of_prog x)
+  in  
+    appi f (loop ncluster feav)
+  end
+
+
 
 
 end

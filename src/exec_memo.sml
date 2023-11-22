@@ -37,33 +37,6 @@ fun mk_progb (Ins (id,pl)) =
    Memory reused across different programs to avoid unnecessary reallocation.
    ------------------------------------------------------------------------- *)
 
-(* old method with global arrays 
-val meml_free = ref []
-val meml_used = ref []
-val undol = ref [] (* used for cheap cleaning of arrays *)
-
-fun clean_memo () = (meml_free := []; meml_used := [])
-
-
-fun get_mem () = case !meml_free of
-    [] =>
-    let val a = Array.array (memo_number, default_entry) in
-      meml_used := a :: !meml_used;
-      a
-    end
-  | a :: m => (meml_free := m; meml_used := a :: !meml_used; a)
-     
-fun reset_mem () =
-  (
-  meml_free := (!meml_used) @ (!meml_free);
-  meml_used := []
-  )
-
-  undol := (fn () => Array.update (!mema,n,default_entry)) :: !undol;
-*)
-
-
-
 val empty_infl = []: IntInf.int list
 val default_entry = (empty_infl, empty_infl)
 
@@ -383,19 +356,14 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
     f2
   end
   
-fun mk_exec p = (* reset_mem (); *) mk_exec_loop (mk_progb p)
+fun mk_exec p =  mk_exec_loop (mk_progb p)
 
 fun mk_exec_onev p = 
   let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
 
 fun coverf_oeis exec = 
-  let 
-    (* val _ = undol := [] *)
-    fun g x = hd (exec ([x], [azero])) 
-    val r = scover_oeis g 
-  in 
-    (* app (fn f => f ()) (!undol); *)
-    r
+  let fun g x = hd (exec ([x], [azero])) in 
+    scover_oeis g 
   end
  
 (* -------------------------------------------------------------------------
