@@ -426,7 +426,6 @@ fun catch_perror f x g = f x handle
    | Div => g () 
    | ProgTimeout => g () 
    | Overflow => g ()
- (* | Subscript => g () *)
    
 (* -------------------------------------------------------------------------
    NMT interface

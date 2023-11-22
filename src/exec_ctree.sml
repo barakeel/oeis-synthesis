@@ -289,7 +289,8 @@ fun coverf_oeis exec =
   let fun g x = mk_return (exec (mk_ctree (mk_complex x),ctzero)) in
     scover_oeis g 
   end
- 
+  handle ProgTimeout => raise ERR "coverf_oeis" (its (!abstimer))
+  
 (* -------------------------------------------------------------------------
    Verifiy cover
    ------------------------------------------------------------------------- *)
