@@ -52,6 +52,10 @@ fun store_mem ((mema,memn),n,x) =
     Array.update (!mema,n,x); 
     memn := n + 1
   end
+  handle Subscript => raise ERR "store_mem" (its n)
+
+fun lookup_mema (mema,n) = Array.sub (!mema,n) 
+  handle Subscript => raise ERR "lookup_mema" (its n)
 
 (* -------------------------------------------------------------------------
    Wrappers
@@ -131,14 +135,14 @@ fun helperm_loop mem f1 f2 n ncur x1 x2 =
  
 fun helperm (mema,memn) f1 f2 n x1 x2 =
   if n < 0 then x1 else 
-  if n < !memn then fst (Array.sub (!mema,n)) else
+  if n < !memn then fst (lookup_mema (mema,n)) else
   if !memn <= 0 then 
     (store_mem ((mema,memn),0,(x1,x2));
      helperm_loop (mema,memn) f1 f2 n 0 x1 x2)
   else
   let 
     val lastn = !memn - 1
-    val (newx1,newx2) = Array.sub (!mema,lastn) 
+    val (newx1,newx2) = lookup_mema (mema,lastn) 
   in
     helperm_loop (mema,memn) f1 f2 n lastn newx1 newx2
   end
@@ -173,8 +177,7 @@ fun loopm_f () = mk_ternf1 (loopm_f_aux ())
 fun helper f1 f2 n x1 x2 = 
   if n <= 0 then x1 else helper f1 f2 (n - 1) (f1 (x1,x2)) (f2 (x1,x2))
 
-fun loop2_f_aux (f1,f2,n,x1,x2) = 
-  helper f1 f2 (mk_bound n) x1 x2
+fun loop2_f_aux (f1,f2,n,x1,x2) = helper f1 f2 (mk_bound n) x1 x2
 val loop2_f = mk_quintf2 loop2_f_aux
 
 fun loop_f_aux (f1,n,x1) = 
