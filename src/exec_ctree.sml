@@ -286,7 +286,10 @@ fun mk_exec_onev p =
   end
 
 fun coverf_oeis exec = 
-  let fun g x = mk_return (exec (mk_ctree (mk_complex x),ctzero)) in
+  let fun g x = 
+    mk_return (exec (mk_ctree (mk_complex x),ctzero)) 
+    handle ProgTimeout => raise ERR "coverf_oeis: g" (its (!abstimer))
+  in
     scover_oeis g 
   end
   handle ProgTimeout => raise ERR "coverf_oeis" (its (!abstimer))
