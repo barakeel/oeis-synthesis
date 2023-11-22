@@ -108,7 +108,7 @@ val modu_f = mk_binf cmodu
 
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
-    (checktimer (); (fn x => (if cleq0 (root (f1 x)) then f2 x else f3 x)))
+    (fn x => (checktimer (); if cleq0 (root (f1 x)) then f2 x else f3 x))
   | _ => raise ERR "mk_condf" ""
   
 fun push_f fl = case fl of
