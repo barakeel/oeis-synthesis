@@ -49,6 +49,9 @@ sig
   val maxintsize : int
   val reprocess_flag : bool ref
   val reverse_nmtoutput : bool ref
+  val select_cluster : bool ref
+  val select_random : bool ref
+  val select_number : int
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

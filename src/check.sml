@@ -61,7 +61,6 @@ fun update_solcmp lessfl d anum tpl =
   end
 
 fun update_nomerge d anum tpl = d := dadd anum tpl (!d)
-  
 
 val update_smallest = update_solcmp [is_smaller]
 val update_fastest = update_solcmp [is_faster]

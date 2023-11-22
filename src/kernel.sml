@@ -47,6 +47,10 @@ val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
 
+val select_cluster = bflag "select_cluster"
+val select_random = bflag "select_random"
+val select_number = iflagnoref "select_number" 10000
+
 val temperature = rflagnoref "temperature" 1.0
 val maxproglen = iflagnoref "maxproglen" 10000
 val maxintsize = iflagnoref "maxintsize" 285
@@ -179,7 +183,9 @@ fun raw_prog (Ins (id,pl)) =
   "(" ^ String.concatWith " " (its id :: map raw_prog pl) ^ ")"
 
 fun equal_prog (a,b) = (prog_compare (a,b) = EQUAL)
+
 fun prog_size (Ins(id,pl)) = 1 + sum_int (map prog_size pl)
+
 fun prog_compare_size (p1,p2) =
   cpl_compare Int.compare prog_compare ((prog_size p1,p1),(prog_size p2,p2))
 
