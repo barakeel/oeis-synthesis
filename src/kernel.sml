@@ -29,59 +29,64 @@ fun rflagnoref s i = valOf (Real.fromString (dfind s configd))
 
 (* main_experiment flags *)
 val seq_flag = bflag "seq_flag"
-val z_flag = bflag "z_flag"
-val t_flag = bflag "t_flag"
+
 val nomerge_flag = bflag "nomerge_flag"
+
+
+(* flags for selection of solutions *)
+val t_flag = bflag "t_flag"
 val sol2_flag = bflag "sol2_flag"
 val solm_flag = bflag "solm_flag"
 val pareto_flag = bflag "pareto_flag"
 val pareto_number = iflagnoref "pareto_number" 0
 val optimal_flag = bflag "optimal_flag"
+val optimalonly_flag = bflag "optimalonly_flag"
 val optimal_coeff = rflagnoref "optimal_coeff" 2.0
 
+(* language flags *)
+val z_flag = bflag "z_flag"
 val extranum_flag = bflag "extranum_flag"
-val locsearch_flag = bflag "locsearch_flag"
-val halfnoise_flag = bflag "halfnoise_flag"
 val minimal_flag = bflag "minimal_flag"
 val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
+val ctree_flag = bflag "ctree_flag"
+val memo_flag = bflag "memo_flag"
+val memo_number = iflagnoref "memo_number" 100000
+val intl_flag = if !memo_flag orelse !ctree_flag 
+  then ref true else bflag "intl_flag"
 
-val select_cluster = bflag "select_cluster"
-val select_random = bflag "select_random"
-val select_number = iflagnoref "select_number" 10000
-
+(* search flags *)
+val locsearch_flag = bflag "locsearch_flag"
+val halfnoise_flag = bflag "halfnoise_flag"
 val temperature = rflagnoref "temperature" 1.0
 val maxproglen = iflagnoref "maxproglen" 10000
-val maxintsize = iflagnoref "maxintsize" 285
 
-(* deprecated *)
+(* execution flags *)
+val maxintsize = iflagnoref "maxintsize" 285
 val short_timeincr = iflagnoref "short_timeincr" 1000
 val long_timeincr = iflagnoref "long_timeincr" 100000
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 
-val ctree_flag = bflag "ctree_flag"
-val memo_flag = bflag "memo_flag"
-val memo_number = iflagnoref "memo_number" 100000
-
-val intl_flag = if !memo_flag orelse !ctree_flag 
-  then ref true else bflag "intl_flag"
-val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
-val reprocess_flag = bflag "reprocess_flag"
-
-
-
-(* beamsearch experiment *)
-val beam_flag = bflag "beam_flag"
-val newseq_flag = bflag "newseq_flag"
-val stop_flag = bflag "stop_flag"
-(* tnn flag *)
+(* training flags *)
+val select_cluster = bflag "select_cluster"
+val select_random = bflag "select_random"
+val select_number = iflagnoref "select_number" 10000
 val dim_glob = iflag "dim_glob" 96
 val extra_flag = bflag "extra_flag" (* add extra data for the training *)
 val train_multi = iflag "train_multi" 1
 val rnn_flag = bflag "rnn_flag"
 val num_epoch = iflag "num_epoch" 100
+
+(* external checking flags *)
+val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
+val reprocess_flag = bflag "reprocess_flag"
+
+(* beamsearch experiment *)
+val beam_flag = bflag "beam_flag"
+val newseq_flag = bflag "newseq_flag"
+val stop_flag = bflag "stop_flag"
 
 (* experiments *)
 val pgen_flag = bflag "pgen_flag"

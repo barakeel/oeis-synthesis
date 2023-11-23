@@ -64,6 +64,7 @@ fun update_nomerge d anum tpl = d := dadd anum tpl (!d)
 
 val update_smallest = update_solcmp [is_smaller]
 val update_fastest = update_solcmp [is_faster]
+val update_optimalonly = update_solcmp [is_optimal]
 val update_sol2 = update_solcmp [is_smaller, is_faster]
 val update_optimal = update_solcmp [is_smaller, is_optimal, is_faster]
 
@@ -94,6 +95,7 @@ val update_f =
   if !nomerge_flag then update_nomerge
   else if !pareto_flag then update_pareto
   else if !optimal_flag then update_optimal
+  else if !optimalonly_flag then update_optimalonly
   else if !solm_flag then update_solm
   else if !sol2_flag then update_sol2
   else if !t_flag    then update_fastest
@@ -182,7 +184,6 @@ fun checkf_ctree p =
     app f anumtl
   end  
   
-
 fun checkf_intl (nnvalue:real) p = 
   let
     val (anumtl,cov,anumlpart) = 

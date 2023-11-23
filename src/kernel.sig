@@ -17,6 +17,7 @@ sig
   val pareto_flag : bool ref
   val pareto_number : int
   val optimal_flag : bool ref
+  val optimalonly_flag : bool ref
   val optimal_coeff : real
   val notarget_flag : bool ref (* train without looking at the target *)
   val array_flag : bool ref
