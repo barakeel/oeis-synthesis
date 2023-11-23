@@ -107,8 +107,8 @@ fun mk_quintf2 opf fl = case fl of
 val zero_f = mk_nullf (fn (x,y) => mk_ctree (czero ()))
 val one_f = mk_nullf (fn (x,y) => mk_ctree (cone ()))
 val two_f = mk_nullf (fn (x,y) => mk_ctree (ctwo ()))
-val x_f = mk_nullf (fn (x,y) => x)
-val y_f = mk_nullf (fn (x,y) => y)
+val x_f = mk_nullf (fn (x,y) => (checktimer (); x))
+val y_f = mk_nullf (fn (x,y) => (checktimer (); y))
 
 val addi_f = mk_binf caddi
 val diff_f = mk_binf cdiff
