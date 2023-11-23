@@ -52,10 +52,10 @@ fun store_mem ((mema,memn),n,x) =
     Array.update (!mema,n,x); 
     memn := n + 1
   end
-  (* handle Subscript => raise ERR "store_mem" (its n) *)
+  handle Subscript => raise ERR "store_mem" (its n)
 
 fun lookup_mema (mema,n) = Array.sub (!mema,n) 
-  (* handle Subscript => raise ERR "lookup_mema" (its n) *)
+  handle Subscript => raise ERR "lookup_mema" (its n)
 
 (* -------------------------------------------------------------------------
    Wrappers
@@ -282,8 +282,12 @@ val ctree_execl =
   [push_f, pop_f, popr_f, push2_f, 
    divr_f, floor_f, numer_f, denom_f, gcd_f, 
    cimag_f, crealpart_f, cimagpart_f]
-  
+ 
 val execv = Vector.fromList (org_execl @ ctree_execl)
+
+val _ = if Vector.length execv <> Vector.length operv andalso (!ctree_flag)
+        then raise ERR "execv" "mismatch with operv"
+        else () 
 
 (* -------------------------------------------------------------------------
    Creates executable for a program
@@ -334,8 +338,7 @@ fun coverf_oeis exec =
   let fun g x = mk_return (exec (mk_ctree (mk_complex x),ctzero)) in
     scover_oeis g 
   end
- 
-  
+
 (* -------------------------------------------------------------------------
    Verifiy cover
    ------------------------------------------------------------------------- *)

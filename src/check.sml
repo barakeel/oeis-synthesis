@@ -180,7 +180,10 @@ fun checkf_memo p =
 
 fun checkf_ctree p = 
   let
-    val anumtl = exec_ctree.coverf_oeis (exec_ctree.mk_exec p)
+    val exec = exec_ctree.mk_exec p 
+      handle Subscript => raise ERR "checkf_ctree" "1"
+    val anumtl = exec_ctree.coverf_oeis exec
+      handle Subscript => raise ERR "checkf_ctree" "2"
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
   in
     app f anumtl
@@ -207,8 +210,6 @@ fun checkf_intl (nnvalue:real) p =
     app f anumtl;
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
-  
-  
 
 fun checkinit () =
   (
