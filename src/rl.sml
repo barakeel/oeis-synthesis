@@ -24,6 +24,9 @@ val nvis = ref
 val rtim = ref
   (valOf (Real.fromString (dfind "rtim" configd)) 
    handle NotFound => 600.0)  
+val rtim_init = ref
+  (valOf (Real.fromString (dfind "rtim_init" configd)) 
+   handle NotFound => 600.0)   
    
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
@@ -304,14 +307,20 @@ fun init_cube () =
   end
 
 fun search () targetn =
-  let val _ = print_endline "search start" in
+  let 
+    val _ = print_endline "search start" 
+    val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
+  in
     if !beam_flag 
     then search.beamsearch ()
-    else (select_random_target (); 
-          if !rnn_flag 
-          then search.search_rnn (!rtim)
-          else search.search (!nvis,!rtim); 
-          checkfinal ())
+    else (
+         select_random_target (); 
+         if !rnn_flag 
+           then search.search_rnn rtimloc
+           else search.search (!nvis,rtimloc)
+         ; 
+         checkfinal ()
+         )
   end
 
 fun string_of_timeo () = (case !time_opt of

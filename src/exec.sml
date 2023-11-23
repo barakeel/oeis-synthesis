@@ -314,7 +314,10 @@ val execv =
     (if !think_flag then [think1_f,think2_f] else []) @
     (if !seq_flag then [seq_f] else [])
     )
-val _ = if Vector.length execv <> Vector.length operv andalso not (!intl_flag)
+val _ = if Vector.length execv <> Vector.length operv andalso 
+           not (!intl_flag) andalso 
+           not (!memo_flag) andalso 
+           not (!ctree_flag)
         then raise ERR "execv" "mismatch with operv"
         else ()
 

@@ -42,14 +42,8 @@ val cdivr : complex -> complex -> complex
 val cdivi : complex -> complex -> complex
 val cmodu : complex -> complex -> complex
 
-val cfloor : complex -> complex
-val cnumer : complex -> complex
-val cdenom : complex -> complex
-val cgcd : complex -> complex -> complex
-val cimag : unit -> complex
-val crealpart : complex -> complex
-val cimagpart : complex -> complex
 val cleq0 : complex -> bool
+
 
 (* tree of numbers ('a could be IntInf.int, rat or complex) *)
 datatype 'a ctree = 
@@ -57,9 +51,19 @@ datatype 'a ctree =
   CNode1 of 'a * 'a ctree | 
   CNode2 of 'a * 'a ctree * 'a ctree
 val pop : 'a ctree -> 'a ctree
-val popr : 'a ctree -> 'a ctree
 val push : 'a ctree -> 'a ctree -> 'a ctree
+
+(* extra primitives *)
+val popr : 'a ctree -> 'a ctree
 val push2 : 'a ctree -> 'a ctree -> 'a ctree -> 'a ctree
+(* val cdivr : complex -> complex -> complex *)
+val cfloor : complex -> complex
+val cnumer : complex -> complex
+val cdenom : complex -> complex
+val cgcd : complex -> complex -> complex
+val cimag : unit -> complex
+val crealpart : complex -> complex
+val cimagpart : complex -> complex
 
 (* 
 not subject to the timer but convenient to define loops 

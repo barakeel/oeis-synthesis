@@ -65,6 +65,17 @@ fun mk_nullf opf fl = case fl of
     [] => (fn x => (opf x))
   | _ => raise ERR "mk_nullf" ""
 
+fun mk_unf opf fl = case fl of
+    [f] => (fn x => 
+    let val t = f x in
+      case t of
+        CLeaf x1 => CLeaf (opf x1) 
+      | CNode1 (x1,st) => CNode1 (opf x1, st)
+      | CNode2 (x1,st1,st2) => CNode2 (opf x1, st1, st2)
+    end
+    )
+  | _ => raise ERR "mk_binfadd" ""
+
 fun mk_binf opf fl = case fl of
     [f1,f2] => (fn x => 
     let 
@@ -96,7 +107,6 @@ fun mk_quintf2 opf fl = case fl of
 val zero_f = mk_nullf (fn (x,y) => mk_ctree (czero ()))
 val one_f = mk_nullf (fn (x,y) => mk_ctree (cone ()))
 val two_f = mk_nullf (fn (x,y) => mk_ctree (ctwo ()))
-val imag_f = mk_nullf (fn (x,y) => mk_ctree (cimag ()))
 val x_f = mk_nullf (fn (x,y) => x)
 val y_f = mk_nullf (fn (x,y) => y)
 
@@ -109,16 +119,46 @@ val modu_f = mk_binf cmodu
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
     (fn x => (checktimer (); if cleq0 (root (f1 x)) then f2 x else f3 x))
-  | _ => raise ERR "mk_condf" ""
+  | _ => raise ERR "cond_f" ""
   
+(* -------------------------------------------------------------------------
+   Tree instructions
+   ------------------------------------------------------------------------- *)  
+   
 fun push_f fl = case fl of
     [f1,f2] => (fn x => push (f1 x) (f2 x))
-  | _ => raise ERR "mk_pushf" ""
+  | _ => raise ERR "push_f" ""
 
 fun pop_f fl = case fl of
    [f] => (fn x => pop (f x))
-  | _ => raise ERR "mk_popf" ""  
-  
+  | _ => raise ERR "pop_f" ""  
+ 
+fun popr_f fl = case fl of
+   [f] => (fn x => popr (f x))
+  | _ => raise ERR "popr_f" ""   
+
+fun push2_f fl = case fl of
+   [f1,f2,f3] => (fn x => push2 (f1 x) (f2 x) (f3 x))
+  | _ => raise ERR "push2_f" ""   
+
+(* -------------------------------------------------------------------------
+   Rational instructions
+   ------------------------------------------------------------------------- *) 
+
+val divr_f = mk_binf cdivr
+val floor_f = mk_unf cfloor
+val numer_f = mk_unf cnumer
+val denom_f = mk_unf cdenom
+val gcd_f = mk_binf cgcd
+
+(* -------------------------------------------------------------------------
+   Complex instructions
+   ------------------------------------------------------------------------- *) 
+   
+val cimag_f = mk_nullf (fn (x,y) => mk_ctree (cimag ()))
+val crealpart_f = mk_unf crealpart
+val cimagpart_f = mk_unf cimagpart
+
 (* -------------------------------------------------------------------------
    Loop with memory
    ------------------------------------------------------------------------- *)
@@ -238,8 +278,12 @@ val org_execl =
   [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
    loop_f, x_f, y_f, compr_f, loop2_f]
 
-
-val execv = Vector.fromList (org_execl @ [push_f, pop_f])
+val ctree_execl = 
+  [push_f, pop_f, popr_f, push2_f, 
+   divr_f, floor_f, numer_f, denom_f, gcd_f, 
+   cimag_f, crealpart_f, cimagpart_f]
+  
+val execv = Vector.fromList (org_execl @ ctree_execl)
 
 (* -------------------------------------------------------------------------
    Creates executable for a program

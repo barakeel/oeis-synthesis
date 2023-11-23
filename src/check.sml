@@ -231,10 +231,11 @@ fun checkonline nnvalue (p,exec) =
   else if !intl_flag then checkf_intl nnvalue p 
   else checkf nnvalue (p,exec)
 
-fun checkfinal () =
+fun checkfinal () = dlist (!wind)
+  (*
   if short_timeincr >= long_timeincr orelse 
      !seq_flag orelse !her_flag orelse !think_flag orelse !run_flag
-  then dlist (!wind) else
+  then  else
   let
     val _ = print_endline ("solutions: " ^ its (dlength (!wind))) 
     fun checkb p = (init_slow_test (); 
@@ -250,6 +251,7 @@ fun checkfinal () =
   in
     dlist (!wind)
   end
+  *)
   
 fun collect_candidate () = 
   let 
