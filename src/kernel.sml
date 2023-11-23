@@ -29,9 +29,7 @@ fun rflagnoref s i = valOf (Real.fromString (dfind s configd))
 
 (* main_experiment flags *)
 val seq_flag = bflag "seq_flag"
-
 val nomerge_flag = bflag "nomerge_flag"
-
 
 (* flags for selection of solutions *)
 val t_flag = bflag "t_flag"
@@ -82,6 +80,9 @@ val num_epoch = iflag "num_epoch" 100
 (* external checking flags *)
 val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
 val reprocess_flag = bflag "reprocess_flag"
+
+(* other flag *)
+val reprocess_select_flag = bflag "reprocess_select_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

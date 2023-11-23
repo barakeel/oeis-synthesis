@@ -103,7 +103,9 @@ val update_f =
   
 fun update_wind d (anum,toptpl) =
   case dfindo anum (!d) of 
-    NONE => d := dadd anum toptpl (!d)
+    NONE => if !reprocess_select_flag 
+            then update_f d anum toptpl
+            else d := dadd anum toptpl (!d)
   | SOME oldtpl => update_f d anum (toptpl @ oldtpl)
 
 fun merge_itsol itsol = 

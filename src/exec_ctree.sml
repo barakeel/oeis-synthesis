@@ -416,7 +416,6 @@ val itsol = read_itprogl file
 val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol);
 val _ = print_endline ("solutions: " ^ its (length isol));
 
-
 fun get_bad isol = case isol of 
     [] => NONE
   | a :: m => 
@@ -428,7 +427,6 @@ val (anum,p) = valOf (get_bad isol);
 val (bbl,t) = add_time (map_assoc (verify_wtime tim)) isol
 val lbad1 = filter (not o fst o snd) bbl
 val lbad2 = filter (not o snd o snd) bbl
-
 
 val file = (selfdir ^ "/exp/intl3/hist/itsol2088");
 val read_itprogl 

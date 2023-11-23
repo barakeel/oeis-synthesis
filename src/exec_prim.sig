@@ -35,19 +35,20 @@ type complex = rat * rat
 val czero : unit -> complex
 val cone : unit -> complex
 val ctwo : unit -> complex
-val cimag : unit -> complex
 val caddi : complex -> complex -> complex
 val cdiff : complex -> complex -> complex
 val cmult : complex -> complex -> complex
 val cdivr : complex -> complex -> complex
 val cdivi : complex -> complex -> complex
 val cmodu : complex -> complex -> complex
-val cgcd : complex -> complex -> complex
-val crealpart : complex -> complex
-val cimagpart : complex -> complex
+
 val cfloor : complex -> complex
 val cnumer : complex -> complex
 val cdenom : complex -> complex
+val cgcd : complex -> complex -> complex
+val cimag : unit -> complex
+val crealpart : complex -> complex
+val cimagpart : complex -> complex
 val cleq0 : complex -> bool
 
 (* tree of numbers ('a could be IntInf.int, rat or complex) *)
