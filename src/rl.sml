@@ -169,7 +169,7 @@ fun trainf_tnn datadir pid =
        (if !extra_flag then read_itprogl extra_file else [])
     val _ = print_endline ("reading itsol " ^ (its (length itsol)))
     val isol0 = distrib (map (fn (a,bl) => (a,map snd bl)) itsol)
-    val isol = if not (!intl_flag) then isol0 else
+    val isol =
       let 
         val progl = mk_fast_set prog_compare_size (map snd isol0)
         val d = 
