@@ -39,7 +39,7 @@ val pareto_flag = bflag "pareto_flag"
 val pareto_number = iflagnoref "pareto_number" 0
 val optimal_flag = bflag "optimal_flag"
 val optimalonly_flag = bflag "optimalonly_flag"
-val optimal_coeff = rflagnoref "optimal_coeff" 2.0
+val optimal_coeff = rflagnoref "optimal_coeff" 0.5
 
 (* language flags *)
 val z_flag = bflag "z_flag"
