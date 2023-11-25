@@ -30,6 +30,8 @@ val rtim_init = ref
    
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
+val ntarget_init = (string_to_int (dfind "ntarget_init" configd) 
+  handle NotFound => 32)
 val maxgen = ref NONE
 val ngen_glob = ref 0
 val expname = ref "test"
@@ -696,7 +698,8 @@ fun rl_search_only_default ngen =
     val (itsoll,t) = 
       if !notarget_flag then add_time cube ()
       else add_time
-        (parmap_queue_extern ncore parspec ()) (List.tabulate (ntarget,I))
+        (parmap_queue_extern ncore parspec ()) (List.tabulate
+          (if ngen <= 0 then ntarget_init else ntarget,I))
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length itsoll)))
