@@ -75,6 +75,7 @@ val extra_flag = bflag "extra_flag" (* add extra data for the training *)
 val train_multi = iflag "train_multi" 1
 val rnn_flag = bflag "rnn_flag"
 val num_epoch = iflag "num_epoch" 100
+val newseq_flag = bflag "newseq_flag" (* other encoding of seq *)
 
 (* external checking flags *)
 val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
@@ -86,7 +87,6 @@ val reprocess_select_flag = bflag "reprocess_select_flag"
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
 val beam_width = iflagnoref "beam_width" 10000
-val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
 
 (* experiments *)
