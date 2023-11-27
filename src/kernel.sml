@@ -83,6 +83,7 @@ val reprocess_flag = bflag "reprocess_flag"
 
 (* other flag *)
 val reprocess_select_flag = bflag "reprocess_select_flag"
+val nooeis_flag = bflag "nooeis_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"

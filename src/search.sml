@@ -289,6 +289,36 @@ fun search (vis,tinc) =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
+
+
+(* 
+load "search"; open search; open kernel aiLib;
+bloom.select_random_target ();
+kernel.nooeis_flag := true;
+check.seqd := aiLib.dempty kernel.seq_compare;
+search.randsearch_flag := true;
+
+
+fun loop tim =
+  if dlength (!check.seqd) >= 1000 then
+    let 
+      val e1 = dlist (!check.seqd)
+      val e2 = dict_sort 
+        (snd_compare (cpl_compare Int.compare prog_compare_size)) e1
+    in
+      map (fn (a,(b,c)) => (a,c)) (first_n 1000 e2)
+    end
+  else (ignore (search.search (0,tim)); loop (2.0*tim));
+
+check.seqd := dempty seq_compare;
+
+val seqpl = loop 60.0;
+
+fun f (l,p) = (string_of_seq l ^ ": " ^ human.humanf p);
+writel "aaa_test" (map f seqpl);
+
+
+*)
   
 (* -------------------------------------------------------------------------
    Search using the RNN
@@ -486,6 +516,29 @@ fun beamsearch () =
   in
     sol
   end
+  
+fun beamsearch_target (targetn,target) =  
+  let 
+    val _ = progd := eempty prog_compare
+    fun f () =
+      let 
+        val _ = targetn_glob := targetn
+        val _ = target_glob := target
+        val targete = get_targete ()
+      in
+        beamsearch_aux targete beam_width maxproglen 0 [([],1.0)]
+      end
+    fun loop n = if n <= 0 then () else (f (); loop (n-1))
+    val (_,t) = add_time loop 1
+    val _ = print_endline 
+      ("beamsearch: " ^ its (elength (!progd)) ^ " " ^ rts_round 2 t)
+    val (sol,t) = add_time checkpl (elist (!progd))
+    val _ = print_endline 
+      ("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
+  in
+    sol
+  end
+
  
 end (* struct *)
 

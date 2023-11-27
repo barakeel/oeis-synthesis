@@ -5,6 +5,8 @@ sig
   type prog = kernel.prog
   type anum = bloom.anum
   
+  val seqd: (kernel.seq, (int * prog)) dict ref
+  
   (* functions used in search.sml and rl.sml *)
   val checkinit : unit -> unit
   val checkonline : real -> prog * exec.exec -> unit

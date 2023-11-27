@@ -170,13 +170,28 @@ fun checkf nnvalue (p,exec) =
     app g (create_anumlpart (anumtl,cov,anumlpart))
   end
 
-fun checkf_memo p = 
-  let
-    val anumtl = exec_memo.coverf_oeis (exec_memo.mk_exec p)
-    fun f (anum,t) = update_wind wind (anum,[(t,p)])
-  in
-    app f anumtl
-  end
+val seqd = ref (dempty seq_compare)
+
+fun checkf_memo nnvalue p = 
+  if !nooeis_flag then 
+    let 
+      val ivalue = Real.round (~nnvalue * 1000000000.0)
+      val cand = (ivalue,p)
+      val seq = exec_memo.penum_wtime short_timeincr p 16 in
+      case dfindo seq (!seqd) of
+        NONE => seqd := dadd seq cand (!seqd)
+      | SOME oldcand => 
+        if cpl_compare Int.compare prog_compare_size (cand,oldcand) = LESS
+        then seqd := dadd seq cand (!seqd)
+        else ()
+    end
+  else
+    let
+      val anumtl = exec_memo.coverf_oeis (exec_memo.mk_exec p)
+      fun f (anum,t) = update_wind wind (anum,[(t,p)])
+    in
+      app f anumtl
+    end
 
 fun checkf_ctree p = 
   let
@@ -227,7 +242,7 @@ fun checkf_seq (p,exec) =
   
 fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
-  else if !memo_flag then checkf_memo p
+  else if !memo_flag then checkf_memo nnvalue p
   else if !ctree_flag then checkf_ctree p 
   else if !intl_flag then checkf_intl nnvalue p 
   else checkf nnvalue (p,exec)
@@ -268,7 +283,7 @@ fun checkpl pl =
     fun f p = (
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
-      if !memo_flag then checkf_memo p
+      if !memo_flag then checkf_memo 0.0 p
       else if !ctree_flag then checkf_ctree p
       else if !intl_flag then checkf_intl 0.0 p 
       else checkf 0.0 (p, mk_exec p)
@@ -316,7 +331,7 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_slow_test (); 
-       if !memo_flag then checkf_memo p else
+       if !memo_flag then checkf_memo 0.0 p else
        if !ctree_flag then checkf_ctree p else
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 

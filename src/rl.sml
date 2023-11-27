@@ -798,6 +798,12 @@ fun rl_train_only ngen =
     writel_atomic obfileout []
   end
 
+(*
+load "rl"; open rl;
+expname :=  "memof";
+rl_train_only 8;
+*)
+
 (* -------------------------------------------------------------------------
    Reinforcement learning loop wrappers
    ------------------------------------------------------------------------- *)
