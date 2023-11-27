@@ -85,6 +85,7 @@ val reprocess_select_flag = bflag "reprocess_select_flag"
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
+val beam_width = iflagnoref "beam_width" 10000
 val newseq_flag = bflag "newseq_flag"
 val stop_flag = bflag "stop_flag"
 

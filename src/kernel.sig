@@ -22,6 +22,7 @@ sig
   val notarget_flag : bool ref (* train without looking at the target *)
   val array_flag : bool ref
   val beam_flag : bool ref
+  val beam_width : int
   val stop_flag : bool ref
   val newseq_flag : bool ref
   val extranum_flag : bool ref

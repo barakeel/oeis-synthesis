@@ -325,6 +325,14 @@ fun search () targetn =
          )
   end
 
+(* 
+load "rl"; open rl;
+search.randsearch_flag := true;
+search.search (0,60.0);
+val sol = check.checkfinal ();
+
+*)
+
 fun string_of_timeo () = (case !time_opt of
     NONE => "Option.NONE"
   | SOME s => "Option.SOME " ^ rts s)
