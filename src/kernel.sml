@@ -57,7 +57,7 @@ val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
 val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
 val temperature = rflagnoref "temperature" 1.0
-val maxproglen = iflagnoref "maxproglen" 10000
+val maxproglen = iflagnoref "maxproglen" 240
 
 (* execution flags *)
 val maxintsize = iflagnoref "maxintsize" 285
