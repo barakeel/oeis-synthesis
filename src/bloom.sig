@@ -6,9 +6,10 @@ sig
   type anum = int
   
   (* OEIS array *)
-  val oseq : IntInf.int list option array
-  val oseql : (int * IntInf.int list) list
+  val oseq : seq option array
+  val oseql : (int * seq) list
   val select_random_target : unit -> unit
+  val select_random_target2 : unit -> (int * seq)
 
   (* tree of OEIS sequences *)
   datatype otree = 

@@ -191,7 +191,21 @@ fun trainf_tnn datadir pid =
   in
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir nep newex
-  end  
+  end
+  
+
+fun trainf_seqprog datadir pid =
+  let 
+    val seqprogl = read_seqprog (selfdir ^ "/aaa_seqprog")
+    val ex = create_exl_seqprogl (shuffle seqprogl)
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val nep = !num_epoch
+  in
+    if nex < 10 then raise ERR "too few examples" "" else
+      export_traindata datadir nep ex
+  end    
+
 
 fun trainf_start pid =
   let 
@@ -201,7 +215,8 @@ fun trainf_start pid =
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val _ = print_endline "exporting training data"
   in
-    if !rnn_flag then trainf_rnn datadir pid
+    if !seqprog_flag then trainf_seqprog datadir pid
+    else if !rnn_flag then trainf_rnn datadir pid
     else if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
     else trainf_tnn datadir pid
@@ -257,6 +272,8 @@ fun trainw_end pid =
   let val script2 = !buildheap_dir ^ "/train_end" ^ its pid ^ ".sml" in
     exec_script script2
   end
+  
+
 
 (* -------------------------------------------------------------------------
    Parallel search
@@ -802,6 +819,11 @@ fun rl_train_only ngen =
 load "rl"; open rl;
 expname :=  "memof";
 rl_train_only 8;
+
+expname := "seqprog";
+rl_train_only 0;
+rl_search_only 1;
+
 *)
 
 (* -------------------------------------------------------------------------

@@ -177,13 +177,23 @@ fun checkf_memo nnvalue p =
     let 
       val ivalue = Real.round (~nnvalue * 1000000000.0)
       val cand = (ivalue,p)
-      val seq = exec_memo.penum_wtime short_timeincr p 16 in
+      val seq' = exec_memo.penum_wtime short_timeincr p 16
+      val minint = IntInf.fromInt (valOf Int.minInt)
+      val maxint = IntInf.fromInt (valOf Int.maxInt)
+      val seq = map (fn x => 
+        if x < minint then minint
+        else if x > maxint then maxint
+        else x) seq'
+    in
+      if length seq < 16 then () else
+      ( 
       case dfindo seq (!seqd) of
-        NONE => seqd := dadd seq cand (!seqd)
-      | SOME oldcand => 
-        if cpl_compare Int.compare prog_compare_size (cand,oldcand) = LESS
-        then seqd := dadd seq cand (!seqd)
-        else ()
+          NONE => seqd := dadd seq cand (!seqd)
+        | SOME oldcand => 
+          if cpl_compare Int.compare prog_compare_size (cand,oldcand) = LESS
+          then seqd := dadd seq cand (!seqd)
+          else ()
+      )
     end
   else
     let

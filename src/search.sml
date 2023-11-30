@@ -298,7 +298,6 @@ kernel.nooeis_flag := true;
 check.seqd := aiLib.dempty kernel.seq_compare;
 search.randsearch_flag := true;
 
-
 fun loop tim =
   if dlength (!check.seqd) >= 1000 then
     let 
@@ -310,13 +309,14 @@ fun loop tim =
     end
   else (ignore (search.search (0,tim)); loop (2.0*tim));
 
-check.seqd := dempty seq_compare;
+val r = loop 60.0;
 
-val seqpl = loop 60.0;
+val file = selfdir ^ "/aaa_seqprog";
+write_seqprog file r;
+val r' = read_seqprog file;
 
-fun f (l,p) = (string_of_seq l ^ ": " ^ human.humanf p);
-writel "aaa_test" (map f seqpl);
 
+list_compare (cpl_compare seq_compare prog_compare) (r,r');
 
 *)
   
@@ -420,12 +420,13 @@ fun search_board (vis,tinc) board =
    ------------------------------------------------------------------------- *) 
  
 val progd = ref (eempty prog_compare)
+val onlystop = ref false
 
 fun exec_fun move l1 l2 =
   let 
     val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
-    val _ = progd := eadd p (!progd)
+    val _ = if !onlystop then () else progd := eadd p (!progd)
   in
     if !randsearch_flag then (p,empty_emb,empty_emb) :: l2 else
     let
@@ -454,7 +455,8 @@ fun apply_move move boarde =
   
 fun create_pol targete boarde ml =
   if !randsearch_flag 
-    then normalize_distrib (map (fn x => (x, random_real ())) ml)
+    then normalize_distrib (map (fn x => (x, random_real ())) 
+      (if !stop_flag then maxmove :: ml else ml))
   else
   let  
     val f = fp_emb_either
@@ -517,51 +519,83 @@ fun beamsearch () =
     sol
   end
   
-fun beamsearch_target (targetn,target) =  
+val seqd = ref (dempty seq_compare) 
+
+exception Break;  
+  
+fun beamsearch_target_aux targete maxwidth maxdepth depth beaml =
+  if depth >= maxdepth then print_endline "beamsearch maxlength" else  
+  let
+    fun f (boarde,sc) =
+      let 
+        val ml = available_movel boarde 
+        val pol = create_pol targete boarde ml
+        fun g (m,msc) = ((boarde,m),sc * msc)
+      in
+        map g pol
+      end 
+    val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
+    val beaml2 = first_n (maxwidth - (dlength (!seqd))) beaml1
+    fun h ((boarde,m),sc) = 
+      if !stop_flag andalso m = maxmove andalso is_singleton boarde 
+      then 
+        let 
+          val prog = #1 (hd boarde) 
+          val seq = exec_memo.penum_wtime short_timeincr prog 16
+        in
+          if length seq < 16 then NONE else
+          (
+          case dfindo seq (!seqd) of
+            NONE => (seqd := dadd seq prog (!seqd); 
+                     if dlength (!seqd) >= maxwidth 
+                     then (print_endline "beamsearch break"; raise Break) 
+                     else (); NONE)
+          | SOME oldprog => NONE
+          )
+        end
+      else (if m = maxmove then NONE else SOME (apply_move m boarde, sc))
+    val beaml3 = List.mapPartial h beaml2
+  in
+    beamsearch_target_aux targete maxwidth maxdepth (depth + 1) beaml3
+  end
+    
+fun beamsearch_target target =  
   let 
-    val _ = progd := eempty prog_compare
+    val _ = seqd := dempty seq_compare
     fun f () =
       let 
-        val _ = targetn_glob := targetn
         val _ = target_glob := target
         val targete = get_targete ()
       in
-        beamsearch_aux targete beam_width maxproglen 0 [([],1.0)]
+        beamsearch_target_aux targete beam_width maxproglen 0 [([],1.0)]
+        handle Break => ()
       end
-    fun loop n = if n <= 0 then () else (f (); loop (n-1))
-    val (_,t) = add_time loop 1
-    val _ = print_endline 
-      ("beamsearch: " ^ its (elength (!progd)) ^ " " ^ rts_round 2 t)
-    val (sol,t) = add_time checkpl (elist (!progd))
-    val _ = print_endline 
-      ("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
+    val (_,t) = add_time f ()
+    val _ = print_endline ("beamsearch: " ^ its (dlength (!seqd)) ^ 
+      " examples in " ^ rts_round 2 t ^ " seconds")
   in
-    sol
+    (dlist (!seqd))
   end
 
  
 end (* struct *)
 
 (* 
-PolyML.print_depth 3;
-load "search"; open kernel aiLib search;
+PolyML.print_depth 0;
+load "search"; open kernel aiLib search bloom;
+PolyML.print_depth 10;
+val (an,seq) = bloom.select_random_target2 ();
+search.randsearch_flag := true;
+val seqprogl = beamsearch_target seq;
+length seqprogl;
+
+*)
+
+(*
+PolyML.print_depth 10;
+load "search"; open kernel aiLib search bloom;
 tnn.update_fp_op (selfdir ^ "/model/ob_online.so");
-bloom.select_random_target ();
-randsearch_flag := false;
-
-
 check.checkinit ();
 search (0, 60.0);
 val _ = check.checkfinal ();
-
-(*
-solutions: 3373
-checkb: 5381
-checkb time: 93.18 seconds
-more solutions: 3689
-> val it = 55: int
-*)
-
-
-
 *)

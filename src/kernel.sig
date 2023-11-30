@@ -89,6 +89,7 @@ sig
   val targetn_glob : int ref
   val seq_compare : seq * seq -> order
   val string_of_seq : seq -> string
+  val seq_of_string : string -> seq
   val is_prefix : seq -> seq -> bool
   
   (* programs *)
@@ -156,6 +157,11 @@ sig
   
   (* other *)
   val prog_of_movel : int list -> prog
+  
+  (* seqprog *)
+  val seqprog_flag : bool ref
+  val write_seqprog : string -> (seq * prog) list -> unit
+  val read_seqprog : string -> (seq * prog) list
   
   (* pgen experiment *)
   type pgen = prog * (int * prog) list

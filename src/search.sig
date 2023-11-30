@@ -9,5 +9,6 @@ sig
   
   (* beam search: move to a new file *)
   val beamsearch : unit -> (int * (int * kernel.prog) list) list
+  val beamsearch_target : kernel.seq -> (kernel.seq * kernel.prog) list
   
 end

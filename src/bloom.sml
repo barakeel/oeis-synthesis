@@ -333,6 +333,16 @@ fun cover_target f target = catch_perror (cover_target_aux2 f) target
    Select a random OEIS sequence
    ------------------------------------------------------------------------- *)
 
+fun select_random_target2 () =
+  let
+    fun loop () =
+      let val i = random_int (0, Array.length oseq - 1) in
+        case Array.sub (oseq, i) of NONE => loop () | SOME seq => (i,seq)
+      end
+  in
+    loop ()
+  end 
+
 fun select_random_target () =
   let
     fun loop () =
@@ -346,6 +356,9 @@ fun select_random_target () =
   in
     ()
   end
+  
+
+  
 
 
 end (* struct *)

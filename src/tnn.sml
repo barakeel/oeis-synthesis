@@ -315,6 +315,33 @@ fun create_exl iprogl =
   in
     r
   end
+  
+fun create_exl_seqprogl seqprogl =
+  let
+    fun create_ex (seq,p) = 
+      let
+        val _ = target_glob := seq
+        val bml = linearize_safe p
+        val stopex = if not (!stop_flag) then [] else
+          [(poli_of_board [p], vector_to_list 
+            (Vector.update (zerov, maxmove - 1, 1.0)))]
+        fun f (board,move) =
+           let 
+             val newv = Vector.update (zerov, move, 1.0)
+             val newl = vector_to_list newv
+           in
+             (poli_of_board board, newl)
+           end
+        in
+          stopex @ map f bml
+      end
+    val _ = use_cache := true
+    val r = map create_ex seqprogl
+    val _ = use_cache := false
+  in
+    r
+  end  
+  
 
 fun create_exl_progset progl =
   let
@@ -339,7 +366,8 @@ fun create_exl_progset progl =
   end
 
 
-(* no target *)
+(* should work even with a target since the term includes
+   the sequence *)
 fun merge_distrib disl = map average_real (list_combine disl)
 
 fun revamp ex = 

@@ -76,6 +76,7 @@ val train_multi = iflag "train_multi" 1
 val rnn_flag = bflag "rnn_flag"
 val num_epoch = iflag "num_epoch" 100
 val newseq_flag = bflag "newseq_flag" (* other encoding of seq *)
+val seqprog_flag = bflag "seqprog_flag" (* training from custom data *)
 
 (* external checking flags *)
 val reverse_nmtoutput = bflag_true "reverse_nmtoutput"
@@ -159,6 +160,8 @@ type anum = int
 val seq_compare = list_compare IntInf.compare
 
 fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
+fun seq_of_string s = map stinf (String.tokens Char.isSpace s)
+
 val amillion = IntInf.fromInt 1000000
 fun gpt_of_int i = 
   if i > amillion then "_" 
@@ -476,6 +479,24 @@ fun prog_of_gpt s =
   in
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
+    
+(* -------------------------------------------------------------------------
+   Simple export of sequence program pairs
+   ------------------------------------------------------------------------- *)  
+ 
+fun string_of_seqprog (seq,prog) = string_of_seq seq ^ ":" ^ gpt_of_prog prog
+fun write_seqprog file seqprogl = writel file (map string_of_seqprog seqprogl)
+  
+fun seqprog_of_string s = 
+  let 
+    val (seqs,progs) = pair_of_list (String.tokens (fn x => x = #":") s)
+    val seq = seq_of_string seqs
+    val prog = prog_of_gpt progs
+  in
+    (seq,prog)
+  end
+  
+fun read_seqprog file = map seqprog_of_string (readl file)
   
 (* -------------------------------------------------------------------------
    Other
