@@ -130,43 +130,15 @@ fun parallel_knn_gpt ncore expname n =
    Clustering algorithm
    ------------------------------------------------------------------------- *)
 
-fun cluster_aux ncluster proglset =
-  let 
-    val csize = (length proglset div ncluster) + 1
-    val feav = map_assoc fea_of_prog proglset
+fun random_cluster csize pl =
+  let
+    val pset = mk_fast_set prog_compare_size pl
+    val feav = map_assoc fea_of_prog pset
     val symweight = mlFeature.learn_tfidf feav 
-    fun loop n feavloc =
-      if null feavloc then [] else 
-      if n <= 1 then [map fst feavloc] else
-      let
-        val _ = print_endline (its n)       
-        val sel = knn (symweight,feavloc) csize (fst (random_elem feavloc))
-        val d = enew prog_compare sel
-        val newfeav = filter (fn x => not (emem (fst x) d)) feavloc
-      in
-        sel :: loop (n-1) newfeav
-      end
-  in   
-    loop ncluster feav
-  end  
-
-fun random_cluster nex progl =
-  let val ncluster = (length progl div nex) + 1 in
-    random_elem (cluster_aux ncluster progl)
+  in
+    knn (symweight,feav) csize (random_elem pset)
   end
 
-fun cluster expname ncluster =
-  let 
-    val dir = selfdir ^ "/exp/" ^ expname
-    val sl = readl (dir ^ "/input")
-    val sl' = mk_fast_set String.compare sl
-    val progl = map prog_of_gpt sl'
-    val proglset = mk_fast_set prog_compare_size progl
-    fun f i x = writel (dir ^ "/cluster" ^ its i) (map gpt_of_prog x)
-  in   
-    appi f (cluster_aux ncluster proglset)
-  end
-  
 (* -------------------------------------------------------------------------
    Clustering algorithm 2
    ------------------------------------------------------------------------- *)
@@ -201,7 +173,9 @@ fun cluster2 expname ncluster csize =
     appi f (loop ncluster feav)
   end
 
-
+(* -------------------------------------------------------------------------
+   Clustering algorithm 3
+   ------------------------------------------------------------------------- *)
 
 
 end

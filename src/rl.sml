@@ -679,6 +679,7 @@ fun stats_ngen dir ngen =
     stats_sol (dir ^ "/diff_") soldiff
   end
 
+(*
 fun count_newsol olditsol itsoll =
   let 
     val d = ref (enew Int.compare (map fst olditsol))
@@ -697,6 +698,8 @@ fun count_newsol olditsol itsoll =
     log ("new solutions (after 8 more searches each time): " ^
          String.concatWith " " (map its il)) 
   end
+*)  
+  
 
 
 (* pgen statistics *)
@@ -737,7 +740,7 @@ fun rl_search_only_default ngen =
     val _ = log ("average size: " ^ rts_round 2 
       (average_int (map prog_size allprog)))
     val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
-    val _ = count_newsol olditsol itsoll
+    val _ = log ("diff: " ^ its (length newitsol - length olditsol))
     val _ = write_itsol_atomic ngen newitsol
   in
     stats_ngen (!buildheap_dir) ngen

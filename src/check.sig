@@ -14,6 +14,8 @@ sig
   
   (* other functions *)
   val checkpl : prog list -> (anum * (int * prog) list) list
+  val checkpl_target : anum -> prog list -> 
+    (int * (anum * (int * prog) list) list)
   val collect_candidate : unit -> prog list
   
   (* merge directory *)

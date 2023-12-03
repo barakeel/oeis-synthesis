@@ -315,9 +315,7 @@ val file = selfdir ^ "/aaa_seqprog";
 write_seqprog file r;
 val r' = read_seqprog file;
 
-
 list_compare (cpl_compare seq_compare prog_compare) (r,r');
-
 *)
   
 (* -------------------------------------------------------------------------
@@ -519,47 +517,70 @@ fun beamsearch () =
     sol
   end
   
-val seqd = ref (dempty seq_compare) 
-
-exception Break;  
+(* -------------------------------------------------------------------------
+   Alternative beam search 1: ordered and without subprograms
+   and only allow stopping when the board is a singleton
+   acceptable board avoids too many duplicate sequences  
+   (especially at the start of the run)
+   Does not work with a random network (use MCTS instead)
+   ------------------------------------------------------------------------- *)  
   
-fun beamsearch_target_aux targete maxwidth maxdepth depth beaml =
-  if depth >= maxdepth then print_endline "beamsearch maxlength" else  
+val seqd = ref (dempty seq_compare)  
+
+fun clip_seq seq =  
   let
+    val minint = IntInf.fromInt (valOf Int.minInt)
+    val maxint = IntInf.fromInt (valOf Int.maxInt)
+    fun f x = if x < minint then minint
+              else if x > maxint then maxint
+              else x
+  in
+    map f seq
+  end
+
+fun acceptable_boarde boarde = 
+  if not (is_singleton boarde) then false else
+  let 
+    val prog = #1 (hd boarde) 
+    val seq = clip_seq (exec_memo.penum_wtime short_timeincr prog 16)
+  in
+    not (length seq < 16) andalso not (dmem seq (!seqd))
+  end
+
+fun beamsearch_ordered_aux targete maxwidth maxdepth depth beaml =
+  if depth >= maxdepth orelse dlength (!seqd) >= maxwidth then () else
+  let 
     fun f (boarde,sc) =
       let 
         val ml = available_movel boarde 
         val pol = create_pol targete boarde ml
-        fun g (m,msc) = ((boarde,m),sc * msc)
+        fun g (m,msc) = 
+          if m = maxmove andalso not (acceptable_boarde boarde)
+          then NONE
+          else SOME ((boarde,m),sc * msc)
       in
-        map g pol
+        List.mapPartial g pol
       end 
     val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
     val beaml2 = first_n (maxwidth - (dlength (!seqd))) beaml1
-    fun h ((boarde,m),sc) = 
-      if !stop_flag andalso m = maxmove andalso is_singleton boarde 
+    fun h ((boarde,m),sc) =
+      if !stop_flag andalso m = maxmove 
       then 
-        let 
-          val prog = #1 (hd boarde) 
-          val seq = exec_memo.penum_wtime short_timeincr prog 16
-        in
-          if length seq < 16 then NONE else
-          (
-          case dfindo seq (!seqd) of
-            NONE => (seqd := dadd seq prog (!seqd); 
-                     if dlength (!seqd) >= maxwidth 
-                     then (print_endline "beamsearch break"; raise Break) 
-                     else (); NONE)
-          | SOME oldprog => NONE
-          )
-        end
-      else (if m = maxmove then NONE else SOME (apply_move m boarde, sc))
+         let 
+           val prog = #1 (hd boarde) 
+           (* inefficient as already computed before *)
+           val seq = clip_seq (exec_memo.penum_wtime short_timeincr prog 16)
+         in
+           seqd := dadd seq (prog,sc) (!seqd); 
+           NONE
+         end
+      else SOME (apply_move m boarde, sc)
     val beaml3 = List.mapPartial h beaml2
   in
-    beamsearch_target_aux targete maxwidth maxdepth (depth + 1) beaml3
+    beamsearch_ordered_aux targete maxwidth maxdepth (depth + 1) beaml3
   end
-    
-fun beamsearch_target target =  
+
+fun beamsearch_ordered width target =  
   let 
     val _ = seqd := dempty seq_compare
     fun f () =
@@ -567,16 +588,83 @@ fun beamsearch_target target =
         val _ = target_glob := target
         val targete = get_targete ()
       in
-        beamsearch_target_aux targete beam_width maxproglen 0 [([],1.0)]
-        handle Break => ()
+        beamsearch_ordered_aux targete width maxproglen 0 [([],1.0)]
       end
-    val (_,t) = add_time f ()
-    val _ = print_endline ("beamsearch: " ^ its (dlength (!seqd)) ^ 
-      " examples in " ^ rts_round 2 t ^ " seconds")
+    fun loop n = if n <= 0 then () else (f (); loop (n-1))
+    val (_,t) = add_time loop 1
+    val _ = print_endline ("beamsearch: " ^ 
+      its (dlength (!seqd)) ^ " sequences in " ^ rts_round 2 t ^ " seconds")
   in
-    (dlist (!seqd))
+    dict_sort (snd_compare compare_rmax) (dlist (!seqd))
+  end
+  
+(* 
+PolyML.print_depth 0;
+load "search"; open kernel aiLib search bloom;
+PolyML.print_depth 10;
+val (an,seq) = bloom.select_random_target2 ();
+search.randsearch_flag := true;
+val progsc = beamsearch_ordered 1000 seq;
+PolyML.print_depth 40;
+fun f (seq,(p,sc)) = (seq,(human.humanf p, sc));
+val l = map f progsc;
+
+(*
+val (sol,t) = add_time checkpl (dkeys (!seqd))
+val _ = print_endline 
+("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
+*)
+*)  
+(* -------------------------------------------------------------------------
+   Alternative beam search 2: ordered and without subprograms
+   and only allow stopping when the board is a singleton
+   acceptable board avoids too many duplicate sequences  
+   (especially at the start of the run)
+   Does not work with a random network (use MCTS instead)
+   ------------------------------------------------------------------------- *)  
+
+fun beamsearch_target_aux pd targete maxwidth maxdepth depth beaml =
+  if depth >= maxdepth orelse dlength (!pd) >= maxwidth then () else
+  let 
+    fun f (boarde,sc) =
+      let 
+        val ml = available_movel boarde 
+        val pol = create_pol targete boarde ml
+        fun g (m,msc) = 
+          if m = maxmove andalso not (is_singleton boarde)
+          then NONE
+          else SOME ((boarde,m),sc * msc)
+      in
+        List.mapPartial g pol
+      end 
+    val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
+    val beaml2 = first_n (maxwidth - (dlength (!pd))) beaml1
+    fun h ((boarde,m),sc) =
+      if !stop_flag andalso m = maxmove 
+      then (pd := dadd (#1 (hd boarde)) sc (!pd); NONE)
+      else SOME (apply_move m boarde, sc)
+    val beaml3 = List.mapPartial h beaml2
+  in
+    beamsearch_target_aux pd targete maxwidth maxdepth (depth + 1) beaml3
   end
 
+fun beamsearch_target width target =  
+  let 
+    val pd = ref (dempty prog_compare)
+    fun f () =
+      let 
+        val _ = target_glob := target
+        val targete = get_targete ()
+      in
+        beamsearch_target_aux pd targete width maxproglen 0 [([],1.0)]
+      end
+    fun loop n = if n <= 0 then () else (f (); loop (n-1))
+    val (_,t) = add_time loop 1
+    val _ = print_endline ("beamsearch: " ^ 
+      its (dlength (!pd)) ^ " sequences in " ^ rts_round 2 t ^ " seconds")
+  in
+    dict_sort compare_rmax (dlist (!pd))
+  end
  
 end (* struct *)
 
@@ -586,11 +674,10 @@ load "search"; open kernel aiLib search bloom;
 PolyML.print_depth 10;
 val (an,seq) = bloom.select_random_target2 ();
 search.randsearch_flag := true;
-val seqprogl = beamsearch_target seq;
-length seqprogl;
+val pl = beamsearch_target 10000 seq;
+val (rank,itsol) = check.checkpl_target 27 (map fst pl);
 
 *)
-
 (*
 PolyML.print_depth 10;
 load "search"; open kernel aiLib search bloom;

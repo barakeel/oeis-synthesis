@@ -172,18 +172,24 @@ fun checkf nnvalue (p,exec) =
 
 val seqd = ref (dempty seq_compare)
 
+fun clip_seq seq =  
+  let
+    val minint = IntInf.fromInt (valOf Int.minInt)
+    val maxint = IntInf.fromInt (valOf Int.maxInt)
+    fun f x = if x < minint then minint
+              else if x > maxint then maxint
+              else x
+  in
+    map f seq
+  end
+
 fun checkf_memo nnvalue p = 
   if !nooeis_flag then 
     let 
       val ivalue = Real.round (~nnvalue * 1000000000.0)
       val cand = (ivalue,p)
       val seq' = exec_memo.penum_wtime short_timeincr p 16
-      val minint = IntInf.fromInt (valOf Int.minInt)
-      val maxint = IntInf.fromInt (valOf Int.maxInt)
-      val seq = map (fn x => 
-        if x < minint then minint
-        else if x > maxint then maxint
-        else x) seq'
+      val seq = clip_seq seq'
     in
       if length seq < 16 then () else
       ( 
@@ -286,21 +292,40 @@ fun collect_candidate () =
   in
     mk_fast_set prog_compare_size (pl1 @ pl2)
   end
-  
+
+fun checkf_all p =
+  if !memo_flag then checkf_memo 0.0 p
+  else if !ctree_flag then checkf_ctree p
+  else if !intl_flag then checkf_intl 0.0 p 
+  else checkf 0.0 (p, mk_exec p)
+
 fun checkpl pl =
   let 
     val i = ref 0 
     fun f p = (
       init_fast_test (); incr i; 
       if !i mod 10000 = 0 then print "." else ();
-      if !memo_flag then checkf_memo 0.0 p
-      else if !ctree_flag then checkf_ctree p
-      else if !intl_flag then checkf_intl 0.0 p 
-      else checkf 0.0 (p, mk_exec p)
+      checkf_all p
       )
   in
     checkinit (); app f pl; checkfinal ()
   end
+
+fun checkpl_target anum pl =
+  let
+    val rank = ref ~1
+    fun update_rank i =      
+      if !rank >= 0 then () else
+      if dmem anum (!wind) then rank := i else ()
+    fun f i p = (
+      init_fast_test ();
+      checkf_all p;
+      update_rank i
+      )
+  in
+    checkinit (); appi f pl; (!rank, checkfinal ())
+  end  
+  
   
 fun next_board board move =
   let 
