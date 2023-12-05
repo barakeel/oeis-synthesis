@@ -935,7 +935,7 @@ rl_train_only 0;
 rl_search_only 1;
 
 load "rl"; open rl;
-kernel.expname := "smartselect5";
+kernel.expname := "smartselect";
 rl_search_cont_nowait ();
 *)
 

@@ -687,7 +687,8 @@ fun search_smartselect dir =
     val _ = app mkDir_err [dir,datadir]
     (* *)
     val itsol = read_last_itsol () handle HOL_ERR _ => []
-    val d = enew Int.compare (map string_to_int (listDir exdirloc))
+    fun f x = (string_to_int o snd o split_string "exA") x
+    val d = enew Int.compare (map f (listDir exdirloc))
     val itsolsmall = filter (fn (a,b) => not (emem a d)) itsol
     val _ = 
       if random_real () > 0.5 orelse length itsolsmall < 100
