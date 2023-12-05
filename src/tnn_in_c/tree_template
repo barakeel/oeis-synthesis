@@ -444,12 +444,12 @@ int main()
   printf ("threads: %i\n", 1);
   //training
   long EP = ARG[7];
-  double lr = 0.0008;
+  double lr = 0.008;
   for (ep = 0; ep < EP; ++ep) {
-  if (ep == 25) {lr = 0.0004;}
-  if (ep == 50) {lr = 0.0002;}  
-  if (ep == 75) {lr = 0.0001;}
-  if (PREV) {lr = 0.0001;}
+  if (ep == 25) {lr = 0.004;}
+  if (ep == 50) {lr = 0.002;}  
+  if (ep == 75) {lr = 0.001;}
+  if (PREV) {lr = 0.001;}
   shuffle (nex,SHF);
   polierr = 0; polierr2 = 0; valueerr = 0;
   for (tmpex = 0; tmpex < nex; ++tmpex) {

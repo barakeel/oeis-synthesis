@@ -60,9 +60,11 @@ val temperature = rflagnoref "temperature" 1.0
 val maxproglen = iflagnoref "maxproglen" 240
 
 (* execution flags *)
-val maxintsize = iflagnoref "maxintsize" 285
-val short_timeincr = iflagnoref "short_timeincr" 1000
+  (* this two flags should now be the same *)
+val short_timeincr = iflagnoref "short_timeincr" 100000
 val long_timeincr = iflagnoref "long_timeincr" 100000
+  (* deprecated *)
+val maxintsize = iflagnoref "maxintsize" 285
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 
@@ -101,6 +103,11 @@ val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
+
+
+val smartselect_flag = bflag "smartselect_flag"
+
+val expname = ref "test"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts

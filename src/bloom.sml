@@ -357,7 +357,20 @@ fun select_random_target () =
     ()
   end
   
-
+fun select_random_target_avoiding d =
+  let
+    fun loop () =
+      let val i = random_int (0, Array.length oseq - 1) in
+        case Array.sub (oseq, i) of NONE => loop () | SOME seq =>
+          if emem i d then loop () else (seq,i)
+      end
+    val (target,targetn) = loop ()
+    val _ = (target_glob := target; targetn_glob := targetn)
+    val _ = print_endline 
+      ("target " ^ its targetn ^ ": " ^ string_of_seq target)
+  in
+    ()
+  end
   
 
 

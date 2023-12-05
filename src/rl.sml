@@ -34,7 +34,6 @@ val ntarget_init = (string_to_int (dfind "ntarget_init" configd)
   handle NotFound => 32)
 val maxgen = ref NONE
 val ngen_glob = ref 0
-val expname = ref "test"
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
 
@@ -45,6 +44,7 @@ val modeldir = selfdir ^ "/model"
 fun expdir () = selfdir ^ "/exp/" ^ !expname
 fun log s = (print_endline s; append_endline (expdir () ^ "/log") s)
 
+fun exdir () = expdir () ^ "/ex"
 fun traindir () = expdir () ^ "/train"
 fun searchdir () = expdir () ^ "/search"
 fun histdir () = expdir () ^ "/hist"
@@ -55,6 +55,7 @@ fun mk_dirs () =
   mkDir_err (selfdir ^ "/parallel_search");
   mkDir_err (selfdir ^ "/exp");
   mkDir_err (expdir ());
+  if !smartselect_flag then mkDir_err (exdir ()) else ();
   app mkDir_err [traindir (),searchdir (), histdir ()]
   ) 
 
@@ -245,7 +246,7 @@ fun trainw_start pid =
     val preambule = 
       [
        "open rl;",
-       "rl.expname := " ^ mlquote (!expname) ^ ";",
+       "kernel.expname := " ^ mlquote (!expname) ^ ";",
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
        "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
        "kernel.dim_glob := " ^ its (!dim_glob) ^ ";"
@@ -320,7 +321,8 @@ fun init_cube () =
             then print_endline "random search"
             else print_endline "tnn-guided search"
     val _ = halfnoise ()
-    val _ = load_ob ()
+    val _ = if !smartselect_flag orelse 
+               !search.randsearch_flag then () else load_ob ()
   in
     ()
   end
@@ -330,8 +332,10 @@ fun search () targetn =
     val _ = print_endline "search start" 
     val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
   in
-    if !beam_flag 
-    then search.beamsearch ()
+    if !smartselect_flag 
+      then search.search_smartselect (expdir () ^ "/" ^ its targetn)
+    else if !beam_flag 
+      then search.beamsearch ()
     else (
          select_random_target (); 
          if !rnn_flag 
@@ -362,7 +366,7 @@ val parspec : (unit, int, sol list) extspec =
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
+     "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "kernel.dim_glob := " ^ its (!dim_glob),
      "game.time_opt := " ^ string_of_timeo (),
@@ -424,11 +428,10 @@ fun get_boardsc tree =
     
 fun start_cube n =
   let    
-    val _ = load_ob ()
-    val _ = 
-      if !ngen_glob = 0 
-      then player_glob := player_random 
-      else player_glob := player_wtnn_cache
+    val _ = if !ngen_glob <= 0 then () else load_ob ()
+    val _ = if !ngen_glob <= 0 
+            then player_glob := player_random 
+            else player_glob := player_wtnn_cache
     val _ = halfnoise ()
     val _ = game.nsim_opt := SOME n
     val _ = game.time_opt := NONE
@@ -457,7 +460,7 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
+     "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -512,7 +515,7 @@ val pgenspec : (unit, (prog list * real) list, pgen list) extspec =
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
+     "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -557,7 +560,7 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
-     "rl.expname := " ^ mlquote (!expname),
+     "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
      "kernel.dim_glob := " ^ its (!dim_glob),
      "game.time_opt := " ^ string_of_timeo (),
@@ -723,11 +726,12 @@ fun stats_pgen dir pgensol =
 
 fun rl_search_only_default ngen =
   let
+    val targetil = List.tabulate
+      (if ngen <= 0 then ntarget_init else ntarget,I)
     val (itsoll,t) = 
-      if !notarget_flag then add_time cube ()
-      else add_time
-        (parmap_queue_extern ncore parspec ()) (List.tabulate
-          (if ngen <= 0 then ntarget_init else ntarget,I))
+      if !notarget_flag 
+      then add_time cube ()
+      else add_time (parmap_queue_extern ncore parspec ()) targetil
     val _ = log ("search time: " ^ rts_round 6 t)
     val _ = log ("average number of solutions per search: " ^
                   rts_round 2 (average_int (map length itsoll)))
@@ -742,6 +746,30 @@ fun rl_search_only_default ngen =
     val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
     val _ = log ("diff: " ^ its (length newitsol - length olditsol))
     val _ = write_itsol_atomic ngen newitsol
+    val _ = if not (!smartselect_flag) then () else 
+      let 
+        val exdirloc = exdir ()
+        val d = enew Int.compare (map string_to_int (listDir exdirloc))
+        val targetl = (List.tabulate
+          (if ngen <= 0 then ntarget_init else ntarget,I))
+        fun cp_exa i = 
+          let 
+            val idir = expdir () ^ "/" ^ its i
+            val sl = filter (String.isPrefix "exA") (listDir idir)
+          in
+            (
+            case sl of [a] =>   
+            let val anum = string_to_int (snd (split_string "exA" a)) in
+              if emem anum d then () else
+                cmd_in_dir idir ("cp " ^ a ^ " " ^ exdirloc)
+            end
+            | _ => ())
+          end
+        val _ = app cp_exa targetil
+        val _ = log ("training sets: " ^ its (length (listDir exdirloc)))     
+      in 
+        ()
+      end  
   in
     stats_ngen (!buildheap_dir) ngen
   end
@@ -790,7 +818,7 @@ fun rl_search_only ngen =
     else if !ramsey_flag then rl_search_only_ramsey ngen
     else rl_search_only_default ngen
   end
-
+  
 fun rl_train_only ngen =
   let
     val _ = mk_dirs ()
@@ -818,17 +846,6 @@ fun rl_train_only ngen =
     writel_atomic obfileout []
   end
 
-(*
-load "rl"; open rl;
-expname :=  "memof";
-rl_train_only 8;
-
-expname := "seqprog";
-rl_train_only 0;
-rl_search_only 1;
-
-*)
-
 (* -------------------------------------------------------------------------
    Reinforcement learning loop wrappers
    ------------------------------------------------------------------------- *)
@@ -851,6 +868,17 @@ and rl_train ngen =
 fun wait_tnn () = 
   if can find_last_ob () then () else 
   (OS.Process.sleep (Time.fromReal 1.0); wait_tnn ())
+
+
+fun rl_search_cont_nowait () = 
+  (
+  ignore (mk_dirs ());
+  let val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0) in
+    rl_search_only n
+  end;
+  rl_search_cont_nowait ();
+  PolyML.fullGC ()
+  )
 
 fun rl_search_cont () = 
   (
@@ -894,4 +922,22 @@ fun rl_train_cont () =
   )
 
 end (* struct *)
+
+
+(*
+load "rl"; open rl;
+kernel.expname :=  "memof";
+rl_train_only 8;
+
+load "rl"; open rl;
+kernel.expname := "seqprog";
+rl_train_only 0;
+rl_search_only 1;
+
+load "rl"; open rl;
+kernel.expname := "smartselect5";
+rl_search_cont_nowait ();
+*)
+
+
 

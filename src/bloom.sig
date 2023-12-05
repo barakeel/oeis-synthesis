@@ -9,6 +9,7 @@ sig
   val oseq : seq option array
   val oseql : (int * seq) list
   val select_random_target : unit -> unit
+  val select_random_target_avoiding : int Redblackset.set -> unit
   val select_random_target2 : unit -> (int * seq)
 
   (* tree of OEIS sequences *)

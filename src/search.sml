@@ -290,34 +290,6 @@ fun search (vis,tinc) =
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
 
-
-(* 
-load "search"; open search; open kernel aiLib;
-bloom.select_random_target ();
-kernel.nooeis_flag := true;
-check.seqd := aiLib.dempty kernel.seq_compare;
-search.randsearch_flag := true;
-
-fun loop tim =
-  if dlength (!check.seqd) >= 1000 then
-    let 
-      val e1 = dlist (!check.seqd)
-      val e2 = dict_sort 
-        (snd_compare (cpl_compare Int.compare prog_compare_size)) e1
-    in
-      map (fn (a,(b,c)) => (a,c)) (first_n 1000 e2)
-    end
-  else (ignore (search.search (0,tim)); loop (2.0*tim));
-
-val r = loop 60.0;
-
-val file = selfdir ^ "/aaa_seqprog";
-write_seqprog file r;
-val r' = read_seqprog file;
-
-list_compare (cpl_compare seq_compare prog_compare) (r,r');
-*)
-  
 (* -------------------------------------------------------------------------
    Search using the RNN
    ------------------------------------------------------------------------- *)
@@ -665,6 +637,106 @@ fun beamsearch_target width target =
   in
     dict_sort compare_rmax (dlist (!pd))
   end
+ 
+(* -------------------------------------------------------------------------
+   Search with self-selected training set
+   ------------------------------------------------------------------------- *)
+ 
+fun loop_smartselect tim =
+  if dlength (!check.seqd) >= 1024 then
+    let 
+      val e1 = dlist (!check.seqd)
+      val e2 = dict_sort 
+        (snd_compare (cpl_compare Int.compare prog_compare_size)) e1
+    in
+      map (fn (a,(b,c)) => (a,c)) (first_n 1024 e2)
+    end
+  else (ignore (search (0,tim)); loop_smartselect (2.0*tim));
+
+
+(* copied from rl *)
+fun expdir () = selfdir ^ "/exp/" ^ !expname
+fun histdir () = expdir () ^ "/hist"
+fun exdir () = expdir () ^ "/ex"
+fun is_number s = all Char.isDigit (explode s)
+
+fun find_last s =
+  let 
+    val sl1 = listDir (histdir ())
+    val sl2 = filter (String.isPrefix s) sl1
+    val sl3 = mapfilter (snd o split_string s) sl2
+    val sl4 = filter is_number sl3
+    val il = mapfilter string_to_int sl4
+  in
+    if null il 
+    then raise ERR "find_last" ("no " ^ s)
+    else list_imax il
+  end
+
+fun itsol_file ngen = histdir () ^ "/itsol" ^ its ngen
+fun read_last_itsol () = read_itprogl (itsol_file (find_last "itsol"))
+
+(* end copy *)
+
+fun search_smartselect dir =
+  let
+    val exdirloc = exdir ()
+    val _ = clean_dir dir
+    val tnndir = selfdir ^ "/tnn_in_c"
+    val datadir = dir ^ "/data"
+    val _ = app mkDir_err [dir,datadir]
+    (* *)
+    val itsol = read_last_itsol () handle HOL_ERR _ => []
+    val d = enew Int.compare (map string_to_int (listDir exdirloc))
+    val itsolsmall = filter (fn (a,b) => not (emem a d)) itsol
+    val _ = 
+      if random_real () > 0.5 orelse length itsolsmall < 100
+      then bloom.select_random_target_avoiding d
+      else 
+        let 
+          val targetn = random_elem (map fst itsolsmall)
+          val target = valOf (Array.sub (oseq, targetn))
+        in
+          targetn_glob := targetn; target_glob := target
+        end
+    (* randomly generated training examples *)
+    val _ = check.seqd := aiLib.dempty kernel.seq_compare
+    val _ = randsearch_flag := true
+    val _ = kernel.nooeis_flag := true
+    val ex1 = loop_smartselect 60.0
+    val ex2 = random_subset 256 ex1    
+    val nex = length ex2
+    val _ = print_endline (its nex ^ " examples generated")
+    (* randomly generated training examples end *)
+    val ex3 = create_exl_seqprogl (shuffle ex2)
+    val _ = randsearch_flag := false;
+    val _ = kernel.nooeis_flag := false;
+    val nex = length ex3
+    val _ = export_traindata datadir (!num_epoch) ex3
+    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
+    val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
+    val logfile = dir ^ "/log"
+    val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
+    val _ = print_endline ("train time: " ^ rts_round 4 t)
+    val obfile = dir ^ "/ob.c"
+    val obfst = tnndir ^ "/ob_fst.c"
+    val obsnd = tnndir ^ "/ob_snd.c"
+    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
+    val _ = cmd_in_dir dir catcmd
+    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
+    val fileso = dir ^ "/ob.so"
+    val _ = update_fp_op fileso;
+    val (pscl,t) = add_time (beamsearch_target 10000) (!target_glob)
+    val _ = print_endline ("beam time: " ^ rts_round 4 t)
+    val ((rank,itsol),t) = add_time (check.checkpl_target (!targetn_glob)) 
+      (map fst pscl)
+    val _ = print_endline ("check time: " ^ rts_round 4 t)
+    val exAfile = dir ^ "/exA" ^ its (!targetn_glob)
+  in
+    if rank < 0 then () else write_seqprog exAfile ex2;
+    itsol
+  end 
+ 
  
 end (* struct *)
 

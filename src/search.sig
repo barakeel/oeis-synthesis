@@ -12,5 +12,8 @@ sig
   val beamsearch_ordered : int -> kernel.seq -> 
     (kernel.seq * (kernel.prog * real)) list
   val beamsearch_target : int -> kernel.seq -> (kernel.prog * real) list
+  
+  (* self-selected training set *)
+  val search_smartselect : string -> (int * (int * kernel.prog) list) list
 
 end

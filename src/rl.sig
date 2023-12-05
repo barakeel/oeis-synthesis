@@ -16,7 +16,6 @@ sig
   val rtim : real ref
   val maxgen : int option ref
   val ngen_glob : int ref
-  val expname : string ref
 
   (* functions *)
   val search : unit -> int -> sol list
@@ -31,7 +30,8 @@ sig
   val rl_train : int -> unit
   val rl_search_cont : unit -> unit
   val rl_train_cont : unit -> unit
-
+  val rl_search_cont_nowait : unit -> unit
+  
   (* interactive search *)
   val search_target : IntInf.int list -> kernel.prog option
  
@@ -51,6 +51,8 @@ sig
   val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
   val ramseyspec : 
     (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
+  
+  
   
   
 end

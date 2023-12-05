@@ -57,6 +57,8 @@ sig
   val select_number : int
   val reprocess_select_flag : bool ref
   val nooeis_flag : bool ref
+  val smartselect_flag : bool ref
+  val expname : string ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict
