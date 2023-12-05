@@ -749,7 +749,8 @@ fun rl_search_only_default ngen =
     val _ = if not (!smartselect_flag) then () else 
       let 
         val exdirloc = exdir ()
-        val d = enew Int.compare (map string_to_int (listDir exdirloc))
+        fun f x = (string_to_int o snd o split_string "exA") x
+        val d = enew Int.compare (map f (listDir exdirloc))
         val targetl = (List.tabulate
           (if ngen <= 0 then ntarget_init else ntarget,I))
         fun cp_exa i = 
