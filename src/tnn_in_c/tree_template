@@ -230,8 +230,6 @@ void clip (long arity, double A[]) {
 }
 */
 
-
-
 /*
 void clip_head (long out, double A[]) {
   for (long i = 0; i < (DIM + 1)*out; ++i) {
@@ -259,7 +257,7 @@ int main()
   long a1, argi;
   long max_threads;
   // main arguments adding nepoch as an arg 7
-  long ARG[8];
+  long ARG[9];
 
   // operators
   long *ARITY, *HEAD;
@@ -438,17 +436,19 @@ int main()
   constant_vect (bY*maxsize,GNULL,0.0);
   
   // setting the number of threads
-  max_threads = mkl_get_max_threads();
-  printf ("max_threads: %li\n", max_threads);
+  // max_threads = mkl_get_max_threads();
+  // printf ("max_threads: %li\n", max_threads);
   mkl_set_num_threads(1);
   printf ("threads: %i\n", 1);
   //training
   long EP = ARG[7];
-  double lr = 0.008;
+  double lrorg = ARG[8];
+  double lrorgnorm = lrorg / 1000000.0;
+  double lr = 8.0 * lrorgnorm;
   for (ep = 0; ep < EP; ++ep) {
-  if (ep == 25) {lr = 0.004;}
-  if (ep == 50) {lr = 0.002;}  
-  if (ep == 75) {lr = 0.001;}
+  if (ep == 25) {lr = 4.0 * lrorgnorm;}
+  if (ep == 50) {lr = 2.0 * lrorgnorm;}  
+  if (ep == 75) {lr = 1.0 * lrorgnorm;}
   if (PREV) {lr = 0.001;}
   shuffle (nex,SHF);
   polierr = 0; polierr2 = 0; valueerr = 0;

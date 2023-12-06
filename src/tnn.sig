@@ -39,7 +39,8 @@ sig
   val create_exl_progset : kernel.prog list -> (term * real list) list list
   
   
-  val export_traindata : string -> int -> (term * real list) list list -> unit
+  val export_traindata : string -> int -> real -> 
+    (term * real list) list list -> unit
   
   (* deprecated *)
   val read_ctnn : string list -> tnn

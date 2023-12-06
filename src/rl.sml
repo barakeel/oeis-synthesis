@@ -131,11 +131,10 @@ fun trainf_rnn datadir pid =
     val ex = itsol
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = !num_epoch
     val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
-    rnn.export_traindata datadir nep newex
+    rnn.export_traindata datadir (!num_epoch) learning_rate newex
   end
 
 fun trainf_pgen datadir pid =
@@ -149,7 +148,7 @@ fun trainf_pgen datadir pid =
     val _ = print_endline (its nex ^ " examples created")
   in
     if length ex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir (!num_epoch) ex
+    export_traindata datadir (!num_epoch) learning_rate ex
   end
 
 fun trainf_ramsey datadir pid =
@@ -163,7 +162,7 @@ fun trainf_ramsey datadir pid =
     val _ = print_endline (its (length ex) ^ " examples created")
   in
     if nex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir (!num_epoch) ex
+    export_traindata datadir (!num_epoch) learning_rate ex
   end
   
 fun trainf_tnn datadir pid =
@@ -191,7 +190,7 @@ fun trainf_tnn datadir pid =
     val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir nep newex
+    export_traindata datadir nep learning_rate newex
   end
   
 
@@ -204,7 +203,7 @@ fun trainf_seqprog datadir pid =
     val nep = !num_epoch
   in
     if nex < 10 then raise ERR "too few examples" "" else
-      export_traindata datadir nep ex
+      export_traindata datadir nep learning_rate ex
   end    
 
 

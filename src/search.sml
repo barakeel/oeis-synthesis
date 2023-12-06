@@ -713,7 +713,7 @@ fun search_smartselect dir =
     val _ = randsearch_flag := false;
     val _ = kernel.nooeis_flag := false;
     val nex = length ex3
-    val _ = export_traindata datadir (!num_epoch) ex3
+    val _ = export_traindata datadir 100 0.001 ex3
     val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
     val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
     val logfile = dir ^ "/log"

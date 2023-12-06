@@ -384,8 +384,8 @@ fun revamp ex =
    MKL I/O
    ------------------------------------------------------------------------- *)
 
-fun export_traindata datadir nep ex = 
-  mkl.export_traindata datadir (maxmove,!dim_glob,opernd,operlext,nep) 
+fun export_traindata datadir nep lr ex = 
+  mkl.export_traindata datadir (maxmove,!dim_glob,opernd,operlext,nep,lr) 
   (if !notarget_flag then revamp ex else ex)
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl

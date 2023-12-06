@@ -129,7 +129,7 @@ fun check_sl sl =
   
 fun wsafe file sl = writel file (check_sl sl)  
   
-fun export_traindata datadir nep itsol =
+fun export_traindata datadir nep lr itsol =
   let
     fun f (a,bl) = (valOf (Array.sub (bloom.oseq,a)),map snd bl)
     val seqprogl = distrib (map f itsol)
@@ -149,7 +149,8 @@ fun export_traindata datadir nep itsol =
     fun mk_offset l = map its (cumul_il 0 (map length l))
   in
     wsafe (datadir ^ "/arg.txt") (map its   
-      [noper,nex,!dim_glob,dagn,dagin,objn,objin,nep]);
+      [noper,nex,!dim_glob,dagn,dagin,objn,objin,nep,
+       Real.round (lr * 1000.0 * 1000.0)]);
     wsafe (datadir ^ "/dag.txt") (map ilts dagl);
     wsafe (datadir ^ "/dago.txt") (mk_offset dagl);
     wsafe (datadir ^ "/dagi.txt") (map ilts dagil);

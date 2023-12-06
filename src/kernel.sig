@@ -42,6 +42,7 @@ sig
   val her_flag : bool ref  
   val intl_flag : bool ref 
   val num_epoch : int ref
+  val learning_rate : real
   val short_timeincr : int
   val long_timeincr : int
   val temperature : real

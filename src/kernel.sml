@@ -77,6 +77,7 @@ val extra_flag = bflag "extra_flag" (* add extra data for the training *)
 val train_multi = iflag "train_multi" 1
 val rnn_flag = bflag "rnn_flag"
 val num_epoch = iflag "num_epoch" 100
+val learning_rate = rflagnoref "learning_rate" 0.0001
 val newseq_flag = bflag "newseq_flag" (* other encoding of seq *)
 val seqprog_flag = bflag "seqprog_flag" (* training from custom data *)
 

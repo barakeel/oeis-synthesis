@@ -9,7 +9,7 @@ sig
   val tokhead : int 
 
   (* training using MKL *)
-  val export_traindata : string -> int -> kernel.sol list -> unit
+  val export_traindata : string -> int -> real -> kernel.sol list -> unit
 
   (* inference using OpenBLAS *)
   val fp_op_glob : (int -> real vector list -> real vector) ref

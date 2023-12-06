@@ -83,7 +83,10 @@ fun check_sl sl =
   then (print_endline "line too big"; raise ERR "check_sl" "")
   else sl
   
-fun export_traindata datadir (maxmove,dim,opernd,operlext,nep) ex =
+fun wsafe file sl = writel file (check_sl sl)  
+  
+  
+fun export_traindata datadir (maxmove,dim,opernd,operlext,nep,lr) ex =
   let
     val _ = mkDir_err datadir
     val _ =
@@ -113,17 +116,18 @@ fun export_traindata datadir (maxmove,dim,opernd,operlext,nep) ex =
     val objin = length (List.concat objil)
     fun mk_offset l = map its (cumul_il 0 (map length l))
   in
-    writel (datadir ^ "/arg.txt") (map its   
-      [noper,nex,dim,dagn,dagin,objn,objin,nep]);
-    writel (datadir ^ "/dag.txt") (check_sl (map ilts dagl));
-    writel (datadir ^ "/dago.txt") (mk_offset dagl);
-    writel (datadir ^ "/dagi.txt") (check_sl (map ilts dagil));
-    writel (datadir ^ "/obj.txt") (check_sl (map rlts objl));
-    writel (datadir ^ "/objo.txt") (mk_offset objl);
-    writel (datadir ^ "/obji.txt") (check_sl (map ilts objil));
-    writel (datadir ^ "/size.txt") (map its sizel);
-    writel (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
-    writel (datadir ^ "/head.txt") (map (its o find_head) operlext)
+    wsafe (datadir ^ "/arg.txt") (map its   
+      [noper,nex,dim,dagn,dagin,objn,objin,nep, 
+       Real.round (lr * 1000.0 * 1000.0)]);
+    wsafe (datadir ^ "/dag.txt") (check_sl (map ilts dagl));
+    wsafe (datadir ^ "/dago.txt") (mk_offset dagl);
+    wsafe (datadir ^ "/dagi.txt") (check_sl (map ilts dagil));
+    wsafe (datadir ^ "/obj.txt") (check_sl (map rlts objl));
+    wsafe (datadir ^ "/objo.txt") (mk_offset objl);
+    wsafe (datadir ^ "/obji.txt") (check_sl (map ilts objil));
+    wsafe (datadir ^ "/size.txt") (map its sizel);
+    wsafe (datadir ^ "/arity.txt") (map (its o arity_of) operlext);
+    wsafe (datadir ^ "/head.txt") (map (its o find_head) operlext)
   end
 
 
