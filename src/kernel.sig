@@ -60,6 +60,7 @@ sig
   val nooeis_flag : bool ref
   val smartselect_flag : bool ref
   val expname : string ref
+  val revamp_flag : bool ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

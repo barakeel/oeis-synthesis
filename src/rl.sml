@@ -194,18 +194,47 @@ fun trainf_tnn datadir pid =
   end
   
 
-fun trainf_seqprog datadir pid =
-  let 
-    val seqprogl = read_seqprog (selfdir ^ "/aaa_seqprog")
-    val ex = create_exl_seqprogl (shuffle seqprogl)
+(*
+load "kernel"; open kernel aiLib;
+val exdir = selfdir ^ "/exp/smartselect/ex";
+val filel = map (fn x => exdir ^ "/" ^ x) (listDir exdir);
+val l2 = map_assoc read_seqprog filel;
+fun f (a,c) = 
+  let val a1 = (string_to_int o snd o split_string "exA" o OS.Path.file) a in
+    (a1,c)
+  end;
+val isol0 = map f l2;  
+val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0);
+ 
+*)
+
+fun trainf_isol dir isol =
+  let
+    val tnndir = selfdir ^ "/tnn_in_c"
+    val datadir = dir ^ "/data"
+    val _ = app mkDir_err [dir,datadir]
+    val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = !num_epoch
+    val _ = export_traindata datadir (!num_epoch) learning_rate ex
+    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
+    val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
+    val logfile = dir ^ "/log"
+    val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
+    val _ = print_endline ("train time: " ^ rts_round 4 t)
+    val obfile = dir ^ "/ob.c"
+    val obfst = tnndir ^ "/ob_fst.c"
+    val obsnd = tnndir ^ "/ob_snd.c"
+    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
+    val _ = cmd_in_dir dir catcmd
+    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
+    (*
+    val fileso = dir ^ "/ob.so"
+    val _ = update_fp_op fileso
+    *)
   in
-    if nex < 10 then raise ERR "too few examples" "" else
-      export_traindata datadir nep learning_rate ex
-  end    
-
+    ()
+  end
 
 fun trainf_start pid =
   let 
@@ -215,8 +244,7 @@ fun trainf_start pid =
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val _ = print_endline "exporting training data"
   in
-    if !seqprog_flag then trainf_seqprog datadir pid
-    else if !rnn_flag then trainf_rnn datadir pid
+    if !rnn_flag then trainf_rnn datadir pid
     else if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
     else trainf_tnn datadir pid

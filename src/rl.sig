@@ -52,7 +52,8 @@ sig
   val ramseyspec : 
     (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
   
-  
+  (* standalone training function from a isol *)
+  val trainf_isol : string -> (int * kernel.prog) list -> unit
   
   
 end
