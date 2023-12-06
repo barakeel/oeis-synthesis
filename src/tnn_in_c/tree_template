@@ -449,7 +449,7 @@ int main()
   if (ep == 25) {lr = 4.0 * lrorgnorm;}
   if (ep == 50) {lr = 2.0 * lrorgnorm;}  
   if (ep == 75) {lr = 1.0 * lrorgnorm;}
-  if (PREV) {lr = 0.001;}
+  if (PREV) {lr = 1.0 * lrorgnorm;}
   shuffle (nex,SHF);
   polierr = 0; polierr2 = 0; valueerr = 0;
   for (tmpex = 0; tmpex < nex; ++tmpex) {
