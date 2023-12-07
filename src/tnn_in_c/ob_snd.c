@@ -1,12 +1,12 @@
 double *Acur;
 
 void mv (const long dim, long arity, double A[], double X[], double Y[]) {
-  long indim = arity * DIM + 1;
-  cblas_dgemv (CblasRowMajor,CblasNoTrans,DIM,indim,1.0,A,indim,X,1,0.0,Y,1);
+  long indim = arity * dim + 1;
+  cblas_dgemv (CblasRowMajor,CblasNoTrans,dim,indim,1.0,A,indim,X,1,0.0,Y,1);
   }
 
 void mv_head (const long dim, long out, double A[], double X[], double Y[]) {
-  long indim = DIM + 1;
+  long indim = dim + 1;
   cblas_dgemv (CblasRowMajor,CblasNoTrans,out,indim,1.0,A,indim,X,1,0.0,Y,1);
   }
 

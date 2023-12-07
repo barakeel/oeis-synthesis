@@ -177,7 +177,7 @@ fun update_fp_op fileso dim =
     val lib = loadLibrary fileso
     val fp_op_sym =  getSymbol lib "fp_op"
     val cra = cArrayPointer cDouble;
-    val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid)
+    val fp_op0 = buildCall4 (fp_op_sym,(cLong,cLong,cra,cra),cVoid)
     fun fp_op oper embl =
       let
         val n = dfind oper opernd
@@ -185,7 +185,7 @@ fun update_fp_op fileso dim =
         val Xv = Vector.concat (embl @ [biais])
         val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
         val Y = Array.array (dimout, 0.0)
-        val _ = fp_op0 (n,X,Y)
+        val _ = fp_op0 (dim,n,X,Y)
       in 
         Array.vector Y
       end

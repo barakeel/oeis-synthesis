@@ -192,7 +192,16 @@ val isol0 = map f l2;
 val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0);
 
 kernel.expname := "smartselect";
+
+val tnndir = selfdir ^ "/tnn_in_c"
 val dir = selfdir ^ "/exp/smartselect/selector3";
+val obfile = dir ^ "/ob.c"
+val obfst = tnndir ^ "/ob_fst.c"
+val obsnd = tnndir ^ "/ob_snd.c"
+val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
+val _ = cmd_in_dir dir catcmd
+val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile);
+
 
 load "rl"; open rl;
 kernel.expname := "smartselect";
@@ -973,6 +982,11 @@ rl_search_only 1;
 load "rl"; open rl;
 kernel.expname := "smartselect";
 rl_search_cont_nowait ();
+
+load "rl"; open rl;
+kernel.expname := "smartselect";
+train_smartselect 1;
+
 *)
 
 
