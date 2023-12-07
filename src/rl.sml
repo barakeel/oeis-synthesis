@@ -281,8 +281,7 @@ fun trainw_start pid =
        "open rl;",
        "kernel.expname := " ^ mlquote (!expname) ^ ";",
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
-       "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";",
-       "kernel.dim_glob := " ^ its (!dim_glob) ^ ";"
+       "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";"
        ]
   in
     writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
@@ -401,7 +400,6 @@ val parspec : (unit, int, sol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -595,7 +593,6 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
      "rl.ngen_glob := " ^ its (!ngen_glob),
-     "kernel.dim_glob := " ^ its (!dim_glob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),

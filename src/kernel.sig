@@ -31,7 +31,7 @@ sig
   val minimal_flag : bool ref
   val partial_flag : bool ref
   val extra_flag : bool ref
-  val dim_glob : int ref   
+  val dim_glob : int 
   val train_multi : int ref (* train multiple tnn at the same time *)
   val fs_flag : bool ref (* experiment with find_stat *)
   val rnn_flag : bool ref (* experiment using a rnn architecture *)

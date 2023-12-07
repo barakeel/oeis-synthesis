@@ -8,7 +8,6 @@ fi
 
 echo 'Overwrite dir.sml'
 sed "s#directory_template#$PWD#g" dir_template > dir.sml
-DIM=$(grep '^dim_glob' config | sed -e 's/dim_glob *//')
 
 echo "Creating Standard ML dependency files"
 ../HOL/bin/Holmake --nolmbc cleanAll

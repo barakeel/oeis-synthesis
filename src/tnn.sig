@@ -9,7 +9,6 @@ sig
   (* globals *)
   val embd : (term, real vector) Redblackmap.dict ref
   val operlext : term list
-  val get_tnndim : unit -> (term * int list) list
   val tnn_glob : tnn ref (* for debugging *)
 
   (* for search *) 
@@ -38,8 +37,7 @@ sig
   
   val create_exl_progset : kernel.prog list -> (term * real list) list list
   
-  
-  val export_traindata : string -> int -> real -> 
+  val export_traindata : string -> int -> real -> int ->
     (term * real list) list list -> unit
   
   (* deprecated *)
@@ -47,6 +45,6 @@ sig
   
   (* inference *)
   val fp_op_glob : (term -> real vector list -> real vector) ref
-  val update_fp_op : string -> unit  
+  val update_fp_op : string -> int -> unit  
   
 end

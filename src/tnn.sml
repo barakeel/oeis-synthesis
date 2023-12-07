@@ -161,15 +161,6 @@ val allcap = [pair_progseq] @ operlcap @ seqoperlcap
 val operlext = allcap @ [prepoli,head_poli]
 val opernd = dnew Term.compare (number_snd 0 operlext)
 
-fun dim_std_alt oper =
-  if arity_of oper = 0 
-  then [0,!dim_glob] 
-  else [!dim_glob * arity_of oper, !dim_glob]
-
-fun get_tnndim () = 
-  map_assoc dim_std_alt allcap @ 
-    [(prepoli,[!dim_glob,!dim_glob]),(head_poli,[!dim_glob,maxmove])]
-
 (* -------------------------------------------------------------------------
    OpenBlas Foreign Function Interface
    ------------------------------------------------------------------------- *)
@@ -181,17 +172,16 @@ val biais = Vector.fromList ([1.0])
 
 local open Foreign in
 
-fun update_fp_op fileso =
+fun update_fp_op fileso dim =
   let
     val lib = loadLibrary fileso
     val fp_op_sym =  getSymbol lib "fp_op"
     val cra = cArrayPointer cDouble;
     val fp_op0 = buildCall3 (fp_op_sym,(cLong,cra,cra),cVoid)
     fun fp_op oper embl =
-      let 
+      let
         val n = dfind oper opernd
-        val dimout =  
-          if term_eq oper head_poli then maxmove else (!dim_glob)
+        val dimout = if term_eq oper head_poli then maxmove else dim
         val Xv = Vector.concat (embl @ [biais])
         val X = Array.tabulate (Vector.length Xv, fn i => Vector.sub (Xv,i))
         val Y = Array.array (dimout, 0.0)
@@ -384,8 +374,8 @@ fun revamp ex =
    MKL I/O
    ------------------------------------------------------------------------- *)
 
-fun export_traindata datadir nep lr ex = 
-  mkl.export_traindata datadir (maxmove,!dim_glob,opernd,operlext,nep,lr) 
+fun export_traindata datadir nep lr dim ex = 
+  mkl.export_traindata datadir (maxmove,dim,opernd,operlext,nep,lr) 
   (if !revamp_flag then revamp ex else ex)
 
 fun read_ctnn sl = mkl.read_ctnn operlext sl
