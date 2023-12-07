@@ -433,23 +433,25 @@ val parspec : (unit, int, sol list) extspec =
 fun mctsobj () = 
   {game = game, mctsparam = mctsparam (), player = !player_glob}; 
    
-fun search_target target =
-  let
-    val _ = clean_dicts ()
-    val fileso = modeldir ^ "/ob_online.so"
-    val _ = if not (exists_file fileso) 
-            then raise ERR "search_target" ""
-            else ()
-    val _ = update_fp_op fileso dim_glob
-    val _ = player_glob := player_wtnn_cache
-    val _ = target_glob := target
-    val _ = online_flag := true
-    val tree = starting_tree (mctsobj ()) []
-    val (newtree,t) = add_time (mcts (mctsobj ())) tree
-  in
-    online_flag := false; clean_dicts (); NONE
-  end
-  handle ResultP p => SOME p
+fun search_target target = raise ERR "search_target" "not supported anymore"
+(* 
+let
+  val _ = clean_dicts ()
+  val fileso = modeldir ^ "/ob_online.so"
+  val _ = if not (exists_file fileso) 
+          then raise ERR "search_target" ""
+          else ()
+  val _ = update_fp_op fileso dim_glob
+  val _ = player_glob := player_wtnn_cache
+  val _ = target_glob := target
+  val _ = online_flag := true
+  val tree = starting_tree (mctsobj ()) []
+  val (newtree,t) = add_time (mcts (mctsobj ())) tree
+in
+  online_flag := false; clean_dicts (); NONE
+end
+handle ResultP p => SOME p
+*)
 
 (* -------------------------------------------------------------------------
    Variant of the search function for cube and conquer
