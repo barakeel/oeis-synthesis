@@ -205,7 +205,12 @@ fun f (a,c) =
   end;
 val isol0 = map f l2;  
 val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0);
- 
+
+kernel.expname := "smartselect";
+val dir = selfdir ^ "/exp/smartselect/selector3";
+
+load "rl"; open rl;
+trainf_isol dir isol1;
 *)
 
 fun trainf_isol dir isol =
@@ -244,6 +249,7 @@ fun trainf_start pid =
     val _ = cmd_in_dir tnndir ("cp tree " ^ execdir)
     val _ = print_endline "exporting training data"
   in
+    (* if !smartselect_flag then ... else ... *)
     if !rnn_flag then trainf_rnn datadir pid
     else if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    

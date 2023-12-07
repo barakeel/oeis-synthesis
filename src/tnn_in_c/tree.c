@@ -4,7 +4,6 @@
 #include <mkl.h>
 #include <math.h>
 #include <string.h>
-#define DIM dimension_template
 #define BUFFER 10000000
 #define ALIGN 64
 #define DBG 0
@@ -114,18 +113,18 @@ double randfrom(double min, double max)
   return min + (rand() / div);
 }
 
-void rand_mat (long arity, double A[]) {
-  long size = (arity * DIM + 1) * DIM;
-  double coeff = sqrt (6.0 / ((arity * DIM + 1) + DIM));
+void rand_mat (const long dim, long arity, double A[]) {
+  long size = (arity * dim + 1) * dim;
+  double coeff = sqrt (6.0 / ((arity * dim + 1) + dim));
   for (long i = 0; i < size; ++i) {A[i] = coeff * randfrom(-1.0, 1.0);}
   }
 
 /* 
 void rand_mat2 (long arity, double A[]) {
     long i, j;
-    long rows = DIM;
-    long columns = arity * DIM + 1;
-    double coeff = sqrt (6.0 / ((arity * DIM + 1) + DIM));
+    long rows = dim;
+    long columns = arity * dim + 1;
+    double coeff = sqrt (6.0 / ((arity * dim + 1) + dim));
     for (i = 0; i < rows; i++) {
         for (j = 0; j < columns; j++) {
             if ((j - i) % rows == 0 && j != columns - 1 && arity != 0) {
@@ -137,19 +136,19 @@ void rand_mat2 (long arity, double A[]) {
 }
 */
 
-void fixed_mat (long arity, double A[]) {
-  long size = (arity * DIM + 1) * DIM;
+void fixed_mat (const long dim, long arity, double A[]) {
+  long size = (arity * dim + 1) * dim;
   for (long i = 0; i < size; ++i) {A[i] = 0.001 * i;}
   }
 
-void rand_head (long out, double A[]) {
-  long size = (DIM + 1) * out;
-  double coeff = sqrt (6.0 / ((DIM + 1) + out));
+void rand_head (const long dim, long out, double A[]) {
+  long size = (dim + 1) * out;
+  double coeff = sqrt (6.0 / ((dim + 1) + out));
   for (long i = 0; i < size; ++i) {A[i] = coeff * randfrom(-1.0, 1.0);}
   }
 
-void fixed_head (long out, double A[]) {
-  long size = (DIM + 1) * out;
+void fixed_head (const long dim, long out, double A[]) {
+  long size = (dim + 1) * out;
   for (long i = 0; i < size; ++i) {A[i] = 0.001 * i;}
   }
 
@@ -163,67 +162,67 @@ void constant_vect (long size, double X[], double r)
   {for (long i = 0; i < size; ++i) {X[i] = r;}}
 
 // computation
-void tensor (double lr, long arity, double A[], double B[], double C[]) {
-  long indim = arity * DIM + 1;
+void tensor (const long dim, 
+  double lr, long arity, double A[], double B[], double C[]) {
+  long indim = arity * dim + 1;
   cblas_dgemm
     (CblasRowMajor, CblasNoTrans, CblasNoTrans, 
-     DIM, indim, 1, lr, A, 1, B, indim, 0.0, C, indim);
-  if (DBG) {print_mat ("tensor",indim,DIM,C);}
+     dim, indim, 1, lr, A, 1, B, indim, 0.0, C, indim);
+  if (DBG) {print_mat ("tensor",indim,dim,C);}
   }
 
-void mv (long arity, double A[], double X[], double Y[]) {
-  long indim = arity * DIM + 1;
+void mv (const long dim, long arity, double A[], double X[], double Y[]) {
+  long indim = arity * dim + 1;
   if (DBG) {print_vect ("in",indim,X);}
-  cblas_dgemv (CblasRowMajor,CblasNoTrans,DIM,indim,1.0,A,indim,X,1,0.0,Y,1);
-  if (DBG) {print_vect ("out",DIM,Y);}
+  cblas_dgemv (CblasRowMajor,CblasNoTrans,dim,indim,1.0,A,indim,X,1,0.0,Y,1);
+  if (DBG) {print_vect ("out",dim,Y);}
   }
 
-void tmv (long arity, double A[], double X[], double Y[]) {
-  long indim = arity * DIM + 1;
-  if (DBG) {print_vect ("dout",DIM,X);}
-  cblas_dgemv (CblasRowMajor,CblasTrans,DIM,indim,1.0,A,indim,X,1,0.0,Y,1);
+void tmv (const long dim, long arity, double A[], double X[], double Y[]) {
+  long indim = arity * dim + 1;
+  if (DBG) {print_vect ("dout",dim,X);}
+  cblas_dgemv (CblasRowMajor,CblasTrans,dim,indim,1.0,A,indim,X,1,0.0,Y,1);
   if (DBG) {print_vect ("din",indim,Y);}
   }
 
 //same thing with special dimensions for the heads
-void tensor_head (double lr, long out, double A[], double B[], double C[]) {
-  long indim = DIM + 1;
+void tensor_head (const long dim, 
+  double lr, long out, double A[], double B[], double C[]) {
+  long indim = dim + 1;
   cblas_dgemm
     (CblasRowMajor, CblasNoTrans, CblasNoTrans, 
      out, indim, 1, lr, A, 1, B, indim, 0.0, C, indim);
   if (DBG) {print_mat ("tensor_head",indim,out,C);}
   }
 
-void mv_head (long out, double A[], double X[], double Y[]) {
-  long indim = DIM + 1;
+void mv_head (const long dim, long out, double A[], double X[], double Y[]) {
+  long indim = dim + 1;
   if (DBG) {print_vect ("in_head",indim,X);}
   cblas_dgemv (CblasRowMajor,CblasNoTrans,out,indim,1.0,A,indim,X,1,0.0,Y,1);
   if (DBG) {print_vect ("out_head",out,Y);}
   }
 
-void tmv_head (long out, double A[], double X[], double Y[]) {
-  long indim = DIM + 1;
+void tmv_head (const long dim, long out, double A[], double X[], double Y[]) {
+  long indim = dim + 1;
   if (DBG) {print_vect ("dout",out,X);}
   cblas_dgemv (CblasRowMajor,CblasTrans,out,indim,1.0,A,indim,X,1,0.0,Y,1);
   if (DBG) {print_vect ("din",indim,Y);}
   }
 
-
-
 // Update
-void clip (long arity, double A[], double B[], double C[]) {
-  vdFmax((arity * DIM + 1)*DIM, A, B, A);
-  vdFmin((arity * DIM + 1)*DIM, A, C, A);
+void clip (const long dim, long arity, double A[], double B[], double C[]) {
+  vdFmax((arity * dim + 1)*dim, A, B, A);
+  vdFmin((arity * dim + 1)*dim, A, C, A);
 }
 
-void clip_head(long out, double A[], double B[], double C[]) {
-  vdFmax(out * (DIM + 1), A, B, A);
-  vdFmin(out * (DIM + 1), A, C, A);
+void clip_head(const long dim, long out, double A[], double B[], double C[]) {
+  vdFmax(out * (dim + 1), A, B, A);
+  vdFmin(out * (dim + 1), A, C, A);
 }
 
 /*
-void clip (long arity, double A[]) {
-  for (long i = 0; i < (arity * DIM + 1)*DIM; ++i) {
+void clip (const long dim, long arity, double A[]) {
+  for (long i = 0; i < (arity * dim + 1)*dim; ++i) {
     if (A[i] > 4.0) {A[i] = 4.0;}
     if (A[i] < -4.0) {A[i] = -4.0;}
     }
@@ -231,8 +230,8 @@ void clip (long arity, double A[]) {
 */
 
 /*
-void clip_head (long out, double A[]) {
-  for (long i = 0; i < (DIM + 1)*out; ++i) {
+void clip_head (const long dim, long out, double A[]) {
+  for (long i = 0; i < (dim + 1)*out; ++i) {
     if (A[i] > 4.0) {A[i] = 4.0;}
     if (A[i] < -4.0) {A[i] = -4.0;}
     }
@@ -271,8 +270,6 @@ int main()
   long *MO;
   long mo, mtot;
   
-  
-  
   // reading arguments
   read("data/arg.txt",ARG);
   nop = ARG[0];
@@ -301,7 +298,7 @@ int main()
   for (op=0; op < nop; ++op) {
     arity = ARITY[op];
     MO[op] = mtot;
-    mtot += (arity * DIM + 1) * DIM;
+    mtot += (arity * dim + 1) * dim;
   }
   
   // reading dag of examples
@@ -360,12 +357,12 @@ int main()
   else {
   for (op=0; op < nop; ++op) {
     if (HEAD[op] > 0) {
-      if (FIXED) {fixed_head (HEAD[op],A+MO[op]);} else 
-         {rand_head (HEAD[op],A+MO[op]);}
+      if (FIXED) {fixed_head (dim,HEAD[op],A+MO[op]);} else 
+         {rand_head (dim,HEAD[op],A+MO[op]);}
       }
     else {
-      if (FIXED) {fixed_mat (ARITY[op],A+MO[op]);} else 
-         {rand_mat(ARITY[op],A+MO[op]);}
+      if (FIXED) {fixed_mat (dim,ARITY[op],A+MO[op]);} else 
+         {rand_mat(dim,ARITY[op],A+MO[op]);}
       }
   }}
   //printf("%li matrix initalized\n", nop);
@@ -392,7 +389,7 @@ int main()
   zero_ivect (nop,UPD);
     
   //computation trace for each example
-  long bY = DIM;
+  long bY = dim;
   double *X, *Y, *TY; 
   long *XI, *XSIZE;
   long xsize, opercount, xmax;
@@ -412,7 +409,7 @@ int main()
       arity = ARITY[op];
       XI [opercount] = xsize;
       opercount++;
-      xsize += arity * DIM + 1;
+      xsize += arity * dim + 1;
     }
     if (xsize > xmax) {xmax = xsize;}
     XSIZE [ex] = xsize;
@@ -473,19 +470,19 @@ int main()
     TYcur = TY + bY * sub;
     Acur = A + MO[op];
     if (HEAD[op] > 0) {
-      copy (DIM, TY + bY * D[opi+1], Xcur);
-      mv_head (HEAD[op], Acur, Xcur, Ycur);
+      copy (dim, TY + bY * D[opi+1], Xcur);
+      mv_head (dim, HEAD[op], Acur, Xcur, Ycur);
       vdTanh (HEAD[op], Ycur, TYcur);
       }
     else if (ARITY[op] == 0) {
-      mv (ARITY[op],Acur,biais,Ycur);
+      mv (dim,ARITY[op],Acur,biais,Ycur);
       copy (bY, Ycur, TYcur);
       }
     else
       {
       for (argi = 1; argi <= ARITY[op]; ++argi) 
         {copy (bY, TY + bY * D[opi+argi], Xcur + bY * (argi - 1));}
-      mv (ARITY[op], Acur, Xcur, Ycur);
+      mv (dim, ARITY[op], Acur, Xcur, Ycur);
       vdTanh (bY,Ycur,TYcur);
       }
     if (DBG) {print_vect ("outn",bY,TYcur);}
@@ -513,17 +510,17 @@ int main()
              sqrt (cblas_ddot (HEAD[op],GTYcur,1,GTYcur,1) / HEAD[op]);
             polierr2 += cblas_dasum (HEAD[op],GTYcur,1) / HEAD[op];}
       dtanh (HEAD[op], TYcur, GTYcur, GYcur);
-      tmv_head (HEAD[op], Acur, GYcur, GXcur);
+      tmv_head (dim, HEAD[op], Acur, GYcur, GXcur);
       a1 = bY * D[opi+1];
       vdAdd (bY, GTY + a1, GXcur, GTY + a1);
       }
     else if (ARITY[op] == 0) {    
       copy (bY, GTYcur, GYcur);
-      tmv (ARITY[op], Acur, GYcur, GXcur);
+      tmv (dim, ARITY[op], Acur, GYcur, GXcur);
       }
     else {
       dtanh (bY, TYcur, GTYcur, GYcur);
-      tmv (ARITY[op], Acur, GYcur, GXcur);
+      tmv (dim, ARITY[op], Acur, GYcur, GXcur);
       for (argi = 1; argi <= ARITY[op]; ++argi) 
         {
         a1 = bY * D[opi+argi];
@@ -542,16 +539,16 @@ int main()
     Xcur = X + XI[exo + sub];
     GYcur = GY + bY * sub;
     if (HEAD [op] > 0) {
-      tensor_head (lr,HEAD[op],GYcur,Xcur,Ucur);
-      vdAdd ((DIM+1)*HEAD[op],Acur,Ucur,Acur); 
+      tensor_head (dim,lr,HEAD[op],GYcur,Xcur,Ucur);
+      vdAdd ((dim+1)*HEAD[op],Acur,Ucur,Acur); 
       }
     else if (ARITY[op] == 0) {
-      tensor (lr,ARITY[op],GYcur,biais,Ucur);
-      vdAdd ((ARITY[op]*DIM+1)*DIM,Acur,Ucur,Acur);
+      tensor (dim,lr,ARITY[op],GYcur,biais,Ucur);
+      vdAdd ((ARITY[op]*dim+1)*dim,Acur,Ucur,Acur);
       }
     else {
-      tensor (lr,ARITY[op],GYcur,Xcur,Ucur);
-      vdAdd ((ARITY[op]*DIM+1)*DIM,Acur,Ucur,Acur);
+      tensor (dim,lr,ARITY[op],GYcur,Xcur,Ucur);
+      vdAdd ((ARITY[op]*dim+1)*dim,Acur,Ucur,Acur);
       }
   }
 
@@ -559,11 +556,11 @@ int main()
   for (op=0; op < nop; ++op) {
     if (UPD[op] > 0) {
     Acur = A + MO[op];
-    if (HEAD [op] > 0) {clip_head (HEAD[op],Clipmax,Clipmin,Acur);
-      if (DBG) {print_mat ("A",DIM+1,HEAD[op],Acur);}
+    if (HEAD [op] > 0) {clip_head (dim,HEAD[op],Clipmax,Clipmin,Acur);
+      if (DBG) {print_mat ("A",dim+1,HEAD[op],Acur);}
       }
-    else {clip (ARITY[op],Clipmax,Clipmin,Acur);
-      if (DBG) {print_mat ("A",ARITY[op]*DIM+1,DIM,Acur);}
+    else {clip (dim,ARITY[op],Clipmax,Clipmin,Acur);
+      if (DBG) {print_mat ("A",ARITY[op]*dim+1,dim,Acur);}
       }
     }
   }
@@ -587,8 +584,8 @@ int main()
   fprintf(fp, "START MATRICES\n");
   for (op = 0; op < nop; ++op) {
     Acur = A + MO[op];
-    if (HEAD [op] > 0) {fprint_mat (fp,"A",DIM+1,HEAD[op],Acur);}
-    else {fprint_mat (fp,"A",ARITY[op]*DIM+1,DIM,Acur);}
+    if (HEAD [op] > 0) {fprint_mat (fp,"A",dim+1,HEAD[op],Acur);}
+    else {fprint_mat (fp,"A",ARITY[op]*dim+1,dim,Acur);}
   }
   fclose(fp);
   */

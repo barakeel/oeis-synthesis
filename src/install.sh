@@ -10,11 +10,6 @@ echo 'Overwrite dir.sml'
 sed "s#directory_template#$PWD#g" dir_template > dir.sml
 DIM=$(grep '^dim_glob' config | sed -e 's/dim_glob *//')
 
-echo 'Overwrite tree.c'
-sed "s#dimension_template#$DIM#g" tnn_in_c/tree_template > tnn_in_c/tree.c
-echo 'Overwrite tnn_in_c/ob_fst.c'
-sed "s#dimension_template#$DIM#g" tnn_in_c/ob_fst_template > tnn_in_c/ob_fst.c
-
 echo "Creating Standard ML dependency files"
 ../HOL/bin/Holmake --nolmbc cleanAll
 ../HOL/bin/Holmake --nolmbc
