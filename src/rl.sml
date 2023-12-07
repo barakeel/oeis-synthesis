@@ -195,6 +195,7 @@ kernel.expname := "smartselect";
 val dir = selfdir ^ "/exp/smartselect/selector3";
 
 load "rl"; open rl;
+kernel.expname := "smartselect";
 trainf_isol dir isol1;
 *)
 
@@ -218,13 +219,38 @@ fun trainf_isol dir isol =
     val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
     val _ = cmd_in_dir dir catcmd
     val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
-    (*
-    val fileso = dir ^ "/ob.so"
-    val _ = update_fp_op fileso
-    *)
   in
     ()
   end
+  
+fun train_smartselect_loop () =
+  let
+    val exdirloc = exdir ()
+    val filel = map (fn x => exdirloc ^ "/" ^ x) 
+      (random_subset 256 (listDir exdirloc)) 
+      (* otherwise training takes too long *)
+    val l2 = map_assoc read_seqprog filel
+    fun f (a,c) = 
+      let val a1 = 
+        (string_to_int o snd o split_string "exA" o OS.Path.file) a 
+      in
+        (a1,c)
+      end
+    val isol0 = map f l2;  
+    val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0)
+    val dir = traindir () ^ "/" ^ its (!ngen_glob)
+  in
+    trainf_isol dir isol1;
+    writel_atomic (histdir () ^ "/ob" ^ its (!ngen_glob)) [];
+    incr ngen_glob;
+    train_smartselect_loop ()
+  end
+  
+fun train_smartselect ngen = 
+  (
+  ngen_glob := ngen;
+  train_smartselect_loop ()
+  )
 
 fun trainf_start pid =
   let 
@@ -320,7 +346,7 @@ fun load_ob () =
   let 
     val ns = its (find_last_ob ()) 
     val inferred_train_multi = find_train_multi ns
-    val _ = if !inferred_train_multi <= 0 then raise ERR "load_ob ()"
+    val _ = if inferred_train_multi <= 0 then raise ERR "load_ob" "" else ()
     val suffix = its (random_int (0,inferred_train_multi - 1))
     val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
   in
@@ -762,7 +788,7 @@ fun rl_search_only_default ngen =
         val d = enew Int.compare (map f (listDir exdirloc))
         val targetl = (List.tabulate
           (if ngen <= 0 then ntarget_init else ntarget,I))
-        fun cp_exa i = 
+        fun mv_exa i = 
           let 
             val idir = expdir () ^ "/" ^ its i
             val sl = filter (String.isPrefix "exA") (listDir idir)
@@ -771,11 +797,11 @@ fun rl_search_only_default ngen =
             case sl of [a] =>   
             let val anum = string_to_int (snd (split_string "exA" a)) in
               if emem anum d then () else
-                cmd_in_dir idir ("cp " ^ a ^ " " ^ exdirloc)
+                cmd_in_dir idir ("mv " ^ a ^ " " ^ exdirloc)
             end
             | _ => ())
           end
-        val _ = app cp_exa targetil
+        val _ = app mv_exa targetil
         val _ = log ("training sets: " ^ its (length (listDir exdirloc)))     
       in 
         ()

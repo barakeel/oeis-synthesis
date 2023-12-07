@@ -55,5 +55,8 @@ sig
   (* standalone training function from a isol *)
   val trainf_isol : string -> (int * kernel.prog) list -> unit
   
+  (* train one network for selecting data sets *)
+  val train_smartselect : int -> unit
+  
   
 end
