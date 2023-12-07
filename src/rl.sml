@@ -317,28 +317,26 @@ fun find_train_multi ns =
   end
   
 fun load_ob () =
-  if !ngen_glob <= 0 then () else  
-    let 
-      val ns = its (find_last_ob ()) 
-      val inferred_train_multi = find_train_multi ns
-      val suffix = its (random_int (0,inferred_train_multi - 1))
-      val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
-    in
-      print_endline ("loading " ^ fileso);
-      update_fp_op fileso dim_glob
-    end
+  let 
+    val ns = its (find_last_ob ()) 
+    val inferred_train_multi = find_train_multi ns
+    val _ = if !inferred_train_multi <= 0 then raise ERR "load_ob ()"
+    val suffix = its (random_int (0,inferred_train_multi - 1))
+    val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
+  in
+    print_endline ("loading " ^ fileso);
+    update_fp_op fileso dim_glob
+  end
 
 (* also used in non-cubing *)
 fun init_cube () =
   let
-    val _ = print_endline "initialization"
-    val _ = search.randsearch_flag := (!ngen_glob <= 0)
+    val _ = search.randsearch_flag := not (can find_last_ob ())
     val _ = if !search.randsearch_flag 
             then print_endline "random search"
             else print_endline "tnn-guided search"
     val _ = halfnoise ()
-    val _ = if !smartselect_flag orelse 
-               !search.randsearch_flag then () else load_ob ()
+    val _ = if (!search.randsearch_flag) then () else load_ob ()   
   in
     ()
   end

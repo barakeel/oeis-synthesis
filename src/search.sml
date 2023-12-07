@@ -584,7 +584,7 @@ fun beamsearch_target width target =
    Search with self-selected training set
    ------------------------------------------------------------------------- *)
  
-fun loop_smartselect tim =
+fun gen_random_ex_aux tim =
   if dlength (!check.seqd) >= 1024 then
     let 
       val e1 = dlist (!check.seqd)
@@ -593,15 +593,27 @@ fun loop_smartselect tim =
     in
       map (fn (a,(b,c)) => (a,c)) (first_n 1024 e2)
     end
-  else (ignore (search (0,tim)); loop_smartselect (2.0*tim));
+  else (ignore (search (0,tim)); gen_random_ex_aux (2.0*tim));
 
-
+fun gen_random_ex () =
+  let
+    val _ = check.seqd := dempty seq_compare
+    val _ = kernel.nooeis_flag := true
+    val ex1 = gen_random_ex_aux 60.0
+    val _ = kernel.nooeis_flag := false
+    val ex2 = random_subset 256 ex1    
+  in
+    ex2
+  end
+  
+fun gen_ex target = 
+  map (fn (a,(b,c)) => (a,b)) (beamsearch_ordered 256 target)
+ 
 (* copied from rl *)
 fun expdir () = selfdir ^ "/exp/" ^ !expname
 fun histdir () = expdir () ^ "/hist"
 fun exdir () = expdir () ^ "/ex"
 fun is_number s = all Char.isDigit (explode s)
-
 fun find_last s =
   let 
     val sl1 = listDir (histdir ())
@@ -614,10 +626,8 @@ fun find_last s =
     then raise ERR "find_last" ("no " ^ s)
     else list_imax il
   end
-
 fun itsol_file ngen = histdir () ^ "/itsol" ^ its ngen
 fun read_last_itsol () = read_itprogl (itsol_file (find_last "itsol"))
-
 (* end copy *)
 
 fun search_smartselect dir =
@@ -627,7 +637,7 @@ fun search_smartselect dir =
     val tnndir = selfdir ^ "/tnn_in_c"
     val datadir = dir ^ "/data"
     val _ = app mkDir_err [dir,datadir]
-    (* *)
+    (* select a random target not too randomly *)
     val itsol = read_last_itsol () handle HOL_ERR _ => []
     fun f x = (string_to_int o snd o split_string "exA") x
     val d = enew Int.compare (map f (listDir exdirloc))
@@ -643,18 +653,13 @@ fun search_smartselect dir =
           targetn_glob := targetn; target_glob := target
         end
     (* randomly generated training examples *)
-    val _ = check.seqd := aiLib.dempty kernel.seq_compare
-    val _ = randsearch_flag := true
-    val _ = kernel.nooeis_flag := true
-    val ex1 = loop_smartselect 60.0
-    val ex2 = random_subset 256 ex1    
-    val nex = length ex2
-    val _ = print_endline (its nex ^ " examples generated")
-    (* randomly generated training examples end *)
+    val ex2 = if !randsearch_flag 
+              then gen_random_ex () 
+              else gen_ex (!target_glob)
     val ex3 = create_exl_seqprogl (shuffle ex2)
-    val _ = randsearch_flag := false;
-    val _ = kernel.nooeis_flag := false;
     val nex = length ex3
+    val _ = print_endline (its nex ^ " examples generated")
+    (* exporting data *)
     val _ = export_traindata datadir 100 0.001 96 ex3
     val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
     val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
@@ -668,8 +673,13 @@ fun search_smartselect dir =
     val () = cmd_in_dir dir catcmd
     val () = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
     val fileso = dir ^ "/ob.so"
-    val () = update_fp_op fileso 96;
+    val memf = !fp_op_glob
+    val mem = !randsearch_flag
+    val () = update_fp_op fileso 96
+    val _ = randsearch_flag := false
     val (pscl,t) = add_time (beamsearch_target 10000) (!target_glob)
+    val _ = fp_op_glob := memf
+    val _ = randsearch_flag := mem
     val _ = print_endline ("beam time: " ^ rts_round 4 t)
     val ((rank,itsol),t) = add_time (check.checkpl_target (!targetn_glob)) 
       (map fst pscl)
