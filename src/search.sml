@@ -53,8 +53,7 @@ fun exec_fun (move,exec) l1 l2 =
     val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
   in
-    if !randsearch_flag orelse !rnn_flag 
-      then (p,exec,empty_emb,empty_emb) :: l2 else
+    if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
     let
       val oper = Vector.sub (operv,move)
       val emb1 = 
@@ -289,63 +288,6 @@ fun search (vis,tinc) =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
-
-(* -------------------------------------------------------------------------
-   Search using the RNN
-   ------------------------------------------------------------------------- *)
-
-fun create_pol_rnn embl mfl =
-  if !randsearch_flag 
-    then normalize_distrib (map (fn x => (x, random_real ())) mfl)
-  else
-  let
-    val ende = rnn.fp_tok rnn.tokhead embl
-    val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
-    val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
-    val pol3 = normalize_distrib pol2
-    val pol4 = if !game.noise_flag then add_noise pol3 else pol3
-  in
-    pol4
-  end     
-
-fun search_move rt depth embl boarde ((move,f),(torg,tinc)) =
-  if depth >= maxproglen orelse 
-     torg + tinc <= Time.toReal (Timer.checkRealTimer rt) then () else 
-  let 
-    val newembl = if !randsearch_flag 
-                  then empty_emb :: embl
-                  else rnn.fp_tok move embl :: embl
-    val newboarde = apply_move (move,f) boarde
-    val newdepth = depth + 1
-  in 
-    search_movel rt newdepth newembl newboarde (torg,tinc)
-  end
-
-and search_movel rt depth embl boarde tim =
-  let  
-    val (newboarde, mfl) = collect_children (snd tim) boarde         
-    val pol = create_pol_rnn embl mfl
-  in
-    app (search_move rt depth embl newboarde) (split_tim tim pol)
-  end
-
-fun search_rnn tinc =
-  let 
-    val _ = search_time_flag := true
-    val _ = node_counter := 0  
-    val _ = prog_counter := 0
-    val _ = checkinit ()
-    val embl = 
-      if !randsearch_flag then [] else
-      rnn.fp_tokl ([rnn.tokseq] @ 
-                    rnn.tokenize_seq (!target_glob) @ [rnn.tokprog])
-    val rt = Timer.startRealTimer ()
-    val (_,t) = add_time (search_movel rt 0 embl []) (0.0,tinc)
-  in
-    print_endline ("nodes: " ^ its (!node_counter));
-    print_endline ("programs: " ^ its (!prog_counter));
-    print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
-  end  
 
 (* -------------------------------------------------------------------------
    Search starting from a particular goal (use in cube)
@@ -713,7 +655,7 @@ fun search_smartselect dir =
     val _ = randsearch_flag := false;
     val _ = kernel.nooeis_flag := false;
     val nex = length ex3
-    val _ = export_traindata datadir 100 0.001 ex3
+    val _ = export_traindata datadir 100 0.001 96 ex3
     val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
     val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
     val logfile = dir ^ "/log"
@@ -723,10 +665,10 @@ fun search_smartselect dir =
     val obfst = tnndir ^ "/ob_fst.c"
     val obsnd = tnndir ^ "/ob_snd.c"
     val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
-    val _ = cmd_in_dir dir catcmd
-    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
+    val () = cmd_in_dir dir catcmd
+    val () = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
     val fileso = dir ^ "/ob.so"
-    val _ = update_fp_op fileso;
+    val () = update_fp_op fileso 96;
     val (pscl,t) = add_time (beamsearch_target 10000) (!target_glob)
     val _ = print_endline ("beam time: " ^ rts_round 4 t)
     val ((rank,itsol),t) = add_time (check.checkpl_target (!targetn_glob)) 

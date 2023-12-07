@@ -123,20 +123,6 @@ fun add_extra () =
     List.concat (map (fn (_,x) => map snd x) sol) 
   end
 
-fun trainf_rnn datadir pid =
-  let 
-    val itsol = read_itsol (find_last_itsol ()) @ 
-       (if !extra_flag then read_itprogl extra_file else [])
-    val _ = print_endline ("reading itsol " ^ (its (length itsol)))
-    val ex = itsol
-    val nex = length ex
-    val _ = print_endline (its nex ^ " examples created")
-    val newex = ex
-  in
-    if nex < 10 then raise ERR "too few examples" "" else
-    rnn.export_traindata datadir (!num_epoch) learning_rate newex
-  end
-
 fun trainf_pgen datadir pid =
   let
     val pgensol = read_pgensol (find_last_itsol ())
@@ -148,7 +134,7 @@ fun trainf_pgen datadir pid =
     val _ = print_endline (its nex ^ " examples created")
   in
     if length ex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir (!num_epoch) learning_rate ex
+    export_traindata datadir num_epoch learning_rate dim_glob ex
   end
 
 fun trainf_ramsey datadir pid =
@@ -162,7 +148,7 @@ fun trainf_ramsey datadir pid =
     val _ = print_endline (its (length ex) ^ " examples created")
   in
     if nex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir (!num_epoch) learning_rate ex
+    export_traindata datadir num_epoch learning_rate dim_glob ex
   end
   
 fun trainf_tnn datadir pid =
@@ -186,11 +172,10 @@ fun trainf_tnn datadir pid =
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val nep = !num_epoch
     val newex = ex
   in
     if nex < 10 then raise ERR "too few examples" "" else
-    export_traindata datadir nep learning_rate newex
+    export_traindata datadir num_epoch learning_rate dim_glob newex
   end
   
 
@@ -221,7 +206,7 @@ fun trainf_isol dir isol =
     val ex = create_exl (shuffle isol)
     val nex = length ex
     val _ = print_endline (its nex ^ " examples created")
-    val _ = export_traindata datadir (!num_epoch) learning_rate ex
+    val _ = export_traindata datadir num_epoch learning_rate dim_glob ex
     val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
     val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
     val logfile = dir ^ "/log"
@@ -250,8 +235,7 @@ fun trainf_start pid =
     val _ = print_endline "exporting training data"
   in
     (* if !smartselect_flag then ... else ... *)
-    if !rnn_flag then trainf_rnn datadir pid
-    else if !pgen_flag then trainf_pgen datadir pid
+    if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
     else trainf_tnn datadir pid
     ;
@@ -341,7 +325,7 @@ fun load_ob () =
       val fileso = traindir () ^ "/" ^ ns ^ "/ob" ^ ns ^ "_" ^ suffix ^ ".so"
     in
       print_endline ("loading " ^ fileso);
-      (if !rnn_flag then rnn.update_fp_op else update_fp_op) fileso
+      update_fp_op fileso dim_glob
     end
 
 (* also used in non-cubing *)
@@ -370,10 +354,7 @@ fun search () targetn =
       then search.beamsearch ()
     else (
          select_random_target (); 
-         if !rnn_flag 
-           then search.search_rnn rtimloc
-           else search.search (!nvis,rtimloc)
-         ; 
+         search.search (!nvis,rtimloc); 
          checkfinal ()
          )
   end
@@ -426,7 +407,7 @@ fun search_target target =
     val _ = if not (exists_file fileso) 
             then raise ERR "search_target" ""
             else ()
-    val _ = (if !rnn_flag then rnn.update_fp_op else update_fp_op) fileso
+    val _ = update_fp_op fileso dim_glob
     val _ = player_glob := player_wtnn_cache
     val _ = target_glob := target
     val _ = online_flag := true
