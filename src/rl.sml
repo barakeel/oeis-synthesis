@@ -197,9 +197,9 @@ val tnndir = selfdir ^ "/tnn_in_c"
 val dir = selfdir ^ "/exp/smartselect/selector3";
 val obfile = dir ^ "/ob.c"
 val obfst = tnndir ^ "/ob_fst.c"
-val obsnd = tnndir ^ "/ob_snd.c"
-val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
-val _ = cmd_in_dir dir catcmd
+val obsnd = tnndir ^ "/ob_snd.c";
+val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile];
+val _ = cmd_in_dir dir catcmd;
 val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile);
 
 
@@ -250,6 +250,7 @@ fun train_smartselect_loop () =
     val dir = traindir () ^ "/" ^ its (!ngen_glob)
   in
     trainf_isol dir isol1;
+    cmd_in_dir dir ("mv ob.so" ^ " ob" ^ its (!ngen_glob) ^ "_0.so");
     writel_atomic (histdir () ^ "/ob" ^ its (!ngen_glob)) [];
     incr ngen_glob;
     train_smartselect_loop ()
