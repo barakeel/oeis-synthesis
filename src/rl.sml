@@ -686,37 +686,6 @@ fun stats_sol prefix itsol =
     writel (prefix ^ "prog") (map string_of_itprog itsolsort);
     writel (prefix ^ "freq") (map human_progfreq freql1)
   end
- 
- 
-(* Interactive way of getting frequency
-
-sh hol.sh
-
-load "kernel"; open kernel human aiLib;  
-
-val dir = "exp/yourexp";
-
-fun human_progfreq_gpt (p,freq) = 
-  its freq ^ ": " ^ humanf p ^ "\n  " ^ gpt_of_prog p  
- 
-fun compute_freq f sol1 =
-  let val freql = dlist 
-    (count_dict (dempty prog_compare) (List.concat (map f sol1)))
-  in
-    dict_sort compare_imax (filter (fn x => snd x >= 10) freql)
-  end 
- 
-fun stats_freq filename itsol =
-  let
-    val allprog = List.concat (map (map snd o snd) itsol) 
-    val freql1 = compute_freq all_subprog allprog
-  in
-    writel filename (map human_progfreq freql1)
-  end 
-  
-stats_freq (dir ^ "/freq") (read_itprogl (dir ^ "/solnew"));
-
-*)
 
 fun stats_ngen dir ngen =
   let 
@@ -728,29 +697,6 @@ fun stats_ngen dir ngen =
     stats_sol (dir ^ "/full_") solnew;
     stats_sol (dir ^ "/diff_") soldiff
   end
-
-(*
-fun count_newsol olditsol itsoll =
-  let 
-    val d = ref (enew Int.compare (map fst olditsol))
-    val orgn = elength (!d)
-    fun loop acc l = case l of
-        [] => rev acc
-      | _ => let 
-               val (l1,l2) = part_n 8 l 
-               val l3 = mk_fast_set Int.compare (map fst (List.concat l1))
-             in
-               d := eaddl l3 (!d);
-               loop (elength (!d) - orgn :: acc) l2
-             end
-    val il = loop [] itsoll
-  in
-    log ("new solutions (after 8 more searches each time): " ^
-         String.concatWith " " (map its il)) 
-  end
-*)  
-  
-
 
 (* pgen statistics *)
 fun string_of_pgensol (ptop,ipl) = 
@@ -971,7 +917,6 @@ fun rl_train_cont () =
 
 end (* struct *)
 
-
 (*
 load "rl"; open rl;
 kernel.expname :=  "memof";
@@ -991,6 +936,12 @@ kernel.expname := "smartselect";
 train_smartselect 1;
 
 *)
+
+
+
+
+
+
 
 
 
