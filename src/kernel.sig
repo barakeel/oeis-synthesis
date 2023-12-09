@@ -42,6 +42,7 @@ sig
   val intl_flag : bool ref 
   val num_epoch : int
   val learning_rate : real
+  val init_timeincr : int
   val short_timeincr : int
   val long_timeincr : int
   val temperature : real
@@ -59,8 +60,11 @@ sig
   val reprocess_select_flag : bool ref
   val nooeis_flag : bool ref
   val smartselect_flag : bool ref
-  val expname : string ref
   val revamp_flag : bool ref
+  
+  (* flags not read from disk *)
+  val expname : string ref
+  val ngen_glob : int ref
   
   (* dictionaries shortcut*)
   type ('a,'b) dict = ('a, 'b) Redblackmap.dict

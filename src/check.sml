@@ -220,6 +220,18 @@ fun checkf_ctree p =
     app f anumtl
   end  
   
+fun checkf_wrat p = 
+  let
+    val exec = exec_wrat.mk_exec p 
+      handle Subscript => raise ERR "checkf_wrat" "1"
+    val anumtl = exec_wrat.coverf_oeis exec
+      handle Subscript => raise ERR "checkf_wrat" "2"
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end  
+    
+  
 fun checkf_intl (nnvalue:real) p = 
   let
     val (anumtl,cov,anumlpart) = 
@@ -259,7 +271,8 @@ fun checkf_seq (p,exec) =
 fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
   else if !memo_flag then checkf_memo nnvalue p
-  else if !ctree_flag then checkf_ctree p 
+  else if !ctree_flag then checkf_ctree p
+  else if !wrat_flag then checkf_wrat p 
   else if !intl_flag then checkf_intl nnvalue p 
   else checkf nnvalue (p,exec)
 
@@ -368,6 +381,7 @@ fun checkmll mll =
        init_slow_test (); 
        if !memo_flag then checkf_memo 0.0 p else
        if !ctree_flag then checkf_ctree p else
+       if !wrat_flag then checkf_wrat p else
        if !intl_flag then checkf_intl 0.0 p else checkf 0.0 (p, mk_exec p))
     val (_,t) = add_time (Redblackset.app f) (!d) 
   in

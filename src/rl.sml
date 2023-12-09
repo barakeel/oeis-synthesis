@@ -33,7 +33,6 @@ val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)
 val ntarget_init = (string_to_int (dfind "ntarget_init" configd) 
   handle NotFound => 32)
 val maxgen = ref NONE
-val ngen_glob = ref 0
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
 
@@ -301,7 +300,7 @@ fun trainw_start pid =
        "open rl;",
        "kernel.expname := " ^ mlquote (!expname) ^ ";",
        "smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir) ^ ";",
-       "rl.ngen_glob := " ^ its (!ngen_glob) ^ ";"
+       "kernel.ngen_glob := " ^ its (!ngen_glob) ^ ";"
        ]
   in
     writel script1 (preambule @ ["trainf_start (" ^ its pid ^ ");"]);
@@ -414,7 +413,7 @@ val parspec : (unit, int, sol list) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),
@@ -509,7 +508,7 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
      "rl.init_cube ()"] 
     ^ ")"),
   function = search_cube,
@@ -564,7 +563,7 @@ val pgenspec : (unit, (prog list * real) list, pgen list) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
      "rl.init_cube ()"] 
     ^ ")"),
   function = search_pgen,
@@ -609,7 +608,7 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
     String.concatWith "; "
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
-     "rl.ngen_glob := " ^ its (!ngen_glob),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
      "rl.init_cube ()"] 
     ^ ")"),

@@ -15,7 +15,6 @@ sig
   val nvis : int ref
   val rtim : real ref
   val maxgen : int option ref
-  val ngen_glob : int ref
 
   (* functions *)
   val search : unit -> int -> sol list

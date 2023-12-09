@@ -455,7 +455,7 @@ PolyML.print_depth 10;
 load "human"; open human;
 load "exec_wrat";  open kernel aiLib exec_wrat;
 val badl = verify_file 1000000 (selfdir ^ "/model/itsol209");
-val badl = verify_file 1000000 (selfdir ^ "/exp/memof/hist/itsol440");
+val badl = verify_file 1000000 (selfdir ^ "/exp/intl3/hist/itsol2088");
 
 
 val itsol = read_itprogl file
@@ -482,7 +482,7 @@ val read_itprogl
    Testing
    ------------------------------------------------------------------------- *) 
     
-(*
+(* 
 load "exec_wrat"; open exec_wrat; 
 load "human"; open kernel human aiLib;
 

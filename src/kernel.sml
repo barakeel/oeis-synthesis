@@ -62,6 +62,7 @@ val maxproglen = iflagnoref "maxproglen" 240
 
 (* execution flags *)
   (* this two flags should now be the same *)
+val init_timeincr = iflagnoref "init_timeincr" 1000
 val short_timeincr = iflagnoref "short_timeincr" 100000
 val long_timeincr = iflagnoref "long_timeincr" 100000
   (* deprecated *)
@@ -109,7 +110,11 @@ val ramsey_flag = bflag "ramsey_flag"
 
 val smartselect_flag = bflag "smartselect_flag"
 
+(* flags originally in rl.sml *)
 val expname = ref "test"
+val ngen_glob = ref 0
+
+
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
