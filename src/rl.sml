@@ -176,7 +176,6 @@ fun trainf_tnn datadir pid =
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir num_epoch learning_rate dim_glob newex
   end
-  
 
 (*
 load "kernel"; open kernel aiLib;
