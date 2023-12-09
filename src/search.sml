@@ -334,11 +334,35 @@ fun search_board (vis,tinc) board =
 val progd = ref (eempty prog_compare)
 val onlystop = ref false
 
+fun apply_move1 move board =
+  let 
+    val arity = arity_of_oper move
+    val (l1,l2) = part_n arity board
+  in
+    if length l1 <> arity 
+    then raise ERR "apply_move" ""
+    else (Ins (move, rev l1))
+  end
+
 fun exec_fun move l1 l2 =
   let 
     val f = fp_emb_either
     val p = (Ins (move, map #1 (rev l1)))
-    val _ = if !onlystop then () else progd := eadd p (!progd)
+    val _ = if !onlystop then () else      
+      if !locsearch_flag 
+      then 
+        let 
+          val boarde = l1 @ l2
+          val board = map #1 boarde
+          val ml = available_movel boarde
+          fun f m = 
+            let val ploc = apply_move1 move board in
+              progd := eadd ploc (!progd)
+            end
+        in
+          app f ml
+        end
+      else progd := eadd p (!progd)
   in
     if !randsearch_flag then (p,empty_emb,empty_emb) :: l2 else
     let
