@@ -129,27 +129,30 @@ fun collect_child boarde move =
         then (fn (a,b,c) => a) 
         else mk_exec_move move (map #2 (rev l1))  
     in 
+      SOME (move,exec)
+      (* 
       if !locsearch_flag andalso null l2 andalso not (depend_on_y p)
       then (incr prog_counter; 
             checkonline 0.0 (p,exec); 
             SOME (move, cache_exec exec))
-      else SOME (move,exec)
+      else
+      *) 
     end
   end
 
 fun collect_children nnvalue boarde = case boarde of
-    [(p,exec,a,b)] =>
+      [(p,exec,a,b)] =>
     let 
-      val _ = if not (!locsearch_flag) 
-              then (
-                   incr prog_counter;
-                   if !ramsey_flag then
+      val _ = (incr prog_counter; checkonline nnvalue (p,exec))
+              (* 
+              if !ramsey_flag then
                      checkonline_ramsey (p,exec)
                    else if !pgen_flag 
                    then checkonline_pgen (p,exec)
-                   else checkonline nnvalue (p,exec)
+                   else 
                    )
               else ()
+              *)
       val newboarde = boarde
     in
       (newboarde, List.mapPartial (collect_child newboarde) movelg)
