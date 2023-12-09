@@ -382,7 +382,7 @@ fun search () targetn =
   in
     if !smartselect_flag 
       then search.search_smartselect (expdir () ^ "/" ^ its targetn)
-    else if !beam_flag 
+    else if !beam_flag andalso !ngen_glob > 0
       then search.beamsearch ()
     else (
          select_random_target (); 
