@@ -317,7 +317,8 @@ val execv =
 val _ = if Vector.length execv <> Vector.length operv andalso 
            not (!intl_flag) andalso 
            not (!memo_flag) andalso 
-           not (!ctree_flag)
+           not (!ctree_flag) andalso
+           not (!wrat_flag)
         then raise ERR "execv" "mismatch with operv"
         else ()
 

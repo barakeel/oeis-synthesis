@@ -125,7 +125,7 @@ fun collect_child boarde move =
     let
       val p = Ins (move, map #1 (rev l1))
       val exec = 
-        if !intl_flag orelse !memo_flag orelse !ctree_flag
+        if !intl_flag orelse !memo_flag orelse !ctree_flag orelse !wrat_flag
         then (fn (a,b,c) => a) 
         else mk_exec_move move (map #2 (rev l1))  
     in 
