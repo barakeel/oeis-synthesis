@@ -1,17 +1,25 @@
-structure exec_memo :> exec_memo =
+structure exec_wrat :> exec_wrat =
 struct
 
-open HolKernel boolLib aiLib kernel bloom
-val ERR = mk_HOL_ERR "exec_memo"
+open HolKernel boolLib aiLib kernel bloom exec_prim
+val ERR = mk_HOL_ERR "exec_wrat"
 type prog = kernel.prog
-type exec = IntInf.int list * IntInf.int list -> IntInf.int list
+type rat = exec_prim.rat
+type exec = rat list * rat list -> rat list
 
-
-(* load "kernel"; open kernel aiLib; *)
-
+local open IntInf in
+  val azero = fromInt 0
+  val aone = fromInt 1
+  val atwo = fromInt 2
+  fun aincr x = x + aone
+  fun adecr x = x - aone
+  val maxint = fromInt (valOf (Int.maxInt))
+  val minint = fromInt (valOf (Int.minInt))
+  fun large_int x = x > maxint orelse x < minint
+end
 
 (* -------------------------------------------------------------------------
-   Mark constants programs with true (does not support z)
+   Mark constants programs with true
    ------------------------------------------------------------------------- *)
 
 datatype progb = Insb of (id * bool * progb list);
@@ -34,11 +42,11 @@ fun mk_progb (Ins (id,pl)) =
   end
 
 (* -------------------------------------------------------------------------
-   Memory reused across different programs to avoid unnecessary reallocation.
+   Memory
    ------------------------------------------------------------------------- *)
 
-val empty_infl = []: IntInf.int list
-val default_entry = (empty_infl, empty_infl)
+val rldefault = rlzero 
+val default_entry = (rldefault, rldefault)
 
 fun get_mem () = ref (Array.array (16, default_entry))
 
@@ -55,143 +63,92 @@ fun store_mem ((mema,memn),n,x) =
     Array.update (!mema,n,x); 
     memn := n + 1
   end
+  handle Subscript => raise ERR "store_mem" (its n)
+
+fun lookup_mema (mema,n) = Array.sub (!mema,n) 
+  handle Subscript => raise ERR "lookup_mema" (its n)
 
 (* -------------------------------------------------------------------------
-   Time limit wrappers
-   ------------------------------------------------------------------------- *)  
-  
-local open IntInf in
-  val azero = fromInt 0
-  val aone = fromInt 1
-  val atwo = fromInt 2
-  fun aincr x = x + aone
-  fun adecr x = x - aone
-  val maxint = fromInt (valOf (Int.maxInt))
-  val minint = fromInt (valOf (Int.minInt))
-  fun large_int x = x > maxint orelse x < minint
-end
-
-fun checktimer y = 
-  (
-  incr abstimer; 
-  if !abstimer > !timelimit then raise ProgTimeout else y
-  )
-
-fun mylog x = if x = 0 then 1 else IntInf.log2 x
-  
-fun costadd costn x1 x2 y = 
-  if large_int x1 orelse large_int x2 orelse large_int y
-  then Int.max (mylog (IntInf.abs x1), mylog (IntInf.abs x2))
-  else costn  
-  
-fun costmult costn x1 x2 y = 
-  if large_int x1 orelse large_int x2 orelse large_int y
-  then mylog (IntInf.abs x1) + mylog (IntInf.abs x2)
-  else costn
-
-fun checktimeradd costn x1 x2 y =
-  (
-  abstimer := !abstimer + costadd costn (hd x1) (hd x2) (hd y);
-  if !abstimer > !timelimit then raise ProgTimeout else y
-  )
-
-fun checktimermult costn x1 x2 y =
-  (
-  abstimer := !abstimer + costmult costn (hd x1) (hd x2) (hd y);
-  if !abstimer > !timelimit then raise ProgTimeout else y
-  )
-
-(* -------------------------------------------------------------------------
-   Time limit wrappers
+   Wrappers
    ------------------------------------------------------------------------- *)
 
 fun mk_nullf opf fl = case fl of
-   [] => (fn x => checktimer (opf x))
+    [] => (fn x => (opf x))
   | _ => raise ERR "mk_nullf" ""
 
-fun mk_binfadd costn opf fl = case fl of
-   [f1,f2] => (fn x => 
-     let 
-       val (x1,x2) = (f1 x,f2 x) 
-       val y  = opf (x1,x2)
-     in
-       checktimeradd costn x1 x2 y
-     end)
+fun mk_unf opf fl = case fl of
+    [f] => (fn x => 
+    let val t = f x in
+      case t of x1 :: m => opf x1 :: m | _ => raise Empty
+    end
+    )
   | _ => raise ERR "mk_binfadd" ""
 
-fun mk_binfmult costn opf fl = case fl of
-   [f1,f2] => (fn x => 
-     let 
-       val (x1,x2) = (f1 x,f2 x) 
-       val y  = opf (x1,x2)
-     in
-       checktimermult costn x1 x2 y
-     end)
-  | _ => raise ERR "mk_binfmult" ""
-
-
-
-fun mk_ternf opf fl = case fl of
-   [f1,f2,f3] => (fn x => checktimer (opf (f1 x, f2 x, f3 x)))
-  | _ => raise ERR "mk_ternf" ""
+fun mk_binf opf fl = case fl of
+    [f1,f2] => (fn x => 
+    let 
+      val (t1,t2) = (f1 x,f2 x)
+      val x2 = hd t2
+    in
+      case t1 of x1 :: m => (opf x1 x2) :: m | _ => raise Empty
+    end
+    )
+  | _ => raise ERR "mk_binfadd" ""
 
 fun mk_ternf1 opf fl = case fl of
-   [f1,f2,f3] => (fn x => checktimer (opf (f1, f2 x, f3 x)))
+    [f1,f2,f3] => 
+    (fn x => (checktimer (); opf (f1, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf1" ""
 
 fun mk_quintf2 opf fl = case fl of
-   [f1,f2,f3,f4,f5] => (fn x => checktimer (opf (f1, f2, f3 x, f4 x, f5 x)))
+    [f1,f2,f3,f4,f5] => 
+    (fn x => (checktimer (); opf (f1, f2, f3 x, f4 x, f5 x)))
   | _ => raise ERR "mk_quintf2" ""
 
 fun mk_quintf3 opf fl = case fl of
-   [f1,f2,f3,f4,f5] => (fn x => checktimer (opf (f1, f2, f3, f4 x, f5 x)))
+    [f1,f2,f3,f4,f5] => 
+    (fn x => (checktimer (); opf (f1, f2, f3, f4 x, f5 x)))
   | _ => raise ERR "mk_quintf3" ""
 
 (* -------------------------------------------------------------------------
    Basic intructions
    ------------------------------------------------------------------------- *)
 
-local open IntInf in  
+val zero_f = mk_nullf (fn (x,y) => [rzero ()])
+val one_f = mk_nullf (fn (x,y) => [rone ()])
+val two_f = mk_nullf (fn (x,y) => [rtwo ()])
+val x_f = mk_nullf (fn (x,y) => (checktimer (); x))
+val y_f = mk_nullf (fn (x,y) => (checktimer (); y))
 
-val zero_f = mk_nullf (fn (x,y) => [azero])
-val one_f = mk_nullf (fn (x,y) => [aone])
-val two_f = mk_nullf (fn (x,y) => [atwo])
-val x_f = mk_nullf (fn (x,y) => x)
-val y_f = mk_nullf (fn (x,y) => y)
-
-fun mk_e f (l1,l2) = case (l1,l2) of
-    ([],_) => raise Empty
-  | (_,[]) => raise Empty
-  | (a1 :: m1, a2 :: m2) => (f (a1,a2) :: m1)
-  
-val addi_f = mk_binfadd 1 (mk_e (op +))
-val diff_f = mk_binfadd 1 (mk_e (op -))
-val mult_f = mk_binfmult 1 (mk_e (op *))
-val divi_f = mk_binfmult 5 (mk_e (op div))
-val modu_f = mk_binfmult 5 (mk_e (op mod))
-
-end
-
+val addi_f = mk_binf raddi
+val diff_f = mk_binf rdiff
+val mult_f = mk_binf rmult
+val divi_f = mk_binf rdivi
+val modu_f = mk_binf rmodu
 
 fun cond_f fl = case fl of
     [f1,f2,f3] => 
-    (fn x => checktimer (if hd (f1 x) <= azero then f2 x else f3 x))
-  | _ => raise ERR "mk_condf" ""
-
+    (fn x => (checktimer (); if rleq0 (hd (f1 x)) then f2 x else f3 x))
+  | _ => raise ERR "cond_f" ""
+  
+(* -------------------------------------------------------------------------
+   List instructions
+   ------------------------------------------------------------------------- *)  
+   
 fun push_f fl = case fl of
-    [f1,f2] => 
-    (fn x => checktimer (hd (f1 x) :: (f2 x)))
-  | _ => raise ERR "mk_pushf" ""
+    [f1,f2] => (fn x => pushl (f1 x) (f2 x))
+  | _ => raise ERR "push_f" ""
 
 fun pop_f fl = case fl of
-   [f] => 
-   (
-   fn x => 
-     let val y = case f x of [] => raise Empty | [a] => [a] | a :: m => m in
-       checktimer y
-     end
-   )
-  | _ => raise ERR "mk_popf" ""
+   [f] => (fn x => popl (f x))
+  | _ => raise ERR "pop_f" ""  
+ 
+(* -------------------------------------------------------------------------
+   Rational instructions
+   ------------------------------------------------------------------------- *) 
+
+val divr_f = mk_binf rdivr
+val floor_f = mk_unf rfloor
 
 (* -------------------------------------------------------------------------
    Loop with memory
@@ -209,14 +166,14 @@ fun helperm_loop mem f1 f2 n ncur x1 x2 =
  
 fun helperm (mema,memn) f1 f2 n x1 x2 =
   if n < 0 then x1 else 
-  if n < !memn then fst (Array.sub (!mema,n)) else
+  if n < !memn then fst (lookup_mema (mema,n)) else
   if !memn <= 0 then 
     (store_mem ((mema,memn),0,(x1,x2));
      helperm_loop (mema,memn) f1 f2 n 0 x1 x2)
   else
   let 
     val lastn = !memn - 1
-    val (newx1,newx2) = Array.sub (!mema,lastn) 
+    val (newx1,newx2) = lookup_mema (mema,lastn) 
   in
     helperm_loop (mema,memn) f1 f2 n lastn newx1 newx2
   end
@@ -227,7 +184,7 @@ fun loop2m_f_aux () =
     val memn = ref 0
     val mem = (mema,memn)
   in 
-    fn (f1,f2,n,x1,x2) => helperm mem f1 f2 (IntInf.toInt (hd n)) x1 x2
+    fn (f1,f2,n,x1,x2) => helperm mem f1 f2 (mk_rbound n) x1 x2
   end
 
 fun loop2m_f () = mk_quintf2 (loop2m_f_aux ())
@@ -237,35 +194,33 @@ fun loopm_f_aux () =
     val mema = get_mem ()
     val memn = ref 0
     val mem = (mema,memn)
-    fun f2 (x1,x2) = [aincr (hd x2)]
+    fun f2 (x1,x2) = rlincr x2
   in
-    fn (f1,n,x1) => helperm mem f1 f2 (IntInf.toInt (hd n)) x1 [aone]
+    fn (f1,n,x1) => helperm mem f1 f2 (mk_rbound n) x1 rlone
   end
   
 fun loopm_f () = mk_ternf1 (loopm_f_aux ())
 
-
 (* -------------------------------------------------------------------------
-   For loop
+   Loops
    ------------------------------------------------------------------------- *)
 
 fun helper f1 f2 n x1 x2 = 
-  if n <= azero then x1 else 
-  helper f1 f2 (adecr n) (f1 (x1,x2)) (f2 (x1,x2))
+  if n <= 0 then x1 else helper f1 f2 (n - 1) (f1 (x1,x2)) (f2 (x1,x2))
 
-fun loop2_f_aux (f1,f2,n,x1,x2) = helper f1 f2 (hd n) x1 x2
+fun loop2_f_aux (f1,f2,n,x1,x2) = helper f1 f2 (mk_rbound n) x1 x2
 val loop2_f = mk_quintf2 loop2_f_aux
 
 fun loop_f_aux (f1,n,x1) = 
-  helper f1 (fn (x1,x2) => [aincr (hd x2)]) (hd n) x1 [aone]
+  helper f1 (fn (x1,x2) => rlincr x2) (mk_rbound n) x1 rlone
 val loop_f = mk_ternf1 loop_f_aux
 
 (* -------------------------------------------------------------------------
-   While Loop
+   While loop
    ------------------------------------------------------------------------- *)
 
 fun whelper f1 f2 f3 x1 x2 = 
-  if hd (f3 (x1,x2)) <= azero then x1 else 
+  if fst (hd (f3 (x1,x2))) <= azero then x1 else 
   whelper f1 f2 f3 (f1 (x1,x2)) (f2 (x1,x2))
 
 fun while2_f_aux (f1,f2,f3,x1,x2) = whelper f1 f2 f3 x1 x2
@@ -275,25 +230,22 @@ val while2_f = mk_quintf3 while2_f_aux
    Comprehension
    ------------------------------------------------------------------------- *)
 
-fun sincr x = [aincr (hd x)]
-
 (* find the next element satisfying f starting at x *)
 fun compr_next f x =
-  if hd (f (x,[azero])) <= azero then x else 
-  compr_next f (sincr x)
+  if rleq0 (hd (f (x,rlzero))) then x else compr_next f (rlincr x)
 
 (* i and x starts at -1 *)           
 fun compr_loop mem f n i x =
   if i >= n then x else 
   let 
-    val newx = compr_next f (sincr x)
+    val newx = compr_next f (rlincr x)
     val newi = i+1
   in
-    store_mem (mem,newi,(newx,empty_infl)); 
+    store_mem (mem,newi,(newx,rldefault)); 
     compr_loop mem f n newi newx
   end
    
-val comprstart = [IntInf.fromInt (~1)]   
+val comprstart = rlmone
       
 fun compr_wrap f =
   let
@@ -316,15 +268,9 @@ fun compr_wrap f =
 fun compr_f fl = case fl of
     [f1,f2] =>
     let val f1' = compr_wrap f1 in
-      (
-      fn x =>
-      let val y = f1' (IntInf.toInt (hd (f2 x))) in
-        checktimer y
-      end
-      )
+      (fn x => (checktimer (); f1' (mk_rbound (f2 x))))
     end
   | _ => raise ERR "compr_f" ""
-
 
 (* -------------------------------------------------------------------------
    Instruction sets
@@ -334,7 +280,13 @@ val org_execl =
   [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
    loop_f, x_f, y_f, compr_f, loop2_f]
 
-val execv = Vector.fromList (org_execl @ [push_f, pop_f])
+val wrat_execl = [push_f, pop_f, while2_f, divr_f, floor_f]
+ 
+val execv = Vector.fromList (org_execl @ wrat_execl)
+
+val _ = if Vector.length execv <> Vector.length operv andalso (!wrat_flag)
+        then raise ERR "execv" "mismatch with operv"
+        else () 
 
 (* -------------------------------------------------------------------------
    Creates executable for a program
@@ -343,9 +295,9 @@ val execv = Vector.fromList (org_execl @ [push_f, pop_f])
 fun wrap_const f =
   let 
     val bref = ref false
-    val yref = ref empty_infl
+    val yref = ref rldefault
     fun newf x =  
-      if !bref then checktimer (!yref) else 
+      if !bref then (checktimer (); !yref) else 
       let val y = f x in bref := true; yref := y; y end
   in
     newf
@@ -371,23 +323,27 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
     f2
   end
   
-fun mk_exec p =  mk_exec_loop (mk_progb p)
+fun mk_exec p = mk_exec_loop (mk_progb p)
+  handle ProgTimeout => raise ERR "mk_exec" (its (!abstimer))
+
+fun mk_rsing x = [((x,1) : rat)]
 
 fun mk_exec_onev p = 
-  let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
+  let val exec = mk_exec p in 
+    (fn x => mk_rreturn (exec (mk_rsing x,rlzero)))
+  end
 
 fun coverf_oeis exec = 
-  let fun g x = hd (exec ([x], [azero])) in 
+  let fun g x = mk_rreturn (exec (mk_rsing x,rlzero)) in
     scover_oeis g 
   end
- 
+
 (* -------------------------------------------------------------------------
    Verifiy cover
    ------------------------------------------------------------------------- *)
 
 fun penum_aux p n = 
   let 
-    (* val _ = undol := [] *)
     val f = mk_exec_onev p
     val _ = init_timer ()
     val l = ref []
@@ -395,11 +351,10 @@ fun penum_aux p n =
       (
       l := f x :: !l; 
       incr_timer ();
-      loop (i+1) (aincr x)
+      loop (i+1) (x+1)
       )
-    val _ = catch_perror (loop 0) azero (fn () => ())
-  in  
-    (* app (fn f => f ()) (!undol); *)
+    val _ = catch_perror (loop 0) (0:IntInf.int) (fn () => ())
+  in 
     rev (!l)
   end
   
@@ -445,7 +400,7 @@ fun execspec_fun pl =
 val execspec : (unit, prog list, seq list) smlParallel.extspec =
   {
   self_dir = selfdir,
-  self = "exec_memo.execspec",
+  self = "exec_wrat.execspec",
   parallel_dir = selfdir ^ "/parallel_search",
   reflect_globals = (fn () => "(" ^
     String.concatWith "; "
@@ -484,7 +439,7 @@ fun parallel_exec ncore expname =
   end
 
 (*  
-load "exec_memo"; open aiLib kernel exec_memo;
+load "exec_wrat"; open aiLib kernel exec_wrat;
 parallel_exec 60 "lmfdb3";
 *)  
 
@@ -498,15 +453,14 @@ end (* struct *)
 (*
 PolyML.print_depth 10;
 load "human"; open human;
-load "exec_memo";  open kernel aiLib exec_memo;
+load "exec_wrat";  open kernel aiLib exec_wrat;
 val badl = verify_file 1000000 (selfdir ^ "/model/itsol209");
-val badl = verify_file 1000000 (selfdir ^ "/exp/intl3/hist/itsol2088");
+val badl = verify_file 1000000 (selfdir ^ "/exp/memof/hist/itsol440");
 
 
 val itsol = read_itprogl file
 val isol = map (fn (x,(_,y)) => (x,y)) (distrib itsol);
 val _ = print_endline ("solutions: " ^ its (length isol));
-
 
 fun get_bad isol = case isol of 
     [] => NONE
@@ -520,7 +474,6 @@ val (bbl,t) = add_time (map_assoc (verify_wtime tim)) isol
 val lbad1 = filter (not o fst o snd) bbl
 val lbad2 = filter (not o snd o snd) bbl
 
-
 val file = (selfdir ^ "/exp/intl3/hist/itsol2088");
 val read_itprogl 
 *)
@@ -529,8 +482,8 @@ val read_itprogl
    Testing
    ------------------------------------------------------------------------- *) 
     
-(* 
-load "exec_memo"; open exec_memo; 
+(*
+load "exec_wrat"; open exec_wrat; 
 load "human"; open kernel human aiLib;
 
 val p =  parse_human "(loop ( * 2 x) x 1)";

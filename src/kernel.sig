@@ -48,6 +48,7 @@ sig
   val memo_flag : bool ref
   val memo_number : int
   val ctree_flag : bool ref
+  val wrat_flag : bool ref
   val maxproglen : int
   val maxintsize : int
   val reprocess_flag : bool ref

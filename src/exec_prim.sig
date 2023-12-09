@@ -44,6 +44,9 @@ val cmodu : complex -> complex -> complex
 
 val cleq0 : complex -> bool
 
+(* list of numbers ('a could be IntInf.int, rat or complex) *)
+val pushl : 'a list -> 'a list -> 'a list
+val popl : 'a list -> 'a list
 
 (* tree of numbers ('a could be IntInf.int, rat or complex) *)
 datatype 'a ctree = 
@@ -72,11 +75,20 @@ and this is to be backward compatible with previous time measurement
 *)
 val mk_ctree : 'a -> 'a ctree
 val root : 'a ctree -> 'a
+
 val ctincr : complex ctree -> complex ctree
 val ctzero : complex ctree
 val ctone : complex ctree
 val ctmone : complex ctree
 val mk_bound : complex ctree -> int
 val mk_return : complex ctree -> IntInf.int
+
+val rlincr : rat list -> rat list
+val rlzero : rat list
+val rlone : rat list
+val rlmone : rat list
+val mk_rbound : rat list -> int
+val mk_rreturn : rat list -> IntInf.int 
+
 
 end

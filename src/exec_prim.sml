@@ -8,12 +8,12 @@ struct
 open HolKernel aiLib kernel
 
 local open IntInf in
-val azero = fromInt 0
-val aone = fromInt 1
-val atwo = fromInt 2
-val maxint = fromInt (valOf (Int.maxInt))
-val minint = fromInt (valOf (Int.minInt))
-fun large_int x = x > maxint orelse x < minint
+  val azero = fromInt 0
+  val aone = fromInt 1
+  val atwo = fromInt 2
+  val maxint = fromInt (valOf (Int.maxInt))
+  val minint = fromInt (valOf (Int.minInt))
+  fun large_int x = x > maxint orelse x < minint
 end
 
 fun checktimer () = 
@@ -123,7 +123,6 @@ fun rmodu (p1,q1) (p2,q2) =
   then (tmodu p1 p2, aone)
   else raise Div
 
-(* this three functions will cost 5 *)
 fun rgcd (p1,q1) (p2,q2) =
   if q1 = aone andalso q2 = aone
   then (tgcd (p1,p2), aone)
@@ -135,6 +134,8 @@ fun rnumer (p1,q1) = (checktimer (); (p1,aone))
 fun rdenom (p1,q1) = (checktimer (); (q1,aone))
 
 fun rleq0 (p1,q1) = tleq0 p1
+
+fun rincr (p,q) = (p+1,q) (* assume q is 1 *)
 
 (* -------------------------------------------------------------------------
    Complex primitives
@@ -204,7 +205,15 @@ fun cfloor (a1,b1) =
 fun cleq0 (a1,b1) = rleq0 a1
  
 fun cincr ((p,q),(r,s))= ((p+1,q),(r,s)) 
-  
+
+(* -------------------------------------------------------------------------
+   List primitives
+   ------------------------------------------------------------------------- *) 
+
+fun popl l = (checktimer (); 
+  (case l of [] => raise Empty | [a] => [a] | a :: m => m))
+fun pushl l1 l2 = (checktimer (); hd l1 :: l2)
+
 (* -------------------------------------------------------------------------
    Tree primitives
    ------------------------------------------------------------------------- *)  
@@ -240,10 +249,14 @@ fun push2 tree1 tree2 tree3 =
 fun mk_ctree c = CLeaf c
 
 fun ctincr ct = mk_ctree (cincr (root ct))
-  
-val ctzero = mk_ctree c0  
+fun rlincr rl = [rincr (hd rl)]   
+
+val ctzero = mk_ctree c0
+val rlzero = [r0]  
 val ctone = mk_ctree c1
+val rlone = [r1]
 val ctmone = mk_ctree cm1  
+val rlmone = [rm1]
 
 fun mk_bound ct = 
   let val (a,b) = root ct in
@@ -251,7 +264,7 @@ fun mk_bound ct =
     then IntInf.toInt (fst a) 
     else (IntInf.toInt o fst o rfloor o fst o crealpart o root) ct
   end
-
+  
 fun mk_return ct = 
   let val (a,b) = root ct in
     if is_rzero b andalso snd a = aone
@@ -259,6 +272,14 @@ fun mk_return ct =
     else (fst o rfloor o fst o crealpart o root) ct
   end
 
+fun mk_rreturn rl = 
+  let val (a,b) = hd rl in
+    if b = aone
+    then a
+    else (fst o rfloor o hd) rl
+  end
+
+fun mk_rbound rl = IntInf.toInt (mk_rreturn rl)
 
   
 end (* struct *)

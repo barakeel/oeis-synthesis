@@ -49,6 +49,7 @@ val partial_flag = bflag "partial_flag"
 val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
 val ctree_flag = bflag "ctree_flag"
+val wrat_flag = bflag "wrat_flag"
 val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
 val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
@@ -311,6 +312,8 @@ val ctree_operl =
   [("push",2),("pop",1),("popr",1),("push2",3),
    ("cdivr",2),("cfloor",1),("cnumer",1),("cdenom",1),("cgcd",2),
    ("cimag",0),("crealpart",1),("cimagpart",1)]
+   
+val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
@@ -326,6 +329,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
      (if !fs_flag then [("perm",1)] else []) @
      (if !pgen_flag then [("seq",1)] @ pgen_operl else []) @
      (if !ctree_flag then ctree_operl else []) @
+     (if !wrat_flag then wrat_operl else []) @
      (if !intl_flag then [("push",2),("pop",1)] else []) @
      (if !rps_flag then [("hist1",1),("hist2",1)] else []) @
      (if !think_flag then [("think1",1),("think2",1)] else []) @
@@ -388,6 +392,7 @@ val ho_ariv = Vector.fromList (
           List.tabulate (length pgen_operl + 1, fn _ => 0) else []) @
        (if !ctree_flag 
           then List.tabulate (length ctree_operl, fn _ => 0) else []) @
+       (if !wrat_flag then [0,0,3,0,0] else []) @
        (if !intl_flag then List.tabulate (2, fn _ => 0) else []) @
        (if !think_flag then List.tabulate (2, fn _ => 0) else []) @
        (if !run_flag then List.tabulate (12, fn _ => 0) else []) @
