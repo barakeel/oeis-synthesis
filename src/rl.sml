@@ -159,12 +159,18 @@ fun trainf_tnn datadir pid =
     val isol =
       let 
         val progl = mk_fast_set prog_compare_size (map snd isol0)
-        val d = 
-          if !select_cluster 
-            then enew prog_compare (random_cluster select_number progl)
+        val progsel =
+          if pid <= 1 andalso !wrat_flag  
+            then
+              let val progl' = filter (contain_opers "while2") progl in
+                get_cluster (length progl' + 200) progl (random_elem progl')
+              end
+          else if !select_cluster 
+            then random_cluster select_number progl
           else if !select_random
-            then enew prog_compare (random_subset select_number progl)
-          else enew prog_compare progl
+            then random_subset select_number progl
+          else progl
+        val d = enew prog_compare progsel
       in
         filter (fn (i,p) => emem p d) isol0 
       end

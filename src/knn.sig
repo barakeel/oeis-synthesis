@@ -13,4 +13,7 @@ sig
   val random_cluster : int -> kernel.prog list -> kernel.prog list
   val cluster2 : string -> int -> int -> unit
   
+  (* get a cluster around a program *)
+  val get_cluster :  int -> kernel.prog list -> kernel.prog -> kernel.prog list
+  
 end

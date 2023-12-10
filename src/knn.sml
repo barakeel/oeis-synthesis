@@ -130,6 +130,15 @@ fun parallel_knn_gpt ncore expname n =
    Clustering algorithm
    ------------------------------------------------------------------------- *)
 
+fun get_cluster csize pl p = 
+  let
+    val pset = mk_fast_set prog_compare_size pl
+    val feav = map_assoc fea_of_prog pset
+    val symweight = mlFeature.learn_tfidf feav 
+  in
+    knn (symweight,feav) csize p
+  end
+
 fun random_cluster csize pl =
   let
     val pset = mk_fast_set prog_compare_size pl
