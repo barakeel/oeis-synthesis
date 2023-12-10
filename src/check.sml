@@ -310,6 +310,7 @@ fun checkf_all p =
   if !memo_flag then checkf_memo 0.0 p
   else if !ctree_flag then checkf_ctree p
   else if !intl_flag then checkf_intl 0.0 p 
+  else if !wrat_flag then checkf_wrat p
   else checkf 0.0 (p, mk_exec p)
 
 fun checkpl pl =

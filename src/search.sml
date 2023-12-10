@@ -29,8 +29,7 @@ fun add_noise prepol =
    Available moves
    ------------------------------------------------------------------------- *)
 
-val movelg = filter (fn x => not (String.isPrefix "runz" (name_of_oper x)))
-   (List.tabulate (Vector.length operv, I))
+val movelg = List.tabulate (Vector.length operv, I)
 
 fun available_move boarde move =
   let 
@@ -68,33 +67,6 @@ fun exec_fun (move,exec) l1 l2 =
     end
   end
 
-val runoffset = oper_of_name "runz0" handle HOL_ERR _ => 0
-
-val natbase = IntInf.fromInt 10
-val azero = IntInf.fromInt 0
-
-fun movel_of_execr r =
-  if r < azero then 10 :: movel_of_execr (~r) else
-  if r < natbase then [IntInf.toInt r]
-  else IntInf.toInt (r mod natbase) :: movel_of_execr (r div natbase)
-
-fun expand_run (move,exec) boarde =
-  let 
-    val arity = arity_of_oper move
-    val (l1,l2) = part_n arity boarde
-    val p = (Ins (move, map #1 (rev l1))) 
-    val pexec = exec_intl.mk_exec p
-    val _ = init_timer ()
-    val r = hd (pexec ([azero], [azero])) 
-      handle _ => IntInf.fromInt 1000000
-    val ml =    
-      if r > IntInf.fromInt 999999 then []
-      else if r < IntInf.fromInt (~999999) then []
-      else movel_of_execr r
-  in
-    (move,exec) :: map (fn x => (x + runoffset, (fn (a,b,c) => a))) ml
-  end
-
 fun apply_move_one ((move,exec),boarde) =
   let 
     val arity = arity_of_oper move
@@ -108,9 +80,7 @@ fun apply_move_one ((move,exec),boarde) =
 fun apply_movel movele boarde = foldl apply_move_one boarde movele
 
 fun apply_move (move,exec) boarde =
-  if !intl_flag andalso name_of_oper move = "run"
-  then apply_movel (expand_run (move,exec) boarde) boarde
-  else apply_move_one ((move,exec),boarde)
+  apply_move_one ((move,exec),boarde)
 
 val node_counter = ref 0
 val prog_counter = ref 0
@@ -141,7 +111,7 @@ fun collect_child boarde move =
   end
 
 fun collect_children nnvalue boarde = case boarde of
-      [(p,exec,a,b)] =>
+    [(p,exec,a,b)] =>
     let 
       val _ = (incr prog_counter; checkonline nnvalue (p,exec))
               (* 
