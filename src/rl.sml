@@ -164,7 +164,7 @@ fun trainf_tnn datadir pid =
             then
               let val progl' = filter (contain_opers "while2") progl in
                 get_cluster (length progl' + 200) progl (random_elem progl')
-              end
+              end                
           else if !select_cluster 
             then random_cluster select_number progl
           else if !select_random
