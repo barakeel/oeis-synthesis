@@ -457,8 +457,9 @@ val graphb = ref 0
 val push_counter = ref 0
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
-fun init_timer () = 
-  (push_counter := 0; abstimer := 0; timelimit := !timeincr)
+fun init_timer () = (push_counter := 0; abstimer := 0; timelimit := !timeincr)
+
+(* deprecated *)
 fun init_fast_test () = 
   (max_compr_number := short_compr; timeincr := short_timeincr)
 fun init_slow_test () = 

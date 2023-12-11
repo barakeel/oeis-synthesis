@@ -301,7 +301,6 @@ fun scover_oeis_aux f i ot = case ot of
 fun scover_oeis_aux2 f = 
   let 
     val _ = anlref := []
-    val _ = if !ngen_glob <= 0 then timeincr := init_timeincr else ()
     val _ = init_timer ();
     val _ = scover_oeis_aux f azero otree
   in

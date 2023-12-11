@@ -250,6 +250,7 @@ and search_aux rt depth (vis,tim) targete boarde =
 fun search (vis,tinc) =
   let 
     val _ = search_time_flag := (vis <= 0)
+    val _ = if !ngen_glob <= 0 then timeincr := init_timeincr else ()
     val _ = node_counter := 0  
     val _ = prog_counter := 0
     val _ = checkinit ()
