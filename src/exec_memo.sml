@@ -11,7 +11,7 @@ type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 
 
 (* -------------------------------------------------------------------------
-   Mark constants programs with true (does not support z)
+   Mark constants programs with true
    ------------------------------------------------------------------------- *)
 
 datatype progb = Insb of (id * bool * progb list);
@@ -34,7 +34,7 @@ fun mk_progb (Ins (id,pl)) =
   end
 
 (* -------------------------------------------------------------------------
-   Memory reused across different programs to avoid unnecessary reallocation.
+   A local memory for each loop (memoization)
    ------------------------------------------------------------------------- *)
 
 val empty_infl = []: IntInf.int list
@@ -178,9 +178,15 @@ fun cond_f fl = case fl of
     (fn x => checktimer (if hd (f1 x) <= azero then f2 x else f3 x))
   | _ => raise ERR "mk_condf" ""
 
+
 fun push_f fl = case fl of
     [f1,f2] => 
-    (fn x => checktimer (hd (f1 x) :: (f2 x)))
+    (fn x => (
+             incr push_counter; 
+             if !push_counter > push_limit then raise Empty else ();
+             checktimer (hd (f1 x) :: (f2 x))
+             )
+             )
   | _ => raise ERR "mk_pushf" ""
 
 fun pop_f fl = case fl of

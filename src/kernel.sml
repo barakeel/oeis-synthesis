@@ -65,10 +65,13 @@ val maxproglen = iflagnoref "maxproglen" 240
 val init_timeincr = iflagnoref "init_timeincr" 1000
 val short_timeincr = iflagnoref "short_timeincr" 100000
 val long_timeincr = iflagnoref "long_timeincr" 100000
+val push_limit = iflagnoref "push_limit" 1000000
   (* deprecated *)
 val maxintsize = iflagnoref "maxintsize" 285
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
+
+
 
 (* training flags *)
 val select_cluster = bflag "select_cluster"
@@ -446,13 +449,16 @@ fun zeroy (Ins (id,pl)) =
 exception ProgTimeout;
 val timeincr = ref short_timeincr
 val timelimit = ref (!timeincr)
+
 val abstimer = ref 0
 val max_compr_number = ref short_compr (* deprecated *)
 val graph = ref []
 val graphb = ref 0
+val push_counter = ref 0
 
 fun incr_timer () = timelimit := !timelimit + !timeincr
-fun init_timer () = (abstimer := 0; timelimit := !timeincr)
+fun init_timer () = 
+  (push_counter := 0; abstimer := 0; timelimit := !timeincr)
 fun init_fast_test () = 
   (max_compr_number := short_compr; timeincr := short_timeincr)
 fun init_slow_test () = 

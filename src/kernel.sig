@@ -61,6 +61,7 @@ sig
   val nooeis_flag : bool ref
   val smartselect_flag : bool ref
   val revamp_flag : bool ref
+  val push_limit : int
   
   (* flags not read from disk *)
   val expname : string ref
@@ -149,6 +150,7 @@ sig
   val max_compr_number : int ref
   val timeincr : int ref
   val timelimit : int ref
+  val push_counter : int ref
   val init_fast_test : unit -> unit
   val init_slow_test : unit -> unit
   val incr_timer : unit -> unit
