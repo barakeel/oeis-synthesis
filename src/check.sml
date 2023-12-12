@@ -361,6 +361,34 @@ fun next_boardl_aux board =
   
 fun next_boardl boardl = List.concat (map next_boardl_aux boardl)
 
+(* local search *)
+local 
+  val movelg = List.tabulate (Vector.length operv, I)
+  fun available_move board move =
+    let 
+      val arity = arity_of_oper move
+      val (l1,l2) = part_n arity board
+    in
+      length l1 = arity 
+    end
+  fun available_movel board = filter (available_move board) movelg
+  fun apply_move1 move board =
+    let 
+      val arity = arity_of_oper move
+      val (l1,l2) = part_n arity board
+    in
+      if length l1 <> arity 
+      then raise ERR "apply_move" ""
+      else (Ins (move, rev l1))
+    end
+in
+  fun local_search d board =
+    let fun f m = let val p = apply_move1 m board in d := eadd p (!d) end in
+      app f (available_movel board)
+    end
+end
+(* end local search *)
+
 fun checkmll mll = 
   let 
     val d = ref (eempty prog_compare)
@@ -369,7 +397,10 @@ fun checkmll mll =
     val counter = ref 0
     fun collect board movel = 
         (
-        (case board of p :: m => d := eadd p (!d) | _ => ());
+        (case board of p :: m => d := eadd p (!d) | _ => ())
+        ;
+        (if not (!locsearch_flag) then () else local_search d board)
+        ;
         case movel of [] => () | move :: m => 
           (case next_board board move of
             SOME newboard => collect newboard m 
