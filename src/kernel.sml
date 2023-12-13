@@ -50,9 +50,10 @@ val array_flag = bflag "array_flag"
 val notarget_flag = bflag "notarget_flag"
 val ctree_flag = bflag "ctree_flag"
 val wrat_flag = bflag "wrat_flag"
+val intl_flag = bflag "intl_flag"
 val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
-val intl_flag = if !memo_flag then ref true else bflag "intl_flag"
+val prnn_flag = bflag "prnn_flag"
 
 (* search flags *)
 val locsearch_flag = bflag "locsearch_flag"
@@ -323,29 +324,33 @@ val ctree_operl =
    
 val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
 
+val extra_operl =
+  if !z_flag then [("z",0),("loop3",7)] 
+  else if !extranum_flag
+    then [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
+       ("nine",0),("ten",0)] 
+  else if !fs_flag then [("perm",1)] 
+  else if !pgen_flag then [("seq",1)] @ pgen_operl 
+  else if !ctree_flag then ctree_operl 
+  else if !wrat_flag then wrat_operl 
+  else if !prnn_flag then [("push",2),("pop",1)] 
+  else if !memo_flag then [("push",2),("pop",1)]
+  else if !intl_flag then [("push",2),("pop",1)] 
+  else if !rps_flag then [("hist1",1),("hist2",1)] 
+  else if !think_flag then [("think1",1),("think2",1)] 
+  else if !run_flag 
+    then ("run",1) :: List.tabulate (10, fn i => ("runz" ^ its i, 1)) @ 
+      [("runz-",1)]
+  else if !seq_flag then [("seq",1)] 
+  else []
+
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !ramsey_flag then ramsey_operl 
   else if !array_flag then array_operl
   else if !turing_flag then turing_operl
   else if !minimal_flag then minimal_operl
-  else org_operl @
-     (if !z_flag then [("z",0),("loop3",7)] else []) @
-     (if !extranum_flag then
-       [("three",0),("four",0),("five",0),("six",0),("seven",0),("eight",0),
-       ("nine",0),("ten",0)] else []) @
-     (if !fs_flag then [("perm",1)] else []) @
-     (if !pgen_flag then [("seq",1)] @ pgen_operl else []) @
-     (if !ctree_flag then ctree_operl else []) @
-     (if !wrat_flag then wrat_operl else []) @
-     (if !intl_flag then [("push",2),("pop",1)] else []) @
-     (if !rps_flag then [("hist1",1),("hist2",1)] else []) @
-     (if !think_flag then [("think1",1),("think2",1)] else []) @
-     (if !run_flag 
-      then ("run",1) :: List.tabulate (10, fn i => ("runz" ^ its i, 1)) @ 
-           [("runz-",1)]
-      else []) @
-     (if !seq_flag then [("seq",1)] else []) 
+  else org_operl @ extra_operl
   )
 
 (* -------------------------------------------------------------------------
@@ -383,7 +388,24 @@ fun contain_opers s p = case dfindo s opersd of
    Detect dependencies: ho_ariv should match operv
    ------------------------------------------------------------------------- *)
 
-val ho_ariv = Vector.fromList (
+val extra_ho_ariv = 
+  if !z_flag then [0,3] 
+  else if !extranum_flag then List.tabulate (8, fn _ => 0) 
+  else if !fs_flag then [0] 
+  else if !pgen_flag 
+    then List.tabulate (length pgen_operl + 1, fn _ => 0) 
+  else if !ctree_flag 
+    then List.tabulate (length ctree_operl, fn _ => 0) 
+  else if !wrat_flag then [0,0,3,0,0] 
+  else if !intl_flag then List.tabulate (2, fn _ => 0) 
+  else if !memo_flag then List.tabulate (2, fn _ => 0) 
+  else if !think_flag then List.tabulate (2, fn _ => 0) 
+  else if !run_flag then List.tabulate (12, fn _ => 0) 
+  else if !seq_flag then [0] 
+  else []
+
+val ho_ariv = Vector.fromList 
+  (
   if !ramsey_flag 
     then List.tabulate (9,fn _ => 0) @ [1,0,0,2,0,0,0] 
   else if !turing_flag 
@@ -392,21 +414,9 @@ val ho_ariv = Vector.fromList (
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else if !minimal_flag 
     then [0,0,0,0,0,1]
-  else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @
-       (if !z_flag then [0,3] else []) @
-       (if !extranum_flag then List.tabulate (8, fn _ => 0) else []) @
-       (if !fs_flag then [0] else []) @
-       (if !pgen_flag then 
-          List.tabulate (length pgen_operl + 1, fn _ => 0) else []) @
-       (if !ctree_flag 
-          then List.tabulate (length ctree_operl, fn _ => 0) else []) @
-       (if !wrat_flag then [0,0,3,0,0] else []) @
-       (if !intl_flag then List.tabulate (2, fn _ => 0) else []) @
-       (if !think_flag then List.tabulate (2, fn _ => 0) else []) @
-       (if !run_flag then List.tabulate (12, fn _ => 0) else []) @
-       (if !seq_flag then [0] else [])
+  else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ extra_ho_ariv
   )
-  
+
 val _ = if Vector.length ho_ariv <> Vector.length operv
         then raise ERR "ho_ariv" "mismatch with operv"
         else ()
