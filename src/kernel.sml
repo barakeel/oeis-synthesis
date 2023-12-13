@@ -323,6 +323,8 @@ val ctree_operl =
    ("cimag",0),("crealpart",1),("cimagpart",1)]
    
 val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
+val prnn_operl = [("push",2),("pop",1),
+  ("progv",1),("proglen",0),("seqv",1),("seqlen",0),("embv",1),("emblen",0)] 
 
 val extra_operl =
   if !z_flag then [("z",0),("loop3",7)] 
@@ -333,7 +335,7 @@ val extra_operl =
   else if !pgen_flag then [("seq",1)] @ pgen_operl 
   else if !ctree_flag then ctree_operl 
   else if !wrat_flag then wrat_operl 
-  else if !prnn_flag then [("push",2),("pop",1)] 
+  else if !prnn_flag then prnn_operl
   else if !memo_flag then [("push",2),("pop",1)]
   else if !intl_flag then [("push",2),("pop",1)] 
   else if !rps_flag then [("hist1",1),("hist2",1)] 
@@ -399,6 +401,7 @@ val extra_ho_ariv =
   else if !wrat_flag then [0,0,3,0,0] 
   else if !intl_flag then List.tabulate (2, fn _ => 0) 
   else if !memo_flag then List.tabulate (2, fn _ => 0) 
+  else if !prnn_flag then List.tabulate (length prnn_operl, fn _ => 0) 
   else if !think_flag then List.tabulate (2, fn _ => 0) 
   else if !run_flag then List.tabulate (12, fn _ => 0) 
   else if !seq_flag then [0] 
@@ -475,11 +478,20 @@ fun init_fast_test () =
 fun init_slow_test () = 
   (max_compr_number := long_compr; timeincr := long_timeincr)
 
-fun catch_perror f x g = f x handle 
-     Empty => g ()
-   | Div => g () 
-   | ProgTimeout => g () 
-   | Overflow => g ()
+fun catch_perror f x g = 
+  if !prnn_flag then
+     (f x handle 
+       Empty => g ()
+     | Div => g () 
+     | ProgTimeout => g () 
+     | Overflow => g ()
+     | Subscript => g ())
+  else
+     (f x handle 
+       Empty => g ()
+     | Div => g () 
+     | ProgTimeout => g () 
+     | Overflow => g ())
    
 (* -------------------------------------------------------------------------
    NMT interface

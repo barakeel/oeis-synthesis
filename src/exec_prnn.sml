@@ -107,6 +107,10 @@ fun mk_nullf opf fl = case fl of
    [] => (fn x => checktimer (opf x))
   | _ => raise ERR "mk_nullf" ""
 
+fun mk_unf opf fl = case fl of
+   [f1] => (fn x => checktimer (opf (f1 x)))
+  | _ => raise ERR "mk_unf" ""
+
 fun mk_binfadd costn opf fl = case fl of
    [f1,f2] => (fn x => 
      let 
@@ -126,8 +130,6 @@ fun mk_binfmult costn opf fl = case fl of
        checktimermult costn x1 x2 y
      end)
   | _ => raise ERR "mk_binfmult" ""
-
-
 
 fun mk_ternf opf fl = case fl of
    [f1,f2,f3] => (fn x => checktimer (opf (f1 x, f2 x, f3 x)))
@@ -329,6 +331,26 @@ fun compr_f fl = case fl of
     end
   | _ => raise ERR "compr_f" ""
 
+(* -------------------------------------------------------------------------
+   Arrays
+   ------------------------------------------------------------------------- *)
+
+val empty_vect = Vector.fromList ([]: IntInf.int list list)
+
+val progv_glob = ref empty_vect
+val progv_f = mk_unf (fn x => Vector.sub (!progv_glob, IntInf.toInt (hd x)))
+val proglen_glob = ref 0
+val proglen_f = mk_nullf (fn (x,y) => [!proglen_glob])
+
+val seqv_glob = ref empty_vect
+val seqv_f = mk_unf (fn x => Vector.sub (!seqv_glob, IntInf.toInt (hd x)))
+val seqlen_glob = ref 0
+val seqlen_f = mk_nullf (fn (x,y) => [!seqlen_glob])
+
+val embv_glob = ref empty_vect
+val embv_f = mk_unf (fn x => Vector.sub (!embv_glob, IntInf.toInt (hd x)))
+val emblen_glob = ref 0
+val emblen_f = mk_nullf (fn (x,y) => [!emblen_glob])
 
 (* -------------------------------------------------------------------------
    Instruction sets
@@ -338,7 +360,8 @@ val org_execl =
   [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
    loop_f, x_f, y_f, compr_f, loop2_f]
 
-val execv = Vector.fromList (org_execl @ [push_f, pop_f])
+val execv = Vector.fromList (org_execl @ 
+  [push_f, pop_f, progv_f, proglen_f, seqv_f, seqlen_f, embv_f, emblen_f])
 
 (* -------------------------------------------------------------------------
    Creates executable for a program
