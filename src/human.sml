@@ -354,7 +354,7 @@ fun apply_move move board =
 
 fun human_gpt s = 
   let 
-    val ml = movel_of_gpt s
+    val ml = tokenl_of_gpt s
     val progl = foldl (uncurry apply_move) [] ml
   in
     print_endline (String.concatWith "\n\n" (map (human_python 32) progl))

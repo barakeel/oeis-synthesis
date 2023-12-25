@@ -6,6 +6,7 @@ sig
   type anum = bloom.anum
   
   val seqd: (kernel.seq, (int * prog)) dict ref
+  val prnnd : prog Redblackset.set ref
   
   (* functions used in search.sml and rl.sml *)
   val checkinit : unit -> unit

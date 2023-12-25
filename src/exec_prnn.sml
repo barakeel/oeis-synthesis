@@ -337,18 +337,19 @@ fun compr_f fl = case fl of
 
 val empty_vect = Vector.fromList ([]: IntInf.int list list)
 
-val progv_glob = ref empty_vect
-val progv_f = mk_unf (fn x => Vector.sub (!progv_glob, IntInf.toInt (hd x)))
+val prog_glob = ref ([]: IntInf.int list)
+val prog_f = mk_nullf (fn (x,y) => !prog_glob)
 val proglen_glob = ref 0
 val proglen_f = mk_nullf (fn (x,y) => [!proglen_glob])
 
-val seqv_glob = ref empty_vect
-val seqv_f = mk_unf (fn x => Vector.sub (!seqv_glob, IntInf.toInt (hd x)))
+val seq_glob = ref ([]: IntInf.int list)
+val seq_f = mk_nullf (fn (x,y) => !seq_glob)
 val seqlen_glob = ref 0
 val seqlen_f = mk_nullf (fn (x,y) => [!seqlen_glob])
 
 val embv_glob = ref empty_vect
-val embv_f = mk_unf (fn x => Vector.sub (!embv_glob, IntInf.toInt (hd x)))
+val embv_f = mk_unf (fn x => Vector.sub (!embv_glob, 
+  IntInf.toInt (hd x) mod Vector.length (!embv_glob)))
 val emblen_glob = ref 0
 val emblen_f = mk_nullf (fn (x,y) => [!emblen_glob])
 
@@ -361,7 +362,7 @@ val org_execl =
    loop_f, x_f, y_f, compr_f, loop2_f]
 
 val execv = Vector.fromList (org_execl @ 
-  [push_f, pop_f, progv_f, proglen_f, seqv_f, seqlen_f, embv_f, emblen_f])
+  [push_f, pop_f, prog_f, proglen_f, embv_f, emblen_f, seq_f, seqlen_f])
 
 (* -------------------------------------------------------------------------
    Creates executable for a program

@@ -72,8 +72,6 @@ val maxintsize = iflagnoref "maxintsize" 285
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 
-
-
 (* training flags *)
 val select_cluster = bflag "select_cluster"
 val select_random = bflag "select_random"
@@ -324,7 +322,7 @@ val ctree_operl =
    
 val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
 val prnn_operl = [("push",2),("pop",1),
-  ("progv",1),("proglen",0),("seqv",1),("seqlen",0),("embv",1),("emblen",0)] 
+  ("prog",0),("proglen",0),("embv",1),("emblen",0),("seq",0),("seqlen",0)] 
 
 val extra_operl =
   if !z_flag then [("z",0),("loop3",7)] 
@@ -503,13 +501,9 @@ fun gpt_of_id id = Char.toString (Char.chr (65 + id))
 fun gpt_of_prog (Ins (id,pl)) = 
   String.concatWith " " (map gpt_of_prog pl @ [gpt_of_id id])
 
-(* reader *)
-fun id_of_gpt s = 
-  let val n = Char.ord (valOf (Char.fromString s)) in n - 65 end
-
-fun movel_of_gpt s = 
-  let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
-
+fun tokenl_of_prog (Ins (id,pl)) = 
+  List.concat (map tokenl_of_prog pl) @ [id]
+ 
 fun apply_move move board =
   let 
     val arity = arity_of_oper move
@@ -518,15 +512,22 @@ fun apply_move move board =
     if length l1 <> arity 
     then raise ERR "apply_move" "arity"
     else Ins (move, rev l1) :: l2
+  end 
+ 
+fun prog_of_tokenl tokenl = 
+  let val progl = foldl (uncurry apply_move) [] tokenl in
+    case progl of [p] => p | _ => raise ERR "prog_of_tokenl" "not a singleton"
   end
+  
+(* reader *)
+fun id_of_gpt s = 
+  let val n = Char.ord (valOf (Char.fromString s)) in n - 65 end
 
-fun prog_of_gpt s = 
-  let 
-    val ml = movel_of_gpt s
-    val progl = foldl (uncurry apply_move) [] ml
-  in
-    case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
-  end
+fun tokenl_of_gpt s = 
+  let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
+
+fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
+
     
 (* -------------------------------------------------------------------------
    Simple export of sequence program pairs
@@ -545,9 +546,27 @@ fun seqprog_of_string s =
   end
   
 fun read_seqprog file = map seqprog_of_string (readl file)
+
+
+fun string_of_anumprog (anum,prog) = its anum ^ ":" ^ gpt_of_prog prog
+fun write_anumprog file seqprogl = writel file (map string_of_anumprog seqprogl)
+  
+fun anumprog_of_string s = 
+  let 
+    val (anums,progs) = pair_of_list (String.tokens (fn x => x = #":") s)
+    val anum = string_to_int anums
+    val prog = prog_of_gpt progs
+  in
+    (anum,prog)
+  end
+  
+fun read_anumprog file = map anumprog_of_string (readl file)
+
+
+
   
 (* -------------------------------------------------------------------------
-   Other
+   List of tokens
    ------------------------------------------------------------------------- *)
    
 fun prog_of_movel ml = 
@@ -555,6 +574,21 @@ fun prog_of_movel ml =
     case progl of [p] => p | _ => raise ERR "prog_of_gpt" "not a singleton"
   end
  
+fun prog_of_movelo ml =  
+  let val progl = foldl (uncurry apply_move) [] ml in
+    case progl of [p] => SOME p | _ => NONE
+  end
+  handle HOL_ERR _ => NONE
 
-  
+fun valid_topdown_aux argn ml = 
+  if argn < 0 then raise ERR "valid_topdown" "" else
+  case ml of
+    [] => argn = 0
+  | token :: newml => 
+    let val newargn = argn + (arity_of token - 1) in
+      valid_topdown_aux newargn newml
+    end
+    
+fun valid_topdown ml = valid_topdown_aux 1 ml
+
 end (* struct *)

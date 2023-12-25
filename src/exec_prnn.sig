@@ -22,4 +22,17 @@ sig
   val execspec : (unit, prog list, seq list) smlParallel.extspec
   val parallel_exec : int -> string -> unit
   
+  (* globals *)
+  val prog_glob : IntInf.int list ref
+  val proglen_glob : IntInf.int ref
+  val seq_glob : IntInf.int list ref
+  val seqlen_glob : IntInf.int ref
+  val embv_glob : IntInf.int list vector ref
+  val emblen_glob : IntInf.int ref
+  
+  
+  
+  
+  
+  
 end

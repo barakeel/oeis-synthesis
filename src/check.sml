@@ -270,13 +270,30 @@ fun checkf_seq (p,exec) =
   in
     if not b then () else update_wind wind (!targetn_glob,[(t,p)])          
   end
-  
+ 
+ 
+val prnnd = ref (eempty prog_compare) 
+ 
+fun checkf_prnn p = prnnd := eadd p (!prnnd)
+
+fun checkf_prnn2 p =   
+  let
+    val exec = exec_prnn.mk_exec p 
+      handle Subscript => raise ERR "checkf_wrat" "1"
+    val anumtl = exec_prnn.coverf_oeis exec
+      handle Subscript => raise ERR "checkf_wrat" "2"
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end  
+
 fun checkonline nnvalue (p,exec) = 
   if !seq_flag then checkf_seq (p,exec)
   else if !memo_flag then checkf_memo nnvalue p
   else if !ctree_flag then checkf_ctree p
   else if !wrat_flag then checkf_wrat p 
-  else if !intl_flag then checkf_intl nnvalue p 
+  else if !intl_flag then checkf_intl nnvalue p
+  else if !prnn_flag then checkf_prnn p
   else checkf nnvalue (p,exec)
 
 fun checkfinal () = dlist (!wind)
@@ -314,6 +331,7 @@ fun checkf_all p =
   else if !ctree_flag then checkf_ctree p
   else if !intl_flag then checkf_intl 0.0 p 
   else if !wrat_flag then checkf_wrat p
+  else if !prnn_flag then checkf_prnn2 p
   else checkf 0.0 (p, mk_exec p)
 
 fun checkpl pl =
@@ -426,7 +444,7 @@ fun checkmll mll =
 fun check_file file =
   let 
     val f = if !reverse_nmtoutput then rev else I
-    val mll = map (f o movel_of_gpt) (readl file)
+    val mll = map (f o tokenl_of_gpt) (readl file)
     val _ = print_endline (file ^ ":" ^ its (length mll))
   in
     checkmll mll; 

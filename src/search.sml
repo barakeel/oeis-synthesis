@@ -1,7 +1,8 @@
 structure search :> search =
 struct
 
-open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn exec check bloom
+open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn 
+  exec check bloom
 val ERR = mk_HOL_ERR "search"
 type emb = real vector
 
@@ -235,7 +236,8 @@ fun search (vis,tinc) =
     val _ = node_counter := 0  
     val _ = prog_counter := 0
     val _ = checkinit ()
-    val targete = get_targete ()
+    val targete = 
+      if !randsearch_flag then Vector.fromList [100.0] else get_targete ()
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
   in
@@ -491,6 +493,8 @@ fun beamsearch_ordered width target =
     dict_sort (snd_compare compare_rmax) (dlist (!seqd))
   end
   
+
+  
 (* 
 PolyML.print_depth 0;
 load "search"; open kernel aiLib search bloom;
@@ -507,6 +511,27 @@ val (sol,t) = add_time checkpl (dkeys (!seqd))
 val _ = print_endline 
 ("checkpl: " ^ its (length sol) ^ " " ^ rts_round 2 t)
 *)
+
+(* 
+PolyML.print_depth 0;
+load "search"; open kernel aiLib search bloom;
+PolyML.print_depth 10;
+val (an,seq) = bloom.select_random_target2 ();
+search.randsearch_flag := true;
+val pl = beamsearch_target 10000 seq;
+val (rank,itsol) = check.checkpl_target 27 (map fst pl);
+*)
+
+(*
+PolyML.print_depth 10;
+load "search"; open kernel aiLib search bloom;
+tnn.update_fp_op (selfdir ^ "/model/ob_online.so");
+check.checkinit ();
+search (0, 60.0);
+val _ = check.checkfinal ();
+*)
+
+
 *)  
 (* -------------------------------------------------------------------------
    Alternative beam search 2: ordered and without subprograms
@@ -669,24 +694,537 @@ fun search_smartselect dir =
     itsol
   end 
  
+(* -------------------------------------------------------------------------
+   Generate programs with program generator
+   ------------------------------------------------------------------------- *)
+
+fun init_timer_wtim tim = 
+  (push_counter := 0; abstimer := 0; timelimit := tim);
+
+val prnn_counter = ref 0
+
+exception Break;
+
+local open exec_prnn in
+
+fun beamsearch_prnn_one tim lim p seq (tokenl,embv) = 
+  if !prnn_counter >= lim then raise Break else 
+  let 
+    val _ = seq_glob := seq
+    val _ = seqlen_glob := IntInf.fromInt (length (!seq_glob))
+    val _ = prog_glob := tokenl
+    val _ = proglen_glob := IntInf.fromInt (length (!prog_glob))
+    val _ = embv_glob := embv
+    val _ = emblen_glob := IntInf.fromInt (Vector.length (!embv_glob))
+    val exec = mk_exec p
+    val _ = init_timer_wtim tim
+    val newembl = List.tabulate (16,fn i => (i, exec ([IntInf.fromInt i],[0])))
+    fun f (i,x) = if hd x > 0 then SOME i else NONE
+    val nextl = List.mapPartial f newembl
+    val newembv = Vector.fromList (map snd newembl)
+  in
+    SOME (map (fn x => (incr prnn_counter; 
+      (IntInf.fromInt x :: tokenl,newembv))) nextl)
+  end
+  handle 
+       Empty => NONE
+     | Div => NONE
+     | ProgTimeout => NONE
+     | Overflow => NONE
+     | Subscript => NONE
+  ; 
  
+end (* local *)
+ 
+fun distrib_token (tokenl,(stopb,(nexttokenl,newembv))) =
+  map (fn x => (x :: tokenl,newembv)) nexttokenl;
+     
+fun beamsearch_prnn_loop i pd p seq tim lim tokembl =
+  let 
+    val _ = prnn_counter := 0
+    val l1 = (List.concat 
+      (List.mapPartial (beamsearch_prnn_one tim lim p seq) tokembl))
+      handle Break => []
+    val (compl,contl) = partition (isSome o prog_of_movelo o 
+      map IntInf.toInt o fst) l1
+    val progl = List.mapPartial prog_of_movelo 
+      (map (map IntInf.toInt o fst) compl)
+    val newpd = eaddl progl pd
+  in
+    if elength newpd > lim then pd else
+    if null contl orelse  i > maxproglen then newpd 
+    else beamsearch_prnn_loop (i+1) newpd p seq tim lim contl
+  end
+
+fun beamsearch_prnn p seq tim lim =
+  let 
+    val tokembl = [([]: IntInf.int list,
+      (Vector.tabulate (16, fn _ => [IntInf.fromInt 0])))]
+    val pd = eempty prog_compare
+  in
+    beamsearch_prnn_loop 0 pd p seq tim lim tokembl
+  end
+
+fun gen_prog anuml pid p =
+  let
+    fun f anum =
+      let 
+        val seq = valOf (Array.sub (bloom.oseq,anum))
+        val pl = elist (beamsearch_prnn p seq 100000 1000)
+        fun g p = case dfindo p (!pid) of SOME i => i | NONE =>
+          let val i = dlength (!pid) in
+            pid := dadd p i (!pid); i   
+          end
+        val il = map g pl     
+      in
+        (anum,il)
+      end
+  in
+    map f anuml
+  end
+  
+fun gen_progl anuml pl = 
+  let 
+    val pid = ref (dempty prog_compare) 
+    val rl = map_assoc (gen_prog anuml pid) pl
+  in
+    (rl,!pid)
+  end
+
+(* -------------------------------------------------------------------------
+   Prepare a curriculum
+   ------------------------------------------------------------------------- *)
+
+(*
+val itsol843 = read_itprogl "model/itsol843";
+
+fun is_smaller (t1,p1) (t2,p2) = 
+  triple_compare Int.compare Int.compare prog_compare 
+      ((prog_size p1,t1,p1),(prog_size p2,t2,p2)) = LESS;
+
+val ERR = mk_HOL_ERR "test";
+fun smallest tpl = case tpl of 
+    [a] => snd a
+  | [a,b] => if is_smaller a b then snd a else snd b
+  | _ => raise ERR "smallest" "";
+
+val itsol843small = map_snd smallest itsol843;
+val itsol843size = dict_sort compare_imin (map_snd prog_size itsol843small);   
+
+write_anumprog "data/oeis_smallprog" itsol843small;
+writel "data/oeis_order" (map (its o fst) (itsol843size));
+*)
+
+(* assumes ordered list without repetition *)
+
+
+
+fun list_diff_ordered l1 l2 = case (l1,l2) of
+    ([],x) => []
+  | (x,[]) => x
+  | (a1 :: m1, a2 :: m2) => 
+    (
+    case Int.compare (a1,a2) of
+       EQUAL => list_diff_ordered m1 m2 
+     | LESS => a1 :: list_diff_ordered m1 l2
+     | GREATER => list_diff_ordered l1 m2
+    )
+
+fun create_round_aux n seln easyl hardd acc = 
+  if n <= 0 then rev acc else
+  let 
+    val (easylsel,easyl1) = part_n seln easyl
+    val hardd1 = ereml easylsel hardd
+    val hardlsel = random_subset seln (elist hardd1)
+    val easyl2 = list_diff_ordered easyl1 (elist (enew Int.compare hardlsel))
+    val hardd2 = ereml hardlsel hardd1 
+  in
+    create_round_aux (n-1) (2*seln) easyl2 hardd2 
+      ((easylsel @ hardlsel) :: acc)
+  end;
+
+fun create_round n seln easyl hardl =
+  create_round_aux n seln easyl (enew Int.compare hardl) []
+
+(* -------------------------------------------------------------------------
+   Collect and evaluate generated programs
+   ------------------------------------------------------------------------- *)
+
+fun collect_prog genl = 
+  let fun f (_,apll) = List.concat (map snd apll) in
+    List.concat (map f genl)
+  end  
+  
+fun eval_prog p = map fst (exec_prnn.coverf_oeis (exec_prnn.mk_exec p))
+
+(* -------------------------------------------------------------------------
+   Replace generated programs by the OEIS sequence they generate
+   ------------------------------------------------------------------------- *)
+
+val ibcmp = cpl_compare Int.compare bool_compare;
+
+fun expand_ipl evald (anum,pl) = 
+  let 
+    val l1 = List.concat (map (fn x => dfind x evald) pl) 
+    fun f a = if a = anum then [(a,false),(a,true)] else [(a,false)]
+    val l2 = map f l1 
+  in
+    List.concat l2
+  end
+
+fun expand_ipll evald ipll = 
+  mk_fast_set ibcmp (List.concat (map (expand_ipl evald) ipll))
+
+(* -------------------------------------------------------------------------
+   Find closest neighbor
+   ------------------------------------------------------------------------- *)
+
+fun score freqd a = 1.0 / Real.fromInt (dfind a freqd);
+fun scorepa freqd (p,al) = sum_real (map (score freqd) al);
+
+fun symdiff_ordered cmp l1 l2 = case (l1,l2) of
+    ([],x) => x
+  | (x,[]) => x
+  | (a1 :: m1, a2 :: m2) => 
+    (
+    case cmp (a1,a2) of
+       EQUAL => symdiff_ordered cmp m1 m2 
+     | LESS => a1 :: symdiff_ordered cmp m1 l2
+     | GREATER => a2 :: symdiff_ordered cmp l1 m2
+    )
+   
+fun distance freqd ((p1,al1),(p2,al2)) = 
+  sum_real (map (score freqd) (symdiff_ordered ibcmp al1 al2))
+  
+fun random_pair d palv = 
+  let 
+    val a = random_int (0,Vector.length palv - 2)
+    val b = random_int (a+1,Vector.length palv - 1)
+  in
+    if emem (a,b) (!d) 
+    then random_pair d palv 
+    else (d := eadd (a,b) (!d); (a,b))
+  end
+
+fun closest_neighbor_rand freqd pal =
+  let 
+    val iicmp = cpl_compare Int.compare Int.compare
+    val palv = Vector.fromList pal
+    val d = ref (eempty iicmp)
+    val l0 = mk_fast_set iicmp
+      (List.tabulate (100000, fn _ => random_pair d palv))
+    val l1 = map (fn (a,b) => 
+      (Vector.sub (palv,a), Vector.sub (palv,b))) l0
+    val l2 = map_assoc (distance freqd) l1
+  in
+    map fst (dict_sort compare_rmin l2)
+  end;
+  
+  
+fun filter_dupl seen ppl = case ppl of 
+    [] => []
+  | ((p1,_),(p2,_)) :: m =>
+    if emem p1 seen orelse emem p2 seen 
+    then filter_dupl seen m
+    else hd ppl :: filter_dupl (eaddl [p1,p2] seen) m;
+   
+  
+fun closest_neighbor freqd pal =
+  let 
+    val l0 = all_pairs pal 
+    val l1 = map_assoc (distance freqd) l0
+    val l2 = map fst (dict_sort compare_rmin l1)
+  in
+    l2
+  end
+
+fun get_pairl_simple pal =
+  let
+    val newpal = 
+      if length pal mod 2 = 1 
+      then random_elem pal :: pal 
+      else pal
+  in
+    map pair_of_list (mk_batch_full 2 (shuffle pal)) 
+  end
+
+fun get_pairl freqd pal =
+  (
+  if length pal < 1000 then
+    let
+      val newpal = 
+        if length pal mod 2 = 1 
+        then random_elem pal :: pal 
+        else pal
+      val l1 = closest_neighbor freqd newpal
+      val l2 = filter_dupl (eempty prog_compare) l1
+    in
+      l2
+    end
+  else
+  let 
+    val l1 = closest_neighbor_rand freqd pal
+    val l2 = filter_dupl (eempty prog_compare) l1
+    val l3 = first_n (length l2 div 10 + 1) l2
+    val seld = enew prog_compare
+      (List.concat (map (fn (a,b) => [fst a, fst b]) l3))
+    val newpal = filter (fn (p,_) => not (emem p seld)) pal
+  in
+    l3 @ get_pairl freqd newpal
+  end
+  )
+ 
+(* -------------------------------------------------------------------------
+   Compete against closest neighbor
+   ------------------------------------------------------------------------- *) 
+
+fun winnerf freqd (pa1,pa2) = 
+  case cpl_compare Real.compare prog_compare_size 
+    ((scorepa freqd pa1, fst pa1), (scorepa freqd pa2, fst pa2)) of
+    EQUAL => pa1
+  | LESS => pa2
+  | GREATER => pa1;  
+
+
+(* -------------------------------------------------------------------------
+   Parallelization of gen_progl
+   ------------------------------------------------------------------------- *)
+
+fun genprog_fun anuml pgenl = 
+  let
+    val (rl,pid) = gen_progl anuml pgenl
+    val pl = map fst (dict_sort compare_imin (dlist pid))
+  in
+    (rl,pl)
+  end
+
+fun write_il file il = writel file (map its il)
+fun read_il file = map string_to_int (readl file)
+
+fun string_of_apil (a,pil) = 
+  String.concatWith " " (map its (a :: pil))  
+
+fun string_of_rlone (p,al) =
+  gpt_of_prog p ^ "," ^ String.concatWith "," (map string_of_apil al)
+
+fun write_genprogoutput file (rl, pl) = 
+  (
+  writel (file ^ "_rl") (map string_of_rlone rl);
+  write_progl (file ^ "_pl") pl
+  )
+  
+fun apil_of_string s = 
+  let val sl = String.tokens Char.isSpace s in
+    (string_to_int (hd sl), map string_to_int (tl sl))
+  end
+  
+fun rlone_of_string s = 
+  let val sl = String.tokens (fn x => x = #",") s in  
+    (prog_of_gpt (hd sl), map apil_of_string (tl sl)) 
+  end
+  
+fun read_genprogoutput file = 
+  (map rlone_of_string (readl (file ^ "_rl")),
+   read_progl (file ^ "_pl"))
+
+val genprogspec : (int list, prog list, 
+  (prog * (int * int list) list) list * prog list) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "search.genprogspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = genprog_fun,
+  write_param = write_il,
+  read_param = read_il,
+  write_arg = write_progl,
+  read_arg = read_progl,
+  write_result = write_genprogoutput,
+  read_result = read_genprogoutput
+  }
+
+fun merge_genprogrl l =
+  let 
+    val pid = ref (dempty prog_compare)
+    fun f (rl,pl) =
+      let 
+        val pv = Vector.fromList pl
+        fun rename iold = 
+          let val p = Vector.sub (pv,iold) in
+            case dfindo p (!pid) of SOME i => i | NONE =>
+            let val i = dlength (!pid) in
+              pid := dadd p i (!pid); i   
+            end
+          end
+        fun g (p,aill) = 
+          let fun h (a,il) = (a, map rename il) in
+            (p, map h aill)
+          end
+      in
+        map g rl
+      end
+    val rlmerge = List.concat (map f l)
+  in
+    (rlmerge, !pid)
+  end     
+        
+val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+
+fun parallel_genprog anuml pl =
+  let  
+    val dir = selfdir ^ "/genprog"
+    val _ = clean_dir dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val pll = cut_n (4*ncore) pl
+    val (l,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore genprogspec anuml) pll
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    merge_genprogrl l
+  end
+
+(* -------------------------------------------------------------------------
+   All-in-one round
+   ------------------------------------------------------------------------- *)
+
+fun random_pgenl n timtop =
+  let 
+    val _ = randsearch_flag := true
+    val _ = check.prnnd := eempty prog_compare
+    fun loop tim =
+      let val _ = search (0,tim) in
+        if elength (!check.prnnd) >= n 
+        then random_subset n (elist (!check.prnnd))
+        else loop (tim * 2.0)
+      end
+    val pgenl = loop timtop
+    val _ = randsearch_flag := false
+  in
+    pgenl
+  end
+ 
+fun random_roundl n start =
+  let 
+    val easyl = map string_to_int (readl (selfdir ^ "/data/oeis_order"))
+    val hardl = map fst oseql
+    val roundl = create_round n start easyl hardl
+  in
+    roundl
+  end
+
+fun logt s t = print_endline (s ^ ": " ^ rts_round 4 t ^ " seconds")
+
+
+fun round_one round oldwinnerl =
+  let
+    val winnerd = dnew prog_compare oldwinnerl
+    val pid = ref (dempty prog_compare)
+    val _ = print_endline ("gen_progl: " ^ its (dlength winnerd) ^ 
+      " program generators")
+    val ((ppl,pid),t) = 
+      add_time (parallel_genprog round) (map fst oldwinnerl)
+    val _ = logt "gen_progl" t
+    val pl = dkeys pid
+    val _ = print_endline ("eval_prog: " ^ its (dlength pid) ^ " programs")
+    val (oldevall,t) = add_time (map_assoc eval_prog) pl
+    val evall = map_fst (fn p => dfind p pid) oldevall
+    val evald = dnew Int.compare evall
+    val _ = logt "eval_prog" t
+    val oldpal = map_snd (expand_ipll evald) ppl      
+    fun f (p,al) = (p, mk_fast_set ibcmp (dfind p winnerd @ al))
+    val pal = map f oldpal
+    val freqd = count_dict (dempty ibcmp) (List.concat (map snd pal))
+    val (pairl,t) = add_time get_pairl_simple pal
+    val _ = logt "pairl" t
+    val (solself,sol) = partition snd (dkeys freqd)
+    val _ = print_endline ("solself: " ^ its (length solself))
+    val _ = print_endline ("sol: " ^ its (length sol))
+    val winnerl = map (winnerf freqd) pairl
+  in
+    winnerl
+  end
+
+fun round_loop winnerl roundl hist = case roundl of
+    [] => winnerl :: hist
+  | round :: newroundl => 
+    let 
+      val _ = print_endline ("Round " ^ its (length roundl))
+      val newhist = winnerl :: hist
+      val newwinnerl = round_one round winnerl
+    in
+      round_loop newwinnerl newroundl newhist
+    end
+
+fun competition n = 
+  let 
+    val winnerl = map_assoc (fn x => []) (random_pgenl (int_pow 2 n) 0.1)
+    val (roundl,t) = add_time (random_roundl n) 1
+    val _ = logt "random_roundl" t
+  in
+    round_loop winnerl roundl []
+  end
+
 end (* struct *)
+
 
 (* 
 PolyML.print_depth 0;
-load "search"; open kernel aiLib search bloom;
+load "exec_prnn"; load "search"; open kernel aiLib search bloom exec_prnn; 
 PolyML.print_depth 10;
-val (an,seq) = bloom.select_random_target2 ();
-search.randsearch_flag := true;
-val pl = beamsearch_target 10000 seq;
-val (rank,itsol) = check.checkpl_target 27 (map fst pl);
 
+val winnerhist = competition 14;
+
+parallelize gen_progl and eval_prog
+optional: order the randomly generated programs by their values.
 *)
-(*
-PolyML.print_depth 10;
-load "search"; open kernel aiLib search bloom;
-tnn.update_fp_op (selfdir ^ "/model/ob_online.so");
-check.checkinit ();
-search (0, 60.0);
-val _ = check.checkfinal ();
-*)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

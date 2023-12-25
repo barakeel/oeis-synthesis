@@ -62,6 +62,7 @@ sig
   val smartselect_flag : bool ref
   val revamp_flag : bool ref
   val push_limit : int
+  val prnn_flag : bool ref
   
   (* flags not read from disk *)
   val expname : string ref
@@ -162,16 +163,22 @@ sig
   val gpt_of_id : id -> string
   val gpt_of_prog : prog -> string
   val id_of_gpt : string -> id
-  val movel_of_gpt : string -> id list
+  val tokenl_of_gpt : string -> int list
   val prog_of_gpt : string -> prog
+  
+  val tokenl_of_prog : prog -> int list
+  val prog_of_tokenl : int list -> prog
   
   (* other *)
   val prog_of_movel : int list -> prog
+  val prog_of_movelo  : int list -> prog option
   
   (* seqprog *)
   val seqprog_flag : bool ref
   val write_seqprog : string -> (seq * prog) list -> unit
   val read_seqprog : string -> (seq * prog) list
+  val write_anumprog : string -> (anum * prog) list -> unit
+  val read_anumprog : string -> (anum * prog) list
   
   (* pgen experiment *)
   type pgen = prog * (int * prog) list
