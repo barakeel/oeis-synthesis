@@ -970,9 +970,11 @@ fun parallel_filterunique n =
     val argl = List.tabulate (n, fn _ => ())
     val (pplll,t) = add_time 
       (smlParallel.parmap_queue_extern ncore filteruniquespec param) argl
+    val _ = writel (dir ^ "/log") ["parallel time: " ^ rts t]
+    val pl = merge_filterunique dir pplll
   in
-    writel (dir ^ "/log") ["time: " ^ rts t];
-    merge_filterunique dir pplll
+    write_progl (dir ^ "/pgen") pl;
+    pl
   end
 
 
