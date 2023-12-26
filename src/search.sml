@@ -989,7 +989,7 @@ length pltot;
 val (pl2,t) = add_time filter_unique_prog pl1;
 app (print_endline o human.humanf) pl2;
 
-val pl = parallel_filterunique 2;
+val pl = parallel_filterunique 1000;
 length pl
 
 *)
