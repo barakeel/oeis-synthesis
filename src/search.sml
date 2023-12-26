@@ -842,13 +842,7 @@ fun filter_unique_prog pl =
 
 
 fun filter_unique_fun_one pset rl counter (pg,anum) =
-  let 
-    val _ = 
-      if counter <> 0 andalso counter mod 10000 = 0 
-      then print_endline (its counter ^ ": " ^ 
-        "generators " ^ its (length (!rl)) ^ ", " ^ 
-        "programs " ^ its (elength (!pset)))
-      else ()
+  let
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = elist (beamsearch_prnn pg seq 100000 10000)
     fun g p =
@@ -891,6 +885,9 @@ fun filter_unique_fun () () =
     val pset = ref (eempty prog_compare)
   in
     appi (filter_unique_fun_one pset rl) panuml;
+    print_endline 
+      ("generators " ^ its (length (!rl)) ^ ", " ^ 
+       "programs " ^ its (elength (!pset)));
     rev (!rl)
   end
 
@@ -992,6 +989,13 @@ app (print_endline o human.humanf) pl2;
 val pl = parallel_filterunique 1000;
 length pl
 
+*)
+
+(*
+PolyML.print_depth 0;
+load "search"; open aiLib kernel bloom search;
+PolyML.print_depth 10;
+val pl = parallel_filterunique 1000;
 *)
 
 (* -------------------------------------------------------------------------
