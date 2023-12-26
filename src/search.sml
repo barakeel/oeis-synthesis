@@ -934,7 +934,7 @@ fun interleave ll = case ll of
     [] => []
   | _ => mapfilter hd ll @ interleave (mapfilter tl ll)
   
-fun merge_filterunique pplll =
+fun merge_filterunique dir pplll =
   let 
     val ppll = interleave pplll
     val pset = ref (eempty prog_compare)
@@ -953,6 +953,9 @@ fun merge_filterunique pplll =
     app f ppll; 
     print_endline ("generators " ^ its (length (!rl)) ^ ", " ^ 
                    "programs " ^ its (elength (!pset)));
+    append_file (dir ^ "/log") 
+       ("generators " ^ its (length (!rl)) ^ ", " ^ 
+        "programs " ^ its (elength (!pset)));
     rev (!rl)
   end     
         
@@ -969,7 +972,7 @@ fun parallel_filterunique n =
       (smlParallel.parmap_queue_extern ncore filteruniquespec param) argl
   in
     writel (dir ^ "/log") ["time: " ^ rts t];
-    merge_filterunique pplll
+    merge_filterunique dir pplll
   end
 
 
