@@ -6,9 +6,12 @@ open HolKernel boolLib aiLib kernel bloom mlTreeNeuralNetwork tnn
 val ERR = mk_HOL_ERR "search"
 type emb = real vector
 
+val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+
 (* first embedding is prog embedding, second is stack *)
 type boarde = (kernel.prog * exec.exec * emb * emb) list
 val randsearch_flag = ref false
+val rand_exp = ref 1.0
 
 (* -------------------------------------------------------------------------
    Noise
@@ -181,7 +184,13 @@ fun add_temp l =
 
 fun create_pol targete boarde mfl =
   if !randsearch_flag 
-    then normalize_distrib (map (fn x => (x, random_real ())) mfl)
+    then 
+      let fun f x = if Real.compare (!rand_exp,1.0) <> EQUAL 
+                    then (x, Math.pow (random_real (), !rand_exp))
+                    else (x, random_real ())
+      in
+        normalize_distrib (map f mfl)
+      end
   else
     let  
       val f = fp_emb_either
@@ -770,7 +779,7 @@ fun gen_prog anuml pid p =
     fun f anum =
       let 
         val seq = valOf (Array.sub (bloom.oseq,anum))
-        val pl = elist (beamsearch_prnn p seq 100000 1000)
+        val pl = elist (beamsearch_prnn p seq 100000 10000)
         fun g p = case dfindo p (!pid) of SOME i => i | NONE =>
           let val i = dlength (!pid) in
             pid := dadd p i (!pid); i   
@@ -790,6 +799,200 @@ fun gen_progl anuml pl =
   in
     (rl,!pid)
   end
+
+
+fun filter_unique_prog_one pset rl counter (pg,anum) =
+  let 
+    val _ = 
+      if counter <> 0 andalso counter mod 100000 = 0 
+      then print_endline (its counter ^ ": " ^ 
+        "generators " ^ its (length (!rl)) ^ ", " ^ 
+        "programs " ^ its (elength (!pset)))
+      else ()
+    val seq = valOf (Array.sub (bloom.oseq,anum))
+    val pl = elist (beamsearch_prnn pg seq 100000 10000)
+    fun g p = 
+      if emem p (!pset) 
+      then false
+      else (pset := eadd p (!pset); true)
+    val bl = map g pl   
+  in
+    if exists I bl 
+    then rl := pg :: !rl
+    else ()
+  end
+
+
+fun extend_anuml anuml ntop n =
+  if n <= ntop
+  then random_subset n (shuffle anuml) 
+  else (shuffle anuml) @ extend_anuml anuml ntop (n - ntop)
+
+fun filter_unique_prog pl = 
+  let
+    val anuml = map fst oseql
+    val anumle = extend_anuml anuml (length anuml) (length pl)
+    val panuml = combine (pl,anumle)
+    val rl = ref []
+    val pset = ref (eempty prog_compare)
+  in
+    appi (filter_unique_prog_one pset rl) panuml;
+    rev (!rl)
+  end
+
+
+fun filter_unique_fun_one pset rl counter (pg,anum) =
+  let 
+    val _ = 
+      if counter <> 0 andalso counter mod 10000 = 0 
+      then print_endline (its counter ^ ": " ^ 
+        "generators " ^ its (length (!rl)) ^ ", " ^ 
+        "programs " ^ its (elength (!pset)))
+      else ()
+    val seq = valOf (Array.sub (bloom.oseq,anum))
+    val pl = elist (beamsearch_prnn pg seq 100000 10000)
+    fun g p =
+      if emem p (!pset) 
+      then NONE
+      else (pset := eadd p (!pset); SOME p)
+    val pl' = List.mapPartial g pl   
+  in
+    if null pl' then () else rl := (pg,pl') :: !rl
+  end
+
+fun random_pgenl n timtop =
+  let 
+    val _ = randsearch_flag := true
+    val _ = rand_exp := 5.0
+    fun loop tim =
+      let 
+        val _ = check.prnnd := dempty prog_compare
+        val _ = search (0,tim) 
+      in
+        if dlength (!check.prnnd) >= n 
+        then map fst 
+          (first_n n (dict_sort compare_rmax (dlist (!check.prnnd))))
+        else loop (tim * 2.0)
+      end
+    val pgenl = loop timtop
+    val _ = randsearch_flag := false
+    val _ = rand_exp := 1.0
+  in
+    pgenl
+  end
+
+fun filter_unique_fun () () = 
+  let
+    val pl = random_pgenl (int_pow 10 6) 32.0
+    val anuml = map fst oseql
+    val anumle = extend_anuml anuml (length anuml) (length pl)
+    val panuml = combine (pl,anumle)
+    val rl = ref []
+    val pset = ref (eempty prog_compare)
+  in
+    appi (filter_unique_fun_one pset rl) panuml;
+    rev (!rl)
+  end
+
+
+
+fun write_unit (file:string) () = ()
+fun read_unit (file:string) = ()
+
+fun string_of_ppl (p,pl) = 
+  String.concatWith "," (map gpt_of_prog (p :: pl))
+
+fun write_ppll file ppll = 
+  writel file (map string_of_ppl ppll)
+  
+fun ppl_of_string s = 
+  let val sl = String.tokens (fn x => x = #",") s in
+    (prog_of_gpt (hd sl), map prog_of_gpt (tl sl))
+  end 
+
+fun read_ppll file = 
+  map ppl_of_string (readl file)
+
+val filteruniquespec : 
+  (unit, unit, (prog * prog list) list) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "search.filteruniquespec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = filter_unique_fun,
+  write_param = write_unit,
+  read_param = read_unit,
+  write_arg = write_unit,
+  read_arg = read_unit,
+  write_result = write_ppll,
+  read_result = read_ppll
+  }
+
+fun interleave ll = case ll of 
+    [] => []
+  | _ => mapfilter hd ll @ interleave (mapfilter tl ll)
+  
+fun merge_filterunique pplll =
+  let 
+    val ppll = interleave pplll
+    val pset = ref (eempty prog_compare)
+    val rl = ref []
+    fun g p = 
+      if emem p (!pset) 
+      then false
+      else (pset := eadd p (!pset); true)
+    fun f (pg,pl) =
+      let val bl = map g pl in
+        if exists I bl 
+        then rl := pg :: !rl
+        else ()
+      end
+  in
+    app f ppll; 
+    print_endline ("generators " ^ its (length (!rl)) ^ ", " ^ 
+                   "programs " ^ its (elength (!pset)));
+    rev (!rl)
+  end     
+        
+fun parallel_filterunique n =
+  let  
+    val dir = selfdir ^ "/filterunique"
+    val _ = clean_dir dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val param = ()
+    val argl = List.tabulate (n, fn _ => ())
+    val (pplll,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore filteruniquespec param) argl
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    merge_filterunique pplll
+  end
+
+
+(* 
+PolyML.print_depth 0;
+load "search"; open aiLib kernel bloom search;
+PolyML.print_depth 10;
+val pl1 = random_pgenl (int_pow 10 6) 32.0;
+val pl1b = random_pgenl (int_pow 10 6) 32.0;
+val pl1c = random_pgenl (int_pow 10 6) 32.0;
+val pltot = mk_fast_set prog_compare (pl1 @ pl1b @ pl1c);
+length pltot;
+
+val (pl2,t) = add_time filter_unique_prog pl1;
+app (print_endline o human.humanf) pl2;
+
+val pl = parallel_filterunique 2;
+length pl
+
+*)
 
 (* -------------------------------------------------------------------------
    Prepare a curriculum
@@ -1072,7 +1275,7 @@ fun merge_genprogrl l =
     (rlmerge, !pid)
   end     
         
-val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+
 
 fun parallel_genprog anuml pl =
   let  
@@ -1093,21 +1296,7 @@ fun parallel_genprog anuml pl =
    All-in-one round
    ------------------------------------------------------------------------- *)
 
-fun random_pgenl n timtop =
-  let 
-    val _ = randsearch_flag := true
-    val _ = check.prnnd := eempty prog_compare
-    fun loop tim =
-      let val _ = search (0,tim) in
-        if elength (!check.prnnd) >= n 
-        then random_subset n (elist (!check.prnnd))
-        else loop (tim * 2.0)
-      end
-    val pgenl = loop timtop
-    val _ = randsearch_flag := false
-  in
-    pgenl
-  end
+
  
 fun random_roundl n start =
   let 
@@ -1166,8 +1355,9 @@ fun competition n =
     val winnerl = map_assoc (fn x => []) (random_pgenl (int_pow 2 n) 0.1)
     val (roundl,t) = add_time (random_roundl n) 1
     val _ = logt "random_roundl" t
+    val winnerhist = round_loop winnerl roundl []
   in
-    round_loop winnerl roundl []
+    winnerhist
   end
 
 end (* struct *)
@@ -1182,6 +1372,42 @@ val winnerhist = competition 14;
 
 parallelize gen_progl and eval_prog
 optional: order the randomly generated programs by their values.
+
+fun stats hist =
+  let 
+    val histlin = List.concat hist 
+    val freqd = count_dict (dempty ibcmp) (List.concat (map snd histlin))
+    val (solself,sol) = partition snd (dkeys freqd)
+    val _ = print_endline ("solself: " ^ its (length solself))
+    val _ = print_endline ("sol: " ^ its (length sol))
+  in
+    ()
+  end;
+  
+  
+stats (first_n 10 winnerhist);
+  
+split the programs: to have the full competition because
+it looks good.
+execute the program inside the threads with one cache per thread.  
+  
+have 4096 winners  
+2^12
+2^24 do 12 round.  
+need program compression for larger number or more memory.
+
+
+select a random program and a random sequence 
+(do it without parallelization first).
+
+first time: only select programs that generate at least one new program.
+compare to the set of generated programs.
+
+this might take forever.
+
+
+
+
 *)
 
 

@@ -272,9 +272,9 @@ fun checkf_seq (p,exec) =
   end
  
  
-val prnnd = ref (eempty prog_compare) 
+val prnnd = ref (dempty prog_compare) 
  
-fun checkf_prnn p = prnnd := eadd p (!prnnd)
+fun checkf_prnn nnvalue p = prnnd := dadd p nnvalue (!prnnd)
 
 fun checkf_prnn2 p =   
   let
@@ -293,7 +293,7 @@ fun checkonline nnvalue (p,exec) =
   else if !ctree_flag then checkf_ctree p
   else if !wrat_flag then checkf_wrat p 
   else if !intl_flag then checkf_intl nnvalue p
-  else if !prnn_flag then checkf_prnn p
+  else if !prnn_flag then checkf_prnn nnvalue p
   else checkf nnvalue (p,exec)
 
 fun checkfinal () = dlist (!wind)

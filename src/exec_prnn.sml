@@ -361,8 +361,10 @@ val org_execl =
   [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
    loop_f, x_f, y_f, compr_f, loop2_f]
 
-val execv = Vector.fromList (org_execl @ 
-  [push_f, pop_f, prog_f, proglen_f, embv_f, emblen_f, seq_f, seqlen_f])
+val execv = Vector.fromList (org_execl @ [push_f, pop_f, prog_f, embv_f, seq_f])
+
+(* val execv = Vector.fromList (org_execl @ 
+  [push_f, pop_f, prog_f, proglen_f, embv_f, emblen_f, seq_f, seqlen_f])*)
 
 (* -------------------------------------------------------------------------
    Creates executable for a program

@@ -39,5 +39,15 @@ sig
 
   val competition : int -> ((prog * (int * bool) list) list) list
 
+  (* filter only program generators producing programs not generated before 
+     only used to boost the first random generation
+  *)
+  val filter_unique_prog : prog list -> prog list
+  
+  val filteruniquespec : 
+    (unit, unit, (prog * prog list) list) smlParallel.extspec
+  
+  val parallel_filterunique : int -> prog list
+  
 end
 

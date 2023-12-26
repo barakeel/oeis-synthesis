@@ -321,8 +321,13 @@ val ctree_operl =
    ("cimag",0),("crealpart",1),("cimagpart",1)]
    
 val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
+
+val prnn_operl = [("push",2),("pop",1),("prog",0),("embv",1),("seq",0)] 
+
+(*
 val prnn_operl = [("push",2),("pop",1),
   ("prog",0),("proglen",0),("embv",1),("emblen",0),("seq",0),("seqlen",0)] 
+*)
 
 val extra_operl =
   if !z_flag then [("z",0),("loop3",7)] 
@@ -528,7 +533,6 @@ fun tokenl_of_gpt s =
 
 fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
 
-    
 (* -------------------------------------------------------------------------
    Simple export of sequence program pairs
    ------------------------------------------------------------------------- *)  
