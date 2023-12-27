@@ -30,6 +30,7 @@ sig
      prog * (int * bool) list
 
   val random_pgenl : int -> real -> prog list
+  val infer_pgenl : string -> int -> real -> prog list
   val random_roundl : int -> int -> int list list
   val round_one : int list -> 
     (prog * (int * bool) list) list -> (prog * (int * bool) list) list

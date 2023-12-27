@@ -875,6 +875,25 @@ fun random_pgenl n timtop =
     pgenl
   end
 
+fun infer_pgenl fileso n timtop =
+  let
+    val _ = update_fp_op fileso dim_glob
+    fun loop tim =
+      let 
+        val _ = check.prnnd := dempty prog_compare
+        val _ = search (0,tim) 
+      in
+        if dlength (!check.prnnd) >= n 
+        then map fst 
+          (first_n n (dict_sort compare_rmax (dlist (!check.prnnd))))
+        else loop (tim * 2.0)
+      end
+    val pgenl = loop timtop
+  in
+    pgenl
+  end
+
+
 fun filter_unique_fun () () = 
   let
     val pl = random_pgenl (int_pow 10 6) 32.0

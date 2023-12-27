@@ -363,7 +363,20 @@ fun train_pl dir pl =
     val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
   in
     ()
+    
   end
+
+(*
+load "rl"; open aiLib kernel rl;
+(* Training *)
+val pl = read_progl (selfdir ^ "/filterunique/pgen");
+val dir = selfdir ^ "/filterunique_train"; 
+val () = train_pl dir pl;
+(* Inference *)
+val fileso = dir ^ "/ob.so";
+
+*)
+
 
 (* -------------------------------------------------------------------------
    Parallel search
@@ -400,6 +413,7 @@ fun load_ob () =
     print_endline ("loading " ^ fileso);
     update_fp_op fileso dim_glob
   end
+    
 
 (* also used in non-cubing *)
 fun init_cube () =
