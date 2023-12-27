@@ -367,13 +367,17 @@ fun train_pl dir pl =
   end
 
 (*
-load "rl"; open aiLib kernel rl;
+load "rl"; open aiLib kernel search rl;
 (* Training *)
 val pl = read_progl (selfdir ^ "/filterunique/pgen");
 val dir = selfdir ^ "/filterunique_train"; 
 val () = train_pl dir pl;
 (* Inference *)
 val fileso = dir ^ "/ob.so";
+val pgenl = infer_pgenl fileso (int_pow 2 20) 120.0;
+val newpgenl = competition_pl 8 pgenl;
+length newpgenl;
+
 
 *)
 

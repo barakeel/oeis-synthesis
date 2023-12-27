@@ -1385,6 +1385,30 @@ fun competition n =
     winnerhist
   end
 
+
+fun stats hist =
+  let 
+    val histlin = List.concat hist 
+    val freqd = count_dict (dempty ibcmp) (List.concat (map snd histlin))
+    val (solself,sol) = partition snd (dkeys freqd)
+    val _ = print_endline ("solself: " ^ its (length solself))
+    val _ = print_endline ("sol: " ^ its (length sol))
+  in
+    ()
+  end
+
+fun competition_pl n pl =
+  let 
+    val winnerl = map_assoc (fn _ => []) pl
+    val (roundl,t) = add_time (random_roundl n) 1
+    val _ = logt "random_roundl" t
+    val winnerhist = round_loop winnerl roundl []
+    val _ = stats winnerhist
+  in
+    map fst (hd winnerhist)
+  end
+
+
 end (* struct *)
 
 
@@ -1398,16 +1422,7 @@ val winnerhist = competition 14;
 parallelize gen_progl and eval_prog
 optional: order the randomly generated programs by their values.
 
-fun stats hist =
-  let 
-    val histlin = List.concat hist 
-    val freqd = count_dict (dempty ibcmp) (List.concat (map snd histlin))
-    val (solself,sol) = partition snd (dkeys freqd)
-    val _ = print_endline ("solself: " ^ its (length solself))
-    val _ = print_endline ("sol: " ^ its (length sol))
-  in
-    ()
-  end;
+
   
   
 stats (first_n 10 winnerhist);

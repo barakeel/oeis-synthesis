@@ -39,7 +39,7 @@ sig
     (prog * (int * int list) list) list * prog list) smlParallel.extspec
 
   val competition : int -> ((prog * (int * bool) list) list) list
-
+  val competition_pl : int -> prog list -> prog list
   (* filter only program generators producing programs not generated before 
      only used to boost the first random generation
   *)
