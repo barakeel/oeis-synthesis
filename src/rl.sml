@@ -212,59 +212,7 @@ kernel.expname := "smartselect";
 trainf_isol dir isol1;
 *)
 
-fun trainf_isol dir isol =
-  let
-    val tnndir = selfdir ^ "/tnn_in_c"
-    val datadir = dir ^ "/data"
-    val _ = app mkDir_err [dir,datadir]
-    val ex = create_exl (shuffle isol)
-    val nex = length ex
-    val _ = print_endline (its nex ^ " examples created")
-    val _ = export_traindata datadir num_epoch learning_rate dim_glob ex
-    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
-    val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
-    val logfile = dir ^ "/log"
-    val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
-    val _ = print_endline ("train time: " ^ rts_round 4 t)
-    val obfile = dir ^ "/ob.c"
-    val obfst = tnndir ^ "/ob_fst.c"
-    val obsnd = tnndir ^ "/ob_snd.c"
-    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
-    val _ = cmd_in_dir dir catcmd
-    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
-  in
-    ()
-  end
-  
-fun train_smartselect_loop () =
-  let
-    val exdirloc = exdir ()
-    val filel = map (fn x => exdirloc ^ "/" ^ x) 
-      (random_subset 256 (listDir exdirloc)) 
-      (* otherwise training takes too long *)
-    val l2 = map_assoc read_seqprog filel
-    fun f (a,c) = 
-      let val a1 = 
-        (string_to_int o snd o split_string "exA" o OS.Path.file) a 
-      in
-        (a1,c)
-      end
-    val isol0 = map f l2;  
-    val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0)
-    val dir = traindir () ^ "/" ^ its (!ngen_glob)
-  in
-    trainf_isol dir isol1;
-    cmd_in_dir dir ("mv ob.so" ^ " ob" ^ its (!ngen_glob) ^ "_0.so");
-    writel_atomic (histdir () ^ "/ob" ^ its (!ngen_glob)) [];
-    incr ngen_glob;
-    train_smartselect_loop ()
-  end
-  
-fun train_smartselect ngen = 
-  (
-  ngen_glob := ngen;
-  train_smartselect_loop ()
-  )
+
 
 fun trainf_start pid =
   let 
@@ -330,7 +278,92 @@ fun trainw_end pid =
     exec_script script2
   end
   
+(* -------------------------------------------------------------------------
+   Standalone training loop (for training set generators)
+   ------------------------------------------------------------------------- *)
 
+fun trainf_isol dir isol =
+  let
+    val tnndir = selfdir ^ "/tnn_in_c"
+    val datadir = dir ^ "/data"
+    val _ = app mkDir_err [dir,datadir]
+    val ex = create_exl (shuffle isol)
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val _ = export_traindata datadir num_epoch learning_rate dim_glob ex
+    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
+    val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
+    val logfile = dir ^ "/log"
+    val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
+    val _ = print_endline ("train time: " ^ rts_round 4 t)
+    val obfile = dir ^ "/ob.c"
+    val obfst = tnndir ^ "/ob_fst.c"
+    val obsnd = tnndir ^ "/ob_snd.c"
+    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
+    val _ = cmd_in_dir dir catcmd
+    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
+  in
+    ()
+  end
+  
+fun train_smartselect_loop () =
+  let
+    val exdirloc = exdir ()
+    val filel = map (fn x => exdirloc ^ "/" ^ x) 
+      (random_subset 256 (listDir exdirloc)) 
+      (* otherwise training takes too long *)
+    val l2 = map_assoc read_seqprog filel
+    fun f (a,c) = 
+      let val a1 = 
+        (string_to_int o snd o split_string "exA" o OS.Path.file) a 
+      in
+        (a1,c)
+      end
+    val isol0 = map f l2;  
+    val isol1 = distrib (map (fn (a,bl) => (a,map snd bl)) isol0)
+    val dir = traindir () ^ "/" ^ its (!ngen_glob)
+  in
+    trainf_isol dir isol1;
+    cmd_in_dir dir ("mv ob.so" ^ " ob" ^ its (!ngen_glob) ^ "_0.so");
+    writel_atomic (histdir () ^ "/ob" ^ its (!ngen_glob)) [];
+    incr ngen_glob;
+    train_smartselect_loop ()
+  end
+  
+fun train_smartselect ngen = 
+  (
+  ngen_glob := ngen;
+  train_smartselect_loop ()
+  )
+
+(* -------------------------------------------------------------------------
+   Standalone training
+   ------------------------------------------------------------------------- *)
+
+fun train_pl dir pl =
+  let
+    val tnndir = selfdir ^ "/tnn_in_c"
+    val expdir = selfdir ^ "/exp"
+    val datadir = dir ^ "/data"
+    val _ = app mkDir_err [expdir,dir,datadir]
+    val ex = create_exl_progset pl
+    val nex = length ex
+    val _ = print_endline (its nex ^ " examples created")
+    val _ = export_traindata datadir num_epoch learning_rate dim_glob ex
+    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
+    val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
+    val logfile = dir ^ "/log"
+    val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
+    val _ = print_endline ("train time: " ^ rts_round 4 t)
+    val obfile = dir ^ "/ob.c"
+    val obfst = tnndir ^ "/ob_fst.c"
+    val obsnd = tnndir ^ "/ob_snd.c"
+    val catcmd = String.concatWith " " ["cat",obfst,"out_ob",obsnd,">",obfile]
+    val _ = cmd_in_dir dir catcmd
+    val _ = cmd_in_dir tnndir ("sh compile_ob.sh " ^ obfile)
+  in
+    ()
+  end
 
 (* -------------------------------------------------------------------------
    Parallel search

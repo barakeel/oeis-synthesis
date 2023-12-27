@@ -970,7 +970,7 @@ fun parallel_filterunique n =
     val argl = List.tabulate (n, fn _ => ())
     val (pplll,t) = add_time 
       (smlParallel.parmap_queue_extern ncore filteruniquespec param) argl
-    val _ = writel (dir ^ "/log") ["parallel time: " ^ rts t]
+    val _ = writel (dir ^ "/log") ["parallel time: " ^ rts_round 4 t]
     val pl = merge_filterunique dir pplll
   in
     write_progl (dir ^ "/pgen") pl;
@@ -1028,9 +1028,6 @@ writel "data/oeis_order" (map (its o fst) (itsol843size));
 *)
 
 (* assumes ordered list without repetition *)
-
-
-
 fun list_diff_ordered l1 l2 = case (l1,l2) of
     ([],x) => []
   | (x,[]) => x

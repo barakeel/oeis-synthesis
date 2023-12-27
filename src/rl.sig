@@ -57,5 +57,8 @@ sig
   (* train one network for selecting data sets *)
   val train_smartselect : int -> unit
   
+  (* train_one network for synthesizing programs *)
+  val train_pl : string -> prog list -> unit
+  
   
 end
