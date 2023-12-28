@@ -367,26 +367,47 @@ fun train_pl dir pl =
   end
 
 (* -------------------------------------------------------------------------
-   Looping search and training
+   Looping search and training for program generators
    ------------------------------------------------------------------------- *)
+
+fun init_train_pg () = 
+  let
+    val pgenl = read_progl (selfdir ^ "/filterunique/pgen")
+    val dir = selfdir ^ "/filterunique_train"
+  in
+    train_pl dir pgenl
+  end
+
+fun train_pg (expname,ngen) pgenl = 
+  let 
+    val expdir = selfdir ^ "/exp"
+    val namedir = expdir ^ "/" ^ expname
+    val traindir = namedir ^ "/train"
+    val dir = traindir ^ "/" ^ its ngen
+    val _ = app mkDir_err [expdir,namedir,traindir,dir]  
+  in
+    train_pl dir pgenl
+  end
+  
+fun rl_pg expname ngen =  
+  let
+    val expdir = selfdir ^ "/exp"
+    val namedir = expdir ^ "/" ^ expname
+    val traindir = namedir ^ "/train"
+    val fileso = if ngen <= 0 
+                 then selfdir ^ "/filterunique_train/ob.so" 
+                 else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
+    val _ = if exists_file fileso then () else raise ERR "rl_pg" ""  
+    val pgenl = search.infer_pgenl fileso (int_pow 2 20) 130.0
+    val newpgenl = search.compete_pgenl (expname,ngen) 8 pgenl
+    val () = train_pg (expname,ngen) pgenl
+  in
+    rl_pg expname (ngen + 1)
+  end
 
 (*
 load "rl"; open aiLib kernel search rl;
-(* Training *)
-val pl = read_progl (selfdir ^ "/filterunique/pgen");
-val dir = selfdir ^ "/filterunique_train"; 
-val () = train_pl dir pl;
-(* Inference *)
-val dir = selfdir ^ "/filterunique_train"; 
-val fileso = dir ^ "/ob.so";
-val pgenl = infer_pgenl fileso (int_pow 2 20) 120.0;
-val newpgenl = competition_pl 8 pgenl;
-length newpgenl;
-
-(* 
-todo more logging: + external merging + less 1.5 numbers of tested 
-examples.
-*)
+rl_pg "pgen0" 0; 
 *)
 
 

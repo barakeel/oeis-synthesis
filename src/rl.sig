@@ -41,12 +41,12 @@ sig
   val init_cube : unit -> unit
   val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
   
-  (* pgen experiment *)
+  (* pgen experiment (* deprecated *) *)
   val search_pgen : unit -> (prog list * real) list -> kernel.pgen list
   val pgenspec : 
     (unit, (prog list * real) list, kernel.pgen list) smlParallel.extspec
   
-  (* searching for hadamard matrices *)
+  (* searching for hadamard matrices (* deprecated *) *)
   val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
   val ramseyspec : 
     (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
@@ -59,6 +59,10 @@ sig
   
   (* train_one network for synthesizing programs *)
   val train_pl : string -> prog list -> unit
+  val init_train_pg : unit -> unit
+  val rl_pg : string -> int -> unit
+  
+  
   
   
 end

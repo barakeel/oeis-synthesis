@@ -704,7 +704,7 @@ fun search_smartselect dir =
   end 
  
 (* -------------------------------------------------------------------------
-   Generate programs with program generator
+   Generate programs with program generator and evaluate the programs
    ------------------------------------------------------------------------- *)
 
 fun init_timer_wtim tim = 
@@ -776,8 +776,9 @@ fun beamsearch_prnn p seq tim lim =
 
 val ibcmp = cpl_compare Int.compare bool_compare
 
-(* here is the point to modify *)
 fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
+
+val eval_time = ref 0.0
 
 fun gen_prog anuml pgend pd wind pgen =
   let
@@ -789,7 +790,7 @@ fun gen_prog anuml pgend pd wind pgen =
           let 
             val al = case dfindo p (!pd) of SOME oldal => oldal 
               | NONE => let 
-                          val newal0 = eval_prog p
+                          val newal0 = total_time eval_time eval_prog p
                           val newal = dict_sort Int.compare (map fst newal0) 
                         in
                           check_wind wind (p,newal0);
@@ -811,14 +812,20 @@ fun gen_prog anuml pgend pd wind pgen =
   
 fun gen_progl anuml pgenl = 
   let 
+    val _ = eval_time := 0.0
     val pgend = ref (dempty prog_compare)
     val pd = ref (dempty prog_compare)
     val wind = ref (dempty Int.compare)
-    val rl = map_assoc (gen_prog anuml pgend pd wind) pgenl
+    val _ = app (gen_prog anuml pgend pd wind) pgenl
+    val _ = print_endline ("eval: " ^ rts_round 4 (!eval_time) ^ " seconds")
   in
-    (!pgend,!wind)
+    (dlist (!pgend), dlist (!wind))
   end
 
+(* -------------------------------------------------------------------------
+   Increases the diversity of programs in the first generation 
+   by selecting only programs that generate something different
+   ------------------------------------------------------------------------- *)
 
 fun filter_unique_prog_one pset rl counter (pg,anum) =
   let 
@@ -928,8 +935,6 @@ fun filter_unique_fun () () =
        "programs " ^ its (elength (!pset)));
     rev (!rl)
   end
-
-
 
 fun write_unit (file:string) () = ()
 fun read_unit (file:string) = ()
@@ -1073,13 +1078,13 @@ fun list_diff_ordered l1 l2 = case (l1,l2) of
 fun create_round_aux n seln easyl hardd acc = 
   if n <= 0 then rev acc else
   let 
-    val (easylsel,easyl1) = part_n seln easyl
+    val (easylsel,easyl1) = part_n (Real.round seln) easyl
     val hardd1 = ereml easylsel hardd
-    val hardlsel = random_subset seln (elist hardd1)
+    val hardlsel = random_subset (Real.round seln) (elist hardd1)
     val easyl2 = list_diff_ordered easyl1 (elist (enew Int.compare hardlsel))
     val hardd2 = ereml hardlsel hardd1 
   in
-    create_round_aux (n-1) (2*seln) easyl2 hardd2 
+    create_round_aux (n-1) (2.0*seln) easyl2 hardd2 
       ((easylsel @ hardlsel) :: acc)
   end;
 
@@ -1094,36 +1099,6 @@ fun random_roundl n start =
   in
     roundl
   end
-
-
-(* -------------------------------------------------------------------------
-   Collect and evaluate generated programs
-   ------------------------------------------------------------------------- *)
-
-fun collect_prog genl = 
-  let fun f (_,apll) = List.concat (map snd apll) in
-    List.concat (map f genl)
-  end  
-  
-
-
-(* -------------------------------------------------------------------------
-   Replace generated programs by the OEIS sequence they generate
-   ------------------------------------------------------------------------- *)
-
-
-
-fun expand_ipl evald (anum,pl) = 
-  let 
-    val l1 = List.concat (map (fn x => dfind x evald) pl) 
-    fun f a = if a = anum then [(a,false),(a,true)] else [(a,false)]
-    val l2 = map f l1 
-  in
-    List.concat l2
-  end
-
-fun expand_ipll evald ipll = 
-  mk_fast_set ibcmp (List.concat (map (expand_ipl evald) ipll))
 
 (* -------------------------------------------------------------------------
    Find an opponent
@@ -1143,21 +1118,19 @@ fun get_pairings pal =
    Compete against opponent
    ------------------------------------------------------------------------- *) 
 
+fun score freqd a = 1.0 / Real.fromInt (dfind a freqd)
+fun scorepa freqd (p,al) = sum_real (map (score freqd) al)
+
 fun winnerf freqd (pa1,pa2) = 
   case cpl_compare Real.compare prog_compare_size 
     ((scorepa freqd pa1, fst pa1), (scorepa freqd pa2, fst pa2)) of
     EQUAL => pa1
   | LESS => pa2
-  | GREATER => pa1;  
+  | GREATER => pa1
 
 (* -------------------------------------------------------------------------
    Parallelization of gen_progl
    ------------------------------------------------------------------------- *)
-
-fun genprog_fun anuml pgenl = 
-  let val (rl,wind) = gen_progl anuml pgenl in
-    (rl,dlist wind)
-  end
 
 fun write_il file il = writel file (map its il)
 fun read_il file = map string_to_int (readl file)
@@ -1169,8 +1142,8 @@ fun string_of_rlone (p,ibl) =
 
 fun write_genprogoutput file (rl, pl) = 
   (
-  writel (file ^ "_rl") (map string_of_rlone rl);
-  write_itprogl (file ^ "_pl") pl
+  writel (file ^ "_pgenl") (map string_of_rlone rl);
+  write_itprogl (file ^ "_winl") pl
   )
   
 fun ib_of_string s = 
@@ -1184,11 +1157,11 @@ fun rlone_of_string s =
   end
   
 fun read_genprogoutput file = 
-  (map rlone_of_string (readl (file ^ "_rl")),
-   read_itprogl (file ^ "_pl"))
+  (map rlone_of_string (readl (file ^ "_pgenl")),
+   read_itprogl (file ^ "_winl"))
 
 val genprogspec : (int list, prog list, 
-  (prog * (int * bool) list) list * (anum * (int * prog) list) list) 
+  (prog * (int * bool) list) list * (int * (int * prog) list) list) 
   smlParallel.extspec =
   {
   self_dir = selfdir,
@@ -1199,7 +1172,7 @@ val genprogspec : (int list, prog list,
     ["smlExecScripts.buildheap_dir := " ^ mlquote 
       (!smlExecScripts.buildheap_dir)] 
     ^ ")"),
-  function = genprog_fun,
+  function = gen_progl,
   write_param = write_il,
   read_param = read_il,
   write_arg = write_progl,
@@ -1207,32 +1180,6 @@ val genprogspec : (int list, prog list,
   write_result = write_genprogoutput,
   read_result = read_genprogoutput
   }
-
-fun merge_genprogrl l =
-  let 
-    val pid = ref (dempty prog_compare)
-    fun f (rl,pl) =
-      let 
-        val pv = Vector.fromList pl
-        fun rename iold = 
-          let val p = Vector.sub (pv,iold) in
-            case dfindo p (!pid) of SOME i => i | NONE =>
-            let val i = dlength (!pid) in
-              pid := dadd p i (!pid); i   
-            end
-          end
-        fun g (p,aill) = 
-          let fun h (a,il) = (a, map rename il) in
-            (p, map h aill)
-          end
-      in
-        map g rl
-      end
-    val rlmerge = List.concat (map f l)
-  in
-    (rlmerge, !pid)
-  end     
-        
 
 (* -------------------------------------------------------------------------
    All-in-one round
@@ -1242,168 +1189,86 @@ val logfile_glob = ref (selfdir ^ "/test")
 fun log s = (append_file (!logfile_glob) s; print_endline s)
 fun logt s t = log (s ^ ": " ^ rts_round 4 t ^ " seconds")
 
-fun parallel_genprog anuml pl =
-  let val pll = cut_n (5*ncore) pl in
-    smlParallel.parmap_queue_extern ncore genprogspec anuml pll
+fun parallel_genprog anuml pgenl =
+  let val pgenll = cut_n (5*ncore) pgenl in
+    smlParallel.parmap_queue_extern ncore genprogspec anuml pgenll
   end
 
-
-
-fun round_one round oldwinnerl =
+fun round_one round (oldwinnerl,olditprogl,oldself) =
   let
     val winnerd = dnew prog_compare oldwinnerl
     val pid = ref (dempty prog_compare)
     val _ = log ("gen_progl: " ^ its (dlength winnerd) ^ " program generators")
-    val ((pall,itprogll),t) = 
-      add_time (parallel_genprog round) (map fst oldwinnerl)
+    val pgenl = map fst oldwinnerl
+    val ((pall,itprogll),t) = add_time (split o (parallel_genprog round)) pgenl
     val _ = logt "gen_progl" t
-    (*
-    val pl = dkeys pid
-    val _ = print_endline ("eval_prog: " ^ its (dlength pid) ^ " programs")
-    val (oldevall,t) = add_time (map_assoc eval_prog) pl
-    val evall = map_fst (fn p => dfind p pid) oldevall
-    val evald = dnew Int.compare evall
-    val _ = logt "eval_prog" t
-    time the evaluation time within genprog to see if it's significant
-    *)
-    val oldpal = map_snd (expand_ipll evald) ppl      
+    val itprogl = merge_itsol (List.concat (olditprogl :: itprogll))
     fun f (p,al) = (p, mk_fast_set ibcmp (dfind p winnerd @ al))
-    val pal = map f oldpal
+    val pal = map f (List.concat pall)
     val freqd = count_dict (dempty ibcmp) (List.concat (map snd pal))
-    val (pairl,t) = add_time get_pairings pal
-    val _ = logt "pairl" t
-    val (solself,sol) = partition snd (dkeys freqd)
-    val _ = print_endline ("solself: " ^ its (length solself))
-    val _ = print_endline ("sol: " ^ its (length sol))
+    val (newself,sol) = partition snd (dkeys freqd)
+    val _ = log ("roundself: " ^ its (length newself))
+    val _ = log ("roundsol: " ^ its (length sol))
+    val pairl = get_pairings pal
     val winnerl = map (winnerf freqd) pairl
+    val self = mk_fast_set Int.compare (oldself @ map fst newself)
   in
-    winnerl
+    (winnerl,itprogl,self)
   end
 
-fun round_loop winnerl roundl hist = case roundl of
-    [] => winnerl :: hist
+fun round_loop winnerl roundl = case roundl of
+    [] => winnerl
   | round :: newroundl => 
     let 
-      val _ = print_endline ("Round " ^ its (length roundl))
-      val newhist = winnerl :: hist
+      val _ = log ("Round " ^ its (length roundl))
       val newwinnerl = round_one round winnerl
     in
-      round_loop newwinnerl newroundl newhist
+      round_loop newwinnerl newroundl
     end
 
+fun string_of_anumb (i,b) = if b then "SA" ^ its i else "A" ^ its i
 
-fun stats hist =
-  let 
-    val histlin = List.concat hist 
-    val freqd = count_dict (dempty ibcmp) (List.concat (map snd histlin))
-    val (solself,sol) = partition snd (dkeys freqd)
-    val _ = print_endline ("solself: " ^ its (length solself))
-    val _ = print_endline ("sol: " ^ its (length sol))
-  in
-    ()
-  end
+fun string_of_pal (p,ibl) =
+  human.humanf p ^ " : " ^  
+  gpt_of_prog p ^ " : " ^ 
+  String.concatWith "," (map string_of_anumb ibl)
 
-fun competition_pl (expname,expn) n pl =
+fun compete_pgenl (expname,ngen) n pgenl =
   let
     val expdir = selfdir ^ "/exp"
-    val expnamedir = expdir ^ "/" ^ expname
-    val searchdir = expnamedir ^ "/search"
-    val dir = searchdir ^ "/" ^ its expn
-    val _ = app mkDir_err [expdir,expnamedir,searchdir,dir]
+    val namedir = expdir ^ "/" ^ expname
+    val searchdir = namedir ^ "/search"
+    val dir = searchdir ^ "/" ^ its ngen
+    val prevdir = searchdir ^ "/" ^ its (ngen - 1)
+    val _ = app mkDir_err [expdir,namedir,searchdir,dir]
+    val oldself = 
+      if ngen <= 0 then [] else 
+      map string_to_int (readl (prevdir ^ "/self"))
+    val olditprogl = 
+      if ngen <= 0 then [] else 
+      read_itprogl (prevdir ^ "/sol")
     val _ = logfile_glob := dir ^ "/log"
     val _ = smlExecScripts.buildheap_dir := dir
-    val winnerl = map_assoc (fn _ => []) pl
-    val (roundl,t) = add_time (random_roundl n) 1
+    val (roundl,t) = add_time (random_roundl n) 1.0
     val _ = logt "random_roundl" t
-    val winnerhist = round_loop winnerl roundl []
-    val _ = stats winnerhist
+    val oldwinnerl = map_assoc (fn _ => []) pgenl
+    val (winnerl,itprogl,self) = round_loop (oldwinnerl,[],[]) roundl
+    val newitprogl = merge_itsol (olditprogl @ itprogl)
+    val newself = mk_fast_set Int.compare (oldself @ self)
+    val _ = log ("compself: " ^ its (length self))
+    val _ = log ("compsol: " ^ its (length itprogl))
+    val _ = log ("totself: " ^ its (length newself))
+    val _ = log ("totsol: " ^ its (length newitprogl))
+    val newpgenl = map fst winnerl
   in
-    map fst (hd winnerhist)
+    writel (dir ^ "/stats_winner") (map string_of_pal winnerl);
+    writel (dir ^ "/self") (map its newself);
+    write_itprogl (dir ^ "/sol") newitprogl;
+    stats_dir dir olditprogl newitprogl;
+    write_progl (dir ^ "/winner") newpgenl;
+    newpgenl
   end
 
 
 end (* struct *)
-
-
-(* 
-PolyML.print_depth 0;
-load "exec_prnn"; load "search"; open kernel aiLib search bloom exec_prnn; 
-PolyML.print_depth 10;
-
-val winnerhist = competition 14;
-
-parallelize gen_progl and eval_prog
-optional: order the randomly generated programs by their values.
-
-
-  
-  
-stats (first_n 10 winnerhist);
-  
-split the programs: to have the full competition because
-it looks good.
-execute the program inside the threads with one cache per thread.  
-  
-have 4096 winners  
-2^12
-2^24 do 12 round.  
-need program compression for larger number or more memory.
-
-
-select a random program and a random sequence 
-(do it without parallelization first).
-
-first time: only select programs that generate at least one new program.
-compare to the set of generated programs.
-
-this might take forever.
-
-
-
-
-*)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -48,4 +48,9 @@ sig
   val check_wind : (int, (int * prog) list) dict ref ->
     prog * (int * int) list -> unit
 
+  (* statistics *)
+  val stats_dir : string ->
+    (anum * (int * prog) list) list -> 
+    (anum * (int * prog) list) list -> unit
+
 end
