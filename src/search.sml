@@ -1111,7 +1111,7 @@ fun get_pairings pal =
       then random_elem pal :: pal 
       else pal
   in
-    map pair_of_list (mk_batch_full 2 (shuffle pal)) 
+    map pair_of_list (mk_batch_full 2 (shuffle newpal)) 
   end
 
 (* -------------------------------------------------------------------------
