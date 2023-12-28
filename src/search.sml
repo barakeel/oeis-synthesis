@@ -780,8 +780,9 @@ fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
 
 val eval_time = ref 0.0
 
-fun gen_prog anuml pgend pd wind pgen =
+fun gen_prog anuml pd wind pgen =
   let
+    val ibd = ref (eempty ibcmp)
     fun f anum =
       let 
         val seq = valOf (Array.sub (bloom.oseq,anum))
@@ -797,29 +798,27 @@ fun gen_prog anuml pgend pd wind pgen =
                           pd := dadd p newal (!pd); 
                           newal
                         end
-            val abl = map (fn x => (x,x=anum)) al
-            val oldabl = dfind pgen (!pgend) handle NotFound => []
-            val newabl = mk_fast_set ibcmp (abl @ oldabl)
+            val ibl = map (fn x => (x,x=anum)) al
           in
-            pgend := dadd pgen newabl (!pgend)
+            ibd := eaddl ibl (!ibd)
           end
       in
         app g pl
       end
   in
-    app f anuml
+    app f anuml;
+    (pgen, elist (!ibd))
   end
   
 fun gen_progl anuml pgenl = 
   let 
     val _ = eval_time := 0.0
-    val pgend = ref (dempty prog_compare)
     val pd = ref (dempty prog_compare)
     val wind = ref (dempty Int.compare)
-    val _ = app (gen_prog anuml pgend pd wind) pgenl
+    val pal = map (gen_prog anuml pd wind) pgenl
     val _ = print_endline ("eval: " ^ rts_round 4 (!eval_time) ^ " seconds")
   in
-    (dlist (!pgend), dlist (!wind))
+    (pal, dlist (!wind))
   end
 
 (* -------------------------------------------------------------------------
@@ -1213,6 +1212,8 @@ fun round_one round (oldwinnerl,olditprogl,oldself) =
     val (newself,sol) = partition snd (dkeys freqd)
     val _ = log ("roundself: " ^ its (length newself))
     val _ = log ("roundsol: " ^ its (length sol))
+    val palnull = filter (null o snd) pal
+    val _ = log (its (length palnull) ^ " program generators with no success")
     val pairl = get_pairings pal
     val winnerl = map (winnerf freqd) pairl
     val self = mk_fast_set Int.compare (oldself @ map fst newself)
