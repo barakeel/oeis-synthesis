@@ -117,12 +117,6 @@ val smartselect_flag = bflag "smartselect_flag"
 val expname = ref "test"
 val ngen_glob = ref 0
 
-(* -------------------------------------------------------------------------
-   Default memory limit for parallel processes (8GB)
-   ------------------------------------------------------------------------- *)
-
-val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
-  (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts

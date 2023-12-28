@@ -1190,7 +1190,11 @@ fun log s = (append_file (!logfile_glob) s; print_endline s)
 fun logt s t = log (s ^ ": " ^ rts_round 4 t ^ " seconds")
 
 fun parallel_genprog anuml pgenl =
-  let val pgenll = cut_n (5*ncore) pgenl in
+  let 
+    val pgenll = cut_n (5*ncore) pgenl
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+     (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
+  in
     smlParallel.parmap_queue_extern ncore genprogspec anuml pgenll
   end
 
