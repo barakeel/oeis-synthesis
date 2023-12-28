@@ -1191,7 +1191,7 @@ fun logt s t = log (s ^ ": " ^ rts_round 4 t ^ " seconds")
 
 fun parallel_genprog anuml pgenl =
   let 
-    val pgenll = cut_n (10*ncore) pgenl
+    val pgenll = cut_n (10*ncore) (shuffle pgenl)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
      (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
   in
