@@ -1186,7 +1186,7 @@ val genprogspec : (int list, prog list,
    ------------------------------------------------------------------------- *)
 
 val logfile_glob = ref (selfdir ^ "/test")
-fun log s = (append_file (!logfile_glob) s; print_endline s)
+fun log s = (append_endline (!logfile_glob) s; print_endline s)
 fun logt s t = log (s ^ ": " ^ rts_round 4 t ^ " seconds")
 
 fun parallel_genprog anuml pgenl =
