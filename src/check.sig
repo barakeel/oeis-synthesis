@@ -44,5 +44,8 @@ sig
   val checkfinal_ramsey : unit -> kernel.ramsey list
   val merge_ramsey : string option -> kernel.ramsey list
  
- 
+  (* standard checking *)
+  val check_wind : (int, (int * prog) list) dict ref ->
+    prog * (int * int) list -> unit
+
 end

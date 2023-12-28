@@ -232,8 +232,12 @@ fun checkf_wrat p =
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
   in
     app f anumtl
-  end  
-    
+  end
+  
+fun check_wind d (p,anumtl) =   
+  let fun f (anum,t) = update_wind d (anum,[(t,p)]) in
+    app f anumtl 
+  end
   
 fun checkf_intl (nnvalue:real) p = 
   let

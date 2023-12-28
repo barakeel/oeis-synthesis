@@ -19,6 +19,7 @@ val configd =
     dnew String.compare (List.mapPartial f sl)
   end
 
+
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 fun bflag_true s = 
   ref (string_to_bool (dfind s configd) handle NotFound => true)
@@ -116,7 +117,12 @@ val smartselect_flag = bflag "smartselect_flag"
 val expname = ref "test"
 val ngen_glob = ref 0
 
+(* -------------------------------------------------------------------------
+   Default memory limit for parallel processes (8GB)
+   ------------------------------------------------------------------------- *)
 
+val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+  (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -287,7 +293,7 @@ fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
 
 (* -------------------------------------------------------------------------
    Instructions:
-   A B C D E F G H I    J    K L M     N    O    P
+   A B C D E F G H I    J    K L M     N     O    P
    0 1 2 + - * / % cond loop x y compr loop2 push pop
    ------------------------------------------------------------------------- *)
 

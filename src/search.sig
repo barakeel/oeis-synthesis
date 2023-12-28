@@ -17,18 +17,6 @@ sig
   val search_smartselect : string -> (int * (int * prog) list) list
 
   (* programs generating programs *)
-  val create_round : int -> int -> int list -> int list -> int list list
-  val eval_prog : prog -> int list
-  val expand_ipll : (prog, int list) Redblackmap.dict -> 
-    (int * prog list) list -> (int * bool) list
-  val ibcmp : (int * bool) * (int * bool) -> order
-  val get_pairl : (int * bool, int) Redblackmap.dict ->
-    (prog * (int * bool) list) list ->
-    ((prog * (int * bool) list) * (prog * (int * bool) list)) list
-  val winnerf : (int * bool, int) Redblackmap.dict ->
-    (prog * (int * bool) list) * (prog * (int * bool) list) -> 
-     prog * (int * bool) list
-
   val random_pgenl : int -> real -> prog list
   val infer_pgenl : string -> int -> real -> prog list
   val random_roundl : int -> int -> int list list
@@ -38,16 +26,12 @@ sig
   val genprogspec : (int list, prog list, 
     (prog * (int * int list) list) list * prog list) smlParallel.extspec
 
-  val competition : int -> ((prog * (int * bool) list) list) list
-  val competition_pl : int -> prog list -> prog list
-  (* filter only program generators producing programs not generated before 
-     only used to boost the first random generation
-  *)
-  val filter_unique_prog : prog list -> prog list
+  val competition_pl : string * int -> int -> prog list -> prog list
   
+  (* random generation: generators producing programs not generated before *)
+  val filter_unique_prog : prog list -> prog list
   val filteruniquespec : 
     (unit, unit, (prog * prog list) list) smlParallel.extspec
-  
   val parallel_filterunique : int -> prog list
   
 end
