@@ -60,8 +60,8 @@ sig
   (* train_one network for synthesizing programs *)
   val train_pl : string -> prog list -> unit
   val init_train_pg : unit -> unit
-  val rl_pg : string -> int -> unit
-  
+  val rl_pg_search : string -> int -> unit
+  val rl_pg_train : string -> int -> unit
   
   
   

@@ -20,7 +20,11 @@ val embd = ref (dempty Term.compare)
 val use_cache = ref false (* only used during export *)
 val progtmd = ref (dempty prog_compare)
 val seqtmd = ref (dempty seq_compare)
-
+fun clean_export_cache () =
+  (
+  progtmd := dempty prog_compare;
+  seqtmd := dempty seq_compare
+  )
 (* -------------------------------------------------------------------------
    Convert board into a tree (HOL4 term)
    ------------------------------------------------------------------------- *)
@@ -300,8 +304,10 @@ fun create_exl iprogl =
         stopex @ map f bml
       end
     val _ = use_cache := true
+    val _ = clean_export_cache ()
     val r = map create_ex iprogl
     val _ = use_cache := false
+    val _ = clean_export_cache ()
   in
     r
   end
@@ -326,8 +332,10 @@ fun create_exl_seqprogl seqprogl =
           stopex @ map f bml
       end
     val _ = use_cache := true
+    val _ = clean_export_cache ()
     val r = map create_ex seqprogl
     val _ = use_cache := false
+    val _ = clean_export_cache ()
   in
     r
   end  
@@ -348,9 +356,12 @@ fun create_exl_progset progl =
       in
         map f bml
       end
+    val _ = progtmd := dempty prog_compare
     val _ = use_cache := true
+    val _ = clean_export_cache ()
     val r = map create_ex progl
-    val _ = use_cache := false    
+    val _ = use_cache := false
+    val _ = clean_export_cache ()
   in
     r
   end

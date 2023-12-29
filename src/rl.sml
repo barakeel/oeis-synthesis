@@ -342,19 +342,20 @@ fun train_smartselect ngen =
 
 fun train_pl dir pl =
   let
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s) 
     val tnndir = selfdir ^ "/tnn_in_c"
     val expdir = selfdir ^ "/exp"
     val datadir = dir ^ "/data"
     val _ = app mkDir_err [expdir,dir,datadir]
     val ex = create_exl_progset pl
     val nex = length ex
-    val _ = print_endline (its nex ^ " examples created")
+    val _ = log (its nex ^ " examples created")
     val _ = export_traindata datadir num_epoch learning_rate dim_glob ex
-    val _ = print_endline (its nex ^ " examples exported: " ^ datadir)
+    val _ = log (its nex ^ " examples exported: " ^ datadir)
     val _ = cmd_in_dir tnndir ("cp tree " ^ dir)
     val logfile = dir ^ "/log"
     val (_,t) = add_time (cmd_in_dir dir) ("./tree" ^ " > " ^ logfile)
-    val _ = print_endline ("train time: " ^ rts_round 4 t)
+    val _ = log ("train time: " ^ rts_round 4 t)
     val obfile = dir ^ "/ob.c"
     val obfst = tnndir ^ "/ob_fst.c"
     val obsnd = tnndir ^ "/ob_snd.c"
@@ -389,28 +390,49 @@ fun train_pg (expname,ngen) pgenl =
     train_pl dir pgenl
   end
   
-fun rl_pg expname ngen =  
+fun rl_pg_search expname ngen =  
   let
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
+    fun log s = (print_endline s; append_endline (namedir ^ "/log") s) 
     val traindir = namedir ^ "/train"
     val fileso = if ngen <= 0 
                  then selfdir ^ "/filterunique_train/ob.so" 
                  else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
-    val _ = if exists_file fileso then () else raise ERR "rl_pg" ""  
-    val _ = print_endline "inferring"
+    val _ = if exists_file fileso then () else raise ERR "rl_pg_search" 
+      "need .so from train directory"  
+    val _ = log ("Generation " ^ its ngen)
+    val _ = log "infer"
     val pgenl = search.infer_pgenl fileso (int_pow 2 20) 130.0
-    val _ = print_endline "evaluating"
-    val newpgenl = search.compete_pgenl (expname,ngen) 10 pgenl
-    val _ = print_endline "training"
-    val () = train_pg (expname,ngen) pgenl
+    val _ = log "search"
+    val ex = search.compete_pgenl (expname,ngen) 10 pgenl
+    val _ = log "train"
+    val () = train_pg (expname,ngen) ex
   in
-    rl_pg expname (ngen + 1)
+    rl_pg_search expname (ngen + 1)
   end
+
+fun rl_pg_train expname ngen =  
+  let
+    val expdir = selfdir ^ "/exp"
+    val namedir = expdir ^ "/" ^ expname
+    fun log s = (print_endline s; append_endline (namedir ^ "/log") s) 
+    val searchdir = namedir ^ "/search"
+    val dir = searchdir ^ "/" ^ its ngen
+    val exfile = dir ^ "/ex"
+    val _ = if exists_file exfile then () else raise ERR "rl_pg_train" 
+      "need example file in search directory"  
+    val ex = read_progl exfile
+    val _ = log "training"
+    val () = train_pg (expname,ngen) ex
+  in
+    rl_pg_search expname (ngen + 1)
+  end
+
 
 (*
 load "rl"; open aiLib kernel search rl;
-rl_pg "pgen0" 0; 
+rl_pg_train "pgen0" 0; 
 *)
 
 
