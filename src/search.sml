@@ -1095,13 +1095,14 @@ fun create_round_aux n seln easyl hardd acc =
   end;
 
 fun create_round n seln easyl hardl =
-  create_round_aux n seln easyl (enew Int.compare hardl) []
+  create_round_aux n seln (tl easyl) 
+    (erem (hd easyl) (enew Int.compare hardl)) []
 
 fun random_roundl n start =
   let 
     val easyl = map string_to_int (readl (selfdir ^ "/data/oeis_order"))
     val hardl = map fst oseql
-    val roundl = create_round (n-1) start (tl easyl) hardl
+    val roundl = create_round (n-1) start easyl hardl
   in
     [hd easyl] :: roundl
   end
