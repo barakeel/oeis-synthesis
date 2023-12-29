@@ -399,7 +399,7 @@ fun rl_pg expname ngen =
                  else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
     val _ = if exists_file fileso then () else raise ERR "rl_pg" ""  
     val pgenl = search.infer_pgenl fileso (int_pow 2 20) 130.0
-    val newpgenl = search.compete_pgenl (expname,ngen) 8 pgenl
+    val newpgenl = search.compete_pgenl (expname,ngen) 10 pgenl
     val () = train_pg (expname,ngen) pgenl
   in
     rl_pg expname (ngen + 1)

@@ -19,10 +19,11 @@ sig
   (* programs generating programs *)
   val random_pgenl : int -> real -> prog list
   val infer_pgenl : string -> int -> real -> prog list
-  val genprogspec : (int list, prog list, 
+  val genprogspec : (unit, (prog * int) list, 
     (prog * (int * bool) list) list * (int * (int * prog) list) list) 
     smlParallel.extspec
   val compete_pgenl : string * int -> int -> prog list -> prog list
+  val random_roundl : int -> real -> int list list
   
   (* random generation: generators producing programs not generated before *)
   val filter_unique_prog : prog list -> prog list
