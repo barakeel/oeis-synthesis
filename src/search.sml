@@ -1214,8 +1214,9 @@ fun round_one anuml (oldwinnerl,olditprogl,oldself,oldex) =
     val itprogl = merge_itsol (List.concat (olditprogl :: itprogll))
     val pal = merge_pal (List.concat (oldwinnerl :: pall))
     val palnull = filter (null o snd) pal
-    val _ = log ("gen_progl: " ^
-      its (length palnull) ^ " producing no OEIS sequences")
+    val _ = if null palnull then () else 
+      log ("gen_progl: " ^ 
+           its (length palnull) ^ " producing no OEIS sequences")
     val freqd = count_dict (dempty ibcmp) (List.concat (map snd pal))
     val (newself,sol) = partition snd (dkeys freqd)
     val _ = log ("roundself: " ^ its (length newself))

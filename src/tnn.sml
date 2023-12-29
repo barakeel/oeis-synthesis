@@ -348,8 +348,11 @@ fun create_exl_progset progl =
       in
         map f bml
       end
+    val _ = use_cache := true
+    val r = map create_ex progl
+    val _ = use_cache := false    
   in
-    map create_ex progl
+    r
   end
 
 

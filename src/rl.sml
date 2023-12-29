@@ -398,8 +398,11 @@ fun rl_pg expname ngen =
                  then selfdir ^ "/filterunique_train/ob.so" 
                  else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
     val _ = if exists_file fileso then () else raise ERR "rl_pg" ""  
+    val _ = print_endline "inferring"
     val pgenl = search.infer_pgenl fileso (int_pow 2 20) 130.0
+    val _ = print_endline "evaluating"
     val newpgenl = search.compete_pgenl (expname,ngen) 10 pgenl
+    val _ = print_endline "training"
     val () = train_pg (expname,ngen) pgenl
   in
     rl_pg expname (ngen + 1)
