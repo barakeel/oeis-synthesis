@@ -43,9 +43,11 @@ fun is_smaller (t1,p1) (t2,p2) =
       cpl_compare bool_compare prog_compare_size ((b1,p1),(b2,p2)) = LESS
     end
   else 
+    prog_compare_size (p1,p2) = LESS
+    (*
     triple_compare Int.compare Int.compare prog_compare 
       ((prog_size p1,t1,p1),(prog_size p2,t2,p2)) = LESS
-
+     *)
 
 fun find_min_loop cmpf a m = case m of
     [] => a

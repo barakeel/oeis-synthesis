@@ -432,7 +432,7 @@ fun rl_pg_train expname ngen =
 
 (*
 load "rl"; open aiLib kernel search rl;
-rl_pg_train "pgen0" 0; 
+rl_pg_search "pgen0" 0; 
 *)
 
 
