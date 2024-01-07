@@ -51,6 +51,7 @@ sig
   val ctree_flag : bool ref
   val wrat_flag : bool ref
   val maxproglen : int
+  val maxproglen_treesearch : int
   val maxintsize : int
   val reprocess_flag : bool ref
   val reverse_nmtoutput : bool ref

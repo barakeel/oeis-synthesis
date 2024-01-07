@@ -230,7 +230,7 @@ and search_move rt depth (vis,tim) targete boarde pol =
     app (search_move_vis rt depth targete boarde) (split_vis (vis - 1) pol)
 
 and search_aux rt depth (vis,tim) targete boarde = 
-  if depth >= maxproglen then () else
+  if depth >= maxproglen_treesearch then () else
   let
     val (newboarde, mfl) = collect_children (snd tim) boarde       
     val pol = create_pol targete newboarde mfl
@@ -791,7 +791,7 @@ fun update_pal pgend (pgen,al) =
 fun gen_prog pgend pd wind (pgen,anum) =
   let
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn pgen seq 100000 10000)
+    val pl = elist (beamsearch_prnn pgen seq 100000 5000)
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
@@ -1094,17 +1094,30 @@ fun create_round_aux n seln easyl hardd acc =
       ((easylsel @ hardlsel) :: acc)
   end;
 
-fun create_round n seln easyl hardl =
+(* alternative create_round that starts with only one sequence *)
+fun create_round_start n seln easyl hardl =
   create_round_aux n seln (tl easyl) 
     (erem (hd easyl) (enew Int.compare hardl)) []
+
+
+fun random_roundl_start n start =
+  let 
+    val easyl = map string_to_int (readl (selfdir ^ "/data/oeis_order"))
+    val hardl = map fst oseql
+    val roundl = create_round_start (n-1) start easyl hardl
+  in
+    [hd easyl] :: roundl
+  end
+
+fun create_round n seln easyl hardl =
+  create_round_aux n seln easyl (enew Int.compare hardl) []
 
 fun random_roundl n start =
   let 
     val easyl = map string_to_int (readl (selfdir ^ "/data/oeis_order"))
     val hardl = map fst oseql
-    val roundl = create_round (n-1) start easyl hardl
   in
-    [hd easyl] :: roundl
+    create_round n start easyl hardl
   end
 
 (* -------------------------------------------------------------------------

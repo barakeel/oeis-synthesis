@@ -60,7 +60,9 @@ val prnn_flag = bflag "prnn_flag"
 val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
 val temperature = rflagnoref "temperature" 1.0
+val maxproglen_treesearch = iflagnoref "maxproglen_treesearch" 240
 val maxproglen = iflagnoref "maxproglen" 240
+
 
 (* execution flags *)
   (* this two flags should now be the same *)
