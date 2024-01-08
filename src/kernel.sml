@@ -224,70 +224,6 @@ fun all_subcompr (Ins (id,pl)) =
   (if id = 12 then [hd pl] else []) @ List.concat (map all_subcompr pl)
 
 (* -------------------------------------------------------------------------
-   Storing programs
-   ------------------------------------------------------------------------- *)
-
-local open HOLsexp in
-  fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
-  val enc_progl = list_encode enc_prog
-  val enc_proglr = pair_encode (enc_progl, enc_real)  
-  fun dec_prog t = 
-    Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
-  val dec_progl = list_decode dec_prog
-  val dec_proglr = pair_decode (dec_progl, dec_real)
-end
- 
-fun write_proglrl file r = write_data (HOLsexp.list_encode enc_proglr) file r
-fun read_proglrl file = read_data (HOLsexp.list_decode dec_proglr) file
-  
-local open HOLsexp in
-  val enc_iprog = pair_encode (Integer, enc_prog)
-  val enc_iprogl = list_encode enc_iprog
-  val dec_iprog = pair_decode (int_decode, dec_prog)
-  val dec_iprogl = list_decode dec_iprog
-  val enc_itprog = pair_encode (Integer, 
-    list_encode (pair_encode (Integer, enc_prog)))
-  val enc_itprogl = list_encode enc_itprog
-  val dec_itprog = pair_decode (int_decode,
-    list_decode (pair_decode (int_decode, dec_prog)))
-  val dec_itprogl = list_decode dec_itprog
-  val enc_bool = String o bts
-  val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
-                 o string_decode
-  val enc_aint = String o IntInf.toString       
-  val dec_aint = Option.mapPartial IntInf.fromString 
-                 o string_decode
-  val enc_seql = list_encode (list_encode enc_aint)
-  val dec_seql = list_decode (list_decode dec_aint)                             
-  val enc_pgen = pair_encode (enc_prog, 
-    list_encode (pair_encode (Integer,enc_prog))) 
-  val dec_pgen = pair_decode (dec_prog, 
-    list_decode (pair_decode (int_decode,dec_prog)))
-  val enc_ramsey = pair_encode (pair_encode (Integer, enc_prog), 
-                     pair4_encode (Integer,Integer,Integer,Integer))
-  val dec_ramsey = pair_decode (pair_decode (int_decode, dec_prog),
-     pair4_decode (int_decode,int_decode,int_decode,int_decode))
-end
-
-fun write_itprogl file r = write_data enc_itprogl file r
-fun read_itprogl file = read_data dec_itprogl file
-
-type pgen = (prog * (int * prog) list)
-fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
-fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
-
-fun write_progl file r = write_data enc_progl file r
-fun read_progl file = read_data dec_progl file
-
-fun write_seql file r = write_data enc_seql file r
-fun read_seql file = read_data dec_seql file
-
-type ramsey = (int * prog) * (int * int * int * int)
-fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
-fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
-
-
-(* -------------------------------------------------------------------------
    Instructions:
    A B C D E F G H I    J    K L M     N     O    P
    0 1 2 + - * / % cond loop x y compr loop2 push pop
@@ -534,6 +470,102 @@ fun tokenl_of_gpt s =
   let val sl = String.tokens Char.isSpace s in map id_of_gpt sl end
 
 fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
+
+(* -------------------------------------------------------------------------
+   Storing programs
+   ------------------------------------------------------------------------- *)
+
+local open HOLsexp in
+  fun enc_prog (Ins x) = pair_encode (Integer, list_encode enc_prog) x
+  val enc_progl = list_encode enc_prog
+  val enc_proglr = pair_encode (enc_progl, enc_real)  
+  fun dec_prog t = 
+    Option.map Ins (pair_decode (int_decode, list_decode dec_prog) t)
+  val dec_progl = list_decode dec_prog
+  val dec_proglr = pair_decode (dec_progl, dec_real)
+end
+ 
+fun write_proglrl file r = write_data (HOLsexp.list_encode enc_proglr) file r
+fun read_proglrl file = read_data (HOLsexp.list_decode dec_proglr) file
+  
+local open HOLsexp in
+  val enc_iprog = pair_encode (Integer, enc_prog)
+  val enc_iprogl = list_encode enc_iprog
+  val dec_iprog = pair_decode (int_decode, dec_prog)
+  val dec_iprogl = list_decode dec_iprog
+  val enc_itprog = pair_encode (Integer, 
+    list_encode (pair_encode (Integer, enc_prog)))
+  val enc_itprogl = list_encode enc_itprog
+  val dec_itprog = pair_decode (int_decode,
+    list_decode (pair_decode (int_decode, dec_prog)))
+  val dec_itprogl = list_decode dec_itprog
+  val enc_bool = String o bts
+  val dec_bool = Option.mapPartial (fn x => SOME (string_to_bool x)) 
+                 o string_decode
+  val enc_aint = String o IntInf.toString       
+  val dec_aint = Option.mapPartial IntInf.fromString 
+                 o string_decode
+  val enc_seql = list_encode (list_encode enc_aint)
+  val dec_seql = list_decode (list_decode dec_aint)                             
+  val enc_pgen = pair_encode (enc_prog, 
+    list_encode (pair_encode (Integer,enc_prog))) 
+  val dec_pgen = pair_decode (dec_prog, 
+    list_decode (pair_decode (int_decode,dec_prog)))
+  val enc_ramsey = pair_encode (pair_encode (Integer, enc_prog), 
+                     pair4_encode (Integer,Integer,Integer,Integer))
+  val dec_ramsey = pair_decode (pair_decode (int_decode, dec_prog),
+     pair4_decode (int_decode,int_decode,int_decode,int_decode))
+end
+
+
+
+local 
+  fun string_of_tp (t,p) = its t ^ " " ^ gpt_of_prog p 
+  fun string_of_atpl (anum,tpl) = 
+    its anum ^ "," ^ String.concatWith "," (map string_of_tp tpl)
+  fun tp_of_string s = 
+    let val sl = String.tokens Char.isSpace s in
+      (string_to_int (hd sl), prog_of_tokenl (map id_of_gpt (tl sl)))
+    end
+  fun atpl_of_string s =
+    let val sl = String.tokens (fn x => x = #",") s in
+      (string_to_int (hd sl), map tp_of_string (tl sl))
+    end
+in
+
+fun write_itprogl file itprogl = writel file (map string_of_atpl itprogl)
+                              (* write_data enc_itprogl file r *)
+fun read_itprogl_human file = map atpl_of_string (readl file)
+
+fun read_itprogl file =
+  if hd_string (hd (readl file)) = #"(" 
+  then read_data dec_itprogl file
+  else read_itprogl_human file 
+
+end (* local *)
+
+(* 
+load "kernel"; open kernel aiLib;
+val (r1,t1) = add_time read_itprogl (selfdir ^ "/model/itsol843");
+val ((),t2) = add_time (write_itprogl (selfdir ^ "/model/itsol843_human")) r1;
+val (r2,t3) = add_time read_itprogl (selfdir ^ "/model/itsol843_human");
+*)
+
+
+
+type pgen = (prog * (int * prog) list)
+fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
+fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
+
+fun write_progl file r = write_data enc_progl file r
+fun read_progl file = read_data dec_progl file
+
+fun write_seql file r = write_data enc_seql file r
+fun read_seql file = read_data dec_seql file
+
+type ramsey = (int * prog) * (int * int * int * int)
+fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
+fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
 
 (* -------------------------------------------------------------------------
    Simple export of sequence program pairs
