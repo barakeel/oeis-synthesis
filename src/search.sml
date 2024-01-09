@@ -913,7 +913,7 @@ fun gen_progl () pgenal =
 fun filter_unique_prog_one pset rl counter (pg,anum) =
   let 
     val _ = 
-      if counter <> 0 andalso counter mod 10000 = 0 
+      if counter <> 0 andalso counter mod 100 = 0 
       then print_endline (its counter ^ ": " ^ 
         "generators " ^ its (length (!rl)) ^ ", " ^ 
         "programs " ^ its (elength (!pset)))
