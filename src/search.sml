@@ -913,7 +913,7 @@ fun gen_progl () pgenal =
 fun filter_unique_prog_one pset rl counter (pg,anum) =
   let 
     val _ = 
-      if counter <> 0 andalso counter mod 100000 = 0 
+      if counter <> 0 andalso counter mod 10000 = 0 
       then print_endline (its counter ^ ": " ^ 
         "generators " ^ its (length (!rl)) ^ ", " ^ 
         "programs " ^ its (elength (!pset)))
@@ -1005,7 +1005,7 @@ fun infer_pgenl fileso n timtop =
 
 fun filter_unique_fun () () = 
   let
-    val pl = random_pgenl (int_pow 10 6) 32.0
+    val pl = random_pgenl (int_pow 10 5) 6.0
     val anuml = map fst oseql
     val anumle = extend_anuml anuml (length anuml) (length pl)
     val panuml = combine (pl,anumle)
