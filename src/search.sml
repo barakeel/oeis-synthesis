@@ -716,15 +716,12 @@ exception Break;
 
 local open exec_prnn in
 
-fun beamsearch_prnn_one tim lim p seq (tokenl,embv) = 
-  if !prnn_counter >= lim then raise Break else 
+fun beamsearch_prnn_one tim width p seq (tokenl,embv) = 
+  if !prnn_counter >= width then raise Break else 
   let 
     val _ = seq_glob := seq
-    val _ = seqlen_glob := IntInf.fromInt (length (!seq_glob))
     val _ = prog_glob := tokenl
-    val _ = proglen_glob := IntInf.fromInt (length (!prog_glob))
     val _ = embv_glob := embv
-    val _ = emblen_glob := IntInf.fromInt (Vector.length (!embv_glob))
     val exec = mk_exec p
     val _ = init_timer_wtim tim
     val newembl = List.tabulate (16,fn i => (i, exec ([IntInf.fromInt i],[0])))
@@ -745,14 +742,12 @@ fun beamsearch_prnn_one tim lim p seq (tokenl,embv) =
  
 end (* local *)
  
-fun distrib_token (tokenl,(stopb,(nexttokenl,newembv))) =
-  map (fn x => (x :: tokenl,newembv)) nexttokenl;
-     
-fun beamsearch_prnn_loop i pd p seq tim lim tokembl =
+
+fun beamsearch_prnn_loop i pd p seq tim width tokembl =
   let 
     val _ = prnn_counter := 0
     val l1 = (List.concat 
-      (List.mapPartial (beamsearch_prnn_one tim lim p seq) tokembl))
+      (List.mapPartial (beamsearch_prnn_one tim width p seq) tokembl))
       handle Break => []
     val (compl,contl) = partition (isSome o prog_of_movelo o 
       map IntInf.toInt o fst) l1
@@ -760,20 +755,100 @@ fun beamsearch_prnn_loop i pd p seq tim lim tokembl =
       (map (map IntInf.toInt o fst) compl)
     val newpd = eaddl progl pd
   in
-    if elength newpd > lim then pd else
+    if elength newpd > width then pd else
     if null contl orelse  i > maxproglen then newpd 
-    else beamsearch_prnn_loop (i+1) newpd p seq tim lim contl
+    else beamsearch_prnn_loop (i+1) newpd p seq tim width contl
   end
 
-fun beamsearch_prnn p seq tim lim =
+fun beamsearch_prnn p seq tim width =
   let 
     val tokembl = [([]: IntInf.int list,
       (Vector.tabulate (16, fn _ => [IntInf.fromInt 0])))]
     val pd = eempty prog_compare
   in
-    beamsearch_prnn_loop 0 pd p seq tim lim tokembl
+    beamsearch_prnn_loop 0 pd p seq tim width tokembl
   end
 
+(* -------------------------------------------------------------------------
+   Alternative generation of programs 
+   ------------------------------------------------------------------------- *)
+
+val error_score = [IntInf.fromInt (~1000000)]
+val init_score = [IntInf.fromInt 0]
+
+local open exec_prnn in
+
+fun beamsearch_prnnsum_one tim p seq (tokenl,embv) =
+  let 
+    val _ = seq_glob := seq
+    val _ = prog_glob := map fst tokenl
+    val _ = embv_glob := embv
+    val exec = mk_exec p
+    val _ = init_timer_wtim tim
+    fun g token = exec ([IntInf.fromInt token],[0]) handle 
+        Empty => error_score
+      | Div => error_score
+      | ProgTimeout => error_score
+      | Overflow => error_score
+      | Subscript => error_score
+    val newembl = List.tabulate (16,fn token => (token, g token))
+    fun f (token,x) = (token,hd x)
+    val nextl = map f newembl
+    val newembv = Vector.fromList (map snd newembl)
+    fun h (token,x) = ((IntInf.fromInt token, x) :: tokenl, newembv)
+  in
+    map h nextl
+  end
+
+end (* local *)
+
+local open IntInf in 
+  fun sum_inf l = case l of [] => 0 | a :: m => a + sum_inf m
+end
+
+fun inv_cmp cmp (a,b) = cmp (b,a)
+
+fun beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl) =
+  let 
+    val l1 = List.concat (map (beamsearch_prnnsum_one tim p seq) tokembl)
+    fun score (tokenl,embv) = 
+      let val scl = map snd tokenl in (sum_inf scl, scl) end
+    val sc_cmp = cpl_compare (inv_cmp IntInf.compare) 
+                             (list_compare IntInf.compare)
+    val l1sc = map_assoc score (compl @ l1)
+    val l2sc = first_n width (dict_sort (snd_compare sc_cmp) l1sc)
+    val l3 = map fst l2sc
+    val to_compl = prog_of_movelo o map (IntInf.toInt o fst) o fst
+    val is_compl = isSome o to_compl
+    val (newcompl,newtokembl) = partition is_compl l3
+    val progl = List.mapPartial to_compl newcompl
+    val newpd = eaddl progl pd
+  in
+    if null newtokembl orelse depth > maxproglen 
+    then newpd 
+    else beamsearch_prnnsum_loop (depth+1) newpd p seq tim width    
+           (newcompl,newtokembl)
+  end
+
+fun beamsearch_prnnsum p seq tim width =
+  let 
+    val compl = []
+    val tokembl = [([], (Vector.tabulate (16, fn _ => init_score)))]
+    val pd = eempty prog_compare
+    val depth = 0
+  in
+    beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl)
+  end
+
+fun beamsearch_prnn_both p seq tim width = 
+  if !prnnsum_flag 
+  then beamsearch_prnnsum p seq tim width
+  else beamsearch_prnn p seq tim width
+    
+(* -------------------------------------------------------------------------
+   Parallelization function for generation and evaluation of programs
+   ------------------------------------------------------------------------- *)
+  
 val ibcmp = cpl_compare Int.compare bool_compare
 
 fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
@@ -791,7 +866,7 @@ fun update_pal pgend (pgen,al) =
 fun gen_prog pgend pd wind (pgen,anum) =
   let
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn pgen seq 100000 5000)
+    val pl = elist (beamsearch_prnn_both pgen seq prnntim prnnwidth)
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
@@ -830,7 +905,7 @@ fun gen_progl () pgenal =
 
 (* -------------------------------------------------------------------------
    Increases the diversity of programs in the first generation 
-   by selecting only programs that generate something different
+   by selecting only programs that generate a different program
    ------------------------------------------------------------------------- *)
 
 fun filter_unique_prog_one pset rl counter (pg,anum) =
@@ -842,7 +917,7 @@ fun filter_unique_prog_one pset rl counter (pg,anum) =
         "programs " ^ its (elength (!pset)))
       else ()
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn pg seq 100000 10000)
+    val pl = elist (beamsearch_prnn_both pg seq prnntim prnnwidth)
     fun g p = 
       if emem p (!pset) 
       then false
@@ -876,7 +951,7 @@ fun filter_unique_prog pl =
 fun filter_unique_fun_one pset rl counter (pg,anum) =
   let
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn pg seq 100000 10000)
+    val pl = elist (beamsearch_prnn_both pg seq prnntim prnnwidth)
     fun g p =
       if emem p (!pset) 
       then NONE
@@ -1008,9 +1083,11 @@ fun merge_filterunique dir pplll =
     rev (!rl)
   end     
         
-fun parallel_filterunique n =
+fun parallel_filterunique expname n =
   let  
-    val dir = selfdir ^ "/filterunique"
+    val expdir = selfdir ^ "/exp"
+    val dir = expdir ^ "/" ^ expname
+    val _ = mkDir_err expdir
     val _ = clean_dir dir
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 10000) 
@@ -1031,22 +1108,7 @@ fun parallel_filterunique n =
 PolyML.print_depth 0;
 load "search"; open aiLib kernel bloom search;
 PolyML.print_depth 10;
-val pl1 = random_pgenl (int_pow 10 6) 32.0;
-val pl1b = random_pgenl (int_pow 10 6) 32.0;
-val pl1c = random_pgenl (int_pow 10 6) 32.0;
-val pltot = mk_fast_set prog_compare (pl1 @ pl1b @ pl1c);
-length pltot;
-val (pl2,t) = add_time filter_unique_prog pl1;
-app (print_endline o human.humanf) pl2;
-val pl = parallel_filterunique 1000;
-length pl
-*)
-
-(*
-PolyML.print_depth 0;
-load "search"; open aiLib kernel bloom search;
-PolyML.print_depth 10;
-val pl = parallel_filterunique 1000;
+val pl = parallel_filterunique "prnnsum_filterunique" 1000;
 *)
 
 (* -------------------------------------------------------------------------

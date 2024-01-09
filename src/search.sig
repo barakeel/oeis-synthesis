@@ -29,7 +29,7 @@ sig
   val filter_unique_prog : prog list -> prog list
   val filteruniquespec : 
     (unit, unit, (prog * prog list) list) smlParallel.extspec
-  val parallel_filterunique : int -> prog list
+  val parallel_filterunique : string -> int -> prog list
   
 end
 

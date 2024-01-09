@@ -55,6 +55,9 @@ val intl_flag = bflag "intl_flag"
 val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
 val prnn_flag = bflag "prnn_flag"
+val prnnsum_flag = bflag "prnnsum_flag"
+val prnnwidth = iflagnoref "prnnwidth" 5000
+val prnntim = iflagnoref "prnntim" 100000
 
 (* search flags *)
 val locsearch_flag = bflag "locsearch_flag"
@@ -550,8 +553,6 @@ val (r1,t1) = add_time read_itprogl (selfdir ^ "/model/itsol843");
 val ((),t2) = add_time (write_itprogl (selfdir ^ "/model/itsol843_human")) r1;
 val (r2,t3) = add_time read_itprogl (selfdir ^ "/model/itsol843_human");
 *)
-
-
 
 type pgen = (prog * (int * prog) list)
 fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r

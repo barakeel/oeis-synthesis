@@ -64,6 +64,9 @@ sig
   val revamp_flag : bool ref
   val push_limit : int
   val prnn_flag : bool ref
+  val prnnsum_flag : bool ref
+  val prnntim : int
+  val prnnwidth : int
   
   (* flags not read from disk *)
   val expname : string ref
