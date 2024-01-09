@@ -825,6 +825,7 @@ fun beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl) =
     val (newcompl,newtokembl) = partition is_compl l3
     val progl = List.mapPartial to_compl newcompl
     val newpd = eaddl progl pd
+    val _ = print_endline (its depth ^ ":" ^ its (elength pd))
   in
     if null newtokembl orelse depth > maxproglen 
     then newpd 
@@ -913,7 +914,7 @@ fun gen_progl () pgenal =
 fun filter_unique_prog_one pset rl counter (pg,anum) =
   let 
     val _ = 
-      if counter <> 0 andalso counter mod 100 = 0 
+      if counter <> 0 andalso counter mod 1 = 0 
       then print_endline (its counter ^ ": " ^ 
         "generators " ^ its (length (!rl)) ^ ", " ^ 
         "programs " ^ its (elength (!pset)))
