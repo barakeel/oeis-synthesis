@@ -825,9 +825,9 @@ fun beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl) =
     val (newcompl,newtokembl) = partition is_compl l3
     val progl = List.mapPartial to_compl newcompl
     val newpd = eaddl progl pd
-    val _ = print_endline (its depth ^ ":" ^ its (elength pd))
+    (* val _ = print_endline (its depth ^ ":" ^ its (elength pd)) *)
   in
-    if null newtokembl orelse depth > maxproglen 
+    if null newtokembl orelse depth > maxproglen
     then newpd 
     else beamsearch_prnnsum_loop (depth+1) newpd p seq tim width    
            (newcompl,newtokembl)
@@ -911,10 +911,11 @@ fun gen_progl () pgenal =
    by selecting only programs that generate a different program
    ------------------------------------------------------------------------- *)
 
+(* only for non-parallel execution *)
 fun filter_unique_prog_one pset rl counter (pg,anum) =
   let 
     val _ = 
-      if counter <> 0 andalso counter mod 1 = 0 
+      if counter <> 0 andalso counter mod 1000 = 0 
       then print_endline (its counter ^ ": " ^ 
         "generators " ^ its (length (!rl)) ^ ", " ^ 
         "programs " ^ its (elength (!pset)))
@@ -959,7 +960,12 @@ fun filter_unique_fun_one pset rl counter (pg,anum) =
       if emem p (!pset) 
       then NONE
       else (pset := eadd p (!pset); SOME p)
-    val pl' = List.mapPartial g pl   
+    val pl' = List.mapPartial g pl 
+    val _ = if counter <> 0 andalso counter mod 100 = 0 
+      then print_endline (its counter ^ ": " ^ 
+        "generators " ^ its (length (!rl)) ^ ", " ^ 
+        "programs " ^ its (elength (!pset)))
+      else ()
   in
     if null pl' then () else rl := (pg,pl') :: !rl
   end
