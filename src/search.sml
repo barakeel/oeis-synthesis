@@ -1012,7 +1012,7 @@ fun infer_pgenl fileso n timtop =
 
 fun filter_unique_fun () () = 
   let
-    val pl = random_pgenl (int_pow 10 5) 6.0
+    val pl = random_pgenl ((5 * int_pow 10 4) div 2) 2.0
     val anuml = map fst oseql
     val anumle = extend_anuml anuml (length anuml) (length pl)
     val panuml = combine (pl,anumle)
@@ -1117,7 +1117,7 @@ fun parallel_filterunique expname n =
 PolyML.print_depth 0;
 load "search"; open aiLib kernel bloom search;
 PolyML.print_depth 10;
-val pl = parallel_filterunique "prnnsum_filterunique" 1000;
+val pl = parallel_filterunique "prnnsum_filterunique" 40;
 *)
 
 (* -------------------------------------------------------------------------
