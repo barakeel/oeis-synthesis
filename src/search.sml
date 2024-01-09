@@ -712,6 +712,7 @@ fun init_timer_wtim tim =
 
 val prnn_counter = ref 0
 
+
 exception Break;
 
 local open exec_prnn in
@@ -774,14 +775,15 @@ fun beamsearch_prnn p seq tim width =
    ------------------------------------------------------------------------- *)
 
 val error_score = [IntInf.fromInt (~1000000)]
-val init_score = [IntInf.fromInt 0]
+val stoptokenl = [IntInf.fromInt (~1)]
+val init_score = [IntInf.fromInt (~1)]
 
 local open exec_prnn in
 
 fun beamsearch_prnnsum_one tim p seq (tokenl,embv) =
   let 
-    val _ = seq_glob := seq
-    val _ = prog_glob := map fst tokenl
+    val _ = seq_glob := seq @ stoptokenl
+    val _ = prog_glob := (map fst tokenl) @ stoptokenl
     val _ = embv_glob := embv
     val exec = mk_exec p
     val _ = init_timer_wtim tim
@@ -792,7 +794,7 @@ fun beamsearch_prnnsum_one tim p seq (tokenl,embv) =
       | Overflow => error_score
       | Subscript => error_score
     val newembl = List.tabulate (16,fn token => (token, g token))
-    fun f (token,x) = (token,hd x)
+    fun f (token,x) = (token, hd x)
     val nextl = map f newembl
     val newembv = Vector.fromList (map snd newembl)
     fun h (token,x) = ((IntInf.fromInt token, x) :: tokenl, newembv)
