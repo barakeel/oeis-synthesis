@@ -382,7 +382,7 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
   if all snd beaml orelse depth >= maxdepth then () else  
   let 
     fun f ((boarde,sc),stopb) =
-      if stopb then ((boarde,maxmove),sc) else
+      if stopb then [((boarde,maxmove),sc)] else
       let 
         val ml = available_movel boarde 
         val pol = create_pol targete boarde ml
@@ -406,7 +406,7 @@ fun beamsearch () =
         val _ = select_random_target ()
         val targete = get_targete ()
       in
-        beamsearch_aux targete beam_width maxproglen 0 [([],1.0)]
+        beamsearch_aux targete beam_width maxproglen 0 [(([],1.0),false)]
       end
     fun loop n = if n <= 0 then () else (f (); loop (n-1))
     val (_,t) = add_time loop 1
