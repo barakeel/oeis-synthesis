@@ -775,8 +775,8 @@ fun beamsearch_prnn p seq tim width =
    ------------------------------------------------------------------------- *)
 
 val error_score = [IntInf.fromInt (~1000000)]
-val stoptokenl = [IntInf.fromInt (~1)]
-val init_score = [IntInf.fromInt (~1)]
+val stoptokenl = [IntInf.fromInt 0]
+val init_score = [IntInf.fromInt 0]
 
 local open exec_prnn in
 
