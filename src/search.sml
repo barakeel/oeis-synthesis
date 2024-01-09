@@ -346,6 +346,7 @@ fun exec_fun move l1 l2 =
   end
 
 fun apply_move move boarde =
+  if move = maxmove then boarde else
   let 
     val arity = arity_of_oper move
     val (l1,l2) = part_n arity boarde
@@ -378,9 +379,10 @@ fun create_pol targete boarde ml =
   end
   
 fun beamsearch_aux targete maxwidth maxdepth depth beaml =
-  if depth >= maxdepth orelse maxwidth <= 0 then () else  
+  if all snd beaml orelse depth >= maxdepth then () else  
   let 
-    fun f (boarde,sc) =
+    fun f ((boarde,sc),stopb) =
+      if stopb then ((boarde,maxmove),sc) else
       let 
         val ml = available_movel boarde 
         val pol = create_pol targete boarde ml
@@ -390,14 +392,10 @@ fun beamsearch_aux targete maxwidth maxdepth depth beaml =
       end 
     val beaml1 = dict_sort compare_rmax (List.concat (map f beaml))
     val beaml2 = first_n maxwidth beaml1
-    val i = ref 0
-    fun h ((boarde,m),sc) = 
-      if !stop_flag andalso m = maxmove 
-      then (incr i; NONE) 
-      else SOME (apply_move m boarde, sc)
-    val beaml3 = List.mapPartial h beaml2
+    fun h ((boarde,m),sc) = ((apply_move m boarde, sc), m=maxmove)
+    val beaml3 = map h beaml2
   in
-    beamsearch_aux targete (maxwidth - !i) maxdepth (depth + 1) beaml3
+    beamsearch_aux targete maxwidth maxdepth (depth + 1) beaml3
   end
 
 fun beamsearch () =  
@@ -427,8 +425,10 @@ fun beamsearch () =
    acceptable board avoids too many duplicate sequences  
    (especially at the start of the run)
    Does not work with a random network (use MCTS instead)
-   ------------------------------------------------------------------------- *)  
-  
+   Todo: fix beam search selection as was done above 
+         (not automatically taking ones that are terminating).
+   ------------------------------------------------------------------------- *)
+
 val seqd = ref (dempty seq_compare)  
 
 fun clip_seq seq =  
