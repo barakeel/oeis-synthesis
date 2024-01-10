@@ -65,6 +65,7 @@ sig
   val push_limit : int
   val prnn_flag : bool ref
   val prnnsum_flag : bool ref
+  val prnnsum_limit : int
   val prnntim : int
   val prnnwidth : int
   

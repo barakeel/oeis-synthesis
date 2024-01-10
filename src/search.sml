@@ -774,28 +774,27 @@ fun beamsearch_prnn p seq tim width =
    Alternative generation of programs 
    ------------------------------------------------------------------------- *)
 
-val error_score = [IntInf.fromInt (~1000000)]
 val stoptokenl = [IntInf.fromInt 0]
 val init_score = [IntInf.fromInt 0]
 
 local open exec_prnn in
 
-fun beamsearch_prnnsum_one tim p seq (tokenl,embv) =
+fun beamsearch_prnnsum_one pgen seq tim (tokenl,embv) =
   let 
     val _ = seq_glob := seq @ stoptokenl
     val _ = prog_glob := (map fst tokenl) @ stoptokenl
     val _ = embv_glob := embv
-    val exec = mk_exec p
+    val exec = mk_exec pgen
     val _ = init_timer_wtim tim
-    fun g token = exec ([IntInf.fromInt token],[0]) handle 
-        Empty => error_score
-      | Div => error_score
-      | ProgTimeout => error_score
-      | Overflow => error_score
-      | Subscript => error_score
+    fun g token = exec ([IntInf.fromInt token],[0]) 
     val newembl = List.tabulate (16,fn token => (token, g token))
     fun f (token,x) = (token, hd x)
-    val nextl = map f newembl
+    val nextl = map f newembl handle 
+        Empty => []
+      | Div => []
+      | ProgTimeout => []
+      | Overflow => []
+      | Subscript => []
     val newembv = Vector.fromList (map snd newembl)
     fun h (token,x) = ((IntInf.fromInt token, x) :: tokenl, newembv)
   in
@@ -808,45 +807,50 @@ local open IntInf in
   fun sum_inf l = case l of [] => 0 | a :: m => a + sum_inf m
 end
 
-fun inv_cmp cmp (a,b) = cmp (b,a)
+val to_compl = prog_of_movelo o map (IntInf.toInt o fst) o fst
+val is_compl = isSome o to_compl
 
-fun beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl) =
-  let 
-    val l1 = List.concat (map (beamsearch_prnnsum_one tim p seq) tokembl)
-    fun score (tokenl,embv) = 
-      let val scl = map snd tokenl in (sum_inf scl, scl) end
-    val sc_cmp = cpl_compare (inv_cmp IntInf.compare) 
-                             (list_compare IntInf.compare)
-    val l1sc = map_assoc score (compl @ l1)
-    val l2sc = first_n width (dict_sort (snd_compare sc_cmp) l1sc)
-    val l3 = map fst l2sc
-    val to_compl = prog_of_movelo o map (IntInf.toInt o fst) o fst
-    val is_compl = isSome o to_compl
-    val (newcompl,newtokembl) = partition is_compl l3
-    val progl = List.mapPartial to_compl newcompl
-    val newpd = eaddl progl pd
-    (* val _ = print_endline (its depth ^ ":" ^ its (elength pd)) *)
+exception CatchableNode of (IntInf.int list * 
+  ((IntInf.int * IntInf.int) list * IntInf.int list vector));
+fun smallest_node d =
+  (Redblackmap.app (fn x => raise CatchableNode x) d; NONE)
+  handle CatchableNode r => SOME r
+
+fun score_node (tokenl,embv) = 
+  let val (tokl,scl) = split tokenl in IntInf.~ (sum_inf scl) :: tokl end
+                             
+fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
+  if dlength noded <= 0 orelse iter >= prnnsum_limit then pl else
+  let
+    (* select a node to extend *)
+    val (key,node) = valOf (smallest_node noded)
+    (* extend the node *)
+    val (leafl,nodel) = partition is_compl 
+      (beamsearch_prnnsum_one pgen seq tim node)
+    val scnodel = map (fn x => (score_node x, x)) nodel
+    val newnoded = daddl scnodel (drem key noded)
+    (* save generated programs (local search) *)
+    val newpl = map (valOf o to_compl) leafl @ pl
   in
-    if null newtokembl orelse depth > maxproglen
-    then newpd 
-    else beamsearch_prnnsum_loop (depth+1) newpd p seq tim width    
-           (newcompl,newtokembl)
+    beamsearch_prnnsum_loop pgen seq tim (iter + 1) newpl newnoded
   end
 
-fun beamsearch_prnnsum p seq tim width =
+fun beamsearch_prnnsum pgen seq tim =
   let 
-    val compl = []
-    val tokembl = [([], (Vector.tabulate (16, fn _ => init_score)))]
-    val pd = eempty prog_compare
-    val depth = 0
+    val pl = []
+    val tokemb = ([], (Vector.tabulate (16, fn _ => init_score)))
+    val sc = [IntInf.fromInt 0]
+    val node = (sc,tokemb)
+    val noded = dnew (list_compare IntInf.compare) [node]
+    val iter = 0
   in
-    beamsearch_prnnsum_loop depth pd p seq tim width (compl,tokembl)
+    beamsearch_prnnsum_loop pgen seq tim iter pl noded
   end
 
-fun beamsearch_prnn_both p seq tim width = 
+fun beamsearch_prnn_both pgen seq tim width = 
   if !prnnsum_flag 
-  then beamsearch_prnnsum p seq tim width
-  else beamsearch_prnn p seq tim width
+  then beamsearch_prnnsum pgen seq tim
+  else elist (beamsearch_prnn pgen seq tim width)
     
 (* -------------------------------------------------------------------------
    Parallelization function for generation and evaluation of programs
@@ -869,7 +873,7 @@ fun update_pal pgend (pgen,al) =
 fun gen_prog pgend pd wind (pgen,anum) =
   let
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn_both pgen seq prnntim prnnwidth)
+    val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
@@ -921,7 +925,7 @@ fun filter_unique_prog_one pset rl counter (pg,anum) =
         "programs " ^ its (elength (!pset)))
       else ()
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn_both pg seq prnntim prnnwidth)
+    val pl = beamsearch_prnn_both pg seq prnntim prnnwidth
     fun g p = 
       if emem p (!pset) 
       then false
@@ -955,7 +959,7 @@ fun filter_unique_prog pl =
 fun filter_unique_fun_one pset rl counter (pg,anum) =
   let
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = elist (beamsearch_prnn_both pg seq prnntim prnnwidth)
+    val pl = beamsearch_prnn_both pg seq prnntim prnnwidth
     fun g p =
       if emem p (!pset) 
       then NONE
@@ -1038,7 +1042,7 @@ fun write_ppll file ppll =
 fun ppl_of_string s = 
   let val sl = String.tokens (fn x => x = #",") s in
     (prog_of_gpt (hd sl), map prog_of_gpt (tl sl))
-  end 
+  end
 
 fun read_ppll file = 
   map ppl_of_string (readl file)

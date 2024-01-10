@@ -56,6 +56,7 @@ val memo_flag = bflag "memo_flag"
 val memo_number = iflagnoref "memo_number" 100000
 val prnn_flag = bflag "prnn_flag"
 val prnnsum_flag = bflag "prnnsum_flag"
+val prnnsum_limit = iflagnoref "prnnsum_limit" 10000
 val prnnwidth = iflagnoref "prnnwidth" 5000
 val prnntim = iflagnoref "prnntim" 100000
 
