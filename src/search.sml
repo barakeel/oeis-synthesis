@@ -862,6 +862,18 @@ fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
 
 val eval_time = ref 0.0
 
+
+fun tokenl_of_prog_topdown (Ins (id,pl)) = 
+  id :: List.concat (map tokenl_of_prog_topdown pl)
+
+local open IntInf in
+
+fun zip_prog16 p = 
+  let fun f (tok,r) = r * 16 + (IntInf.fromInt tok) in
+    foldl f (IntInf.fromInt 1) (tokenl_of_prog_topdown p)
+  end
+end
+
 fun update_pal pgend (pgen,al) = 
   let
     val oldal = dfind pgen (!pgend) handle NotFound => []
@@ -880,13 +892,14 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
-        val al = case dfindo p (!pd) of SOME oldal => oldal 
+        val pzip = zip_prog16 p
+        val al = case dfindo pzip (!pd) of SOME oldal => oldal 
           | NONE => let 
                       val newal0 = total_time eval_time eval_prog p
                       val newal = dict_sort Int.compare (map fst newal0) 
                     in
                       check_wind wind (p,newal0);
-                      pd := dadd p newal (!pd); 
+                      pd := dadd pzip newal (!pd); 
                       newal
                     end
         val ibl = map (fn x => (x,x=anum)) al
@@ -899,7 +912,7 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
     val _ = print_endline ("pd: " ^ its (dlength (!pd)))
     val _ = if dlength (!pd) >= 50000 
-            then (print_endline "reset pd"; pd := dempty prog_compare)
+            then (print_endline "reset pd"; pd := dempty IntInf.compare)
             else ()
   in
     ()
@@ -908,7 +921,7 @@ fun gen_prog pgend pd wind (pgen,anum) =
 fun gen_progl () pgenal = 
   let
     val pgend = ref (dempty prog_compare)
-    val pd = ref (dempty prog_compare)
+    val pd = ref (dempty IntInf.compare)
     val wind = ref (dempty Int.compare)
     val _ = eval_time := 0.0
     val _ = app (gen_prog pgend pd wind) pgenal
