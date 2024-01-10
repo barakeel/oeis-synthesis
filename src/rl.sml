@@ -401,7 +401,7 @@ fun rl_pg_search expname ngen =
     val _ = log "infer"
     val pgenl = 
       if !prnnsum_flag andalso ngen <= 0 
-      then search.random_pgenl (int_pow 2 20) 13.0
+      then search.random_pgenl (int_pow 2 20) 20.0
       else 
         let val fileso = if ngen <= 0 
                  then selfdir ^ "/filterunique_train/ob.so" 

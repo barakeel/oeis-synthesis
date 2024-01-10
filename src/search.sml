@@ -787,14 +787,14 @@ fun beamsearch_prnnsum_one pgen seq tim (tokenl,embv) =
     val exec = mk_exec pgen
     val _ = init_timer_wtim tim
     fun g token = exec ([IntInf.fromInt token],[0]) 
-    val newembl = List.tabulate (16,fn token => (token, g token))
-    fun f (token,x) = (token, hd x)
-    val nextl = map f newembl handle 
+    val newembl = List.tabulate (16,fn token => (token, g token)) handle 
         Empty => []
       | Div => []
       | ProgTimeout => []
       | Overflow => []
       | Subscript => []
+    fun f (token,x) = (token, hd x)
+    val nextl = map f newembl 
     val newembv = Vector.fromList (map snd newembl)
     fun h (token,x) = ((IntInf.fromInt token, x) :: tokenl, newembv)
   in
