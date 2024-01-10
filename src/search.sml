@@ -866,6 +866,7 @@ val eval_time = ref 0.0
 fun tokenl_of_prog_topdown (Ins (id,pl)) = 
   id :: List.concat (map tokenl_of_prog_topdown pl)
 
+(*
 local open IntInf in
 
 fun zip_prog16 p = 
@@ -873,6 +874,7 @@ fun zip_prog16 p =
     foldl f (IntInf.fromInt 1) (tokenl_of_prog_topdown p)
   end
 end
+*)
 
 fun update_pal pgend (pgen,al) = 
   let
@@ -884,24 +886,24 @@ fun update_pal pgend (pgen,al) =
 
 fun gen_prog pgend pd wind (pgen,anum) =
   let
-    val _ = print_endline  (human.humanf pgen)
-    val _ = print_endline  ("A" ^ its anum)
+    val _ = print_endline  ("pgen: " ^ human.humanf pgen)
+    val _ = print_endline  ("seq: " ^ "A" ^ its anum)
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
     val _ = print_endline (its (length pl) ^ " programs")
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
-        val pzip = zip_prog16 p
-        val al = case dfindo pzip (!pd) of SOME oldal => oldal 
-          | NONE => let 
-                      val newal0 = total_time eval_time eval_prog p
-                      val newal = dict_sort Int.compare (map fst newal0) 
-                    in
-                      check_wind wind (p,newal0);
-                      pd := dadd pzip newal (!pd); 
-                      newal
-                    end
+        val al = (* case dfindo p (!pd) of SOME oldal => oldal 
+          | NONE => *)
+          let 
+            val newal0 = total_time eval_time eval_prog p
+            val newal = dict_sort Int.compare (map fst newal0) 
+          in
+            check_wind wind (p,newal0);
+            (* pd := dadd p newal (!pd); *)
+            newal
+      end
         val ibl = map (fn x => (x,x=anum)) al
       in
         ibd := eaddl ibl (!ibd)
@@ -910,10 +912,10 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline (its (length al) ^ " sequences")
     val _ = update_pal pgend (pgen,al)
     val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
-    val _ = print_endline ("pd: " ^ its (dlength (!pd)))
-    val _ = if dlength (!pd) >= 50000 
-            then (print_endline "reset pd"; pd := dempty IntInf.compare)
-            else ()
+    (* val _ = print_endline ("pd: " ^ its (dlength (!pd))) *)
+    (* val _ = if dlength (!pd) >= 10000 
+            then (print_endline "reset pd"; pd := dempty prog_compare)
+            else () *)
   in
     ()
   end
@@ -921,7 +923,7 @@ fun gen_prog pgend pd wind (pgen,anum) =
 fun gen_progl () pgenal = 
   let
     val pgend = ref (dempty prog_compare)
-    val pd = ref (dempty IntInf.compare)
+    val pd = ref (dempty prog_compare)
     val wind = ref (dempty Int.compare)
     val _ = eval_time := 0.0
     val _ = app (gen_prog pgend pd wind) pgenal
