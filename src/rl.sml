@@ -394,17 +394,23 @@ fun rl_pg_search expname ngen =
   let
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
-    fun log s = (print_endline s; append_endline (namedir ^ "/log") s) 
     val traindir = namedir ^ "/train"
-    val fileso = if ngen <= 0 
-                 then selfdir ^ "/filterunique_train/ob.so" 
-                 else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
+    val _ = app mkDir_err [expdir,namedir,traindir]  
+    fun log s = (print_endline s; append_endline (namedir ^ "/log") s)
     val _ = log ("Generation " ^ its ngen)
     val _ = log "infer"
     val pgenl = 
       if !prnnsum_flag andalso ngen <= 0 
       then search.random_pgenl (int_pow 2 20) 13.0
-      else search.infer_pgenl fileso (int_pow 2 20) 130.0
+      else 
+        let val fileso = if ngen <= 0 
+                 then selfdir ^ "/filterunique_train/ob.so" 
+                 else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
+        in
+          if exists_file fileso 
+          then search.infer_pgenl fileso (int_pow 2 20) 130.0
+          else raise ERR "rl_pg_search" fileso
+        end
     val _ = log "search"
     val ex = search.compete_pgenl (expname,ngen) 10 pgenl
     val _ = log "train"
@@ -417,8 +423,9 @@ fun rl_pg_train expname ngen =
   let
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
-    fun log s = (print_endline s; append_endline (namedir ^ "/log") s) 
     val searchdir = namedir ^ "/search"
+    val _ = app mkDir_err [expdir,namedir,searchdir]
+    fun log s = (print_endline s; append_endline (namedir ^ "/log") s) 
     val dir = searchdir ^ "/" ^ its ngen
     val exfile = dir ^ "/ex"
     val _ = if exists_file exfile then () else raise ERR "rl_pg_train" 
@@ -433,7 +440,7 @@ fun rl_pg_train expname ngen =
 
 (*
 load "rl"; open aiLib kernel search rl;
-rl_pg_search "pgen0" 9; 
+rl_pg_search "pgensum0" 0; 
 *)
 
 
