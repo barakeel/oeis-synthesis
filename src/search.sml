@@ -857,16 +857,13 @@ fun beamsearch_prnn_both pgen seq tim width =
    ------------------------------------------------------------------------- *)
   
 val ibcmp = cpl_compare Int.compare bool_compare
-
 fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
-
 val eval_time = ref 0.0
 
-
+(*
 fun tokenl_of_prog_topdown (Ins (id,pl)) = 
   id :: List.concat (map tokenl_of_prog_topdown pl)
 
-(*
 local open IntInf in
 
 fun zip_prog16 p = 
@@ -890,18 +887,18 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline  ("seq: " ^ "A" ^ its anum)
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
-    val _ = print_endline (its (length pl) ^ " programs")
+    val _ = print_endline ("programs: " ^ its (length pl))
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
-        val al = (* case dfindo p (!pd) of SOME oldal => oldal 
-          | NONE => *)
+        val al = case dfindo p (!pd) of SOME oldal => oldal 
+          | NONE =>
           let 
             val newal0 = total_time eval_time eval_prog p
             val newal = dict_sort Int.compare (map fst newal0) 
           in
             check_wind wind (p,newal0);
-            (* pd := dadd p newal (!pd); *)
+            pd := dadd p newal (!pd);
             newal
       end
         val ibl = map (fn x => (x,x=anum)) al
@@ -909,13 +906,16 @@ fun gen_prog pgend pd wind (pgen,anum) =
         ibd := eaddl ibl (!ibd)
       end
     val al = (app f pl; elist (!ibd))
-    val _ = print_endline (its (length al) ^ " sequences")
+    val _ = print_endline ("sequences: " ^ its (length al))
     val _ = update_pal pgend (pgen,al)
-    val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
-    (* val _ = print_endline ("pd: " ^ its (dlength (!pd))) *)
-    (* val _ = if dlength (!pd) >= 10000 
-            then (print_endline "reset pd"; pd := dempty prog_compare)
-            else () *)
+    val _ = print_endline ("tot pgend: " ^ its (dlength (!pgend)))
+    val _ = print_endline ("tot sol: " ^ its (dlength (!wind)))
+    val _ = print_endline ("tot eval: " ^ 
+      rts_round 4 (!eval_time) ^ " seconds")
+    val _ = print_endline ("eval cache: " ^ its (dlength (!pd)))
+    val _ = if dlength (!pd) >= 50000 
+            then (print_endline "reset eval cache"; pd := dempty prog_compare)
+            else ()
   in
     ()
   end
