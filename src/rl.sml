@@ -399,11 +399,12 @@ fun rl_pg_search expname ngen =
     val fileso = if ngen <= 0 
                  then selfdir ^ "/filterunique_train/ob.so" 
                  else traindir ^ "/" ^ its (ngen - 1) ^ "/ob.so"
-    val _ = if exists_file fileso then () else raise ERR "rl_pg_search" 
-      "need .so from train directory"  
     val _ = log ("Generation " ^ its ngen)
     val _ = log "infer"
-    val pgenl = search.infer_pgenl fileso (int_pow 2 20) 130.0
+    val pgenl = 
+      if !prnnsum_flag andalso ngen <= 0 
+      then search.random_pgenl (int_pow 2 20) 13.0
+      else search.infer_pgenl fileso (int_pow 2 20) 130.0
     val _ = log "search"
     val ex = search.compete_pgenl (expname,ngen) 10 pgenl
     val _ = log "train"
