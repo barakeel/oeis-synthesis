@@ -872,8 +872,10 @@ fun update_pal pgend (pgen,al) =
 
 fun gen_prog pgend pd wind (pgen,anum) =
   let
+    val _ = print_endline  ("A" ^ its anum ^ " " ^ human.humanf pgen)
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
+    val _ = print_endline (its (length pl) ^ " programs")
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
@@ -891,8 +893,12 @@ fun gen_prog pgend pd wind (pgen,anum) =
         ibd := eaddl ibl (!ibd)
       end
     val al = (app f pl; elist (!ibd))
+    val _ = print_endline (its (length al) ^ " sequences")
+    val _ = update_pal pgend (pgen,al)
+    val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
+    val _ = print_endline ("pd: " ^ its (dlength (!pd)))
   in
-    update_pal pgend (pgen,al)
+    ()
   end
   
 fun gen_progl () pgenal = 
@@ -902,10 +908,11 @@ fun gen_progl () pgenal =
     val wind = ref (dempty Int.compare)
     val _ = eval_time := 0.0
     val _ = app (gen_prog pgend pd wind) pgenal
-    val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
-    val _ = print_endline ("pd: " ^ its (dlength (!pd)))
-    val _ = print_endline ("sol: " ^ its (dlength (!wind)))
-    val _ = print_endline ("eval: " ^ rts_round 4 (!eval_time) ^ " seconds")
+    val _ = print_endline ("end pgend: " ^ its (dlength (!pgend)))
+    val _ = print_endline ("end pd: " ^ its (dlength (!pd)))
+    val _ = print_endline ("end sol: " ^ its (dlength (!wind)))
+    val _ = print_endline ("end eval: " ^ 
+      rts_round 4 (!eval_time) ^ " seconds")
   in
     (dlist (!pgend), dlist (!wind))
   end
