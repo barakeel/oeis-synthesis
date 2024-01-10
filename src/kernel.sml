@@ -537,8 +537,9 @@ local
     end
 in
 
+
 fun write_itprogl file itprogl = writel file (map string_of_atpl itprogl)
-                              (* write_data enc_itprogl file r *)
+                                 (* write_data enc_itprogl file r *)
 fun read_itprogl_human file = map atpl_of_string (readl file)
 
 fun read_itprogl file =
@@ -555,12 +556,16 @@ val ((),t2) = add_time (write_itprogl (selfdir ^ "/model/itsol843_human")) r1;
 val (r2,t3) = add_time read_itprogl (selfdir ^ "/model/itsol843_human");
 *)
 
+fun write_progl file pl = writel file (map gpt_of_prog pl)
+
+fun read_progl file = 
+  if hd_string (hd (readl file)) = #"(" 
+  then read_data dec_progl file
+  else map prog_of_gpt (readl file)
+
 type pgen = (prog * (int * prog) list)
 fun write_pgen file r = write_data (HOLsexp.list_encode enc_pgen) file r
 fun read_pgen file = read_data (HOLsexp.list_decode dec_pgen) file
-
-fun write_progl file r = write_data enc_progl file r
-fun read_progl file = read_data dec_progl file
 
 fun write_seql file r = write_data enc_seql file r
 fun read_seql file = read_data dec_seql file
