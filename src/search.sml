@@ -872,7 +872,8 @@ fun update_pal pgend (pgen,al) =
 
 fun gen_prog pgend pd wind (pgen,anum) =
   let
-    val _ = print_endline  ("A" ^ its anum ^ " " ^ human.humanf pgen)
+    val _ = print_endline  (human.humanf pgen)
+    val _ = print_endline  ("A" ^ its anum)
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
     val _ = print_endline (its (length pl) ^ " programs")
@@ -897,6 +898,9 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = update_pal pgend (pgen,al)
     val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
     val _ = print_endline ("pd: " ^ its (dlength (!pd)))
+    val _ = if dlength (!pd) >= 50000 
+            then (print_endline "reset pd"; pd := dempty prog_compare)
+            else ()
   in
     ()
   end
@@ -909,7 +913,6 @@ fun gen_progl () pgenal =
     val _ = eval_time := 0.0
     val _ = app (gen_prog pgend pd wind) pgenal
     val _ = print_endline ("end pgend: " ^ its (dlength (!pgend)))
-    val _ = print_endline ("end pd: " ^ its (dlength (!pd)))
     val _ = print_endline ("end sol: " ^ its (dlength (!wind)))
     val _ = print_endline ("end eval: " ^ 
       rts_round 4 (!eval_time) ^ " seconds")
