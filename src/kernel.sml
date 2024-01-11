@@ -606,9 +606,6 @@ fun anumprog_of_string s =
   
 fun read_anumprog file = map anumprog_of_string (readl file)
 
-
-
-  
 (* -------------------------------------------------------------------------
    List of tokens
    ------------------------------------------------------------------------- *)

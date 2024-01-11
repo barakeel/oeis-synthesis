@@ -918,7 +918,7 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline ("tot search: " ^ 
       rts_round 4 (!search_time) ^ " seconds")
     val _ = print_endline ("tot exec: " ^ 
-      rts_round 4 (!search_time) ^ " seconds")
+      rts_round 4 (!exec_time) ^ " seconds")
     val _ = print_endline ("tot eval: " ^ 
       rts_round 4 (!eval_time) ^ " seconds")
     val _ = print_endline ("eval cache: " ^ its (dlength (!pd)))

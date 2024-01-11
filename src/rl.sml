@@ -438,7 +438,7 @@ fun rl_pg_train expname ngen =
   end
 
 
-(* load "rl"; rl.rl_pg_search "pgensum0" 0; *)
+(* load "rl"; rl.rl_pg_search "pgensum0" 6; *)
 
 
 (* -------------------------------------------------------------------------
