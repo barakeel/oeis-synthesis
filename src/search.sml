@@ -712,7 +712,6 @@ fun init_timer_wtim tim =
 
 val prnn_counter = ref 0
 
-
 exception Break;
 
 local open exec_prnn in
@@ -775,9 +774,16 @@ fun beamsearch_prnn p seq tim width =
    Alternative generation of programs 
    ------------------------------------------------------------------------- *)
 
+val exec_time = ref 0.0
+val eval_time = ref 0.0
+val search_time = ref 0.0
+val dict_time = ref 0.0
+val mkexec_time = ref 0.0
+val compl_time = ref 0.0
+
 val stoptokenl = [IntInf.fromInt 0]
 val init_score = [IntInf.fromInt 0]
-val exec_time = ref 0.0
+
 
 local open exec_prnn in
 
@@ -786,7 +792,7 @@ fun beamsearch_prnnsum_one pgen seq tim ((tokenl,scl),embv) =
     val _ = seq_glob := seq @ stoptokenl
     val _ = prog_glob := tokenl @ stoptokenl
     val _ = embv_glob := embv
-    val exec = mk_exec pgen
+    val exec = total_time mkexec_time mk_exec pgen
     val _ = init_timer_wtim tim
     fun g token = total_time exec_time exec ([IntInf.fromInt token],[0]) 
     val newembl = List.tabulate (16,fn token => (token, g token)) handle 
@@ -826,14 +832,17 @@ fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
   if dlength noded <= 0 orelse iter >= prnnsum_limit then pl else
   let
     (* select a node to extend *)
-    val (key,node) = valOf (smallest_node noded)
+    val (key,node) = valOf (total_time dict_time smallest_node noded)
     (* extend the node *)
-    val (leafl,nodel) = partition is_compl 
+    val (leafl,nodel) = total_time compl_time
+      (partition is_compl) 
       (beamsearch_prnnsum_one pgen seq tim node)
     val scnodel = map (fn x => (score_node x, x)) nodel
-    val newnoded = daddl scnodel (drem key noded)
+    val newnoded = total_time dict_time daddl scnodel 
+      (total_time dict_time drem key noded)
     (* save generated programs (local search) *)
-    val newpl = map (valOf o to_compl) leafl @ pl
+    val newpl = total_time compl_time (map (valOf o to_compl)) leafl 
+      @ pl
   in
     beamsearch_prnnsum_loop pgen seq tim (iter + 1) newpl newnoded
   end
@@ -843,8 +852,8 @@ val init_node =
 
 fun beamsearch_prnnsum pgen seq tim =
   let 
-    val iter = 0
     val _ = push_counter := 0
+    val iter = 0
     val pl = []
     val noded = dnew (list_compare IntInf.compare) [init_node]
   in
@@ -862,8 +871,7 @@ fun beamsearch_prnn_both pgen seq tim width =
   
 val ibcmp = cpl_compare Int.compare bool_compare
 fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
-val eval_time = ref 0.0
-val search_time = ref 0.0
+
 
 (*
 fun tokenl_of_prog_topdown (Ins (id,pl)) = 
@@ -886,19 +894,33 @@ fun update_pal pgend (pgen,al) =
     pgend := dadd pgen newal (!pgend)
   end
 
+fun reportt s timeref =
+  print_endline (s ^ ": " ^ rts_round 6 (!timeref) ^ " seconds")
+
+fun report_all () = 
+  (
+  reportt "search" search_time;
+  reportt "mkexec" mkexec_time;
+  reportt "exec" exec_time;
+  reportt "dict" dict_time;
+  reportt "compl" compl_time;
+  reportt "eval" eval_time
+  )
+
 fun gen_prog pgend pd wind (pgen,anum) =
   let
+    (* 
     val _ = print_endline  ("pgen: " ^ human.humanf pgen)
     val _ = print_endline  ("seq: " ^ "A" ^ its anum)
+    *)
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val pl = total_time search_time 
       (beamsearch_prnn_both pgen seq prnntim) prnnwidth
-    val _ = print_endline ("programs: " ^ its (length pl))
+    (* val _ = print_endline ("programs: " ^ its (length pl)) *)
     val ibd = ref (eempty ibcmp)
     fun f p =
       let 
-        val al = case dfindo p (!pd) of SOME oldal => oldal 
-          | NONE =>
+        val al = case dfindo p (!pd) of SOME oldal => oldal | NONE =>
           let 
             val newal0 = total_time eval_time eval_prog p
             val newal = dict_sort Int.compare (map fst newal0) 
@@ -906,23 +928,19 @@ fun gen_prog pgend pd wind (pgen,anum) =
             check_wind wind (p,newal0);
             pd := dadd p newal (!pd);
             newal
-      end
+          end
         val ibl = map (fn x => (x,x=anum)) al
       in
         ibd := eaddl ibl (!ibd)
       end
     val al = (app f pl; elist (!ibd))
-    val _ = print_endline ("sequences: " ^ its (length al))
     val _ = update_pal pgend (pgen,al)
+    (* 
+    val _ = print_endline ("sequences: " ^ its (length al))
     val _ = print_endline ("tot pgend: " ^ its (dlength (!pgend)))
     val _ = print_endline ("tot sol: " ^ its (dlength (!wind)))
-    val _ = print_endline ("tot search: " ^ 
-      rts_round 4 (!search_time) ^ " seconds")
-    val _ = print_endline ("tot exec: " ^ 
-      rts_round 4 (!exec_time) ^ " seconds")
-    val _ = print_endline ("tot eval: " ^ 
-      rts_round 4 (!eval_time) ^ " seconds")
     val _ = print_endline ("eval cache: " ^ its (dlength (!pd)))
+    *)
     val _ = if dlength (!pd) >= 50000 
             then (print_endline "reset eval cache"; pd := dempty prog_compare)
             else ()
@@ -935,16 +953,10 @@ fun gen_progl () pgenal =
     val pgend = ref (dempty prog_compare)
     val pd = ref (dempty prog_compare)
     val wind = ref (dempty Int.compare)
-    val _ = eval_time := 0.0
     val _ = app (gen_prog pgend pd wind) pgenal
-    val _ = print_endline ("end pgend: " ^ its (dlength (!pgend)))
-    val _ = print_endline ("end sol: " ^ its (dlength (!wind)))
-    val _ = print_endline ("end search: " ^ 
-      rts_round 4 (!search_time) ^ " seconds")
-    val _ = print_endline ("end exec: " ^ 
-      rts_round 4 (!search_time) ^ " seconds")
-    val _ = print_endline ("end eval: " ^ 
-      rts_round 4 (!eval_time) ^ " seconds")
+    val _ = print_endline ("pgend: " ^ its (dlength (!pgend)))
+    val _ = print_endline ("sol: " ^ its (dlength (!wind)))
+    val _ = report_all ()
   in
     (dlist (!pgend), dlist (!wind))
   end
