@@ -818,7 +818,8 @@ fun smallest_node d =
   (Redblackmap.app (fn x => raise CatchableNode x) d; NONE)
   handle CatchableNode r => SOME r
 
-fun score_node ((tokenl,scl),embv) = IntInf.~ (sum_inf scl) :: tokenl
+fun score_node ((tokenl,scl),embv) = 
+  IntInf.~ (sum_inf scl) :: IntInf.fromInt (length tokenl) :: tokenl
 
 (* this is somehow using a lot of memory *)                        
 fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
