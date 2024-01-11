@@ -837,9 +837,9 @@ fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
     val (leafl,nodel) = total_time compl_time
       (partition is_compl) 
       (beamsearch_prnnsum_one pgen seq tim node)
-    val scnodel = map (fn x => (score_node x, x)) nodel
-    val newnoded = total_time dict_time daddl scnodel 
-      (total_time dict_time drem key noded)
+    val scnodel = total_time dict_time (map (fn x => (score_node x, x))) nodel
+    val newnoded = total_time dict_time (daddl scnodel)
+      (total_time dict_time (drem key) noded)
     (* save generated programs (local search) *)
     val newpl = total_time compl_time (map (valOf o to_compl)) leafl 
       @ pl
@@ -941,8 +941,8 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline ("tot sol: " ^ its (dlength (!wind)))
     val _ = print_endline ("eval cache: " ^ its (dlength (!pd)))
     *)
-    val _ = if dlength (!pd) >= 50000 
-            then (print_endline "reset eval cache"; pd := dempty prog_compare)
+    val _ = if dlength (!pd) >= 200000 
+            then pd := dempty prog_compare
             else ()
   in
     ()
