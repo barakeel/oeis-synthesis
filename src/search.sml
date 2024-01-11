@@ -708,7 +708,7 @@ fun search_smartselect dir =
    ------------------------------------------------------------------------- *)
 
 fun init_timer_wtim tim = 
-  (push_counter := 0; abstimer := 0; timelimit := tim);
+  (abstimer := 0; timelimit := tim);
 
 val prnn_counter = ref 0
 
@@ -763,6 +763,7 @@ fun beamsearch_prnn_loop i pd p seq tim width tokembl =
 
 fun beamsearch_prnn p seq tim width =
   let 
+    val _ = push_counter := 0
     val tokembl = [([]: IntInf.int list,
       (Vector.tabulate (16, fn _ => [IntInf.fromInt 0])))]
     val pd = eempty prog_compare
@@ -776,17 +777,18 @@ fun beamsearch_prnn p seq tim width =
 
 val stoptokenl = [IntInf.fromInt 0]
 val init_score = [IntInf.fromInt 0]
+val exec_time = ref 0.0
 
 local open exec_prnn in
 
-fun beamsearch_prnnsum_one pgen seq tim (tokenl,embv) =
+fun beamsearch_prnnsum_one pgen seq tim ((tokenl,scl),embv) =
   let 
     val _ = seq_glob := seq @ stoptokenl
-    val _ = prog_glob := (map fst tokenl) @ stoptokenl
+    val _ = prog_glob := tokenl @ stoptokenl
     val _ = embv_glob := embv
     val exec = mk_exec pgen
     val _ = init_timer_wtim tim
-    fun g token = exec ([IntInf.fromInt token],[0]) 
+    fun g token = total_time exec_time exec ([IntInf.fromInt token],[0]) 
     val newembl = List.tabulate (16,fn token => (token, g token)) handle 
         Empty => []
       | Div => []
@@ -796,7 +798,7 @@ fun beamsearch_prnnsum_one pgen seq tim (tokenl,embv) =
     fun f (token,x) = (token, hd x)
     val nextl = map f newembl 
     val newembv = Vector.fromList (map snd newembl)
-    fun h (token,x) = ((IntInf.fromInt token, x) :: tokenl, newembv)
+    fun h (token,sc) = ((IntInf.fromInt token :: tokenl, sc :: scl), newembv)
   in
     map h nextl
   end
@@ -807,18 +809,18 @@ local open IntInf in
   fun sum_inf l = case l of [] => 0 | a :: m => a + sum_inf m
 end
 
-val to_compl = prog_of_movelo o map (IntInf.toInt o fst) o fst
+val to_compl = prog_of_movelo o map IntInf.toInt o fst o fst
 val is_compl = isSome o to_compl
 
 exception CatchableNode of (IntInf.int list * 
-  ((IntInf.int * IntInf.int) list * IntInf.int list vector));
+  ((IntInf.int list * IntInf.int list) * IntInf.int list vector));
 fun smallest_node d =
   (Redblackmap.app (fn x => raise CatchableNode x) d; NONE)
   handle CatchableNode r => SOME r
 
-fun score_node (tokenl,embv) = 
-  let val (tokl,scl) = split tokenl in IntInf.~ (sum_inf scl) :: tokl end
-                             
+fun score_node ((tokenl,scl),embv) = IntInf.~ (sum_inf scl) :: tokenl
+
+(* this is somehow using a lot of memory *)                        
 fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
   if dlength noded <= 0 orelse iter >= prnnsum_limit then pl else
   let
@@ -835,14 +837,15 @@ fun beamsearch_prnnsum_loop pgen seq tim iter pl noded =
     beamsearch_prnnsum_loop pgen seq tim (iter + 1) newpl newnoded
   end
 
+val init_node = 
+  ([IntInf.fromInt 0], (([],[]), (Vector.tabulate (16, fn _ => init_score))))
+
 fun beamsearch_prnnsum pgen seq tim =
   let 
-    val pl = []
-    val tokemb = ([], (Vector.tabulate (16, fn _ => init_score)))
-    val sc = [IntInf.fromInt 0]
-    val node = (sc,tokemb)
-    val noded = dnew (list_compare IntInf.compare) [node]
     val iter = 0
+    val _ = push_counter := 0
+    val pl = []
+    val noded = dnew (list_compare IntInf.compare) [init_node]
   in
     beamsearch_prnnsum_loop pgen seq tim iter pl noded
   end
@@ -859,6 +862,7 @@ fun beamsearch_prnn_both pgen seq tim width =
 val ibcmp = cpl_compare Int.compare bool_compare
 fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
 val eval_time = ref 0.0
+val search_time = ref 0.0
 
 (*
 fun tokenl_of_prog_topdown (Ins (id,pl)) = 
@@ -886,7 +890,8 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = print_endline  ("pgen: " ^ human.humanf pgen)
     val _ = print_endline  ("seq: " ^ "A" ^ its anum)
     val seq = valOf (Array.sub (bloom.oseq,anum))
-    val pl = beamsearch_prnn_both pgen seq prnntim prnnwidth
+    val pl = total_time search_time 
+      (beamsearch_prnn_both pgen seq prnntim) prnnwidth
     val _ = print_endline ("programs: " ^ its (length pl))
     val ibd = ref (eempty ibcmp)
     fun f p =
@@ -910,6 +915,10 @@ fun gen_prog pgend pd wind (pgen,anum) =
     val _ = update_pal pgend (pgen,al)
     val _ = print_endline ("tot pgend: " ^ its (dlength (!pgend)))
     val _ = print_endline ("tot sol: " ^ its (dlength (!wind)))
+    val _ = print_endline ("tot search: " ^ 
+      rts_round 4 (!search_time) ^ " seconds")
+    val _ = print_endline ("tot exec: " ^ 
+      rts_round 4 (!search_time) ^ " seconds")
     val _ = print_endline ("tot eval: " ^ 
       rts_round 4 (!eval_time) ^ " seconds")
     val _ = print_endline ("eval cache: " ^ its (dlength (!pd)))
@@ -929,6 +938,10 @@ fun gen_progl () pgenal =
     val _ = app (gen_prog pgend pd wind) pgenal
     val _ = print_endline ("end pgend: " ^ its (dlength (!pgend)))
     val _ = print_endline ("end sol: " ^ its (dlength (!wind)))
+    val _ = print_endline ("end search: " ^ 
+      rts_round 4 (!search_time) ^ " seconds")
+    val _ = print_endline ("end exec: " ^ 
+      rts_round 4 (!search_time) ^ " seconds")
     val _ = print_endline ("end eval: " ^ 
       rts_round 4 (!eval_time) ^ " seconds")
   in
@@ -1372,7 +1385,7 @@ fun compete_pgenl (expname,ngen) n pgenl =
     val prevdir = searchdir ^ "/" ^ its (ngen - 1)
     val _ = app mkDir_err [expdir,namedir,searchdir,dir]
     val oldself = 
-      if ngen <= 0 then [] else 
+      if ngen <= 0 then [] else
       map string_to_int (readl (prevdir ^ "/self"))
     val olditprogl = 
       if ngen <= 0 then [] else 
@@ -1395,6 +1408,7 @@ fun compete_pgenl (expname,ngen) n pgenl =
     writel (dir ^ "/self") (map its newself);
     write_itprogl (dir ^ "/sol") newitprogl;
     stats_dir dir olditprogl newitprogl;
+    writel (dir ^ "/ex_human") (map human.humanf ex);
     write_progl (dir ^ "/ex") ex;
     ex
   end

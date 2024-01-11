@@ -255,15 +255,14 @@ val ramsey_operl = [("zero",0),("one",0),("two",0),
 
 val pgen_operl = map (fn x => (x,1))
   ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
-   "mcond","mloop","mx","my","mcompr","mloop2"] 
-
+   "mcond","mloop","mx","my","mcompr","mloop2"]
+   
 val ctree_operl = 
   [("push",2),("pop",1),("popr",1),("push2",3),
    ("cdivr",2),("cfloor",1),("cnumer",1),("cdenom",1),("cgcd",2),
    ("cimag",0),("crealpart",1),("cimagpart",1)]
    
 val wrat_operl = [("push",2),("pop",1),("while2",5),("divr",2),("floor",1)]
-
 val prnn_operl = [("push",2),("pop",1),("prog",0),("embv",1),("seq",0)] 
 
 (*
