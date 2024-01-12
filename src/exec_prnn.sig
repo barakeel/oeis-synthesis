@@ -5,7 +5,7 @@ sig
   type prog = kernel.prog
   type exec = IntInf.int list * IntInf.int list -> IntInf.int list
   
-  val mk_exec : prog -> exec
+  val mk_exec : prog -> (exec * (unit -> unit))
   val mk_exec_onev : prog -> (IntInf.int -> IntInf.int)
 
   (* match oeis *)

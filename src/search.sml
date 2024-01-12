@@ -705,10 +705,11 @@ fun search_smartselect dir =
  
 (* -------------------------------------------------------------------------
    Generate programs with program generator and evaluate the programs
+   (* todo simplify the procedure and make it policy based *)
    ------------------------------------------------------------------------- *)
 
 fun init_timer_wtim tim = 
-  (abstimer := 0; timelimit := tim);
+  (push_counter := 0; abstimer := 0; timelimit := tim);
 
 val prnn_counter = ref 0
 
@@ -722,7 +723,7 @@ fun beamsearch_prnn_one tim width p seq (tokenl,embv) =
     val _ = seq_glob := seq
     val _ = prog_glob := tokenl
     val _ = embv_glob := embv
-    val exec = mk_exec p
+    val exec = fst (mk_exec p)
     val _ = init_timer_wtim tim
     val newembl = List.tabulate (16,fn i => (i, exec ([IntInf.fromInt i],[0])))
     fun f (i,x) = if hd x > 0 then SOME i else NONE
@@ -762,7 +763,6 @@ fun beamsearch_prnn_loop i pd p seq tim width tokembl =
 
 fun beamsearch_prnn p seq tim width =
   let 
-    val _ = push_counter := 0
     val tokembl = [([]: IntInf.int list,
       (Vector.tabulate (16, fn _ => [IntInf.fromInt 0])))]
     val pd = eempty prog_compare
@@ -772,6 +772,7 @@ fun beamsearch_prnn p seq tim width =
 
 (* -------------------------------------------------------------------------
    Alternative generation of programs 
+   (* todo: reduce the push limit *)
    ------------------------------------------------------------------------- *)
 
 val exec_time = ref 0.0
@@ -792,7 +793,7 @@ fun beamsearch_prnnsum_one pgen seq tim ((tokenl,scl),embv) =
     val _ = seq_glob := seq @ stoptokenl
     val _ = prog_glob := tokenl @ stoptokenl
     val _ = embv_glob := embv
-    val exec = total_time mkexec_time mk_exec pgen
+    val exec = fst (total_time mkexec_time mk_exec pgen)
     val _ = init_timer_wtim tim
     fun g token = total_time exec_time exec ([IntInf.fromInt token],[0]) 
     val newembl = List.tabulate (16,fn token => (token, g token)) handle 
@@ -815,6 +816,7 @@ local open IntInf in
   fun sum_inf l = case l of [] => 0 | a :: m => a + sum_inf m
 end
 
+(* do it chad way *)
 val to_compl = prog_of_movelo o map IntInf.toInt o fst o fst
 val is_compl = isSome o to_compl
 
@@ -851,8 +853,7 @@ val init_node =
   ([IntInf.fromInt 0], (([],[]), (Vector.tabulate (16, fn _ => init_score))))
 
 fun beamsearch_prnnsum pgen seq tim =
-  let 
-    val _ = push_counter := 0
+  let
     val iter = 0
     val pl = []
     val noded = dnew (list_compare IntInf.compare) [init_node]
@@ -870,7 +871,7 @@ fun beamsearch_prnn_both pgen seq tim width =
    ------------------------------------------------------------------------- *)
   
 val ibcmp = cpl_compare Int.compare bool_compare
-fun eval_prog p = exec_prnn.coverf_oeis (exec_prnn.mk_exec p)
+fun eval_prog p = exec_prnn.coverf_oeis (fst (exec_prnn.mk_exec p))
 
 
 (*

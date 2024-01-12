@@ -282,7 +282,7 @@ fun checkf_prnn nnvalue p = prnnd := dadd p nnvalue (!prnnd)
 
 fun checkf_prnn2 p =   
   let
-    val exec = exec_prnn.mk_exec p 
+    val exec = fst (exec_prnn.mk_exec p)
       handle Subscript => raise ERR "checkf_wrat" "1"
     val anumtl = exec_prnn.coverf_oeis exec
       handle Subscript => raise ERR "checkf_wrat" "2"

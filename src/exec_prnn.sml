@@ -38,8 +38,11 @@ fun mk_progb (Ins (id,pl)) =
 val empty_infl = []: IntInf.int list
 val default_entry = (empty_infl, empty_infl)
 
-fun get_mem () = ref (Array.array (16, default_entry))
-
+fun get_mem () = 
+  let val a = Array.array (16, default_entry) in
+    (ref a, a)
+  end
+  
 fun resize_array a n = 
   let val dest = Array.array (2 * n, default_entry) in
     Array.copy {src = !a, dst = dest, di = 0};
@@ -227,10 +230,13 @@ fun helperm (mema,memn) f1 f2 n x1 x2 =
     helperm_loop (mema,memn) f1 f2 n lastn newx1 newx2
   end
 
+val reset_glob = ref []
+
 fun loop2m_f_aux () = 
   let 
-    val mema = get_mem ()
+    val (mema,memi) = get_mem ()
     val memn = ref 0
+    val _ = reset_glob := (mema,memi,memn) :: !reset_glob
     val mem = (mema,memn)
   in 
     fn (f1,f2,n,x1,x2) => helperm mem f1 f2 (IntInf.toInt (hd n)) x1 x2
@@ -240,8 +246,9 @@ fun loop2m_f () = mk_quintf2 (loop2m_f_aux ())
 
 fun loopm_f_aux () =
   let
-    val mema = get_mem ()
+    val (mema,memi) = get_mem ()
     val memn = ref 0
+    val _ = reset_glob := (mema,memi,memn) :: !reset_glob
     val mem = (mema,memn)
     fun f2 (x1,x2) = [aincr (hd x2)]
   in
@@ -303,8 +310,9 @@ val comprstart = [IntInf.fromInt (~1)]
       
 fun compr_wrap f =
   let
-    val mema = get_mem ()
+    val (mema,memi) = get_mem ()
     val memn = ref 0
+    val _ = reset_glob := (mema,memi,memn) :: !reset_glob
     fun newf n =
       if n < 0 then raise Div else
       if n < !memn then fst (Array.sub (!mema,n)) else 
@@ -401,10 +409,20 @@ fun mk_exec_loop (p as (Insb (id,b,pl))) =
     f2
   end
   
-fun mk_exec p =  mk_exec_loop (mk_progb p)
+fun mk_exec p = 
+  let 
+    val _ = reset_glob := [] 
+    val r = mk_exec_loop (mk_progb p)
+    val resetl = !reset_glob
+    val _ = reset_glob := [] 
+    fun reset () = 
+      app (fn (mema,memi,memn) => (mema := memi; memn := 0)) resetl 
+  in
+    (r,reset)
+  end
 
 fun mk_exec_onev p = 
-  let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
+  let val exec = fst (mk_exec p) in (fn x => hd (exec ([x],[azero]))) end
 
 fun coverf_oeis exec = 
   let fun g x = hd (exec ([x], [azero])) in 
