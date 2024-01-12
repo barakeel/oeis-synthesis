@@ -1,6 +1,6 @@
 for i in {80..99}
 do 
 j = $i - 1 
-cp "exp-4$j/solnew" "exp-4$i/solold"
-cp "exp-4$i/solold" "exp-4$i/solnew" 
+cp "exp4$j-chk/solnew" "exp4$i-chk/solold"
+cp "exp4$i-chk/solold" "exp4$i-chk/solnew" 
 done
