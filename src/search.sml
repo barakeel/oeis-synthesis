@@ -136,7 +136,7 @@ fun best_move distop =
 fun inc_bestmove dis = 
   let val i = best_move dis in
     map (fn ((a,b),c) => if fst a = i then ((a,b),c+1) else ((a,b),c)) dis
-  end     
+  end
  
 fun split_vis nvis dis = 
   let 
@@ -152,6 +152,66 @@ fun split_vis nvis dis =
     map rm_polv dis1
   end
   
+(*
+load "aiLib"; open aiLib;
+
+fun best_el dis =
+  let 
+    fun loop (maxel,maxsc) dis = case dis of
+        [] => maxel
+      | (el,(sc:real)) :: m => 
+        if sc > maxsc then loop (el,sc) m else loop (maxel,maxsc) m
+  in
+    loop (hd dis) (tl dis)
+  end;
+  
+fun best_n_aux acc n dis =
+  if n <= 0 then acc else
+  let 
+    val el = best_el dis 
+    val newdis = filter (fn (x,_) => x <> el) dis
+  in
+    best_n_aux (el :: acc) (n - 1) newdis
+  end;
+  
+fun best_n n dis = best_n_aux [] n dis;
+
+(* range from 1 to 1000000 *)
+fun split_vis hiddenl nvis distop = 
+  let
+    fun h i x = if mem i hiddenl then 0 else x
+    val disl = mapi h distop           
+    val denom = sum_int disl
+    val visl = map (fn x => (x * nvis) div denom) disl
+    val visa = Array.fromList visl
+    val extra = nvis - sum_int visl
+    fun f i x = (i, int_div ((x * nvis) mod denom) denom)
+    val fracl = mapi f disl
+    val extral = best_n extra fracl
+    fun g i = Array.update (visa,i, Array.sub(visa,i) + 1)
+  in
+    app g extral;
+    visa
+  end;
+  (* 
+   two steps, second step: forces 0 where program terminated 
+   don't move them to 1 in case the distribution is all 0
+  *)
+
+
+val (visa,t) = add_time (split_vis [] 1000000) (List.tabulate (10,I));
+val hiddenl = [0,1];
+
+val (hiddentruel,hiddenfalsel) = 
+  partition (fn x => Array.sub (visa,x) > 0) hiddenl;
+
+
+val (visa2,t) = add_time (split_vis hiddenl (1000000 - (length hiddentruel))) 
+  (List.tabulate (10,I));
+rts t;
+
+*)
+
 (* -------------------------------------------------------------------------
    Allocate time in advance according to the prior probabilities
    ------------------------------------------------------------------------- *)  
@@ -291,6 +351,9 @@ fun search_board (vis,tinc) board =
     print_endline ("programs: " ^ its (!prog_counter));
     print_endline ("search time: "  ^ rts_round 2 t ^ " seconds")
   end
+
+
+
 
 
 (* -------------------------------------------------------------------------
