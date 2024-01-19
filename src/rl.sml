@@ -391,6 +391,7 @@ fun train_pg (expname,ngen) pgenl =
   
 fun rl_pg_search expname ngen =  
   let
+    (* todo: make the set of examples updatable *)
     val pex0 = read_itprogl (selfdir ^ "/model/nmt504")
     val pex1 = 
       let fun f (anum,tpl) = 
@@ -444,7 +445,7 @@ fun rl_pg_train expname ngen =
   end
 
 
-(* load "rl"; rl.rl_pg_search "pgensum0" 6; *)
+(* load "rl"; rl.rl_pg_search "pgen1" 0; *)
 
 
 (* -------------------------------------------------------------------------

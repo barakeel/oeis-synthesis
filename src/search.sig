@@ -11,11 +11,10 @@ sig
   val beamsearch : unit -> (int * (int * prog) list) list
   
   (* pgen *)
-  val random_batchl : int -> int -> int list list
+  val random_batchl : int -> 'a list -> 'a list list
   val random_pgenl : int -> real -> prog list  
   val infer_pgenl : string -> int -> real -> prog list
-  val mimicspec : (prog vector * (int * prog) list, (int * int) list, 
-    ((int * int)  * (real * real)) list) smlParallel.extspec
+  val mimicspec : ((int * prog) list, prog list, real list) smlParallel.extspec
   val compete_pgenl : string * int -> (int * prog) list -> prog list -> prog list
 
   

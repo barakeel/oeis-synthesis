@@ -536,12 +536,9 @@ fun mimic_loop (exec,reset) embv (ptokl,tok,ntokl) (probaadd,probamult) =
 val nullemb = [IntInf.fromInt (~1)] 
 val initembv = Vector.tabulate (16, fn _ => nullemb)
 
-fun mimic gv g (seq,tokl) =
-  let
-    val _ = exec_prnn.seq_glob := seq
-    val (exec,reset) = exec_prnn.mk_exec (Vector.sub (gv,g))
-  in
-    mimic_loop (exec,reset) initembv ([],hd tokl,tl tokl) (0.0,1.0)
+fun mimic execr (seq,tokl) =
+  let val _ = exec_prnn.seq_glob := seq in
+    mimic_loop execr initembv ([],hd tokl,tl tokl) (0.0,1.0)
   end
 
 (* -------------------------------------------------------------------------
@@ -557,19 +554,27 @@ fun report_all () =
   reportt "exec" exec_time
   )
 
-fun mimic_one (gv,exv) (g,exi) =
+fun mimic_one scref execr (anum,p) =
   let
-    val (anum,p) = Vector.sub (exv,exi) 
     val seq = valOf (Array.sub (bloom.oseq,anum))
     val tokl = map IntInf.fromInt (rev (tokenl_of_prog p))
-    val sc = total_time mimic_time (mimic gv g) (seq,tokl)
+    val (sc,proba) = total_time mimic_time (mimic execr) (seq,tokl)
   in
-    ((g,anum),sc)
+    scref := !scref + sc 
   end 
   
-fun mimic_all (gv,ex) gel = 
+fun mimic_list ex g = 
+  let 
+    val (exec,reset) = exec_prnn.mk_exec g
+    val scref = ref 0.0
+    val _ = app (mimic_one scref (exec,reset)) ex
+  in
+    !scref
+  end  
+  
+fun mimic_all ex gl = 
   let
-    val rl = map (mimic_one (gv, Vector.fromList ex)) gel
+    val rl = map (mimic_list ex) gl
     val _ = report_all () 
   in
     rl
@@ -579,11 +584,11 @@ fun mimic_all (gv,ex) gel =
    Competition problems
    ------------------------------------------------------------------------- *)
 
-fun mk_batch size exnl =
-  let val (batch,cont) = part_n size exnl in
+fun mk_batch_double size ex =
+  let val (batch,cont) = part_n size ex in
     if null cont 
     then [batch] 
-    else batch :: mk_batch (size * 2) cont
+    else batch :: mk_batch_double (size * 2) cont
   end
 
 fun merge_last_two l = case rev l of
@@ -592,57 +597,27 @@ fun merge_last_two l = case rev l of
                      else l
   | _ => raise ERR "merge_last_two" ""
 
-fun random_batchl batchsize tot = 
-  let val exnl = List.tabulate (tot,I) in
-    merge_last_two (mk_batch batchsize (shuffle exnl))
-  end
-  
+fun random_batchl batchsize ex = 
+  merge_last_two (mk_batch_double batchsize (shuffle ex))
+
 (* -------------------------------------------------------------------------
    Parallelization of the competition
    ------------------------------------------------------------------------- *)
 
-fun string_of_iirr ((i1,i2),(r1,r2)) = 
-  String.concatWith " " [its i1, its i2, rts r1, rts r2]
-fun write_iirr file l = writel file (map string_of_iirr l)
-  
 val string_to_real = valOf o Real.fromString
-fun iirr_of_string s = 
-  let val (s1,s2,s3,s4) = quadruple_of_list (String.tokens Char.isSpace s) in   
-    ((string_to_int s1, string_to_int s2), 
-     (string_to_real s3, string_to_real s4))
-  end
-fun read_iirr file = map iirr_of_string (readl file)
-
-fun string_of_ii (i1,i2) = String.concatWith " " [its i1, its i2]
-fun write_ii file iil = writel file (map string_of_ii iil)
-fun ii_of_string s = 
-  let val (s1,s2) = pair_of_list (String.tokens Char.isSpace s) in   
-    (string_to_int s1, string_to_int s2)
-  end
-fun read_ii file = map ii_of_string (readl file)
+fun write_r file il = writel file (map rts il)
+fun read_r file = map string_to_real (readl file)
 
 fun string_of_aprog (anum,p) = 
   String.concatWith "," [its anum, gpt_of_prog p]
-
-fun write_progv_ex file (progv,ex) =
-  (
-  writel (file ^ "_progv") (map gpt_of_prog (vector_to_list progv));
-  writel (file ^ "_ex") (map string_of_aprog ex)
-  )
-
+fun write_pex file pex = writel (file ^ "_pex") (map string_of_aprog pex)
 fun aprog_of_string s =
   let val (s1,s2) = pair_of_list (String.tokens (fn x => x = #",") s) in
     (string_to_int s1, prog_of_gpt s2)
   end
+fun read_pex file = map aprog_of_string (readl (file ^ "_pex"))
 
-fun read_progv_ex file =
-  (
-  Vector.fromList (map prog_of_gpt (readl (file ^ "_progv"))),
-  map aprog_of_string (readl (file ^ "_ex"))
-  )
-
-val mimicspec : (prog vector * (int * prog) list, (int * int) list, 
-  ((int * int)  * (real * real)) list) smlParallel.extspec =
+val mimicspec : ((int * prog) list, prog list, real list) smlParallel.extspec =
   {
   self_dir = selfdir,
   self = "search.mimicspec",
@@ -653,12 +628,12 @@ val mimicspec : (prog vector * (int * prog) list, (int * int) list,
       (!smlExecScripts.buildheap_dir)] 
     ^ ")"),
   function = mimic_all,
-  write_param = write_progv_ex,
-  read_param = read_progv_ex,
-  write_arg = write_ii,
-  read_arg = read_ii,
-  write_result = write_iirr,
-  read_result = read_iirr
+  write_param = write_pex,
+  read_param = read_pex,
+  write_arg = write_progl,
+  read_arg = read_progl,
+  write_result = write_r,
+  read_result = read_r
   }
 
 (* -------------------------------------------------------------------------
@@ -669,37 +644,36 @@ val logfile_glob = ref (selfdir ^ "/test")
 fun log s = (append_endline (!logfile_glob) s; print_endline s)
 fun logt s t = log (s ^ ": " ^ rts_round 4 t ^ " seconds")
 
-fun parallel_genprog (gv,ex) gel =
+fun parallel_genprog pex gl =
   let 
-    val gell = cut_n (10*ncore) (shuffle gel)
+    val gll = cut_n (10*ncore) (shuffle gl)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
      (string_to_int (dfind "search_memory" configd) handle NotFound => 8000) 
   in
-    smlParallel.parmap_queue_extern ncore mimicspec (gv,ex) gell
+    smlParallel.parmap_queue_extern ncore mimicspec pex gll
   end
 
-fun update_pscl gd (g,sc) = 
-  let val oldsc = dfind g (!gd) handle NotFound => 0.0 in 
-    gd := dadd g (oldsc + sc) (!gd)
-  end
-  
+fun update_pscl gd (p,sc) = 
+  case dfindo p (!gd) of
+    NONE => gd := dadd p sc (!gd)
+  | SOME oldsc => gd := dadd p (sc + oldsc) (!gd)
+ 
 fun merge_pscl pscl = 
   let
-    val gd = ref (dempty Int.compare)
+    val gd = ref (dempty prog_compare)
     val _ = app (update_pscl gd) pscl
   in
     dlist (!gd)
   end
 
-fun round_one (gv,pex) el (oldwinnerl,oldgex) =
+fun round_one pex (oldwinnerl,oldgex) =
   let
     val _ = log ("gen_progl: " ^ its (length oldwinnerl) ^ " programs")
     val gl = map fst oldwinnerl
-    val gel = cartesian_product gl el
-    val (gall,t) = add_time (parallel_genprog (gv,pex)) gel
+    val (rll,t) = add_time (parallel_genprog pex) gl
     val _ = logt "gen_progl" t
-    fun f ((g,_),(sc,_)) = (g,sc)
-    val gscl1 = map f (List.concat gall)
+    val rl = List.concat rll
+    val gscl1 = combine (gl,rl)
     val gscl2 = merge_pscl (oldwinnerl @ gscl1)
     val gscl3 = dict_sort compare_rmax gscl2
     val winnerl = first_n (length oldwinnerl div 2) gscl3
@@ -711,34 +685,40 @@ fun round_one (gv,pex) el (oldwinnerl,oldgex) =
     (winnerl,gex)
   end
 
-fun round_loop (gv,pex) winnerl batchl = case batchl of
+fun round_loop winnerl batchl = case batchl of
     [] => winnerl
   | batch :: newbatchl => 
     let 
       val batchn = length batchl
       val _ = log ("Round " ^ its batchn)
-      val newwinnerl = round_one (gv,pex) batch winnerl
+      val newwinnerl = round_one batch winnerl
     in
-      round_loop (gv,pex) newwinnerl newbatchl
+      round_loop newwinnerl newbatchl
     end
 
-fun stats_compete dir (winnerl,gex) = 
+fun stats_compete dir tottok (winnerl,gex) = 
   let 
-    val winnerlsorted = dict_sort compare_rmax winnerl
-    val _ = log ("examples: " ^ its (length gex))
+    val _ = log ("pgen examples: " ^ its (length gex))
+    val norml = map_snd (fn x => x / Real.fromInt tottok) 
+      (dict_sort compare_rmax winnerl)
+    val _ = log ("best score: " ^ rts (snd (hd norml)))
+    val _ = log ("average score: " ^ rts (average_real (map snd norml)))
   in
     writel (dir ^ "/winner") 
-      (map (fn (p,sc) => rts sc ^ ":" ^ gpt_of_prog p) winnerlsorted);
+      (map (fn (p,sc) => rts sc ^ ":" ^ gpt_of_prog p) norml);
     writel (dir ^ "/winner_human") 
-      (map (fn (p,sc) => rts sc ^ ":" ^ human.humanf p) winnerlsorted);
+      (map (fn (p,sc) => rts sc ^ ":" ^ human.humanf p) norml);
     write_progl (dir ^ "/gex") gex;
     writel (dir ^ "/gex_human") (map human.humanf gex)
   end
   
 fun compete_pgenl (expname,ngen) pex gl =
   let
-    val gv = Vector.fromList gl
-    val oldwinnerl = List.tabulate (Vector.length gv, fn i => (i,0.0))
+    val totex = length pex
+    val _ = log ("number of examples: " ^ its totex)
+    val tottok = sum_int (map (prog_size o snd) pex)
+    val _ = log ("number of tokens: " ^ its tottok)
+    val oldwinnerl = map (fn g => (g,0.0)) gl
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
     val searchdir = namedir ^ "/search"
@@ -747,13 +727,11 @@ fun compete_pgenl (expname,ngen) pex gl =
     val _ = app mkDir_err [expdir,namedir,searchdir,dir]
     val _ = logfile_glob := dir ^ "/log"
     val _ = smlExecScripts.buildheap_dir := dir
-    val el = random_batchl 64 (length pex)
-    val (winnerl,gex) = round_loop (gv,pex) (oldwinnerl,[]) el
-    val gex' = map (fn x => Vector.sub (gv,x)) gex
-    val winnerl' = map (fn (x,sc) => (Vector.sub (gv,x),sc)) winnerl
+    val batchl = random_batchl 64 pex
+    val (winnerl,gex) = round_loop (oldwinnerl,[]) batchl
   in
-    stats_compete dir (winnerl',gex');
-    gex'
+    stats_compete dir tottok (winnerl,gex);
+    gex
   end
 
 (* -------------------------------------------------------------------------
