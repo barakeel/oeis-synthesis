@@ -714,18 +714,19 @@ fun stats_compete dir tottok (winnerl,gex) =
   
 fun compete_pgenl (expname,ngen) pex gl =
   let
-    val totex = length pex
-    val _ = log ("number of examples: " ^ its totex)
-    val tottok = sum_int (map (prog_size o snd) pex)
-    val _ = log ("number of tokens: " ^ its tottok)
     val oldwinnerl = map (fn g => (g,0.0)) gl
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
     val searchdir = namedir ^ "/search"
     val dir = searchdir ^ "/" ^ its ngen
+    val _ = logfile_glob := dir ^ "/log"
+    val totex = length pex 
+    val tottok = sum_int (map (prog_size o snd) pex)
+    val _ = log ("number of examples: " ^ its totex)
+    val _ = log ("number of tokens: " ^ its tottok)
     val prevdir = searchdir ^ "/" ^ its (ngen - 1)
     val _ = app mkDir_err [expdir,namedir,searchdir,dir]
-    val _ = logfile_glob := dir ^ "/log"
+
     val _ = smlExecScripts.buildheap_dir := dir
     val batchl = random_batchl 64 pex
     val (winnerl,gex) = round_loop (oldwinnerl,[]) batchl
