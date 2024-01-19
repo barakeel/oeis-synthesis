@@ -54,7 +54,6 @@ fun mk_dirs () =
   mkDir_err (selfdir ^ "/parallel_search");
   mkDir_err (selfdir ^ "/exp");
   mkDir_err (expdir ());
-  if !smartselect_flag then mkDir_err (exdir ()) else ();
   app mkDir_err [traindir (),searchdir (), histdir ()]
   ) 
 
@@ -392,6 +391,13 @@ fun train_pg (expname,ngen) pgenl =
   
 fun rl_pg_search expname ngen =  
   let
+    val pex0 = read_itprogl (selfdir ^ "/model/nmt504")
+    val pex1 = 
+      let fun f (anum,tpl) = 
+        (anum,hd (dict_sort prog_compare_size (map snd tpl)))
+      in
+        map f pex0  
+      end
     val expdir = selfdir ^ "/exp"
     val namedir = expdir ^ "/" ^ expname
     val traindir = namedir ^ "/train"
@@ -399,7 +405,7 @@ fun rl_pg_search expname ngen =
     fun log s = (print_endline s; append_endline (namedir ^ "/log") s)
     val _ = log ("Generation " ^ its ngen)
     val _ = log "infer"
-    val pgenl = 
+    val gl = 
       if !prnnsum_flag andalso ngen <= 0 
       then search.random_pgenl (int_pow 2 20) 20.0
       else 
@@ -412,9 +418,9 @@ fun rl_pg_search expname ngen =
           else raise ERR "rl_pg_search" fileso
         end
     val _ = log "search"
-    val ex = search.compete_pgenl (expname,ngen) 10 pgenl
+    val gex = search.compete_pgenl (expname,ngen) pex1 gl
     val _ = log "train"
-    val () = train_pg (expname,ngen) ex
+    val () = train_pg (expname,ngen) gex
   in
     rl_pg_search expname (ngen + 1)
   end
@@ -496,9 +502,7 @@ fun search () targetn =
     val _ = print_endline "search start" 
     val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
   in
-    if !smartselect_flag 
-      then search.search_smartselect (expdir () ^ "/" ^ its targetn)
-    else if !beam_flag andalso !ngen_glob > 0
+    if !beam_flag andalso !ngen_glob > 0
       then search.beamsearch ()
     else (
          select_random_target (); 
@@ -853,31 +857,6 @@ fun rl_search_only_default ngen =
     val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
     val _ = log ("diff: " ^ its (length newitsol - length olditsol))
     val _ = write_itsol_atomic ngen newitsol
-    val _ = if not (!smartselect_flag) then () else 
-      let 
-        val exdirloc = exdir ()
-        fun f x = (string_to_int o snd o split_string "exA") x
-        val d = enew Int.compare (map f (listDir exdirloc))
-        val targetl = (List.tabulate
-          (if ngen <= 0 then ntarget_init else ntarget,I))
-        fun mv_exa i = 
-          let 
-            val idir = expdir () ^ "/" ^ its i
-            val sl = filter (String.isPrefix "exA") (listDir idir)
-          in
-            (
-            case sl of [a] =>   
-            let val anum = string_to_int (snd (split_string "exA" a)) in
-              if emem anum d then () else
-                cmd_in_dir idir ("mv " ^ a ^ " " ^ exdirloc)
-            end
-            | _ => ())
-          end
-        val _ = app mv_exa targetil
-        val _ = log ("training sets: " ^ its (length (listDir exdirloc)))     
-      in 
-        ()
-      end  
   in
     stats_ngen (!buildheap_dir) ngen
   end

@@ -116,9 +116,6 @@ val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
 
-
-val smartselect_flag = bflag "smartselect_flag"
-
 (* flags originally in rl.sml *)
 val expname = ref "test"
 val ngen_glob = ref 0

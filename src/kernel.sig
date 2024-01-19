@@ -60,7 +60,6 @@ sig
   val select_number : int
   val reprocess_select_flag : bool ref
   val nooeis_flag : bool ref
-  val smartselect_flag : bool ref
   val revamp_flag : bool ref
   val push_limit : int
   val prnn_flag : bool ref
