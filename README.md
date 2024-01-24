@@ -9,7 +9,7 @@ The following installation instructions are for the Ubuntu OS.
 ### Web interface
 Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
 
-### Install dependencies: MKL,polyml,HOL,OpenBLAS + download old model
+### Install dependencies: MKL,polyml,HOL,OpenBLAS
 This takes about 15 min to complete
 
 ``` 
@@ -30,7 +30,7 @@ After updating the repository (git pull),
 the command `sh install.sh` needs to be run again.
 
 
-### Test oeis-synthesis (requires 10GB of ram to run with a timeout of 600.0 seconds)
+### Test oeis-synthesis
 Go to the `src` directory.
 Run `sh hol.sh` then run in the interative shell:
 ```
@@ -51,7 +51,7 @@ val seq = exec.penum p 10;
 val po = qsynt "2 5 16 256";
 ```
 
-### Train oeis-syntheis (requires 4GB of ram per core)
+### Train oeis-syntheis
 Go to the `src` directory and run:
 ```
 sh rl.sh expname

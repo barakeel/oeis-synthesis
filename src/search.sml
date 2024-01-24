@@ -726,7 +726,6 @@ fun compete_pgenl (expname,ngen) pex gl =
     val _ = log ("number of tokens: " ^ its tottok)
     val prevdir = searchdir ^ "/" ^ its (ngen - 1)
     val _ = app mkDir_err [expdir,namedir,searchdir,dir]
-
     val _ = smlExecScripts.buildheap_dir := dir
     val batchl = random_batchl 64 pex
     val (winnerl,gex) = round_loop (oldwinnerl,[]) batchl
@@ -735,6 +734,18 @@ fun compete_pgenl (expname,ngen) pex gl =
     gex
   end
 
+(* 
+1) start with 120,000 random program generators 
+2) program generators: 
+   - rewarded for creating both program generators and programs
+   - population of best program generators evolve
+     only select program generators from inference.
+     Each program generator "winner" is asked 
+     samples 1000 program generators.
+
+3) how to do inference (during inference the "best" 10000 programs are
+evaluated)
+*)
 (* -------------------------------------------------------------------------
    Inference of generators
    ------------------------------------------------------------------------- *)

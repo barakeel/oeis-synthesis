@@ -55,12 +55,6 @@ else
    exit 1
 fi
 
-## Downloading model
-cd $DIR
-cd src
-wget http://grid01.ciirc.cvut.cz/~thibault/model.tar.gz
-tar -xvf model.tar.gz
-
 ## Returning to the original directory
 cd $DIR
 
