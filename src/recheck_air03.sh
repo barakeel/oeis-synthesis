@@ -6,6 +6,6 @@ awk -F':' '{print $3}' z$1 | sed 's/\(.\)/\1 /g; s/ $//' > cand
 cd ../..
 sh check.sh nmt$1
 cd exp/nmt$1
-rm z$1.gz candorg cand
+rm z$1.gz z$1 cand
 rm -r split
 cd ../..
