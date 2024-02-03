@@ -1,10 +1,8 @@
-dim_glob 96
-ncore 32
-ntarget 64
-nvis 0
+ncore 50
+search_memory 10000
+train_memory 10000
+optimal_flag true
+memo_flag true
+dim_glob 128
+ntarget 200
 rtim 600.0
-time_opt 600.0
-search_memory 12000
-train_memory 50000
-sol2_flag true
-intl_flag true
