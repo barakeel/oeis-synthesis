@@ -15,7 +15,7 @@ if [ -f "solnew" ]
   rm z$1.gz z$1 cand
   rm -r split
 else
-  echo ""
+  echo "failure"
   exit 1
 fi
 cd $DIR
