@@ -12,7 +12,7 @@ sh check.sh nmt$1
 echo "end checking"
 cd exp/nmt$1
 if [ -f "solnew" ]; then
-  rm z$1.gz z$1 cand
+  rm z$1 cand
   rm -r split
 else
   echo "failure"
