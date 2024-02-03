@@ -8,3 +8,4 @@ sh check.sh nmt$1
 cd exp/nmt$1
 rm z$1.gz candorg cand
 rm -r split
+cd ../..
