@@ -7,7 +7,8 @@ can be inspected in the file `results/solutions`.
 The following installation instructions are for the Ubuntu OS.
 
 ### Web interface
-Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html.
+Try QSynt before installing it at http://grid01.ciirc.cvut.cz/~thibault/qsynt.html. This is running a quite old version.
+More programs can be inspected at https://github.com/Anon52MI4/oeis-alien.
 
 ### Install dependencies: MKL,polyml,HOL,OpenBLAS
 This takes about 15 min to complete
