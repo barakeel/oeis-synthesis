@@ -8,3 +8,5 @@ ntarget 200
 rtim 600.0
 short_timeincr 100000
 long_timeincr 100000
+rtim_init 7200.0
+init_timeincr 100000

@@ -26,7 +26,7 @@ val rtim = ref
    handle NotFound => 600.0)  
 val rtim_init = ref
   (valOf (Real.fromString (dfind "rtim_init" configd)) 
-   handle NotFound => 600.0)   
+   handle NotFound => 7200.0)   
    
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 val ntarget = (string_to_int (dfind "ntarget" configd) handle NotFound => 32)

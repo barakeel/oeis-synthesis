@@ -8,9 +8,26 @@ type anum = int
 local open IntInf in
   val azero = fromInt 0
   val aone = fromInt 1
+  val atwo = fromInt 2
+  val athree = fromInt 3
+  val afour = fromInt 4
+  val afive = fromInt 5
+  val asix = fromInt 6
+  val aseven = fromInt 7
+  val aeight = fromInt 8
+  val anine = fromInt 9
+  val aten = fromInt 10  
   fun aincr x = x + aone
   fun adecr x = x - aone
-end 
+  fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
+  fun pow2 b = arb_pow atwo (fromInt b)
+  val maxarb = arb_pow (fromInt 10) 300 (* 4.685 * 10 ^ 284 *)
+  val minarb = ~maxarb
+  val maxint = fromInt (valOf (Int.maxInt))
+  val minint = fromInt (valOf (Int.minInt))
+  fun large_arb x = x > maxarb orelse x < minarb
+  fun large_int x = x > maxint orelse x < minint
+end
 
 (* -------------------------------------------------------------------------
    Findstat data read from disk
@@ -133,12 +150,24 @@ val oseq =
   then Array.tabulate (30000, fn _ => NONE)
   else Array.tabulate (400000, fn _ => NONE)
 
+
+
+fun trim_seq n l = 
+  if n <= 0 then [] else
+  case l of
+    [] => []
+  | a :: m => if large_arb a
+              then [] 
+              else a :: trim_seq (n-1) m
+  
 fun update_oseq s = 
   let 
     val aseq = String.tokens (fn x => x = #",") s
     val anum = (hd o String.tokens Char.isSpace o hd) aseq
     val an = string_to_int (tl_string anum) 
-    val seq = map (valOf o IntInf.fromString) (tl aseq)
+    val seq = if !veggy_flag 
+              then trim_seq 32 (map (valOf o IntInf.fromString) (tl aseq))
+              else map (valOf o IntInf.fromString) (tl aseq)       
   in 
     (*  if an > 1 then () else
         if emem an solved then () else *)
