@@ -21,7 +21,7 @@ local open IntInf in
   fun adecr x = x - aone
   fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
   fun pow2 b = arb_pow atwo (fromInt b)
-  val maxarb = arb_pow (fromInt 10) 300 (* 4.685 * 10 ^ 284 *)
+  val maxarb = arb_pow (fromInt 10) 100 (* 4.685 * 10 ^ 284 *)
   val minarb = ~maxarb
   val maxint = fromInt (valOf (Int.maxInt))
   val minint = fromInt (valOf (Int.minInt))
