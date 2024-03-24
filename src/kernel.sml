@@ -115,6 +115,7 @@ val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
+val veggy_flag = bflag "veggy_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

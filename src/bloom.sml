@@ -114,7 +114,15 @@ end
 val oraw = 
   if !fs_flag orelse !ramsey_flag
   then [] else 
-    let val r = readl (selfdir ^ "/data/oeis") in
+  if !veggy_flag 
+  then 
+    let 
+      val r = readl (selfdir ^ "/data/veggy") in
+      print_endline ("veggy: " ^ its (length r)); r
+    end
+  else
+    let 
+      val r = readl (selfdir ^ "/data/oeis") in
       print_endline ("oeis: " ^ its (length r)); r
     end
 

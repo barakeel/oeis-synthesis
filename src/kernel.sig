@@ -67,6 +67,7 @@ sig
   val prnnsum_limit : int
   val prnntim : int
   val prnnwidth : int
+  val veggy_flag : bool ref
   
   (* flags not read from disk *)
   val expname : string ref
