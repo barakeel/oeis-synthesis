@@ -11,7 +11,7 @@ type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 
 
 (* -------------------------------------------------------------------------
-   Mark constants programs with true
+   Mark constant programs with true
    ------------------------------------------------------------------------- *)
 
 datatype progb = Insb of (id * bool * progb list);

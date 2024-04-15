@@ -8,7 +8,138 @@ val ERR = mk_HOL_ERR "check"
 type anum = bloom.anum
 type prog = kernel.prog
 type ('a,'b) dict = ('a,'b) Redblackmap.dict
+
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+val mergedir = selfdir ^ "/merge"
+
+(* -------------------------------------------------------------------------
+   Ramsey check: to do move to its own file
+   ramseyd: contains list of ramsey entries sorted by score
+   ramseyh: contains the set of hashes from ramseyd
+   ------------------------------------------------------------------------- *)
+
+(* todo: define the score *)
+fun ramsey_score p = NONE
+
+val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
+val ramseyd = ref (dempty compare_ramsey)
+val ramseyh = ref (dempty Int.compare)
+
+exception Catchableip of ramsey;
+
+fun smallest_keyval d =
+  (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
+  handle Catchableip r => SOME r
+
+fun filter_ramsey () = 
+  if dlength (!ramseyd) >= 10001 then 
+    let val (k,v) = valOf (smallest_keyval (!ramseyd)) in
+      ramseyd := drem k (!ramseyd);
+      ramseyh := drem (#3 v) (!ramseyh)
+    end
+  else ()
+  
+fun update_ramseyd (ktop,vtop as (_,_,h,_)) = 
+  case dfindo h (!ramseyh) of
+    NONE =>
+    (
+    ramseyd := dadd ktop vtop (!ramseyd); 
+    ramseyh := dadd h (ktop,vtop) (!ramseyh);
+    filter_ramsey ()
+    )
+  | SOME (k,v) => 
+    if compare_ramsey (ktop,k) <> GREATER then () else
+    (
+    ramseyd := drem k (!ramseyd);
+    ramseyd := dadd ktop vtop (!ramseyd);
+    ramseyh := dadd h (ktop,vtop) (!ramseyh)
+    )
+
+fun checkinit_ramsey () = 
+  (ramseyd := dempty compare_ramsey; ramseyh := dempty Int.compare)
+
+fun checkonline_ramsey (p,exec) = case ramsey_score p of 
+    NONE => ()
+  | SOME sc => update_ramseyd ((~sc,p),(sc,sc,sc,sc))
+ 
+fun checkfinal_ramsey () = dlist (!ramseyd)
+
+fun merge_ramsey_file file = app update_ramseyd (read_ramseyl file)
+
+fun merge_ramsey fileo = 
+  let 
+    val _ = checkinit_ramsey ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_ramsey_file filel
+    val _ = if isSome fileo then merge_ramsey_file (valOf fileo) else ()
+  in
+    checkfinal_ramsey ()
+  end
+
+(* -------------------------------------------------------------------------
+   hanabi check: to do move to its own file
+   hanabid: contains list of hanabi programs sorted by score
+   hanabih: contains the set of hashes from hanabid
+   ------------------------------------------------------------------------- *)
+
+val compare_hanabi = cpl_compare Int.compare (inv_cmp prog_compare_size)
+val hanabid = ref (dempty compare_hanabi)
+val hanabih = ref (dempty IntInf.compare)
+
+exception Catchable of hanabi;
+
+fun smallest_keyval d =
+  (Redblackmap.app (fn x => raise Catchable x) d; NONE)
+  handle Catchable r => SOME r
+
+fun filter_hanabi () = 
+  if dlength (!hanabid) >= 10001 then 
+    let val (k,h) = valOf (smallest_keyval (!hanabid)) in
+      hanabid := drem k (!hanabid);
+      hanabih := drem h (!hanabih)
+    end
+  else ()
+  
+fun update_hanabid (ktop,htop) = 
+  case dfindo htop (!hanabih) of
+    NONE =>
+    (
+    hanabid := dadd ktop htop (!hanabid); 
+    hanabih := dadd htop ktop (!hanabih);
+    filter_hanabi ()
+    )
+  | SOME k => 
+    if compare_hanabi (ktop,k) <> GREATER then () else
+    (
+    hanabid := drem k (!hanabid);
+    hanabid := dadd ktop htop (!hanabid);
+    hanabih := dadd htop ktop (!hanabih)
+    )
+
+fun checkinit_hanabi () = 
+  (hanabid := dempty compare_hanabi; hanabih := dempty IntInf.compare)
+    
+fun collect_id (Ins (id,pl)) = id :: List.concat (map collect_id pl)
+
+fun checkonline_hanabi p = 
+  let val (sc,h) = hanabi.hanabi_score p in 
+    if sc <= 0 then () else update_hanabid ((sc,p),h)
+  end
+ 
+fun checkfinal_hanabi () = dlist (!hanabid)
+
+fun merge_hanabi_file file = app update_hanabid (read_hanabil file)
+
+fun merge_hanabi fileo = 
+  let 
+    val _ = checkinit_hanabi ()
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val _ = app merge_hanabi_file filel
+    val _ = if isSome fileo then merge_hanabi_file (valOf fileo) else ()
+  in
+    checkfinal_hanabi ()
+  end
+
 
 (* -------------------------------------------------------------------------
    Update set of solutions
@@ -117,7 +248,7 @@ fun merge_itsol itsol =
     dlist (!d)
   end
 
-fun inv_cmp cmp (a,b) = cmp (b,a)
+
 val compare_cov = inv_cmp Int.compare
 
 fun update_partwind d (anum,(cov,p)) =
@@ -283,16 +414,16 @@ fun checkf_prnn nnvalue p = prnnd := dadd p nnvalue (!prnnd)
 fun checkf_prnn2 p =   
   let
     val exec = fst (exec_prnn.mk_exec p)
-      handle Subscript => raise ERR "checkf_wrat" "1"
     val anumtl = exec_prnn.coverf_oeis exec
-      handle Subscript => raise ERR "checkf_wrat" "2"
     fun f (anum,t) = update_wind wind (anum,[(t,p)])
   in
     app f anumtl
   end  
 
 fun checkonline nnvalue (p,exec) = 
-  if !seq_flag then checkf_seq (p,exec)
+  if !ramsey_flag then checkonline_ramsey (p,exec)
+  else if !hanabi_flag then checkonline_hanabi p
+  else if !seq_flag then checkf_seq (p,exec)
   else if !memo_flag then checkf_memo nnvalue p
   else if !ctree_flag then checkf_ctree p
   else if !wrat_flag then checkf_wrat p 
@@ -460,15 +591,11 @@ fun check_file file =
     end
   end
 
-
-
-
 (* -------------------------------------------------------------------------
    Merging solutions from the merge directory
    ------------------------------------------------------------------------- *)
 
 val mergen = ref 0
-val mergedir = selfdir ^ "/merge"
 fun init_merge () = (mergen := 0; clean_dir mergedir) 
 
 fun merge_itsol_file d file =
@@ -723,87 +850,7 @@ fun merge_pgen fileo =
     checkfinal_pgen ()
   end  
 
-(* -------------------------------------------------------------------------
-   Learning programs with respect to an objective function
-   and a hash function saying which program are simiarl.
-   ------------------------------------------------------------------------- *)
 
-(* Please define the score *)
-fun ramsey_score p = NONE
-
-
-(* data structures 
-ramseyd: contains list of ramsey entries sorted by score then compare_prog_size
-ramseyh: contains the set of hashes from ramseyd
-when stored on a file ramsey is a list of key and values.
-*)
-
-
-
-val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
-val ramseyd = ref (dempty compare_ramsey)
-val ramseyh = ref (dempty Int.compare)
-
-exception Catchableip of ramsey;
-
-fun smallest_keyval d =
-  (Redblackmap.app (fn x => raise Catchableip x) d; NONE)
-  handle Catchableip r => SOME r
-
-fun filter_ramsey () = 
-  if dlength (!ramseyd) >= 10001 then 
-    let val (k,v) = valOf (smallest_keyval (!ramseyd)) in
-      ramseyd := drem k (!ramseyd);
-      ramseyh := drem (#3 v) (!ramseyh)
-    end
-  else ()
-  
-fun update_ramseyd (ktop,vtop as (_,_,h,_)) = 
-  case dfindo h (!ramseyh) of
-    NONE =>
-    (
-    ramseyd := dadd ktop vtop (!ramseyd); 
-    ramseyh := dadd h (ktop,vtop) (!ramseyh);
-    filter_ramsey ()
-    )
-  | SOME (k,v) => 
-    if compare_ramsey (ktop,k) <> GREATER then () else
-    (
-    ramseyd := drem k (!ramseyd);
-    ramseyd := dadd ktop vtop (!ramseyd);
-    ramseyh := dadd h (ktop,vtop) (!ramseyh)
-    )
-
-fun checkinit_ramsey () = 
-  (ramseyd := dempty compare_ramsey; ramseyh := dempty Int.compare)
-    
-fun collect_id (Ins (id,pl)) = id :: List.concat (map collect_id pl)
-
-fun hash_prog p =
-  let 
-    val l = collect_id p 
-    fun f(a,b) = (a*10+1)*b
-  in
-    sum_int (map f (dlist (count_dict (dempty Int.compare) l)))
-  end
- 
-fun checkonline_ramsey (p,exec) = case ramsey_score p of 
-    NONE => ()
-  | SOME sc => update_ramseyd ((~sc,p),(sc,sc,sc,sc))
- 
-fun checkfinal_ramsey () = dlist (!ramseyd)
-
-fun merge_ramsey_file file = app update_ramseyd (read_ramseyl file)
-
-fun merge_ramsey fileo = 
-  let 
-    val _ = checkinit_ramsey ()
-    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
-    val _ = app merge_ramsey_file filel
-    val _ = if isSome fileo then merge_ramsey_file (valOf fileo) else ()
-  in
-    checkfinal_ramsey ()
-  end
 
 
 end (* struct *)

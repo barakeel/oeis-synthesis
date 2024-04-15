@@ -109,6 +109,18 @@ fun write_ramseysol_atomic ngen ramseysol =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
 
+(* hanabi experiment *)
+fun read_hanabisol ngen = read_hanabil (itsol_file ngen)
+
+fun write_hanabisol_atomic ngen hanabisol = 
+  let
+    val newfile = itsol_file ngen
+    val oldfile = newfile ^ "_temp"
+  in
+    write_hanabil oldfile hanabisol;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end
+
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
@@ -148,6 +160,21 @@ fun trainf_ramsey datadir pid =
     if nex < 10 then raise ERR "too few examples" "" else
     export_traindata datadir num_epoch learning_rate dim_glob ex
   end
+  
+fun trainf_hanabi datadir pid =
+  let
+    val hanabisol = read_hanabisol (find_last_itsol ())
+    val progl = map (snd o fst) hanabisol
+    val progset = shuffle (mk_fast_set prog_compare progl)
+    val _ = print_endline ("programs " ^ its (length progset))
+    val ex = create_exl_progset progset
+    val nex = length ex
+    val _ = print_endline (its (length ex) ^ " examples created")
+  in
+    if nex < 10 then raise ERR "too few examples" "" else
+    export_traindata datadir num_epoch learning_rate dim_glob ex
+  end  
+  
   
 fun trainf_tnn datadir pid =
   let
@@ -211,8 +238,6 @@ kernel.expname := "smartselect";
 trainf_isol dir isol1;
 *)
 
-
-
 fun trainf_start pid =
   let 
     val execdir = tnndir ^ "/para/" ^ its pid
@@ -224,6 +249,7 @@ fun trainf_start pid =
     (* if !smartselect_flag then ... else ... *)
     if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
+    else if !hanabi_flag then trainf_hanabi datadir pid    
     else trainf_tnn datadir pid
     ;
     print_endline "exporting end"
@@ -711,7 +737,7 @@ fun pgen () =
    Searching for Ramsey graph
    ------------------------------------------------------------------------- *)
 
-fun search_ramsey () btiml =
+fun search_ramsey_branchl () btiml =
   (
   search.randsearch_flag := (!ngen_glob = 0); 
   checkinit_ramsey ();
@@ -730,9 +756,9 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"] 
+     "rl.init_cube ()"]
     ^ ")"),
-  function = search_ramsey,
+  function = search_ramsey_branchl,
   write_param = let fun f _ () = () in f end,
   read_param = let fun f _ = () in f end,
   write_arg = write_proglrl,
@@ -745,7 +771,7 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
     in f end
   }
 
-fun ramsey () = 
+fun search_ramsey () = 
   let
     val tree = start_cube (ncore * 8)
     val l1 = 
@@ -755,7 +781,6 @@ fun ramsey () =
     smlParallel.parmap_queue_extern ncore ramseyspec () l1
   end
 
-
 fun string_of_ramseysol ((regsc,p),(sc,humsc,h,t)) = 
   "sc: " ^ its sc ^ ", " ^
   "size: " ^ its (prog_size p) ^ ", " ^
@@ -764,6 +789,61 @@ fun string_of_ramseysol ((regsc,p),(sc,humsc,h,t)) =
   
 fun stats_ramsey dir ramseysol =
   writel (dir ^ "/best") (map string_of_ramseysol (rev ramseysol))
+
+(* -------------------------------------------------------------------------
+   Searching for Hanabi strategy
+   ------------------------------------------------------------------------- *)
+
+fun search_hanabi_branchl () btiml =
+  (
+  search.randsearch_flag := (!ngen_glob = 0); 
+  checkinit_hanabi ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  checkfinal_hanabi ()
+  )
+
+val hanabispec : (unit, (prog list * real) list, hanabi list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.hanabispec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "kernel.expname := " ^ mlquote (!expname),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
+     "game.time_opt := " ^ string_of_timeo (),
+     "rl.init_cube ()"]
+    ^ ")"),
+  function = search_hanabi_branchl,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
+  write_result = write_hanabil,
+  read_result = let fun f file = 
+    (cmd_in_dir selfdir ("cp " ^ file ^ " " ^ mergedir ^ "/" ^ its (!mergen)); 
+     incr mergen; 
+     [])
+    in f end
+  }
+
+fun search_hanabi () = 
+  let
+    val tree = start_cube (ncore * 8)
+    val l1 = 
+      [([],10.0)] :: 
+      sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore hanabispec () l1
+  end
+
+fun string_of_hanabisol ((sc,p),h) = String.concatWith ", "
+  ["sc: " ^ its sc, "size: " ^ its (prog_size p), human_trivial p]
+
+fun stats_hanabi dir hanabisol =
+  writel (dir ^ "/best") (map string_of_hanabisol (rev hanabisol))
+
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -851,11 +931,11 @@ fun rl_search_only_default ngen =
     val newitsol = merge_itsol (List.concat (olditsol :: itsoll))
     val _ = log ("solutions: " ^ (its (length newitsol)))
     val allprog = List.concat (map (map snd o snd) newitsol)
-    val allsize = List.concat (map (map fst o snd) newitsol)
+    val alltime = List.concat (map (map fst o snd) newitsol)
     val _ = log ("programs: " ^ (its (length allprog)))
     val _ = log ("average size: " ^ rts_round 2 
       (average_int (map prog_size allprog)))
-    val _ = log ("average time: " ^ rts_round 2 (average_int allsize))
+    val _ = log ("average time: " ^ rts_round 2 (average_int alltime))
     val _ = log ("diff: " ^ its (length newitsol - length olditsol))
     val _ = write_itsol_atomic ngen newitsol
   in
@@ -879,7 +959,7 @@ fun rl_search_only_pgen ngen =
 fun rl_search_only_ramsey ngen =
   let 
     val _ = init_merge ()
-    val (ramseysol,t) = add_time ramsey ()
+    val (ramseysol,t) = add_time search_ramsey ()
     val _ = log ("search time: " ^ rts_round 6 t)
     val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
     val newramseysol = merge_ramsey oldfileo
@@ -889,6 +969,21 @@ fun rl_search_only_ramsey ngen =
     write_ramseysol_atomic ngen newramseysol;
     stats_ramsey (!buildheap_dir) newramseysol
   end
+  
+fun rl_search_only_hanabi ngen =
+  let 
+    val _ = init_merge ()
+    val (hanabisol,t) = add_time search_hanabi ()
+    val _ = log ("search time: " ^ rts_round 6 t)
+    val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
+    val newhanabisol = merge_hanabi oldfileo
+    val _ = init_merge ()
+    val _ = log ("hanabi solutions: " ^ (its (length newhanabisol)))
+  in 
+    write_hanabisol_atomic ngen newhanabisol;
+    stats_hanabi (!buildheap_dir) newhanabisol
+  end
+  
 
 fun rl_search_only ngen =
   let 
@@ -904,6 +999,7 @@ fun rl_search_only ngen =
   in
     if !pgen_flag then rl_search_only_pgen ngen
     else if !ramsey_flag then rl_search_only_ramsey ngen
+    else if !hanabi_flag then rl_search_only_hanabi ngen
     else rl_search_only_default ngen
   end
   

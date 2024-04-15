@@ -1,8 +1,8 @@
 structure kernel :> kernel =
 struct
 
-open HolKernel Abbrev boolLib aiLib dir;
-val ERR = mk_HOL_ERR "kernel";
+open HolKernel Abbrev boolLib aiLib dir
+val ERR = mk_HOL_ERR "kernel"
                
 val selfdir = dir.selfdir 
 
@@ -116,11 +116,11 @@ val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
 val veggy_flag = bflag "veggy_flag"
+val hanabi_flag = bflag "hanabi_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
 val ngen_glob = ref 0
-
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -170,6 +170,8 @@ val timer_glob2 = ref 0.0
 val timer_glob3 = ref 0.0
 val timer_glob4 = ref 0.0
 val timer_glob5 = ref 0.0
+
+fun inv_cmp cmp (a,b) = cmp (b,a)
 
 (* -------------------------------------------------------------------------
    Sequences
@@ -251,6 +253,23 @@ val ramsey_operl = [("zero",0),("one",0),("two",0),
   ("cond",3),("loop",3),("x",0),("y",0),("loop2",5),
   ("push",2),("pop",1),("edge",1)]
 
+val hanabi_operle = [
+   ("zero",0,0),("one",0,0),("two",0,0),("three",0,0),("four",0,0),("five",0,0),
+   ("x",0,0),("y",0,0),
+   ("addi",2,0),("mult",2,0),("divi",2,0),("modu",2,0),
+   ("ifle",3,0),("ifeq",3,0),("loop",3,1),("loop2",5,2),
+   ("push",2,1),("pop",1,1),
+   ("clue",0,0),("bomb",0,0),("score",0,0),("turn",0,0),("deckn",0,0),
+   ("firework",1,0),("discard",2,0),
+   ("mycolh",1,0),("mynumh",1,0),
+   ("tmcolh",1,0),("tmnumh",1,0),
+   ("tmcol",1,0),("tmnum",1,0),
+   ("hist",0,0),("mem",0,0)
+   ];
+   
+val hanabi_operl = map (fn (a,b,c) => (a,b)) hanabi_operle   
+val hanabi_hoargl = map (fn (a,b,c) => c) hanabi_operle
+
 val pgen_operl = map (fn x => (x,1))
   ["mzero","mone","mtwo","maddi","mdiff","mmult","mdivi","mmodu",
    "mcond","mloop","mx","my","mcompr","mloop2"]
@@ -290,7 +309,8 @@ val extra_operl =
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !ramsey_flag then ramsey_operl 
+  if !hanabi_flag then hanabi_operl
+  else if !ramsey_flag then ramsey_operl 
   else if !array_flag then array_operl
   else if !turing_flag then turing_operl
   else if !minimal_flag then minimal_operl
@@ -351,7 +371,9 @@ val extra_ho_ariv =
 
 val ho_ariv = Vector.fromList 
   (
-  if !ramsey_flag 
+  if !hanabi_flag 
+    then hanabi_hoargl
+  else if !ramsey_flag 
     then List.tabulate (9,fn _ => 0) @ [1,0,0,2,0,0,0] 
   else if !turing_flag 
     then List.tabulate (Vector.length operv, fn _ => 0)
@@ -570,6 +592,28 @@ fun read_seql file = read_data dec_seql file
 type ramsey = (int * prog) * (int * int * int * int)
 fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
 fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
+
+type hanabi = (int * prog) * IntInf.int
+fun write_hanabil file r = 
+  let fun f ((sc,p),h) = String.concatWith " "
+    (its sc :: infts h :: map its (tokenl_of_prog p))
+  in
+    writel file (map f r)
+  end
+
+fun read_hanabil file =
+  let fun f s = 
+    let 
+      val sl = String.tokens Char.isSpace s 
+      val sc = string_to_int (hd sl)
+      val p = prog_of_tokenl (map string_to_int (tl (tl sl)))
+      val h = stinf (hd (tl sl))
+    in
+      ((sc,p),h)
+    end
+  in
+    map f (readl file)
+  end
 
 (* -------------------------------------------------------------------------
    Simple export of sequence program pairs

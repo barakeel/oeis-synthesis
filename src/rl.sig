@@ -46,10 +46,18 @@ sig
   val pgenspec : 
     (unit, (prog list * real) list, kernel.pgen list) smlParallel.extspec
   
-  (* searching for hadamard matrices (* deprecated *) *)
-  val search_ramsey : unit -> (prog list * real) list -> kernel.ramsey list
+  (* searching for ramsey matrices *)
+  val search_ramsey_branchl : 
+    unit -> (prog list * real) list -> kernel.ramsey list
   val ramseyspec : 
     (unit, (prog list * real) list, kernel.ramsey list) smlParallel.extspec
+ 
+  (* searching for hanabi strategies *)
+  val search_hanabi_branchl : 
+    unit -> (prog list * real) list -> kernel.hanabi list
+  val hanabispec : 
+    (unit, (prog list * real) list, kernel.hanabi list) smlParallel.extspec
+ 
   
   (* train from a isol *)
   val trainf_isol : string -> (int * kernel.prog) list -> unit

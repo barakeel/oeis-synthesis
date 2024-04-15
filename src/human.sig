@@ -4,6 +4,7 @@ sig
   type prog = kernel.prog
   datatype sexp = Sexp of sexp list | Stoken of string
   
+  val human_trivial : prog -> string
   val humanf : prog -> string
   val human_python : int -> prog -> string
   val rm_par : string -> string

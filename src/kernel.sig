@@ -69,6 +69,7 @@ sig
   val prnnwidth : int
   val veggy_flag : bool ref
   
+  
   (* flags not read from disk *)
   val expname : string ref
   val ngen_glob : int ref
@@ -96,6 +97,7 @@ sig
   val timer_glob3 : real ref
   val timer_glob4 : real ref
   val timer_glob5 : real ref
+  val inv_cmp : ('a * 'b -> 'c) -> 'b * 'a -> 'c
   
   (* sequences *)
   type seq = IntInf.int list
@@ -193,10 +195,16 @@ sig
   val write_pgen : string -> pgen list -> unit
   
   (* ramsey experiment *)
-  type ramsey = (int * prog) * (int * int * int * int)
   val ramsey_flag : bool ref
+  type ramsey = (int * prog) * (int * int * int * int)
   val write_ramseyl : string -> ramsey list -> unit
   val read_ramseyl : string -> ramsey list
+
+  (* hanabi experiment *)
+  val hanabi_flag : bool ref
+  type hanabi = (int * prog) * IntInf.int
+  val write_hanabil : string -> hanabi list -> unit
+  val read_hanabil : string -> hanabi list
 
 
 end
