@@ -607,10 +607,11 @@ fun get_boardsc tree =
   let 
     val maxprob = 1.0 / Real.fromInt ncore
     val leafl = all_leaf tree
+    val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
     fun f (node,cl,prob) = 
       let fun g (move,r,_) = 
         let val r' = if prob * r > maxprob then maxprob else prob * r in
-          ((#apply_move game.game) move (#board node), !rtim * r')
+          ((#apply_move game.game) move (#board node), rtimloc * r')
         end 
       in
         map g cl
