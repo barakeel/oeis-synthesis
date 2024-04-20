@@ -154,6 +154,7 @@ val four_f = mk_nullf 1 (fn (x,y) => [4])
 val five_f = mk_nullf 1 (fn (x,y) => [5])
 val x_f = mk_nullf 1 (fn (x,y) => x)
 val y_f = mk_nullf 1 (fn (x,y) => y)
+val suc_f = mk_unf 1 (fn x => (hd x + 1) :: tl x)
 
 fun mk_e f (l1,l2) = case (l1,l2) of
     ([],_) => raise Empty
@@ -175,6 +176,11 @@ fun ifeq_f fl = case fl of
     [f1,f2,f3] => 
     (fn x => checktimer 1 (if hd (f1 x) = 0 then f2 x else f3 x))
   | _ => raise ERR "mk_ifeqf" ""
+
+fun ifeq2_f fl = case fl of
+    [f1,f2,f3,f4] => 
+    (fn x => checktimer 1 (if hd (f1 x) = hd (f2 x) then f3 x else f4 x))
+  | _ => raise ERR "mk_ifeq2f" ""
 
 
 fun push_f fl = case fl of
@@ -208,12 +214,26 @@ fun loop_f_aux (f1,n,x1) =
   helper f1 (fn (x1,x2) => [(hd x2) + 1]) (hd n) x1 [1]
 val loop_f = mk_ternf1 loop_f_aux
 
-
 (* -------------------------------------------------------------------------
    Execute a hanabi program
    ------------------------------------------------------------------------- *)
 
-val hanabi_list = [
+val hanabi_list = 
+   if !hanabi_short then 
+   [
+   ("zero",0,0,zero_f),("suc",1,0,suc_f),("five",0,0,five_f),
+   ("x",0,0,x_f),("y",0,0,y_f),
+   ("ifeq",4,0,ifeq2_f),("loop",3,1,loop_f),("loop2",5,2,loop2_f),
+   ("push",2,0,push_f),("pop",1,0,pop_f),
+   ("clue",0,0,clue_f),("bomb",0,0,bomb_f),
+   ("firework",1,0,firework_f),("discard",2,0,discard_f),
+   ("mycolh",1,0,mycolh_f),("mynumh",1,0,mynumh_f),
+   ("tmcolh",1,0,tmcolh_f),("tmnumh",1,0,tmnumh_f),
+   ("tmcol",1,0,tmcol_f),("tmnum",1,0,tmnum_f),
+   ("hist",0,0,hist_f),("mem",0,0,mem_f)
+   ]
+   else
+   [
    ("zero",0,0,zero_f),
    ("one",0,0,one_f),
    ("two",0,0,two_f),
@@ -230,8 +250,8 @@ val hanabi_list = [
    ("ifeq",3,0,ifeq_f),
    ("loop",3,1,loop_f),
    ("loop2",5,2,loop2_f),
-   ("push",2,1,push_f),
-   ("pop",1,1,pop_f),
+   ("push",2,0,push_f),
+   ("pop",1,0,pop_f),
    ("clue",0,0,clue_f),
    ("bomb",0,0,bomb_f),
    ("score",0,0,score_f),
@@ -544,9 +564,16 @@ fun concat_hist histl = case histl of
   | a :: m => a @ [4,0] @ concat_hist m
 
 
+fun map_fail f l = case l of 
+    [] => []
+  | a :: m => 
+    let val r = f a in  
+      if fst r <= 0 then [] else r :: map_fail f m
+    end
+      
 fun hanabi_score p = 
   let 
-    val l = map (play_game false p) deckl_glob  
+    val l = map_fail (play_game false p) deckl_glob
     val (scl,histl) = split l 
     val h = hash_hist_loop 1 (map IntInf.fromInt (concat_hist histl))
   in
@@ -565,27 +592,18 @@ write_deckl "hanabi_deckl10" deckl;
 val deckl' = read_deckl "hanabi_deckl10";
 deckl = deckl';
 
-
 fun f n acc = 
   if n <= 0 then rev acc else
   let 
     val p = game.random_prog 40;
     val deck = aiLib.shuffle cardl;
-    val score = play_game false p deck
+    val (score,_) = play_game false p deck
   in 
     if score <= 0 then f (n-1) acc else f (n-1) (((p,deck),score) :: acc)
   end;
 
 fun g n = f n [];  
- 
 val (rl,t) = add_time g 10000;
-
 val rl'= first_n 40 (map snd (dict_sort compare_imax rl));
-
-(size,score,fake_score)
-10,000^2*100 operations.
-Start form 1,000,000.
-
-
 *)    
 

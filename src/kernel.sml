@@ -117,6 +117,7 @@ val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
 val veggy_flag = bflag "veggy_flag"
 val hanabi_flag = bflag "hanabi_flag"
+val hanabi_short = bflag "hanabi_short"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
@@ -253,12 +254,26 @@ val ramsey_operl = [("zero",0),("one",0),("two",0),
   ("cond",3),("loop",3),("x",0),("y",0),("loop2",5),
   ("push",2),("pop",1),("edge",1)]
 
-val hanabi_operle = [
+val hanabi_operle = if !hanabi_short then 
+   [
+   ("zero",0,0),("suc",1,0),("five",0,0),
+   ("x",0,0),("y",0,0),
+   ("ifeq",4,0),("loop",3,1),("loop2",5,2),
+   ("push",2,0),("pop",1,0),
+   ("clue",0,0),("bomb",0,0),
+   ("firework",1,0),("discard",2,0),
+   ("mycolh",1,0),("mynumh",1,0),
+   ("tmcolh",1,0),("tmnumh",1,0),
+   ("tmcol",1,0),("tmnum",1,0),
+   ("hist",0,0),("mem",0,0)
+   ]
+   else
+   [
    ("zero",0,0),("one",0,0),("two",0,0),("three",0,0),("four",0,0),("five",0,0),
    ("x",0,0),("y",0,0),
    ("addi",2,0),("mult",2,0),("divi",2,0),("modu",2,0),
    ("ifle",3,0),("ifeq",3,0),("loop",3,1),("loop2",5,2),
-   ("push",2,1),("pop",1,1),
+   ("push",2,0),("pop",1,0),
    ("clue",0,0),("bomb",0,0),("score",0,0),("turn",0,0),("deckn",0,0),
    ("firework",1,0),("discard",2,0),
    ("mycolh",1,0),("mynumh",1,0),
