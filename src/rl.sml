@@ -249,7 +249,7 @@ fun trainf_start pid =
     (* if !smartselect_flag then ... else ... *)
     if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
-    else if !hanabi_flag then trainf_hanabi datadir pid    
+    else if !hanabi_flag orelse !rams_flag then trainf_hanabi datadir pid    
     else trainf_tnn datadir pid
     ;
     print_endline "exporting end"
@@ -1000,7 +1000,7 @@ fun rl_search_only ngen =
   in
     if !pgen_flag then rl_search_only_pgen ngen
     else if !ramsey_flag then rl_search_only_ramsey ngen
-    else if !hanabi_flag then rl_search_only_hanabi ngen
+    else if !hanabi_flag orelse !rams_flag then rl_search_only_hanabi ngen
     else rl_search_only_default ngen
   end
   

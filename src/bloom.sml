@@ -129,7 +129,7 @@ end
    ------------------------------------------------------------------------- *)
 
 val oraw = 
-  if !fs_flag orelse !ramsey_flag orelse !hanabi_flag
+  if !fs_flag orelse !ramsey_flag orelse !hanabi_flag orelse !rams_flag
   then [] else 
   if !veggy_flag 
   then 

@@ -115,6 +115,7 @@ val rps_flag = bflag "rps_flag"
 val think_flag = bflag "think_flag"
 val run_flag = bflag "run_flag"
 val ramsey_flag = bflag "ramsey_flag"
+val rams_flag = bflag "rams_flag"
 val veggy_flag = bflag "veggy_flag"
 val hanabi_flag = bflag "hanabi_flag"
 val hanabi_short = bflag "hanabi_short"
@@ -326,6 +327,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !hanabi_flag then hanabi_operl
   else if !ramsey_flag then ramsey_operl 
+  else if !rams_flag then org_operl @ [("push",2),("pop",1)]
   else if !array_flag then array_operl
   else if !turing_flag then turing_operl
   else if !minimal_flag then minimal_operl
@@ -396,6 +398,9 @@ val ho_ariv = Vector.fromList
     then (List.tabulate (Vector.length operv - 1, fn _ => 0) @ [1])
   else if !minimal_flag 
     then [0,0,0,0,0,1]
+  else if !rams_flag 
+    then List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 
+         List.tabulate (2, fn _ => 0) 
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ extra_ho_ariv
   )
 

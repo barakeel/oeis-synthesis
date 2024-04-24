@@ -122,6 +122,11 @@ fun checkinit_hanabi () =
 fun collect_id (Ins (id,pl)) = id :: List.concat (map collect_id pl)
 
 fun checkonline_hanabi p = 
+  if !rams_flag then 
+  let val (sc,h) = ramsey.ramsey_score p in 
+    if sc >= 1 then () else update_hanabid ((sc,p),h)
+  end
+  else
   let val (sc,h) = hanabi.hanabi_score p in 
     if sc <= 0 then () else update_hanabid ((sc,p),h)
   end
@@ -423,6 +428,7 @@ fun checkf_prnn2 p =
 fun checkonline nnvalue (p,exec) = 
   if !ramsey_flag then checkonline_ramsey (p,exec)
   else if !hanabi_flag then checkonline_hanabi p
+  else if !rams_flag then checkonline_hanabi p
   else if !seq_flag then checkf_seq (p,exec)
   else if !memo_flag then checkf_memo nnvalue p
   else if !ctree_flag then checkf_ctree p
