@@ -74,8 +74,9 @@ val init_timeincr = iflagnoref "init_timeincr" 100000
 val short_timeincr = iflagnoref "short_timeincr" 100000
 val long_timeincr = iflagnoref "long_timeincr" 100000
 val push_limit = iflagnoref "push_limit" 1000000
-  (* deprecated *)
+val maxint_flag = bflag "maxint_flag"
 val maxintsize = iflagnoref "maxintsize" 285
+  (* deprecated *)
 val short_compr = iflagnoref "short_compr" 20
 val long_compr = iflagnoref "long_compr" 200
 

@@ -52,6 +52,7 @@ sig
   val wrat_flag : bool ref
   val maxproglen : int
   val maxproglen_treesearch : int
+  val maxint_flag : bool ref
   val maxintsize : int
   val reprocess_flag : bool ref
   val reverse_nmtoutput : bool ref
@@ -68,7 +69,6 @@ sig
   val prnntim : int
   val prnnwidth : int
   val veggy_flag : bool ref
-  
   
   (* flags not read from disk *)
   val expname : string ref

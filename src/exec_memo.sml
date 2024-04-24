@@ -71,9 +71,12 @@ local open IntInf in
   fun large_int x = x > maxint orelse x < minint
   fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
   fun pow2 b = arb_pow atwo (fromInt b)
-  val maxarb = arb_pow (fromInt 10) (fromInt maxintsize) (* 4.685 * 10 ^ 284 *)
+  val maxarb = arb_pow (fromInt 10) (fromInt maxintsize)
   val minarb = ~maxarb
-  fun large_arb x = x > maxarb orelse x < minarb
+  val large_arb = 
+    if !maxint_flag 
+    then (fn x => x > maxarb orelse x < minarb)
+    else (fn x => false)
 end
 
 fun checktimer y = 
@@ -84,16 +87,16 @@ fun checktimer y =
 
 fun mylog x = if x = 0 then 1 else IntInf.log2 x
   
-fun costadd costn x1 x2 y = 
-  if large_arb y then raise ProgTimeout else
-  if large_int x1 orelse large_int x2 orelse large_int y
-  then Int.max (mylog (IntInf.abs x1), mylog (IntInf.abs x2))
-  else costn  
+fun costadd costn x1 x2 y =
+  if large_int x1 orelse large_int x2 orelse large_int y then 
+    if large_arb y then raise ProgTimeout else
+    Int.max (mylog (IntInf.abs x1), mylog (IntInf.abs x2))
+  else costn
   
-fun costmult costn x1 x2 y = 
-  if large_arb y then raise ProgTimeout else
-  if large_int x1 orelse large_int x2 orelse large_int y
-  then mylog (IntInf.abs x1) + mylog (IntInf.abs x2)
+fun costmult costn x1 x2 y =
+  if large_int x1 orelse large_int x2 orelse large_int y then 
+    if large_arb y then raise ProgTimeout else
+    mylog (IntInf.abs x1) + mylog (IntInf.abs x2)
   else costn
 
 fun checktimeradd costn x1 x2 y =
