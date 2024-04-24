@@ -73,7 +73,8 @@ fun enum_shapel f =
 fun ramsey_score p =
   let 
     val f0 = exec_memo.mk_exec p
-    fun f1 (i,j) = hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) >= 0
+    fun f1 (i,j) = (init_timer (); 
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) >= 0)
   in
     enum_shapel f1
   end
