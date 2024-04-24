@@ -35,6 +35,8 @@ fun get_score klevel =
 
 exception RamseyTimeout;
 
+ 
+
 fun next_shapel f endj ((bluell,redll),bl,klevel,j) = 
   if j >= endj then (get_score (butlast klevel), hash_bl bl) else
   let 
@@ -72,14 +74,59 @@ fun enum_shapel f =
 
 fun ramsey_score p =
   let 
+    val _ = push_counter := 0
     val f0 = exec_memo.mk_exec p
-    fun f1 (i,j) = (init_timer (); 
+    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
       hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
   in
     enum_shapel f1
   end
 
+
+fun next_shapel_free f endj ((bluell,redll),bl,klevel,j) = 
+  if j >= endj then (klevel, hash_bl bl) else
+  let 
+    val coloringl = List.tabulate (j, fn i => ([i,j],f (i,j)))
+    val (blueedg,rededg) = partition snd coloringl
+    val edgel = map fst (filter snd coloringl)
+    val bluev = Vector.fromList (map snd coloringl)
+    val redv = Vector.fromList (map (not o snd) coloringl)
+    fun fblue shape = all (fn x => Vector.sub (bluev,x)) shape
+    fun fred shape = all (fn x => Vector.sub (redv,x)) shape 
+    val bluell1 = [] :: filter (not o null) 
+      (map (extend_shapel fblue j) bluell)
+    val redll1 = [] :: filter (not o null) 
+      (map (extend_shapel fred j) redll)
+    val bluell2 = merge_ll bluell1 bluell
+    val redll2 = merge_ll redll1 redll
+    val k = Int.max (length bluell2,length redll2) - 1
+    val newklevel = if k <= fst (hd klevel) then klevel else (k,j+1) :: klevel
+  in
+    next_shapel_free f endj 
+      ((bluell2,redll2),map snd coloringl @ bl,newklevel,j+1)
+  end;
+
+fun enum_shapel_free n f = 
+  (next_shapel_free f n (([[[]]],[[[]]]),[],[(1,1)],0))
+
+
 end (* struct *)   
 
+(*
+load "aiLib"; open aiLib;
+load "graph"; open graph;
+load "ramsey"; open ramsey;
+fun f (x,y) = x div 2 - y mod (x+2) >= 0;
+val r = enum_shapel_free 100 f;
 
+
+
+
+val m = mat_tabulate (40,f);
+print_mat m;
+
+
+
+
+*)
 
