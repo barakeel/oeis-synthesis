@@ -25,8 +25,8 @@ fun get_score klevel =
   let
     val il = map snd klevel
     val il1 = if length il < 4
-              then List.tabulate (4 - length il,fn _ => 27) @ il
-              else il
+              then List.tabulate (4 - length il,fn _ => 1000) @ il
+              else first_n 4 il
     val obj = [27,18,12,8]
     val scl = map (fn (a,b) => if a >= b then 0 else b - a) (combine (il1,obj))
   in
@@ -35,10 +35,12 @@ fun get_score klevel =
 
 exception RamseyTimeout;
 
- 
-
-fun next_shapel f endj ((bluell,redll),bl,klevel,j) = 
-  if j >= endj then (get_score (butlast klevel), hash_bl bl) else
+fun next_shapel f (maxj,maxk,maxtim) ((bluell,redll),bl,klevel,j) = 
+  if j >= maxj orelse fst (hd klevel) > maxk
+    then (klevel, hash_bl bl) 
+  else if !shapetimer >= maxtim
+    then raise RamseyTimeout
+  else
   let 
     val coloringl = List.tabulate (j, fn i => ([i,j],f (i,j)))
     val (blueedg,rededg) = partition snd coloringl
@@ -58,19 +60,61 @@ fun next_shapel f endj ((bluell,redll),bl,klevel,j) =
     val k = Int.max (length bluell2,length redll2) - 1
     val newklevel = if k <= fst (hd klevel) then klevel else (k,j+1) :: klevel
   in
-    if !shapetimer >= 1000000 orelse k >= 8
-      then raise RamseyTimeout
-    else next_shapel f endj 
+    next_shapel f (maxj,maxk,maxtim)
       ((bluell2,redll2),map snd coloringl @ bl,newklevel,j+1)
-  end;
+  end
 
-fun enum_shapel f = 
-  (shapetimer := 0; next_shapel f 26 (([[[]]],[[[]]]),[],[(3,~1)],0))
-  handle  Empty => (1,IntInf.fromInt 0) 
-        | Div => (1,IntInf.fromInt 0)
-        | ProgTimeout => (1,IntInf.fromInt 0)
-        | Overflow => (1,IntInf.fromInt 0)
-        | RamseyTimeout => (1,IntInf.fromInt 0);
+fun enum_shapel f =
+  let 
+    val fail = (1,IntInf.fromInt 0) 
+    val _ = shapetimer := 0
+    val shapel = ([[[]]],[[[]]])
+  in
+    let val (klevel,hash) = 
+      next_shapel f (26,7,1000000) (shapel,[],[(3,~1)],0)
+    in
+      (get_score (butlast klevel), hash)
+    end
+    handle  
+        Empty => fail
+      | Div => fail
+      | ProgTimeout => fail
+      | Overflow => fail
+      | RamseyTimeout => fail
+  end
+  
+fun enum_shapel_klevel (maxgraphsize,maxcliquesize,maxtim) f = 
+  let
+    val _ = shapetimer := 0
+    val shapel = ([[[]]],[[[]]])
+    val cliquelevel = [(0,0)]
+    val graphlevel = 0
+    val coloring = []
+  in
+    let val (klevel,hash) = 
+      next_shapel f (maxgraphsize,maxcliquesize,maxtim) 
+        (shapel,coloring,cliquelevel,graphlevel)
+    in
+      SOME (klevel, hash)
+    end
+    handle  
+        Empty => NONE
+      | Div => NONE
+      | ProgTimeout => NONE
+      | Overflow => NONE
+      | RamseyTimeout => NONE
+  end
+  
+fun enum_shapel_p (maxgraphsize,maxcliquesize,maxtim) p =
+  let 
+    val _ = push_counter := 0
+    val f0 = exec_memo.mk_exec p
+    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
+  in
+    enum_shapel_klevel (maxgraphsize,maxcliquesize,maxtim) f1
+  end 
+  
 
 fun ramsey_score p =
   let 
@@ -82,6 +126,11 @@ fun ramsey_score p =
     enum_shapel f1
   end
 
+
+
+(* -------------------------------------------------------------------------
+   Without timers
+   ------------------------------------------------------------------------- *)
 
 fun next_shapel_free f endj ((bluell,redll),bl,klevel,j) = 
   if j >= endj then (klevel, hash_bl bl) else
