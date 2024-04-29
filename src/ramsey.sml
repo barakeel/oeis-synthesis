@@ -3,13 +3,9 @@ structure ramsey :> ramsey = struct
 open HolKernel Abbrev boolLib aiLib dir kernel
 val ERR = mk_HOL_ERR "ramsey"
 
-fun extend_shapel test j shapel =
-  map (fn x => j :: x) (filter test shapel)   
-  
-fun merge_ll ll1 ll2 = case (ll1,ll2) of
-    (_,[]) => ll1 
-  | ([],_) => ll2
-  | (a1 :: m1, a2 :: m2) => (a1 @ a2) :: merge_ll m1 m2;
+(* -------------------------------------------------------------------------
+   Converting list of booleans to a single arbitrary integer 
+   ------------------------------------------------------------------------- *)
 
 local open IntInf in
 fun hash_bl_aux start bl = case bl of 
@@ -18,27 +14,44 @@ fun hash_bl_aux start bl = case bl of
   
 fun hash_bl bl = hash_bl_aux 1 bl;  
 end;
-   
+ 
+(* -------------------------------------------------------------------------
+   Limit the number of operations when checking cliques
+   ------------------------------------------------------------------------- *)  
+
 val shapetimer = ref 0   
-
-fun get_score klevel =
-  let
-    val il = map snd klevel
-    val il1 = if length il < 4
-              then List.tabulate (4 - length il,fn _ => 1000) @ il
-              else first_n 4 il
-    val obj = [27,18,12,8]
-    val scl = map (fn (a,b) => if a >= b then 0 else b - a) (combine (il1,obj))
-  in
-    ~(sum_int scl)
-  end
-
 exception RamseyTimeout;
 
-fun next_shapel f (maxj,maxk,maxtim) ((bluell,redll),bl,klevel,j) = 
-  if j >= maxj orelse fst (hd klevel) > maxk
-    then (klevel, hash_bl bl) 
-  else if !shapetimer >= maxtim
+(* -------------------------------------------------------------------------
+   Tree structures storing all cliques
+   ------------------------------------------------------------------------- *) 
+
+datatype tree = Node of int * tree list
+
+val maxd = ref 0
+
+fun add_vertex d f j (Node(i,treel)) =
+  if f i 
+  then Node(i, add_vertex_treel (d+1) f j treel)
+  else Node(i, treel)
+   
+and add_vertex_treel d f j treel = 
+  (
+  if d > !maxd then maxd := d else ();
+  Node (j,[]) :: map (add_vertex d f j) treel
+  )
+
+(* -------------------------------------------------------------------------
+   Incrementally adding vertices
+   ------------------------------------------------------------------------- *)
+
+fun give_up j = j > 3 andalso 
+  j < Real.ceil (Math.pow (1.414, Real.fromInt (!maxd)))
+  
+fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,scl,j) = 
+  if j >= maxj
+    then (scl, hash_bl bl) 
+  else if give_up j orelse !shapetimer >= maxtim
     then raise RamseyTimeout
   else
   let 
@@ -47,74 +60,33 @@ fun next_shapel f (maxj,maxk,maxtim) ((bluell,redll),bl,klevel,j) =
     val edgel = map fst (filter snd coloringl)
     val bluev = Vector.fromList (map snd coloringl)
     val redv = Vector.fromList (map (not o snd) coloringl)
-    fun fblue shape = all 
-      (fn x => (incr shapetimer; Vector.sub (bluev,x))) shape
-    fun fred shape = all 
-      (fn x => (incr shapetimer; Vector.sub (redv,x))) shape 
-    val bluell1 = [] :: filter (not o null) 
-      (map (extend_shapel fblue j) bluell)
-    val redll1 = [] :: filter (not o null) 
-      (map (extend_shapel fred j) redll)
-    val bluell2 = merge_ll bluell1 bluell
-    val redll2 = merge_ll redll1 redll
-    val k = Int.max (length bluell2,length redll2) - 1
-    val newklevel = if k <= fst (hd klevel) then klevel else (k,j+1) :: klevel
+    fun fblue x = (incr shapetimer; Vector.sub (bluev,x))
+    fun fred x = (incr shapetimer; Vector.sub (redv,x))
+    val newbtreel = add_vertex_treel 1 fblue j btreel
+    val newrtreel = add_vertex_treel 1 fred j rtreel  
   in
-    next_shapel f (maxj,maxk,maxtim)
-      ((bluell2,redll2),map snd coloringl @ bl,newklevel,j+1)
+    next_shapel f (maxj,maxtim)
+      ((newbtreel,newrtreel), map snd coloringl @ bl, !maxd :: scl, j+1)
   end
 
-fun enum_shapel f =
-  let 
-    val fail = (1,IntInf.fromInt 0) 
-    val _ = shapetimer := 0
-    val shapel = ([[[]]],[[[]]])
-  in
-    let val (klevel,hash) = 
-      next_shapel f (26,7,1000000) (shapel,[],[(3,~1)],0)
-    in
-      (get_score (butlast klevel), hash)
-    end
-    handle  
-        Empty => fail
-      | Div => fail
-      | ProgTimeout => fail
-      | Overflow => fail
-      | RamseyTimeout => fail
-  end
-  
-fun enum_shapel_klevel (maxgraphsize,maxcliquesize,maxtim) f = 
+fun enum_shapel (maxj,maxtim) f =
   let
+    val _ = maxd := 0
     val _ = shapetimer := 0
-    val shapel = ([[[]]],[[[]]])
-    val cliquelevel = [(0,0)]
-    val graphlevel = 0
-    val coloring = []
   in
-    let val (klevel,hash) = 
-      next_shapel f (maxgraphsize,maxcliquesize,maxtim) 
-        (shapel,coloring,cliquelevel,graphlevel)
-    in
-      SOME (klevel, hash)
-    end
-    handle  
-        Empty => NONE
-      | Div => NONE
-      | ProgTimeout => NONE
-      | Overflow => NONE
-      | RamseyTimeout => NONE
+    next_shapel f (maxj,maxtim) (([],[]),[],[],0)
   end
-  
-fun enum_shapel_p (maxgraphsize,maxcliquesize,maxtim) p =
-  let 
-    val _ = push_counter := 0
-    val f0 = exec_memo.mk_exec p
-    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
-      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
-  in
-    enum_shapel_klevel (maxgraphsize,maxcliquesize,maxtim) f1
-  end 
-  
+
+fun enum_shapel_err (maxj,maxtim) f =
+  let val (scl,hash) = enum_shapel (maxj,maxtim) f in
+    SOME (~ (sum_int scl), hash)
+  end
+  handle  
+      Empty => NONE
+    | Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+    | RamseyTimeout => NONE
 
 fun ramsey_score p =
   let 
@@ -123,59 +95,105 @@ fun ramsey_score p =
     fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
       hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
   in
-    enum_shapel f1
+    enum_shapel_err (32,1000000) f1
   end
-
-
-
-(* -------------------------------------------------------------------------
-   Without timers
-   ------------------------------------------------------------------------- *)
-
-fun next_shapel_free f endj ((bluell,redll),bl,klevel,j) = 
-  if j >= endj then (klevel, hash_bl bl) else
-  let 
-    val coloringl = List.tabulate (j, fn i => ([i,j],f (i,j)))
-    val (blueedg,rededg) = partition snd coloringl
-    val edgel = map fst (filter snd coloringl)
-    val bluev = Vector.fromList (map snd coloringl)
-    val redv = Vector.fromList (map (not o snd) coloringl)
-    fun fblue shape = all (fn x => Vector.sub (bluev,x)) shape
-    fun fred shape = all (fn x => Vector.sub (redv,x)) shape 
-    val bluell1 = [] :: filter (not o null) 
-      (map (extend_shapel fblue j) bluell)
-    val redll1 = [] :: filter (not o null) 
-      (map (extend_shapel fred j) redll)
-    val bluell2 = merge_ll bluell1 bluell
-    val redll2 = merge_ll redll1 redll
-    val k = Int.max (length bluell2,length redll2) - 1
-    val newklevel = if k <= fst (hd klevel) then klevel else (k,j+1) :: klevel
-  in
-    next_shapel_free f endj 
-      ((bluell2,redll2),map snd coloringl @ bl,newklevel,j+1)
-  end;
-
-fun enum_shapel_free n f = 
-  (next_shapel_free f n (([[[]]],[[[]]]),[],[(1,1)],0))
 
 
 end (* struct *)   
 
 (*
-load "aiLib"; open aiLib;
+load "human"; open human;
+load "ramsey"; open aiLib kernel ramsey;
+
+fun f (a:int,b:int) = (b * b) mod (2*(a+b)+1) > a+b;
+val (scl,h) = enum_shapel (32,1000000) f;
+
+
+
+
+
+val sol = read_hanabil (selfdir ^ "/exp/ramsey7/hist/itsol13");
+val progl = map (snd o fst) sol;
+
+val maxgraphsize = Real.ceil (27.0 * 1.5);
+val maxcliquesize = 8;
+val maxtim = 10000000000;
+
+val result = ref []
+
+fun loop (maxgraphsize,maxcliquesize,maxtim) rl = 
+  if null rl then () else
+  let
+    val _ = print_endline ("Searching for graphs of size " ^ 
+       its (maxgraphsize - 1) ^ " that do not contain a " ^ 
+       its maxcliquesize ^ "-clique")
+    fun f p = (p, enum_shapel_p (maxgraphsize-1,maxcliquesize,maxtim) p);
+    val (rl0,t) = add_time (map f) (first_n 10000 (rev rl))
+    val rl1 = map_snd valOf (filter (isSome o snd) rl0)
+    val rl2 = map_snd fst rl1;
+    val _ = print_endline (its (length rl2) ^ " programs remaining")
+    fun test (a,b) = fst (hd b) < maxcliquesize;
+    val rl3 = filter test rl2;
+    val _ = print_endline (its (length rl3) ^ " programs remaining in " ^
+                           rts_round 2 t ^ " seconds")
+    val newmaxgraphsize = Real.ceil (Real.fromInt maxgraphsize * 1.5)
+  in
+    result := (maxcliquesize,rl3) :: !result;
+    loop (newmaxgraphsize,maxcliquesize+1,maxtim) (map fst rl3)
+  end;
+
+result := [];
+loop (maxgraphsize,maxcliquesize) progl;
+
+
+fun compare_klevel (klevel1,klevel2) = 
+  cpl_compare Int.compare (inv_cmp Int.compare) (hd klevel1, hd klevel2);
+
+val (k,result2) = hd (!result);
+
+val result2' = filter (fn (x,_) => not (contain_opers "divi" x)
+                         andalso not (contain_opers "loop" x)) result2;
+
+val result4 = dict_sort (fst_compare prog_compare_size) result2';
+val (p,klevel) = hd result4;
+human_trivial p;
+
+val maxtim = 100000000000;
+result := [];
+loop (maxgraphsize,maxcliquesize,maxtim) [p];
+val result10 = !result;
+
+
+val result5 = dict_sort (snd_compare compare_klevel) result2;
+val (p,klevel) = hd result5;
+human_trivial p;
+assoc p result2;
+
 load "graph"; open graph;
-load "ramsey"; open ramsey;
-fun f (x,y) = x div 2 - y mod (x+2) >= 0;
-val r = enum_shapel_free 100 f;
+fun f2 (i,j) = if f1(i,j) then 1 else 2;
+fun mk_sym f (i,j) = if i = j then 0 
+                     else if i < j then f(i,j) else f(j,i);
+                     
+                    
 
 
 
 
-val m = mat_tabulate (40,f);
-print_mat m;
 
+  
+fun mat_to_ll m = 
+  let val size = mat_size m in
+    List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
+  end;
 
+fun color x = if x = 1 then "o" else " ";
+fun color_line l = String.concatWith " " (map color l);
 
+fun string_of_mat m = String.concatWith "\n" (map color_line (mat_to_ll m));
+
+fun print_mat m = print_endline (string_of_mat m); 
+
+print_mat (mat_tabulate (40, mk_sym f2));
 
 *)
 

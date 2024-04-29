@@ -19,7 +19,7 @@ val mergedir = selfdir ^ "/merge"
    ------------------------------------------------------------------------- *)
 
 (* todo: define the score *)
-fun ramsey_score p = NONE
+fun ramsey_score_deprecated p = NONE
 
 val compare_ramsey = cpl_compare Int.compare (inv_cmp prog_compare_size)
 val ramseyd = ref (dempty compare_ramsey)
@@ -58,7 +58,7 @@ fun update_ramseyd (ktop,vtop as (_,_,h,_)) =
 fun checkinit_ramsey () = 
   (ramseyd := dempty compare_ramsey; ramseyh := dempty Int.compare)
 
-fun checkonline_ramsey (p,exec) = case ramsey_score p of 
+fun checkonline_ramsey (p,exec) = case ramsey_score_deprecated p of 
     NONE => ()
   | SOME sc => update_ramseyd ((~sc,p),(sc,sc,sc,sc))
  
@@ -123,9 +123,8 @@ fun collect_id (Ins (id,pl)) = id :: List.concat (map collect_id pl)
 
 fun checkonline_hanabi p = 
   if !rams_flag then 
-  let val (sc,h) = ramsey.ramsey_score p in 
-    if sc >= 1 then () else update_hanabid ((sc,p),h)
-  end
+    (case ramsey.ramsey_score p of NONE => () | SOME (sc,h) => 
+     update_hanabid ((sc,p),h))
   else
   let val (sc,h) = hanabi.hanabi_score p in 
     if sc <= 0 then () else update_hanabid ((sc,p),h)
