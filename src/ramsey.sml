@@ -19,11 +19,11 @@ end;
    Limit the number of operations when checking cliques
    ------------------------------------------------------------------------- *)  
 
-val shapetimer = ref 0   
+val shapetimer = ref 0
 exception RamseyTimeout;
 
 (* -------------------------------------------------------------------------
-   Tree structures storing all cliques
+   Tree structure storing all cliques
    ------------------------------------------------------------------------- *) 
 
 datatype tree = Node of int * tree list
@@ -88,7 +88,200 @@ fun enum_shapel_err (maxj,maxtim) f =
     | Overflow => NONE
     | RamseyTimeout => NONE
 
+(* -------------------------------------------------------------------------
+   Efficiently checking if a graph contains a k-clique or not
+   ------------------------------------------------------------------------- *)
+
+fun exists_withtail f l = case l of 
+    [] => false
+  | a :: m => f a m orelse exists_withtail f m
+
+fun exist_clique_v n (f:int*int->bool) v l =
+  exist_clique (n-1) f (filter (fn x => f(v,x)) l)
+  
+and exist_clique n f l = 
+  if n = 0 then true else
+  if length l < n then false else
+  exists_withtail (exist_clique_v n f) l
+
+
+
+
+fun exist_clique_v_tim tim n (f:int*int->bool) v l =
+  (
+  incr shapetimer;
+  if !shapetimer > tim then raise RamseyTimeout else ();
+  exist_clique_tim tim (n-1) f (filter (fn x => f(v,x)) l)
+  )
+and exist_clique_tim tim n f l = 
+  if n <= 0 then true else
+  if length l < n then false else
+  exists_withtail (exist_clique_v_tim tim n f) l
+
+fun exist_clique_timer tim n f l =
+  (shapetimer := 0;
+   exist_clique_tim tim n f l)
+  
+(*
+fun f (i,j) = j*j mod (2*(i+j)+1) >= i+j;
+fun mk_sym f (i,j) = if i = j then false
+                     else if i < j then f(i,j) else f(j,i); 
+val f' = mk_sym f;
+
+
+val n = 1024
+val l = List.tabulate (n,I);
+val m = Array2.tabulate Array2.RowMajor (n,n,f');
+fun f'' (i,j) = Array2.sub (m,i,j);
+val (r,t) = add_time (exist_clique 20 f'') (rev l);
+
+load "aiLib"; open aiLib;
+
+
+
+*)
+
+
+(* -------------------------------------------------------------------------
+   Matrice short cuts
+   ------------------------------------------------------------------------- *)
+
+fun mat_sub (m,i,j) = Array2.sub (m,i,j)
+fun mat_update (m,i,j,x) = Array2.update(m,i,j,x)
+fun mat_update_sym (m,i,j,x) = 
+  (mat_update (m,i,j,x); mat_update (m,j,i,x))
+fun mat_empty n = Array2.array (n,n,false);
+fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
+fun mat_traverse f m = 
+  let 
+    val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE}
+    fun g (i,j,x) = if i < j then f (i,j,x) else ()
+  in
+    Array2.appi Array2.RowMajor g range
+  end 
+fun mat_size m = 
+  let val (a,b) = Array2.dimensions m in
+    if a = b then a else raise ERR "mat_size" ""
+  end
+fun mat_copy graph = 
+  let fun f (i,j) = mat_sub (graph,i,j) in
+    mat_tabulate (mat_size graph, f)
+  end  
+  
+fun exist_clique_mat tim n m = 
+  let 
+    val l = List.tabulate (mat_size m,I)
+    fun f(i,j) = mat_sub (m,i,j) 
+  in
+    exist_clique_timer tim n f l orelse
+    exist_clique_timer tim n (not o f) l
+  end
+
+fun hash_mat m = 
+  let 
+    val bl = ref [] 
+    fun f (i,j,x) = bl := (x :: !bl)
+  in 
+    mat_traverse f m;
+    hash_bl (rev (!bl))
+  end
+    
+
+(* -------------------------------------------------------------------------
+   Scoring functions
+   ------------------------------------------------------------------------- *)
+
+fun double_graph_f graph n f1 = 
+  let 
+    val size = mat_size graph 
+    val valuel = List.concat (
+      List.tabulate (size, fn j => 
+      List.tabulate (j+1, fn i => ((i,j),f1(i,j)))))
+    val m = mat_empty size
+    fun upd m ((i,j),x) = mat_update_sym (m,i,j,x)
+    val _ = app (upd m) valuel 
+    fun f(i,j) = 
+      if i < size andalso j < size 
+        then mat_sub (graph,i,j) 
+      else if i >= size andalso j >= size
+        then mat_sub (graph,i-size,j-size)
+      else if i < size andalso j >= size 
+        then mat_sub(m,i,j-size)
+      else if i >= size andalso j < size
+        then mat_sub (m,j,i-size)
+      else raise ERR "ramsey_score_short" ""
+    val newgraph = mat_tabulate (2 * size, f)
+  in
+    newgraph
+  end
+
+fun double_graph graph n p =
+  let 
+    val _ = push_counter := 0
+    val _ = exec_memo.n_glob := IntInf.fromInt n
+    val f0 = exec_memo.mk_exec p
+    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
+  in
+    SOME (double_graph_f graph n f1) handle  
+      Empty => NONE
+    | Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+  end
+
+fun double_graph_loop graph n p = 
+  if n >= 6 then SOME (n,hash_mat graph) else
+  case double_graph graph n p of
+    NONE => NONE 
+  | SOME newgraph => 
+      (
+      case (SOME (exist_clique_mat 1000000 ((2*(n+1))+1) newgraph) 
+        handle RamseyTimeout => NONE) of
+        NONE => NONE
+      | SOME true => SOME (n,hash_mat graph)
+      | SOME false => double_graph_loop newgraph (n+1) p
+      )
+
+(*
+load "ramsey"; open ramsey; load "game";
+load "human"; 
+load "aiLib"; open aiLib;
+val n = List.tabulate (1000, fn _ => ramsey_score (game.random_prog 20));
+val n1 = mapfilter (fst o valOf) n;
+
+fun f (a,b) = (a div 2 + b) mod 2 = 1;
+fun mat_empty n = Array2.array (n,n,false);
+
+
+
+fun loop nmax (n,graph) = 
+  if n >= nmax then graph else loop nmax (n+1,double_graph_f graph n f);
+
+val graph = loop 4 (0,mat_empty 1);
+
+val ERR = mk_HOL_ERR "test";
+fun mat_size m = 
+  let val (a,b) = Array2.dimensions m in
+    if a = b then a else raise ERR "mat_size" ""
+  end;
+fun mat_sub (m,i,j) = Array2.sub (m,i,j)
+fun mat_to_ll m = 
+  let val size = mat_size m in
+    List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
+  end;
+
+fun color x = if x then "x" else " ";
+fun color_line l = String.concatWith " " (map color l);
+fun string_of_mat m = String.concatWith "\n" (map color_line (mat_to_ll m));
+fun print_mat m = print_endline (string_of_mat m); 
+
+print_mat graph;
+*)
+
+
 fun ramsey_score p =
+  if !rams_short then double_graph_loop (mat_empty 1) 0 p else
   let 
     val _ = push_counter := 0
     val f0 = exec_memo.mk_exec p
@@ -169,17 +362,18 @@ val (p,klevel) = hd result5;
 human_trivial p;
 assoc p result2;
 
+load "aiLib"; open aiLib;
 load "graph"; open graph;
 fun f2 (i,j) = if f1(i,j) then 1 else 2;
 fun mk_sym f (i,j) = if i = j then 0 
                      else if i < j then f(i,j) else f(j,i);
                      
                     
-
-
-
-
-
+fun f (i,j) = j*j mod (2*(i+j)+1) >= i+j;
+fun mk_sym f (i,j) = if i = j then false
+                     else if i < j then f(i,j) else f(j,i); 
+val f' = mk_sym f;
+fun f'' (i,j) = if if f'(i,j) then 1 else 0;
   
 fun mat_to_ll m = 
   let val size = mat_size m in
@@ -193,7 +387,7 @@ fun string_of_mat m = String.concatWith "\n" (map color_line (mat_to_ll m));
 
 fun print_mat m = print_endline (string_of_mat m); 
 
-print_mat (mat_tabulate (40, mk_sym f2));
-
+print_mat (mat_tabulate (64,f''));
+print_mat (mat_tabulate (32,f''));
 *)
 

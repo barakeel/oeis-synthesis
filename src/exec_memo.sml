@@ -161,6 +161,8 @@ fun mk_quintf3 opf fl = case fl of
    Basic intructions
    ------------------------------------------------------------------------- *)
 
+val n_glob = ref (IntInf.fromInt 0)
+
 local open IntInf in  
 
 val zero_f = mk_nullf (fn (x,y) => [azero])
@@ -168,6 +170,7 @@ val one_f = mk_nullf (fn (x,y) => [aone])
 val two_f = mk_nullf (fn (x,y) => [atwo])
 val x_f = mk_nullf (fn (x,y) => x)
 val y_f = mk_nullf (fn (x,y) => y)
+val n_f = mk_nullf (fn (x,y) => [!n_glob])
 
 fun mk_e f (l1,l2) = case (l1,l2) of
     ([],_) => raise Empty
@@ -347,8 +350,12 @@ fun compr_f fl = case fl of
    ------------------------------------------------------------------------- *)
 
 val org_execl = 
-  [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
-   loop_f, x_f, y_f, compr_f, loop2_f]
+  if !rams_short 
+  then [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
+     loop_f, x_f, y_f, n_f, loop2_f]
+  else
+    [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
+     loop_f, x_f, y_f, compr_f, loop2_f]
 
 val execv = Vector.fromList (org_execl @ [push_f, pop_f])
 

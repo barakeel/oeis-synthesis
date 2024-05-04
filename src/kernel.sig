@@ -204,6 +204,7 @@ sig
   val hanabi_flag : bool ref
   val hanabi_short : bool ref
   val rams_flag : bool ref
+  val rams_short : bool ref
   type hanabi = (int * prog) * IntInf.int
   val write_hanabil : string -> hanabi list -> unit
   val read_hanabil : string -> hanabi list
