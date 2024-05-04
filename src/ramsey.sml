@@ -45,13 +45,13 @@ and add_vertex_treel d f j treel =
    Incrementally adding vertices
    ------------------------------------------------------------------------- *)
 
-fun give_up j = j > 3 andalso 
-  j < Real.ceil (Math.pow (1.414, Real.fromInt (!maxd)))
+fun give_up j = (j >= 2 andalso 
+  Real.ceil (Math.pow (1.414, Real.fromInt (!maxd))) > j)
   
-fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,scl,j) = 
-  if j >= maxj
-    then (scl, hash_bl bl) 
-  else if give_up j orelse !shapetimer >= maxtim
+fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,j) = 
+  if j >= maxj orelse give_up j
+    then (j, hash_bl bl) 
+  else if !shapetimer >= maxtim
     then raise RamseyTimeout
   else
   let 
@@ -66,7 +66,7 @@ fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,scl,j) =
     val newrtreel = add_vertex_treel 1 fred j rtreel  
   in
     next_shapel f (maxj,maxtim)
-      ((newbtreel,newrtreel), map snd coloringl @ bl, !maxd :: scl, j+1)
+      ((newbtreel,newrtreel), map snd coloringl @ bl, j+1)
   end
 
 fun enum_shapel (maxj,maxtim) f =
@@ -74,12 +74,12 @@ fun enum_shapel (maxj,maxtim) f =
     val _ = maxd := 0
     val _ = shapetimer := 0
   in
-    next_shapel f (maxj,maxtim) (([],[]),[],[],0)
+    next_shapel f (maxj,maxtim) (([],[]),[],0)
   end
 
 fun enum_shapel_err (maxj,maxtim) f =
-  let val (scl,hash) = enum_shapel (maxj,maxtim) f in
-    SOME (~ (sum_int scl), hash)
+  let val (sc,hash) = enum_shapel (maxj,maxtim) f in
+    SOME (sc,hash)
   end
   handle  
       Empty => NONE
@@ -243,6 +243,7 @@ fun double_graph_loop graph n p =
       | SOME false => double_graph_loop newgraph (n+1) p
       )
 
+
 (*
 load "ramsey"; open ramsey; load "game";
 load "human"; 
@@ -288,7 +289,7 @@ fun ramsey_score p =
     fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
       hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
   in
-    enum_shapel_err (32,1000000) f1
+    enum_shapel_err (64,1000000) f1
   end
 
 
