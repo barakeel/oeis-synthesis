@@ -104,9 +104,6 @@ and exist_clique n f l =
   if length l < n then false else
   exists_withtail (exist_clique_v n f) l
 
-
-
-
 fun exist_clique_v_tim tim n (f:int*int->bool) v l =
   (
   incr shapetimer;
@@ -289,7 +286,7 @@ fun ramsey_score p =
     fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
       hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
   in
-    enum_shapel_err (64,1000000) f1
+    enum_shapel_err (64,2000000) f1
   end
 
 
