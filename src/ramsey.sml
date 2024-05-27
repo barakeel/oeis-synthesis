@@ -120,22 +120,47 @@ fun exist_clique_timer tim n f l =
    exist_clique_tim tim n f l)
   
 (*
-fun f (i,j) = j*j mod (2*(i+j)+1) >= i+j;
+load "ramsey"; open ramsey; 
+load "aiLib"; open aiLib;
+fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
 fun mk_sym f (i,j) = if i = j then false
                      else if i < j then f(i,j) else f(j,i); 
 val f' = mk_sym f;
-
 
 val n = 1024
 val l = List.tabulate (n,I);
 val m = Array2.tabulate Array2.RowMajor (n,n,f');
 fun f'' (i,j) = Array2.sub (m,i,j);
 val (r,t) = add_time (exist_clique 20 f'') (rev l);
+*)
 
+(*
+load "ramsey"; open ramsey; 
 load "aiLib"; open aiLib;
+fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
+fun mk_sym f (i,j) = if i = j then false
+                     else if i < j then f(i,j) else f(j,i); 
+val n = 20
+val l = List.tabulate (n,I);
+val m = Array2.tabulate Array2.RowMajor (n,n,f');
 
+val ERR = mk_HOL_ERR "test";
+fun mat_size m = 
+  let val (a,b) = Array2.dimensions m in
+    if a = b then a else raise ERR "mat_size" ""
+  end;
+fun mat_sub (m,i,j) = Array2.sub (m,i,j)
+fun mat_to_ll m = 
+  let val size = mat_size m in
+    List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
+  end;
 
+fun color x = if x then "\\x" else " ";
+fun color_line l = String.concatWith "& " (map color l);
+fun string_of_mat m = String.concatWith "\\\\\n" (map color_line (mat_to_ll m));
+fun print_mat m = print_endline (string_of_mat m); 
 
+print_mat m;
 *)
 
 
