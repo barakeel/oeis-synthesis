@@ -207,34 +207,34 @@ fun hash_mat m =
     mat_traverse f m;
     hash_bl (rev (!bl))
   end
-    
+  
+fun symmetrify m = 
+  mat_tabulate (mat_size m, fn (a,b) => 
+  if a=b then false else if a < b then mat_sub (m,a,b) else mat_sub (m,b,a));    
 
+fun invert m = 
+  mat_tabulate (mat_size m, fn (a,b) => 
+  if a=b then false else not (mat_sub (m,a,b)))
+  
 (* -------------------------------------------------------------------------
    Scoring functions
    ------------------------------------------------------------------------- *)
 
 fun double_graph_f graph n f1 = 
   let 
-    val size = mat_size graph 
-    val valuel = List.concat (
-      List.tabulate (size, fn j => 
-      List.tabulate (j+1, fn i => ((i,j),f1(i,j)))))
-    val m = mat_empty size
-    fun upd m ((i,j),x) = mat_update_sym (m,i,j,x)
-    val _ = app (upd m) valuel 
+    val size = mat_size graph
     fun f(i,j) = 
+      if j >= i then false else
       if i < size andalso j < size 
         then mat_sub (graph,i,j) 
       else if i >= size andalso j >= size
         then mat_sub (graph,i-size,j-size)
       else if i < size andalso j >= size 
-        then mat_sub(m,i,j-size)
-      else if i >= size andalso j < size
-        then mat_sub (m,j,i-size)
+        then f1 (i,j-size)
       else raise ERR "ramsey_score_short" ""
     val newgraph = mat_tabulate (2 * size, f)
   in
-    newgraph
+    symmetrify newgraph
   end
 
 fun double_graph graph n p =
@@ -252,17 +252,23 @@ fun double_graph graph n p =
     | Overflow => NONE
   end
 
+fun test_graph_aux n graph =
+  exist_clique_mat 1000000 n graph andalso 
+  not (exist_clique_mat 1000000 (n+1) graph)
+  
+fun test_graph n graph =
+  SOME (test_graph_aux n graph) handle RamseyTimeout => NONE
+  
 fun double_graph_loop graph n p = 
   if n >= 6 then SOME (n,hash_mat graph) else
   case double_graph graph n p of
     NONE => NONE 
   | SOME newgraph => 
       (
-      case (SOME (exist_clique_mat 1000000 ((2*(n+1))+1) newgraph) 
-        handle RamseyTimeout => NONE) of
+      case test_graph (n+1) newgraph of
         NONE => NONE
-      | SOME true => SOME (n,hash_mat graph)
-      | SOME false => double_graph_loop newgraph (n+1) p
+      | SOME false => SOME (n,hash_mat graph)
+      | SOME true => double_graph_loop newgraph (n+1) p
       )
 
 
@@ -275,8 +281,6 @@ val n1 = mapfilter (fst o valOf) n;
 
 fun f (a,b) = (a div 2 + b) mod 2 = 1;
 fun mat_empty n = Array2.array (n,n,false);
-
-
 
 fun loop nmax (n,graph) = 
   if n >= nmax then graph else loop nmax (n+1,double_graph_f graph n f);
@@ -302,7 +306,6 @@ fun print_mat m = print_endline (string_of_mat m);
 print_mat graph;
 *)
 
-
 fun ramsey_score p =
   if !rams_short then double_graph_loop (mat_empty 1) 0 p else
   let 
@@ -323,9 +326,6 @@ load "ramsey"; open aiLib kernel ramsey;
 
 fun f (a:int,b:int) = (b * b) mod (2*(a+b)+1) > a+b;
 val (scl,h) = enum_shapel (32,1000000) f;
-
-
-
 
 
 val sol = read_hanabil (selfdir ^ "/exp/ramsey7/hist/itsol13");
