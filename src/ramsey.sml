@@ -224,8 +224,9 @@ fun double_graph_f graph n f1 =
   let 
     val size = mat_size graph
     fun f(i,j) = 
-      if j >= i then false else
-      if i < size andalso j < size 
+      if i >= j 
+        then false 
+      else if i < size andalso j < size 
         then mat_sub (graph,i,j) 
       else if i >= size andalso j >= size
         then mat_sub (graph,i-size,j-size)
