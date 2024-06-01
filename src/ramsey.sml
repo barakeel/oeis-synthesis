@@ -271,9 +271,14 @@ fun double_graph graph n p =
 
 fun test_graph_aux n graph =
   if n < 2 then true else
-  exist_clique_mat 1000000 n graph andalso 
-  not (exist_clique_mat 1000000 (n+1) graph) andalso
-  (!nauto_check andalso is_nauto graph) 
+  if !nauto_check then   
+    exist_clique_mat 1000000 n graph andalso 
+    not (exist_clique_mat 1000000 (n+1) graph) andalso
+    is_nauto graph
+  else
+    not (exist_clique_mat 1000000 (n+1) graph)
+  
+  
   
 fun test_graph n graph =
   SOME (test_graph_aux n graph) handle RamseyTimeout => NONE
