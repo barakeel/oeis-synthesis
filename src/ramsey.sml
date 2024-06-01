@@ -212,9 +212,21 @@ fun symmetrify m =
   mat_tabulate (mat_size m, fn (a,b) => 
   if a=b then false else if a < b then mat_sub (m,a,b) else mat_sub (m,b,a));    
 
+fun colorize m = 
+  mat_tabulate (mat_size m , fn (a,b) => 
+  if a=b then 0 else if mat_sub (m,a,b) then 1 else 2)
+
 fun invert m = 
   mat_tabulate (mat_size m, fn (a,b) => 
   if a=b then false else not (mat_sub (m,a,b)))
+  
+fun is_nauto m = 
+  let 
+    val m1 = nauty.normalize_nauty (colorize m)
+    val m2 = nauty.normalize_nauty (colorize (invert m)) 
+  in 
+    graph.mat_eq m1 m2
+  end    
   
 (* -------------------------------------------------------------------------
    Scoring functions
@@ -255,7 +267,8 @@ fun double_graph graph n p =
 
 fun test_graph_aux n graph =
   exist_clique_mat 1000000 n graph andalso 
-  not (exist_clique_mat 1000000 (n+1) graph)
+  not (exist_clique_mat 1000000 (n+1) graph) andalso
+  (!nauto_check andalso is_nauto graph) 
   
 fun test_graph n graph =
   SOME (test_graph_aux n graph) handle RamseyTimeout => NONE
