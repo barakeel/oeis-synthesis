@@ -243,7 +243,7 @@ fun double_graph_f graph n f1 =
       else if i >= size andalso j >= size
         then mat_sub (graph,i-size,j-size)
       else if i < size andalso j >= size 
-        then f1 (i,j-size)
+        then f1 (n,i,j-size)
       else raise ERR "ramsey_score_short" ""
     val newgraph = mat_tabulate (2 * size, f)
   in
@@ -253,10 +253,14 @@ fun double_graph_f graph n f1 =
 fun double_graph graph n p =
   let 
     val _ = push_counter := 0
-    val _ = exec_memo.n_glob := IntInf.fromInt n
     val f0 = exec_memo.mk_exec p
-    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
-      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
+    fun f1 (nloc,i,j) = 
+      (
+      exec_memo.n_glob := IntInf.fromInt nloc; 
+      abstimer := 0; 
+      timelimit := !timeincr;
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0
+      )
   in
     SOME (double_graph_f graph n f1) handle  
       Empty => NONE
@@ -266,9 +270,10 @@ fun double_graph graph n p =
   end
 
 fun test_graph_aux n graph =
+  if n < 2 then true else
   exist_clique_mat 1000000 n graph andalso 
   not (exist_clique_mat 1000000 (n+1) graph) andalso
-  (!nauto_check andalso n >= 2 andalso is_nauto graph) 
+  (!nauto_check andalso is_nauto graph) 
   
 fun test_graph n graph =
   SOME (test_graph_aux n graph) handle RamseyTimeout => NONE
@@ -290,17 +295,6 @@ fun double_graph_loop graph n p =
 load "ramsey"; open ramsey; load "game";
 load "human"; 
 load "aiLib"; open aiLib;
-val n = List.tabulate (1000, fn _ => ramsey_score (game.random_prog 20));
-val n1 = mapfilter (fst o valOf) n;
-
-fun f (a,b) = (a div 2 + b) mod 2 = 1;
-fun mat_empty n = Array2.array (n,n,false);
-
-fun loop nmax (n,graph) = 
-  if n >= nmax then graph else loop nmax (n+1,double_graph_f graph n f);
-
-val graph = loop 4 (0,mat_empty 1);
-
 val ERR = mk_HOL_ERR "test";
 fun mat_size m = 
   let val (a,b) = Array2.dimensions m in
@@ -311,13 +305,20 @@ fun mat_to_ll m =
   let val size = mat_size m in
     List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
   end;
-
 fun color x = if x then "x" else " ";
 fun color_line l = String.concatWith " " (map color l);
 fun string_of_mat m = String.concatWith "\n" (map color_line (mat_to_ll m));
 fun print_mat m = print_endline (string_of_mat m); 
 
+
+fun f (n,a,b) = 0 > 0;
+fun mat_empty n = Array2.array (n,n,false);
+fun loop nmax (n,graph) = 
+  if n >= nmax then graph else loop nmax (n+1,double_graph_f graph n f);
+val graph = loop 1 (0,mat_empty 1);
 print_mat graph;
+exist_clique_mat 10000000 2 graph;
+
 *)
 
 fun ramsey_score p =

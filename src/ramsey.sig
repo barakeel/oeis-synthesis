@@ -6,8 +6,10 @@ sig
   type prog = kernel.prog
   
   val exist_clique : int -> (int * int -> bool) -> int list -> bool
+  val exist_clique_mat : int -> int -> bool Array2.array -> bool
   val enum_shapel : int * int -> (int * int -> bool) -> int * IntInf.int
-  val double_graph : bool Array2.array -> int -> prog -> bool Array2.array option
+  val double_graph_f : 
+    bool Array2.array -> int -> (int * int * int -> bool) -> bool Array2.array
   val ramsey_score : prog -> (int * IntInf.int) option
   
   
