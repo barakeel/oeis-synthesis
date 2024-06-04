@@ -269,22 +269,25 @@ fun double_graph graph n p =
     | Overflow => NONE
   end
 
+val cliquetimemax = ref 1000000
+val graphsizemax = ref 6  
+  
 fun test_graph_aux n graph =
   if n < 2 then true else
   if !nauto_check then   
-    exist_clique_mat 1000000 n graph andalso 
-    not (exist_clique_mat 1000000 (n+1) graph) andalso
+    exist_clique_mat (!cliquetimemax) n graph andalso 
+    not (exist_clique_mat (!cliquetimemax) (n+1) graph) andalso
     is_nauto graph
   else
-    not (exist_clique_mat 1000000 (n+1) graph)
-  
-  
+    not (exist_clique_mat (!cliquetimemax) (n+1) graph)  
   
 fun test_graph n graph =
   SOME (test_graph_aux n graph) handle RamseyTimeout => NONE
   
+
+  
 fun double_graph_loop graph n p = 
-  if n >= 6 then SOME (n,hash_mat graph) else
+  if n >= (!graphsizemax) then SOME (n,hash_mat graph) else
   case double_graph graph n p of
     NONE => NONE 
   | SOME newgraph => 
@@ -294,6 +297,28 @@ fun double_graph_loop graph n p =
       | SOME false => SOME (n,hash_mat graph)
       | SOME true => double_graph_loop newgraph (n+1) p
       )
+
+
+
+(* -------------------------------------------------------------------------
+   Give scores to graphs for larger graph sizes.
+   ------------------------------------------------------------------------- *)
+
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+cliquetimemax := 1000000000;
+timelimit := 10000000;
+graphsizemax := 8;
+
+val sol = read_hanabil (selfdir ^ "/exp/ramsey105/hist/itsol38");
+val progl = map (snd o fst) sol;
+
+ramsey_score
+*)      
+      
+      
+      
 
 
 (*

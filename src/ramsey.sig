@@ -5,6 +5,9 @@ sig
   
   type prog = kernel.prog
   
+  val cliquetimemax : int ref
+  val graphsizemax : int ref
+  
   val exist_clique : int -> (int * int -> bool) -> int list -> bool
   val exist_clique_mat : int -> int -> bool Array2.array -> bool
   val enum_shapel : int * int -> (int * int -> bool) -> int * IntInf.int
