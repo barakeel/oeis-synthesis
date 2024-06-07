@@ -16,7 +16,8 @@ sig
     bool Array2.array -> int -> (int * int * int -> bool) -> bool Array2.array
   val ramsey_score : prog -> (int * IntInf.int) option
   
-  
+  val test_expo_f : int -> (int * int -> bool) -> int -> int -> int * string
+  val test_expo_p : int -> prog -> int -> int -> int * string
   
   
 end

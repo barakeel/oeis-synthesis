@@ -3,6 +3,8 @@ structure ramsey :> ramsey = struct
 open HolKernel Abbrev boolLib aiLib dir kernel
 val ERR = mk_HOL_ERR "ramsey"
 
+val cliquetimemax = ref 1000000
+
 (* -------------------------------------------------------------------------
    Converting list of booleans to a single arbitrary integer 
    ------------------------------------------------------------------------- *)
@@ -47,7 +49,6 @@ and add_vertex_treel d f j treel =
 
 fun give_up j = (j >= 3 andalso 
   Math.pow (1.5, Real.fromInt (!maxd)) > Real.fromInt j)
-
 
 fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,j) = 
   if j >= maxj orelse give_up j
@@ -144,9 +145,6 @@ and all_clique n f l =
   if n = 0 then [[]] else
   if length l < n then [] else
   all_withtail (all_clique_v n f) l
-    
-  
-  
   
 (*
 load "ramsey"; open ramsey; 
@@ -270,6 +268,58 @@ fun is_nauto m =
   in 
     graph.mat_eq m1 m2
   end    
+ 
+fun has_expo_clique_f tim f cliquesize = 
+  let 
+    val graphsize = Real.floor (Math.pow (1.5, Real.fromInt cliquesize)) 
+    val m = symmetrify (mat_tabulate (graphsize, 
+      fn (i,j) => if i < j then (if !rams_diff then f(j-i,0) else f (i,j)) 
+        else false))
+  in 
+    SOME (exist_clique_mat tim cliquesize m)
+    handle  
+      Empty => NONE
+    | Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+    | RamseyTimeout => NONE 
+  end
+ 
+fun test_expo_f tim f startsize maxsize =
+  if startsize > maxsize then (startsize-1,"finish")
+  else case has_expo_clique_f tim f startsize of
+      NONE => (startsize-1,"error") 
+    | SOME true => (startsize-1,"clique") 
+    | SOME false => test_expo_f tim f (startsize+1) maxsize
+ 
+(* todo: we know that 0 is in the clique: maybe optimize for that *)  
+
+fun build_f_wcache p = 
+ let
+   val _ = push_counter := 0
+   val f0 = exec_memo.mk_exec p
+   fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
+   val cache = ref (dempty Int.compare)
+   val newf = if not (!rams_diff) then f1 else
+      (
+      fn (x,y) => 
+        case dfindo x (!cache) of
+          NONE => let val r = f1(x,y) in
+                    cache := dadd x r (!cache); r 
+                  end
+        | SOME r => r
+      )
+  in 
+    newf
+  end
+  
+fun has_expo_clique_p tim p cliquesize = 
+  has_expo_clique_f tim (build_f_wcache p) cliquesize 
+  
+fun test_expo_p tim p startsize maxsize =
+  test_expo_f tim (build_f_wcache p) startsize maxsize
+  
   
 (* -------------------------------------------------------------------------
    Scoring functions
@@ -312,7 +362,7 @@ fun double_graph graph n p =
     | Overflow => NONE
   end
 
-val cliquetimemax = ref 1000000
+
 val graphsizemax = ref 6  
   
 fun test_graph_aux n graph =
