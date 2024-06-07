@@ -272,12 +272,15 @@ fun is_nauto m =
 fun has_expo_clique_f tim f cliquesize = 
   let 
     val graphsize = Real.floor (Math.pow (1.5, Real.fromInt cliquesize)) 
-    val m = symmetrify (mat_tabulate (graphsize, 
+  in
+  let
+   val m = symmetrify (mat_tabulate (graphsize, 
       fn (i,j) => if i < j then (if !rams_diff then f(j-i,0) else f (i,j)) 
         else false))
   in 
     SOME (exist_clique_mat tim cliquesize m)
-    handle  
+  end
+      handle  
       Empty => NONE
     | Div => NONE
     | ProgTimeout => NONE
@@ -402,17 +405,28 @@ fun double_graph_loop graph n p =
 load "ramsey"; open aiLib kernel ramsey;
 cliquetimemax := 1000000000;
 timeincr := 10000000;
-graphsizemax := 6;
+
 
 val sol = read_hanabil (selfdir ^ "/exp/ramsey105/hist/itsol38");
-
 val sol = read_hanabil (selfdir ^ "/exp/ramsey12/hist/itsol57");
+
+val sol = read_hanabil (selfdir ^ "/exp/ramsey14/hist/itsol34");
 val progl = map (snd o fst) sol;
 
 val (l1,t) = add_time (map_assoc ramsey_score) progl;
 val l2 = filter (not o isSome o snd) l1;
 val l3 = map_snd valOf l2;
 val l4 = filter (fn x => fst (snd x) < 4) l3;
+
+
+val tim = 1000000000;
+ 
+val l = map_assoc (fn p => test_expo_p tim p 10 11) progl;
+val l' = filter (fn x => (fst (snd x)) = 11) l;
+length l;
+length l';
+
+
 
 
 *)      
