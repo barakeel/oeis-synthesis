@@ -9,6 +9,7 @@ sig
   val graphsizemax : int ref
   
   val exist_clique : int -> (int * int -> bool) -> int list -> bool
+  val all_clique : int -> (int * int -> bool) -> int list -> int list list
   val exist_clique_mat : int -> int -> bool Array2.array -> bool
   val enum_shapel : int * int -> (int * int -> bool) -> int * IntInf.int
   val double_graph_f : 

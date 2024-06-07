@@ -45,9 +45,10 @@ and add_vertex_treel d f j treel =
    Incrementally adding vertices
    ------------------------------------------------------------------------- *)
 
-fun give_up j = (j >= 2 andalso 
-  Real.ceil (Math.pow (1.414, Real.fromInt (!maxd))) > j)
-  
+fun give_up j = (j >= 3 andalso 
+  Math.pow (1.5, Real.fromInt (!maxd)) > Real.fromInt j)
+
+
 fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,j) = 
   if j >= maxj orelse give_up j
     then (j, hash_bl bl) 
@@ -55,7 +56,8 @@ fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,j) =
     then raise RamseyTimeout
   else
   let 
-    val coloringl = List.tabulate (j, fn i => ([i,j],f (i,j)))
+    val coloringl = List.tabulate (j, fn i => ([i,j],
+      if !rams_diff then f(j-i,0) else f (i,j)))
     val (blueedg,rededg) = partition snd coloringl
     val edgel = map fst (filter snd coloringl)
     val bluev = Vector.fromList (map snd coloringl)
@@ -71,10 +73,20 @@ fun next_shapel f (maxj,maxtim) ((btreel,rtreel),bl,j) =
 
 fun enum_shapel (maxj,maxtim) f =
   let
+    val cache = ref (dempty Int.compare)
+    val newf = if not (!rams_diff) then f else
+      (
+      fn (x,y) => 
+        case dfindo x (!cache) of
+          NONE => let val r = f(x,y) in
+                    cache := dadd x r (!cache); r 
+                  end
+        | SOME r => r
+      )
     val _ = maxd := 0
     val _ = shapetimer := 0
   in
-    next_shapel f (maxj,maxtim) (([],[]),[],0)
+    next_shapel newf (maxj,maxtim) (([],[]),[],0)
   end
 
 fun enum_shapel_err (maxj,maxtim) f =
@@ -104,6 +116,7 @@ and exist_clique n f l =
   if length l < n then false else
   exists_withtail (exist_clique_v n f) l
 
+(* timer *)
 fun exist_clique_v_tim tim n (f:int*int->bool) v l =
   (
   incr shapetimer;
@@ -119,9 +132,28 @@ fun exist_clique_timer tim n f l =
   (shapetimer := 0;
    exist_clique_tim tim n f l)
   
+  
+fun all_withtail f l = case l of 
+    [] => []
+  | a :: m => f a m @ all_withtail f m
+
+fun all_clique_v n (f:int*int->bool) v l =
+  map (fn x => v :: x) (all_clique (n-1) f (filter (fn x => f(v,x)) l))
+
+and all_clique n f l = 
+  if n = 0 then [[]] else
+  if length l < n then [] else
+  all_withtail (all_clique_v n f) l
+    
+  
+  
+  
 (*
 load "ramsey"; open ramsey; 
 load "aiLib"; open aiLib;
+
+fun f(i,j) = (IntInf.log2 (IntInf.fromInt j - IntInf.fromInt i)) mod 2 <= 0;
+
 fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
 fun mk_sym f (i,j) = if i = j then false
                      else if i < j then f(i,j) else f(j,i); 
@@ -131,7 +163,18 @@ val n = 1024
 val l = List.tabulate (n,I);
 val m = Array2.tabulate Array2.RowMajor (n,n,f');
 fun f'' (i,j) = Array2.sub (m,i,j);
-val (r,t) = add_time (exist_clique 20 f'') (rev l);
+
+
+fun first_clique_start f n start = 
+  let val l = all_clique n f (List.tabulate (start,I)) in
+    if null l then first_clique_start f n (start+1) else l
+  end;
+
+fun first_clique f n = first_clique_start f n n;
+  
+val (r,t) = add_time (all_clique 6 f'') (List.tabulate (10,I));
+List.tabulate (15, first_clique f'');
+List.tabulate (15, first_clique (not o f''));
 *)
 
 (*
@@ -308,13 +351,20 @@ fun double_graph_loop graph n p =
 (*
 load "ramsey"; open aiLib kernel ramsey;
 cliquetimemax := 1000000000;
-timelimit := 10000000;
-graphsizemax := 8;
+timeincr := 10000000;
+graphsizemax := 6;
 
 val sol = read_hanabil (selfdir ^ "/exp/ramsey105/hist/itsol38");
+
+val sol = read_hanabil (selfdir ^ "/exp/ramsey12/hist/itsol57");
 val progl = map (snd o fst) sol;
 
-ramsey_score
+val (l1,t) = add_time (map_assoc ramsey_score) progl;
+val l2 = filter (not o isSome o snd) l1;
+val l3 = map_snd valOf l2;
+val l4 = filter (fn x => fst (snd x) < 4) l3;
+
+
 *)      
       
       
@@ -323,7 +373,7 @@ ramsey_score
 
 (*
 load "ramsey"; open ramsey; load "game";
-load "human"; 
+load "human"; val l4 = filter (fn x => fst (snd x) >= 7) l3;
 load "aiLib"; open aiLib;
 val ERR = mk_HOL_ERR "test";
 fun mat_size m = 
@@ -352,7 +402,7 @@ exist_clique_mat 10000000 2 graph;
 *)
 
 fun ramsey_score p =
-  if !rams_short then double_graph_loop (mat_empty 1) 0 p else
+  if !rams_double then double_graph_loop (mat_empty 1) 0 p else
   let 
     val _ = push_counter := 0
     val f0 = exec_memo.mk_exec p
@@ -370,7 +420,15 @@ load "human"; open human;
 load "ramsey"; open aiLib kernel ramsey;
 
 fun f (a:int,b:int) = (b * b) mod (2*(a+b)+1) > a+b;
+
+
+
+
+
 val (scl,h) = enum_shapel (32,1000000) f;
+
+
+fun all 
 
 
 val sol = read_hanabil (selfdir ^ "/exp/ramsey7/hist/itsol13");
