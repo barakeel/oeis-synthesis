@@ -403,10 +403,6 @@ fun double_graph_loop graph n p =
 
 (*
 load "ramsey"; open aiLib kernel ramsey;
-
-
-
-
 val sol = read_hanabil (selfdir ^ "/exp/ramsey105/hist/itsol38");
 val sol = read_hanabil (selfdir ^ "/exp/ramsey12/hist/itsol57");
 val progl = map (snd o fst) sol;
@@ -416,18 +412,45 @@ val l3 = map_snd valOf l2;
 val l4 = filter (fn x => fst (snd x) < 4) l3;
 
 
-
+load "ramsey"; open aiLib kernel ramsey;
 val sol = read_hanabil (selfdir ^ "/exp/ramsey14/hist/itsol34");
 val progl = map (snd o fst) sol;
 timeincr := 10000000;
 val tim = 1000000000;
-val l = map_assoc (fn p => test_expo_p tim p 10 11) progl;
+val l = map_assoc (fn p => (print "."; test_expo_p tim p 11 11)) progl;
 val l' = filter (fn x => (fst (snd x)) = 11) l;
 length l;
 length l';
+val progl11 = map fst l';
 
+val progl12 = map_assoc (fn p => (print "."; test_expo_p tim p 12 12)) progl11;
+val progl12' = map fst (filter (fn x => (fst (snd x)) = 12) progl12);
+val progl12'' = first_n 10 progl12';
+val progl13 = map_assoc (fn p => (print "."; test_expo_p tim p 13 14)) progl12'';
+val progl13' = map fst (filter (fn x => (fst (snd x)) = 14) progl13);
+val progl16 = map_assoc (fn p => (print "."; test_expo_p tim p 15 16)) progl13';
+val progl16' = map fst (filter (fn x => (fst (snd x)) = 16) progl16);
 
+load "human"; open human; 
+map human_trivial progl13';  
+  
+length progl12;
+length progl13;
 
+[(Ins
+      (7,
+       [Ins
+         (6,
+          [Ins
+            (13,
+             [Ins
+               (4,
+                [Ins (6, [Ins (11, []), Ins (2, [])]),
+                 Ins (15, [Ins (10, [])])]), Ins (10, []), Ins (10, []),
+              Ins (4, [Ins (0, []), Ins (2, [])]), Ins (2, [])]),
+           Ins (10, [])]), Ins (2, [])]), (16, "finish"))]
+
+map human_trivial progl16';  
 
 *)      
       

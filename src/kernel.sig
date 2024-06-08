@@ -205,6 +205,7 @@ sig
   val hanabi_short : bool ref
   val rams_flag : bool ref
   val rams_short : bool ref
+  val rams_noloop : bool ref
   val rams_diff : bool ref
   val rams_double : bool ref
   val nauto_check : bool ref

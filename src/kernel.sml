@@ -119,6 +119,7 @@ val ramsey_flag = bflag "ramsey_flag"
 val rams_flag = bflag "rams_flag"
 val rams_diff = bflag "rams_diff"
 val rams_short = bflag "rams_short"
+val rams_noloop = bflag "rams_noloop"
 val rams_double = bflag "rams_double"
 val nauto_check = bflag "nauto_check"
 val veggy_flag = bflag "veggy_flag"
@@ -333,8 +334,12 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   if !hanabi_flag then hanabi_operl
   else if !ramsey_flag then ramsey_operl 
   else if !rams_flag then 
-    if !rams_short 
-    then [("zero",0),("one",0),("two",0),
+    if !rams_noloop then 
+      [("zero",0),("one",0),("two",0),
+       ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+       ("cond",3),("x",0)]
+    else if !rams_short then 
+      [("zero",0),("one",0),("two",0),
       ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
       ("cond",3),("loop",3),("x",0),("y",0),("n",0),("loop2",5)]
       @ [("push",2),("pop",1)]
@@ -410,7 +415,9 @@ val ho_ariv = Vector.fromList
   else if !minimal_flag 
     then [0,0,0,0,0,1]
   else if !rams_flag then
-    if !rams_short 
+    if !rams_noloop then 
+      List.tabulate (Vector.length operv, fn _ => 0)
+    else if !rams_short 
     then List.tabulate (9,fn _ => 0) @ [1,0,0,0,2] @ 
          List.tabulate (2, fn _ => 0)
     else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 

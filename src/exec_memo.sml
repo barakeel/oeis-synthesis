@@ -350,8 +350,10 @@ fun compr_f fl = case fl of
    ------------------------------------------------------------------------- *)
 
 val org_execl = 
-  if !rams_short 
-  then [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
+  if !rams_noloop then
+    [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f, x_f]
+  else if !rams_short then
+    [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
      loop_f, x_f, y_f, n_f, loop2_f]
   else
     [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
