@@ -19,5 +19,12 @@ sig
   val test_expo_f : int -> (int * int -> bool) -> int -> int -> int * string
   val test_expo_p : int -> prog -> int -> int -> int * string
   
+  val first_clique : (int * int -> bool) -> int -> int list list
+  val derive : int list -> int list
+  
+  val loop_minclique : (int * int -> bool) ->
+    int * int -> (int * int) list * (int * int) list
+
+
   
 end
