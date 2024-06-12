@@ -337,7 +337,7 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
     if !rams_noloop then 
       [("zero",0),("one",0),("two",0),
        ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-       ("cond",3),("x",0)]
+       ("cond",3),("x",0),("y",0)]
     else if !rams_short then 
       [("zero",0),("one",0),("two",0),
       ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),

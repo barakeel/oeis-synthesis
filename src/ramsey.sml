@@ -121,9 +121,10 @@ fun derive l = case l of
    Check for cliques and anticliques of increasing sizes
    ------------------------------------------------------------------------- *)
 
+fun is_clique f l = all f (all_pairs l);
+
 fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize) 
-  (clique,anticlique) = 
-  if mat_size m >= maxgraphsize then (rev clique, rev anticlique) else
+  (bl,clique,anticlique) =
   let 
     val prevsize = mat_size m
     val v = Vector.tabulate (prevsize, fn i => f (i,prevsize))
@@ -138,27 +139,36 @@ fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize)
     val newcliquesize = if b1 then cliquesize + 1 else cliquesize
     val newanticliquesize = if b2 then anticliquesize + 1 else anticliquesize
     val newclique = 
-      if b1 
-      then (cliquesize,graphsize) :: clique 
-      else clique
+      if b1 then (cliquesize,graphsize) :: clique else clique
     val newanticlique = 
-      if b2 
-      then (anticliquesize,graphsize) :: anticlique
-      else anticlique
+      if b2 then (anticliquesize,graphsize) :: anticlique else anticlique
+    val newclique' = map (fn (_,x) => x-1) newclique
+    val newanticlique' = map (fn (_,x) => x-1) newanticlique
+    val newbl = vector_to_list v @ bl
   in
-    next_minclique (f,m1) (maxgraphsize,tim) 
+    if (graphsize >= 3 andalso 
+        Math.pow (1.5, Real.fromInt (Int.max 
+          (newcliquesize-1,newanticliquesize-1))) > 
+        Real.fromInt graphsize) orelse
+       not (is_clique f1 newclique') orelse 
+       not (is_clique f2 newanticlique')
+      then ((prevsize, hash_bl bl), (clique, anticlique))
+    else if graphsize >= maxgraphsize 
+      then ((graphsize, hash_bl newbl), (newclique, newanticlique))
+    else
+      next_minclique (f,m1) (maxgraphsize,tim) 
       (newcliquesize,newanticliquesize) 
-      (newclique,newanticlique)
+      (newbl,newclique,newanticlique)
   end
   
 fun loop_minclique f (maxgraphsize,tim) =
-  next_minclique (f,mat_empty 1) (maxgraphsize,tim) (2,2) ([(1,1)],[(1,1)])
-  
+  next_minclique (f,mat_empty 1) (maxgraphsize,tim) (2,2) ([],[(1,1)],[(1,1)])
+ 
 (*
 load "ramsey"; open ramsey; 
 load "aiLib"; open aiLib;
 fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
-val ((a,b),t) = add_time (loop_minclique f) (128,100000000);
+val ((sc,(a,b)),t) = add_time (loop_minclique f) (64,100000000);
 
 val a =
    [(1, 1), (2, 3), (3, 6), (4, 8), (5, 20), (6, 27), (7, 43), (8, 67),
@@ -178,9 +188,17 @@ fun timed_prog p =
   in
     f1
   end
-  
-fun ramsey_score p = (0,[]) 
-  (* loop_minclique f (64,100000000) (timed_prog p) *)
+
+fun ramsey_score p = 
+  let val f = timed_prog p in
+    SOME (fst (loop_minclique f (64,100000000))) 
+    handle  
+      Empty => NONE
+    | Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+    | RamseyTimeout => NONE 
+  end
 
 
 
