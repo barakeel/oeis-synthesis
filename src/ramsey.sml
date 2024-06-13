@@ -1,6 +1,6 @@
 structure ramsey :> ramsey = struct
 
-open HolKernel Abbrev boolLib aiLib dir kernel
+open HolKernel Abbrev boolLib aiLib dir kernel human
 val ERR = mk_HOL_ERR "ramsey"
 
 
@@ -9,12 +9,14 @@ val ERR = mk_HOL_ERR "ramsey"
    Converting list of booleans to a single arbitrary integer 
    ------------------------------------------------------------------------- *)
 
+val no_hash = ref false
+
 local open IntInf in
 fun hash_bl_aux start bl = case bl of 
     [] => start
   | b :: m => hash_bl_aux (2 * start + (if b then 1 else 0)) m;
   
-fun hash_bl bl = hash_bl_aux 1 bl;  
+fun hash_bl bl = if !no_hash then 0 else hash_bl_aux 1 bl;  
 end;
  
 (* -------------------------------------------------------------------------
@@ -112,11 +114,6 @@ fun extend_mat m v =
     Array2.tabulate Array2.RowMajor (n+1,n+1,f)
   end 
 
-fun derive l = case l of
-    [] => raise ERR "derive" "empty"
-  | [a] => []
-  | a :: b :: m => (b-a) :: derive (b :: m)
-
 (* -------------------------------------------------------------------------
    Check for cliques and anticliques of increasing sizes
    ------------------------------------------------------------------------- *)
@@ -164,11 +161,149 @@ fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize)
 fun loop_minclique f (maxgraphsize,tim) =
   next_minclique (f,mat_empty 1) (maxgraphsize,tim) (2,2) ([],[(1,1)],[(1,1)])
  
+fun derive l = case l of
+    [] => raise Match
+  | [a] => []
+  | a :: b :: m => (b-a) :: derive (b :: m)
+  
+fun timed_prog p = 
+  let
+    val _ = push_counter := 0
+    val f0 = exec_memo.mk_exec p
+    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
+      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
+  in
+    f1
+  end  
+  
+(* -------------------------------------------------------------------------
+   Parallel execution testing larger sizes and
+   returning cliques, anticliques and derivative
+   ------------------------------------------------------------------------- *)  
+
+fun write_prog file p = write_progl file [p]
+fun read_prog file = hd (read_progl file) 
+  
+fun write_result file (a,(l1,l2)) =
+  writel file [its a, ilts l1, ilts l2]
+fun read_result file = 
+  let val (s1,s2,s3) = triple_of_list (readl_empty file) in
+    (string_to_int s1, (stil s2, stil s3))
+  end
+  
+fun execspec_fun () p =
+  let 
+    val f = timed_prog p
+    val default = (0,([],[]))
+    fun transform l = map (fn (_,x) => x-1) (rev l)
+  
+  in
+    let val ((a,b),(c,d)) = loop_minclique f (512,1000000000) in
+      (a,(transform c,transform d))
+    end
+    handle  
+      Empty => default
+    | Div => default
+    | ProgTimeout => default
+    | Overflow => default
+    | RamseyTimeout => default
+  end
+
+fun write_noparam (_:string) () = ()
+fun read_noparam (_:string) = ()
+
+val execspec : (unit, prog, int * (int list * int list)) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "ramsey.execspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir),
+     "ramsey.no_hash := true"  
+    ] 
+    ^ ")"),
+  function = execspec_fun,
+  write_param = write_noparam,
+  read_param = read_noparam,
+  write_arg = write_prog,
+  read_arg = read_prog,
+  write_result = write_result,
+  read_result = read_result
+  }
+
+
+
+fun parallel_exec expname =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sol = read_hanabil (dir ^ "/input")
+    val pl = map (snd o fst) sol;
+    val (rl,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore execspec ()) pl
+    val prl = combine (pl,rl)
+    val prl1 = filter (fn (_,(sc,_)) => sc > 0) prl
+    val prl2 = map (fn (p,(sc,b)) => (p,((sc,prog_size p),b))) prl1
+    val cmp = fst_compare (cpl_compare (inv_cmp Int.compare) Int.compare)
+    val prl3 = dict_sort (snd_compare cmp) prl2
+    fun f (p,((sc,size),(clique,anticlique))) =
+      let
+        val clique' = derive clique
+        val anticlique' = derive anticlique
+      in
+        String.concatWith "\n"
+        [its sc ^ " | " ^ its size,
+         human_trivial p ^ " | " ^ gpt_of_prog p,
+         ilts clique,
+         ilts clique',
+         ilts anticlique,
+         ilts anticlique']
+      end
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    writel (dir ^ "/output") (map f prl3)
+  end  
+
+(*
+cp 
+load "ramsey"; open ramsey; 
+
+
+*)
+(* -------------------------------------------------------------------------
+   Ranking programs according to their scores
+   ------------------------------------------------------------------------- *)
+
+fun ramsey_score p = 
+  let 
+    val f = timed_prog p 
+  in
+    SOME (fst (loop_minclique f (64,100000000))) 
+    handle  
+      Empty => NONE
+    | Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+    | RamseyTimeout => NONE 
+  end
+
 (*
 load "ramsey"; open ramsey; 
 load "aiLib"; open aiLib;
 fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
-val ((sc,(a,b)),t) = add_time (loop_minclique f) (64,100000000);
+fun f (i,j) = (((((2-i) mod j) div 2) div 2) - j) mod 2 <= 0;
+val ((sc,(a,b)),t) = add_time (loop_minclique f) (128,100000000);
+val clique = map (fn (_,x) => x-1) (rev a);
+val anticlique = map (fn (_,x) => x-1) (rev b);
+derive clique;
+derive anticlique;  
 
 val a =
    [(1, 1), (2, 3), (3, 6), (4, 8), (5, 20), (6, 27), (7, 43), (8, 67),
@@ -178,27 +313,6 @@ val b =
     (9, 89), (10, 118)]: (int * int) list
 val t = 0.039823: real
 *)
-
-fun timed_prog p = 
-  let
-    val _ = push_counter := 0
-    val f0 = exec_memo.mk_exec p
-    fun f1 (i,j) = (abstimer := 0; timelimit := !timeincr;
-      hd (f0 ([IntInf.fromInt i],[IntInf.fromInt j])) > 0)
-  in
-    f1
-  end
-
-fun ramsey_score p = 
-  let val f = timed_prog p in
-    SOME (fst (loop_minclique f (64,100000000))) 
-    handle  
-      Empty => NONE
-    | Div => NONE
-    | ProgTimeout => NONE
-    | Overflow => NONE
-    | RamseyTimeout => NONE 
-  end
 
 
 

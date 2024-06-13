@@ -9,4 +9,10 @@ sig
     (int * IntInf.int) * ((int * int) list * (int * int) list)
   val ramsey_score : prog -> (int * IntInf.int) option
   
+  val derive : int list -> int list
+  
+  val execspec : (unit, prog, int * (int list * int list)) smlParallel.extspec
+  val no_hash : bool ref
+  val parallel_exec : string -> unit
+  
 end

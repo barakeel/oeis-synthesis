@@ -635,6 +635,7 @@ fun write_ramseyl file r = write_data (HOLsexp.list_encode enc_ramsey) file r
 fun read_ramseyl file = read_data (HOLsexp.list_decode dec_ramsey) file
 
 type hanabi = (int * prog) * IntInf.int
+
 fun write_hanabil file r = 
   let fun f ((sc,p),h) = String.concatWith " "
     (its sc :: infts h :: map its (tokenl_of_prog p))
