@@ -42,6 +42,96 @@ and exist_clique n f l =
   if length l < n then false else
   exists_withtail (exist_clique_v n f) l
 
+fun greedy_clique f clique v maxgraphsize =  
+  if v >= maxgraphsize then clique else 
+    if all (fn x => f(x,v)) clique 
+    then greedy_clique f (v :: clique) (v+1) maxgraphsize
+    else greedy_clique f clique (v+1) maxgraphsize 
+  
+fun random_clique f clique vl =  
+  if null vl then clique else 
+    let 
+      val v = random_elem vl 
+      val newclique = v :: clique
+      val newvl = filter (fn x => if x = v then false else 
+                                  if x < v then f(x,v) else f(v,x)) vl
+    in
+      random_clique f newclique newvl
+    end
+
+fun greedy_random_clique f clique v maxgraphsize =  
+  if v >= maxgraphsize then clique else 
+    if all (fn x => f(x,v)) clique  andalso random_real () < 0.5
+    then greedy_random_clique f (v :: clique) (v+1) maxgraphsize
+    else greedy_random_clique f clique (v+1) maxgraphsize;
+
+
+val cmp_len = cpl_compare (inv_cmp Int.compare) (list_compare Int.compare)
+
+fun smallest_aux cmp best l = case l of 
+    [] => best
+  | a :: m => if cmp (a,best) = LESS 
+              then smallest_aux cmp a m 
+              else smallest_aux cmp best m
+
+fun smallest cmp l = case l of 
+    [] => raise ERR "smallest" ""
+  | a :: m => smallest_aux cmp a m
+
+fun bestfirst_clique width f clique vl =  
+  if null vl then clique else 
+  let 
+    fun g v = 
+      let
+        val neigh = filter (fn x => if x = v then false else 
+                                if x < v then f(x,v) else f(v,x)) vl
+      in
+        (length neigh,neigh)
+      end
+    val candl = map_assoc g (random_subset width vl)                          
+    val (chosenv,(_,newvl)) = smallest (snd_compare cmp_len) candl
+    val newclique = chosenv :: clique
+  in
+    random_clique f newclique newvl
+  end
+
+
+(*
+load "ramsey"; open aiLib kernel ramsey;
+
+fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
+
+val clique = bestfirst_clique 100 f [] (List.tabulate (1024*1024,I));
+
+
+
+val (r,t) = add_time (random_clique f []) (List.tabulate (1024*1024,I));
+
+val r = list_imax (List.tabulate (100, fn _ => 
+  length (random_clique f [] (List.tabulate (1024*1024,I))));
+
+
+
+fun compare_length (a,b) = cpl_compare (inv_cmp Int.compare) (list_compare Int.compare)
+  ((length a, a),(length b, b));
+
+val r = dict_sort compare_length (List.tabulate (100, fn _ => 
+  random_clique f [] (List.tabulate (1024*1024,I))));
+length (hd r);
+
+val r = dict_sort compare_length (List.tabulate (1, fn _ => 
+  greedy_random_clique f [] 0 (1024*1024*1024)));
+length (hd r);
+average_int (map length r);
+
+
+64; 1024*1024;
+
+
+
+val (r,t) = add_time (greedy_clique f [] 0) (1024*1024);
+*)
+
 (* timer *)
 
 fun check_cliquetimer tim = 
@@ -120,6 +210,8 @@ fun extend_mat m v =
 
 fun is_clique f l = all f (all_pairs l);
 
+val skip_test = ref false
+
 fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize) 
   (bl,clique,anticlique) =
   let 
@@ -142,13 +234,11 @@ fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize)
     val newclique' = map (fn (_,x) => x-1) newclique
     val newanticlique' = map (fn (_,x) => x-1) newanticlique
     val newbl = vector_to_list v @ bl
-  in
-    if (graphsize >= 3 andalso 
-        Math.pow (1.5, Real.fromInt (Int.max 
-          (newcliquesize-1,newanticliquesize-1))) > 
-        Real.fromInt graphsize) orelse
-       not (is_clique f1 newclique') orelse 
-       not (is_clique f2 newanticlique')
+    fun test () = 
+      (b1 andalso int_div graphsize (snd (hd clique)) < 1.5) orelse
+      (b2 andalso int_div graphsize (snd (hd anticlique)) < 1.5)
+  in 
+    if not (!skip_test) andalso test ()
       then ((prevsize, hash_bl bl), (clique, anticlique))
     else if graphsize >= maxgraphsize 
       then ((graphsize, hash_bl newbl), (newclique, newanticlique))
@@ -272,11 +362,13 @@ fun parallel_exec expname =
   end  
 
 (*
-cp 
-load "ramsey"; open ramsey; 
-
-
+cd oeis-synthesis/src/exp
+mkdir ramsey17extra;
+cp ramsey17/hist/itsol16 ramsey17extra/input
+load "ramsey"; open ramsey;
+parallel_exec "ramsey17extra";
 *)
+
 (* -------------------------------------------------------------------------
    Ranking programs according to their scores
    ------------------------------------------------------------------------- *)
@@ -298,8 +390,32 @@ fun ramsey_score p =
 load "ramsey"; open ramsey; 
 load "aiLib"; open aiLib;
 fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
+skip_test := true;
+no_hash := true;
+
+val ((sc,(a,b)),t) = add_time (loop_minclique f) (1024,100000000);
+ 
+fun rate l = case l of
+    [] => raise Match
+  | [a] => []
+  | a :: b :: m => (int_div b a) :: rate (b :: m);
+ 
+val newclique' = rev (map (fn (_,x) => x-1) a);
+val newanticlique' = rev (map (fn (_,x) => x-1) b);
+
+val ratel1 = rate (tl newclique');
+val ratel2 = rate (tl newanticlique');
+
+fun f x = 
+  
+
+
+
+
+
+
 fun f (i,j) = (((((2-i) mod j) div 2) div 2) - j) mod 2 <= 0;
-val ((sc,(a,b)),t) = add_time (loop_minclique f) (128,100000000);
+
 val clique = map (fn (_,x) => x-1) (rev a);
 val anticlique = map (fn (_,x) => x-1) (rev b);
 derive clique;
@@ -312,6 +428,9 @@ val b =
    [(1, 1), (2, 2), (3, 4), (4, 10), (5, 14), (6, 22), (7, 33), (8, 59),
     (9, 89), (10, 118)]: (int * int) list
 val t = 0.039823: real
+
+
+
 *)
 
 

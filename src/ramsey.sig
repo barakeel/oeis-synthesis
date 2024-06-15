@@ -14,5 +14,10 @@ sig
   val execspec : (unit, prog, int * (int list * int list)) smlParallel.extspec
   val no_hash : bool ref
   val parallel_exec : string -> unit
+  val skip_test : bool ref
+  
+  (* approximate maximum clique finder *)
+  val bestfirst_clique : int -> 
+    (int * int -> bool) -> int list -> int list -> int list
   
 end
