@@ -42,6 +42,33 @@ and exist_clique n f l =
   if length l < n then false else
   exists_withtail (exist_clique_v n f) l
 
+(* -------------------------------------------------------------------------
+   Efficiently checking if a graph contains a k-clique or not with a timeout
+   ------------------------------------------------------------------------- *)
+
+fun check_cliquetimer tim = 
+  (incr cliquetimer; if !cliquetimer > tim then raise RamseyTimeout else ())
+  
+fun exist_clique_v_tim tim n (f:int*int->bool) v l =
+  (
+  check_cliquetimer tim;
+  exist_clique_tim tim (n-1) f (filter (fn x => f(v,x)) l)
+  )
+and exist_clique_tim tim n f l = 
+  if n <= 0 then true else
+  if length l < n then false else
+  exists_withtail (exist_clique_v_tim tim n f) l
+
+fun exist_clique_timer tim n f l =
+  (cliquetimer := 0; exist_clique_tim tim n f l)
+ 
+fun exist_clique_v_timer tim n f l =
+  (cliquetimer := 0; exist_clique_v_tim tim n f l) 
+
+(* -------------------------------------------------------------------------
+   Heursitically checking if a graph contains a k-clique
+   ------------------------------------------------------------------------- *)
+
 fun greedy_clique f clique v maxgraphsize =  
   if v >= maxgraphsize then clique else 
     if all (fn x => f(x,v)) clique 
@@ -134,24 +161,7 @@ val (r,t) = add_time (greedy_clique f [] 0) (1024*1024);
 
 (* timer *)
 
-fun check_cliquetimer tim = 
-  (incr cliquetimer; if !cliquetimer > tim then raise RamseyTimeout else ())
-  
-fun exist_clique_v_tim tim n (f:int*int->bool) v l =
-  (
-  check_cliquetimer tim;
-  exist_clique_tim tim (n-1) f (filter (fn x => f(v,x)) l)
-  )
-and exist_clique_tim tim n f l = 
-  if n <= 0 then true else
-  if length l < n then false else
-  exists_withtail (exist_clique_v_tim tim n f) l
 
-fun exist_clique_timer tim n f l =
-  (cliquetimer := 0; exist_clique_tim tim n f l)
- 
-fun exist_clique_v_timer tim n f l =
-  (cliquetimer := 0; exist_clique_v_tim tim n f l) 
   
 (* -------------------------------------------------------------------------
    Matrice short cuts
@@ -367,6 +377,15 @@ mkdir ramsey17extra;
 cp ramsey17/hist/itsol16 ramsey17extra/input
 load "ramsey"; open ramsey;
 parallel_exec "ramsey17extra";
+
+cd oeis-synthesis/src/exp
+mkdir ramsey18extra
+cp ramsey18/hist/itsol70 ramsey18extra/input
+cd ..
+load "ramsey"; open ramsey;
+parallel_exec "ramsey18extra";
+
+
 *)
 
 (* -------------------------------------------------------------------------
@@ -377,7 +396,7 @@ fun ramsey_score p =
   let 
     val f = timed_prog p 
   in
-    SOME (fst (loop_minclique f (64,100000000))) 
+    SOME (fst (loop_minclique f (128,100000000))) 
     handle  
       Empty => NONE
     | Div => NONE
