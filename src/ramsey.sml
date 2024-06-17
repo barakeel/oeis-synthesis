@@ -298,7 +298,7 @@ fun execspec_fun () p =
     fun transform l = map (fn (_,x) => x-1) (rev l)
   
   in
-    let val ((a,b),(c,d)) = loop_minclique f (512,1000000000) in
+    let val ((a,b),(c,d)) = loop_minclique f (1024,1000000000) in
       (a,(transform c,transform d))
     end
     handle  
@@ -385,6 +385,13 @@ cd ..
 load "ramsey"; open ramsey;
 parallel_exec "ramsey18extra";
 
+cd oeis-synthesis/src/exp
+mkdir ramsey20extra
+cp ramsey20/hist/itsol9 ramsey20extra/input
+cd ..
+sh hol.sh
+load "ramsey"; open ramsey;
+parallel_exec "ramsey20extra";
 
 *)
 
