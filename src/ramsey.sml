@@ -221,12 +221,22 @@ fun extend_mat m v =
 fun is_clique f l = all f (all_pairs l);
 
 val skip_test = ref false
+val diagonal_flag = ref true
+
 
 fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize) 
   (bl,clique,anticlique) =
   let 
     val prevsize = mat_size m
-    val v = Vector.tabulate (prevsize, fn i => f (i,prevsize))
+    val v = Vector.tabulate (prevsize, fn i => 
+      if !diagonal_flag then 
+        (
+        if i mod 2 = 0 
+        then f (prevsize-i,0)
+        else not (f(prevsize-i,0))
+        )
+      else f (i,prevsize)
+      )
     val m1 = extend_mat m v
     val graphsize = mat_size m1
     val m2 = invert m1
@@ -257,10 +267,29 @@ fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize)
       (newcliquesize,newanticliquesize) 
       (newbl,newclique,newanticlique)
   end
-  
-fun loop_minclique f (maxgraphsize,tim) =
-  next_minclique (f,mat_empty 1) (maxgraphsize,tim) (2,2) ([],[(1,1)],[(1,1)])
  
+fun mk_cache f = 
+  let 
+    val d = ref (dempty Int.compare) 
+    fun g (k,(u:int)) =
+      (
+      case dfindo k (!d) of 
+        SOME v => v  
+      | NONE => 
+        let val v = f (k,0) in
+          (d := dadd k v (!d); v)
+        end
+      )
+  in
+    g                   
+  end                         
+                           
+fun loop_minclique f (maxgraphsize,tim) =
+  let val f' = if !diagonal_flag then mk_cache f else f in
+    next_minclique (f',mat_empty 1) (maxgraphsize,tim) 
+      (2,2) ([],[(1,1)],[(1,1)])
+  end
+   
 fun derive l = case l of
     [] => raise Match
   | [a] => []
@@ -273,7 +302,7 @@ fun tobinarylen n =
     map IntInf.fromInt (length l :: l)
   end;  
   
-val binary_flag = ref true
+val binary_flag = ref false
 
 fun convert i = 
   if !binary_flag then tobinarylen i else [IntInf.fromInt i]
