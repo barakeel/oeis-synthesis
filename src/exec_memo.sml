@@ -429,6 +429,33 @@ fun penum_aux p n =
     rev (!l)
   end
   
+fun check_conflict v p = 
+  let 
+    (* val _ = undol := [] *)
+    val f = mk_exec_onev p
+    fun test x = 
+      let val (r,msg) = (f x,"result") handle 
+         Empty => (azero,"empty")
+       | Div => (azero,"div")
+       | ProgTimeout => (azero,"timeout")
+       | Overflow => (azero,"overflow")
+      in
+        if msg <> "result" then msg
+        else if not (f x = Vector.sub (v,IntInf.toInt x)) then "match"
+        else "continue"
+      end
+    val _ = init_timer ()
+    fun loop x = 
+      if IntInf.toInt x >= Vector.length v then (x,"success") else
+      let val msg = test x in
+        if msg <> "continue" then (x,msg)  
+        else (incr_timer (); loop (aincr x))
+      end
+  in  
+    loop azero
+  end  
+  
+  
 fun penum_wtime r p n = (timeincr := r; penum_aux p n) 
   
 fun verify_wtime r (anum,p) = 
@@ -547,23 +574,43 @@ fun read_bseq a =
     get_bseq sl1
   end
 
-fun check_bfile a =
+fun check_bfile (a,pl) =
   let 
     val aseq = valOf (Array.sub (oseq,a))
     val (bseq,msg) = read_bseq a
     val msg' = if is_prefix aseq bseq then msg else "pref"
-  in
-    String.concatWith " " 
+    val seqmsg = String.concatWith " " 
       ["A" ^ its a, its (length aseq), its (length bseq), msg'] 
-  end;
+    val v = Vector.fromList bseq
+  in
+    if msg' = "pref" then seqmsg else
+    let 
+      val rl = map_assoc (check_conflict v) pl
+      fun f (p,(i,s)) = s ^ " " ^ infts i ^ " " ^ gpt_of_prog p
+      val msgl = map f rl
+    in
+      String.concatWith " | " (seqmsg :: msgl)
+    end 
+  end
 
 fun write_int file i = writel file [its i]
 fun read_int file = string_to_int (hd (readl file))
+
+fun string_of_apl (anum,pl) = 
+  its anum ^ "," ^ String.concatWith "," (map gpt_of_prog pl)
+
+fun apl_of_string s =
+  let val sl = String.tokens (fn x => x = #",") s in
+    (string_to_int (hd sl), map prog_of_gpt (tl sl))
+  end
+  
+fun write_apl file apl = writel file [string_of_apl apl]
+fun read_apl file = apl_of_string (hd (readl file))
 fun write_string file s = writel file [s]
 fun read_string file = hd (readl file)
 
 
-val bcheckspec : (unit, int, string) smlParallel.extspec =
+val bcheckspec : (unit, int * prog list, string) smlParallel.extspec =
   {
   self_dir = selfdir,
   self = "exec_memo.bcheckspec",
@@ -576,16 +623,14 @@ val bcheckspec : (unit, int, string) smlParallel.extspec =
   function = let fun f () anum = check_bfile anum in f end,
   write_param = let fun f _ () = () in f end,
   read_param = let fun f _ = () in f end,
-  write_arg = write_int,
-  read_arg = read_int,
+  write_arg = write_apl,
+  read_arg = read_apl,
   write_result = write_string,
   read_result = read_string
   }
 
 fun exists_bfile x = 
-  let val file = bdir ^ "/b" ^ its x ^ ".txt" in
-    if not (exists_file file) then NONE else SOME x
-  end;
+  let val file = bdir ^ "/b" ^ its x ^ ".txt" in exists_file file end;
 
 fun parallel_bcheck ncore expname =
   let  
@@ -595,12 +640,14 @@ fun parallel_bcheck ncore expname =
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
-    val sol = read_itprogl (dir ^ "/input")
-    val _ = writel (dir ^ "/log") ["sol: " ^ its (length sol)];
-    val anuml = List.mapPartial exists_bfile (map fst sol)
-    val _ = append_endline (dir ^ "/log") ("bfile: " ^ its (length anuml));
+    val sol1 = read_itprogl (dir ^ "/input")
+    val sol2 = map_snd (map snd) sol1
+    val _ = writel (dir ^ "/log") ["sol: " ^ its (length sol1)];
+    fun f (a,pl) = if exists_bfile a then SOME (a,pl) else NONE
+    val apl = List.mapPartial f sol2
+    val _ = append_endline (dir ^ "/log") ("bfile: " ^ its (length apl));
     val (sl,t) = add_time 
-      (smlParallel.parmap_queue_extern ncore bcheckspec ()) anuml
+      (smlParallel.parmap_queue_extern ncore bcheckspec ()) apl
   in
     append_endline (dir ^ "/log") ("time: " ^ rts t);
     writel (dir ^ "/output") sl
@@ -682,14 +729,17 @@ val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
    ------------------------------------------------------------------------- *) 
 
 (* 
-load "aiLib"; open aiLib;
-load "kernel"; open kernel;
 load "exec_memo"; open exec_memo;
-
-val expname = "bfile0";
-parallel_bcheck 40 expname;
+parallel_bcheck 40 "bfile1";
 
 
+
+
+
+
+
+
+vim oeis-bfile/b46501.txt
 failure 
 timeout 
 success
