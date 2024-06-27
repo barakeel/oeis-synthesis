@@ -554,7 +554,7 @@ fun check_bfile a =
     val msg' = if is_prefix aseq bseq then msg else "pref"
   in
     String.concatWith " " 
-      ["A" ^ its a, its (length aseq), its (length bseq), msg] 
+      ["A" ^ its a, its (length aseq), its (length bseq), msg'] 
   end;
 
 fun write_int file i = writel file [its i]
@@ -598,6 +598,7 @@ fun parallel_bcheck ncore expname =
     val sol = read_itprogl (dir ^ "/input")
     val _ = writel (dir ^ "/log") ["sol: " ^ its (length sol)];
     val anuml = List.mapPartial exists_bfile (map fst sol)
+    val _ = append_endline (dir ^ "/log") ("bfile: " ^ its (length anuml));
     val (sl,t) = add_time 
       (smlParallel.parmap_queue_extern ncore bcheckspec ()) anuml
   in
@@ -686,9 +687,7 @@ load "kernel"; open kernel;
 load "exec_memo"; open exec_memo;
 
 val expname = "bfile0";
-
-val solfile = selfdir ^ "/data/exp632-knn-chk-solnew";
-val sol = read_itprogl solfile;
+parallel_bcheck 40 expname;
 
 
 failure 
