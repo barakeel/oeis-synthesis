@@ -441,7 +441,7 @@ fun check_conflict v p =
        | Overflow => (azero,"overflow")
       in
         if msg <> "result" then msg
-        else if not (f x = Vector.sub (v,IntInf.toInt x)) then "match"
+        else if not (r = Vector.sub (v,IntInf.toInt x)) then "match"
         else "continue"
       end
     val _ = init_timer ()
