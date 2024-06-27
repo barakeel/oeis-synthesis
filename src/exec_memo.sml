@@ -586,10 +586,14 @@ fun check_bfile (a,pl) =
     if msg' = "pref" then seqmsg else
     let 
       val rl = map_assoc (check_conflict v) pl
-      fun f (p,(i,s)) = s ^ " " ^ infts i ^ " " ^ gpt_of_prog p
+      fun f (p,(i,s)) = s ^ " " ^ infts i
       val msgl = map f rl
+      val summary = 
+        if exists (fn (p,(i,s)) => s = "success") rl then "Success" else 
+        if exists (fn (p,(i,s)) => s = "timeout") rl then "Timeout"
+        else "Failure"
     in
-      String.concatWith " | " (seqmsg :: msgl)
+      String.concatWith " | " (summary :: seqmsg :: msgl)
     end 
   end
 
