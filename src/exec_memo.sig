@@ -25,4 +25,9 @@ sig
   (* ramsey *)
   val n_glob : IntInf.int ref
   
+  (* parallel b-file checking *)
+  val bcheckspec : (unit, int, string) smlParallel.extspec
+  val parallel_bcheck : int -> string -> unit
+  
+
 end

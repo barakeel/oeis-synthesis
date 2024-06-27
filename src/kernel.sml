@@ -189,7 +189,7 @@ type seq = IntInf.int list
 type anum = int
 val seq_compare = list_compare IntInf.compare
 
-fun string_of_seq il = String.concatWith " " (map IntInf.toString il)
+fun string_of_seq il = String.concatWith " " (map infts il)
 fun seq_of_string s = map stinf (String.tokens Char.isSpace s)
 
 val amillion = IntInf.fromInt 1000000

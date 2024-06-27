@@ -514,6 +514,99 @@ load "exec_memo"; open aiLib kernel exec_memo;
 parallel_exec 60 "lmfdb3";
 *)  
 
+(* -------------------------------------------------------------------------
+   Parallel checking with b-files
+   ------------------------------------------------------------------------- *)
+
+fun get_bseq_aux i acc sl = case sl of 
+    [] => (rev acc, "full")
+  | s :: m =>
+    let 
+      val (s1,s2) = pair_of_list 
+      (first_n 2 (String.tokens Char.isSpace s))
+      val i1 = valOf (IntInf.fromString s1)
+      val i' = if i = 0 then IntInf.toInt i1 else i      
+    in
+      if IntInf.fromInt i' <> i1 
+        then raise ERR "index error" (its i' ^ " " ^ s1) 
+      else if String.size s2 > 1000
+        then (rev acc, "maxi") 
+      else get_bseq_aux (i'+1) (valOf (IntInf.fromString s2) :: acc) m
+    end;
+    
+fun get_bseq sl = get_bseq_aux 0 [] sl;    
+
+val bdir = selfdir ^ "/data/oeis-bfile"
+
+fun read_bseq a =
+  let 
+    val sl0 = readl (bdir ^ "/b" ^ its a ^ ".txt")
+    val sl1 = filter (fn s => not (all Char.isSpace (explode s) orelse 
+       String.isPrefix "#" s)) sl0
+  in
+    get_bseq sl1
+  end
+
+fun check_bfile a =
+  let 
+    val aseq = valOf (Array.sub (oseq,a))
+    val (bseq,msg) = read_bseq a
+    val msg' = if is_prefix aseq bseq then msg else "pref"
+  in
+    String.concatWith " " 
+      ["A" ^ its a, its (length aseq), its (length bseq), msg] 
+  end;
+
+fun write_int file i = writel file [its i]
+fun read_int file = string_to_int (hd (readl file))
+fun write_string file s = writel file [s]
+fun read_string file = hd (readl file)
+
+
+val bcheckspec : (unit, int, string) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "exec_memo.bcheckspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f () anum = check_bfile anum in f end,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_int,
+  read_arg = read_int,
+  write_result = write_string,
+  read_result = read_string
+  }
+
+fun exists_bfile x = 
+  let val file = bdir ^ "/b" ^ its x ^ ".txt" in
+    if not (exists_file file) then NONE else SOME x
+  end;
+
+fun parallel_bcheck ncore expname =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sol = read_itprogl (dir ^ "/input")
+    val _ = writel (dir ^ "/log") ["sol: " ^ its (length sol)];
+    val anuml = List.mapPartial exists_bfile (map fst sol)
+    val (sl,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore bcheckspec ()) anuml
+  in
+    append_endline (dir ^ "/log") ("time: " ^ rts t);
+    writel (dir ^ "/output") sl
+  end
+
+
+
 end (* struct *)
 
 
@@ -582,4 +675,47 @@ timeincr := 100000000;
 val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
 !abstimer;
 *)  
+
+(* -------------------------------------------------------------------------
+   Checking solutions against b-files
+   ------------------------------------------------------------------------- *) 
+
+(* 
+load "aiLib"; open aiLib;
+load "kernel"; open kernel;
+load "exec_memo"; open exec_memo;
+
+val expname = "bfile0";
+
+val solfile = selfdir ^ "/data/exp632-knn-chk-solnew";
+val sol = read_itprogl solfile;
+
+
+failure 
+timeout 
+success
+*)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

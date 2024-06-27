@@ -125,37 +125,21 @@ fun bestfirst_clique width f clique vl =
 
 (*
 load "ramsey"; open aiLib kernel ramsey;
-
 fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
-
 val clique = bestfirst_clique 100 f [] (List.tabulate (1024*1024,I));
-
-
-
 val (r,t) = add_time (random_clique f []) (List.tabulate (1024*1024,I));
-
 val r = list_imax (List.tabulate (100, fn _ => 
   length (random_clique f [] (List.tabulate (1024*1024,I))));
-
-
-
 fun compare_length (a,b) = cpl_compare (inv_cmp Int.compare) (list_compare Int.compare)
   ((length a, a),(length b, b));
-
 val r = dict_sort compare_length (List.tabulate (100, fn _ => 
   random_clique f [] (List.tabulate (1024*1024,I))));
 length (hd r);
-
 val r = dict_sort compare_length (List.tabulate (1, fn _ => 
   greedy_random_clique f [] 0 (1024*1024*1024)));
 length (hd r);
 average_int (map length r);
-
-
 64; 1024*1024;
-
-
-
 val (r,t) = add_time (greedy_clique f [] 0) (1024*1024);
 *)
 
@@ -414,25 +398,12 @@ fun parallel_exec expname =
 
 (*
 cd oeis-synthesis/src/exp
-mkdir ramsey17extra;
-cp ramsey17/hist/itsol16 ramsey17extra/input
-load "ramsey"; open ramsey;
-parallel_exec "ramsey17extra";
-
-cd oeis-synthesis/src/exp
-mkdir ramsey18extra
-cp ramsey18/hist/itsol70 ramsey18extra/input
-cd ..
-load "ramsey"; open ramsey;
-parallel_exec "ramsey18extra";
-
-cd oeis-synthesis/src/exp
-mkdir ramsey20extra
-cp ramsey20/hist/itsol9 ramsey20extra/input
+mkdir ramsey22extra
+cp ramsey22/hist/itsol11 ramsey22extra/input
 cd ..
 sh hol.sh
 load "ramsey"; open ramsey;
-parallel_exec "ramsey20extra";
+parallel_exec "ramsey22extra";
 
 *)
 
@@ -475,10 +446,6 @@ val ratel2 = rate (tl newanticlique');
 
 fun f x = 
   
-
-
-
-
 
 
 fun f (i,j) = (((((2-i) mod j) div 2) div 2) - j) mod 2 <= 0;
