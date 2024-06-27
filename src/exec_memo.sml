@@ -578,12 +578,13 @@ fun check_bfile (a,pl) =
   let 
     val aseq = valOf (Array.sub (oseq,a))
     val (bseq,msg) = read_bseq a
-    val msg' = if is_prefix aseq bseq then msg else "pref"
+    val msg' = if aseq = bseq then "Equal" 
+               else if is_prefix aseq bseq then msg else "NotPrefix"
     val seqmsg = String.concatWith " " 
       ["A" ^ its a, its (length aseq), its (length bseq), msg'] 
     val v = Vector.fromList bseq
   in
-    if msg' = "pref" then seqmsg else
+    if mem msg' ["Equal","NotPrefix"] then seqmsg else
     let 
       val rl = map_assoc (check_conflict v) pl
       fun f (p,(i,s)) = s ^ " " ^ infts i
@@ -735,6 +736,17 @@ val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
 (* 
 load "exec_memo"; open exec_memo;
 parallel_bcheck 40 "bfile1";
+
+
+70842 output
+
+
+grep -r "Equal" output | wc -l
+grep -r "NotPrefix" output | wc -l
+
+grep -r "Success" output | wc -l
+grep -r "Timeout" output | wc -l
+grep -r "Failure" output | wc -l
 
 
 
