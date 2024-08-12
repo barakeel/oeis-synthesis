@@ -175,6 +175,14 @@ fun normalize_nauty_wperm graph =
     (m, perm)
   end
   
+fun normalize_nauty_wpart part graph =
+  let 
+    val vertexl = List.tabulate (mat_size graph,I)
+    val (perm,m) = normalize_nauty_aux graph part
+  in
+    m
+  end  
+
 fun normalize_nauty graph = 
   let val vertexl = List.tabulate (mat_size graph,I) in 
     snd (normalize_nauty_aux graph [vertexl])
@@ -190,7 +198,79 @@ fun all_inst_wperm mi =
     map_fst zip_mat (map f coloringl)
   end
 
- 
+(* -------------------------------------------------------------------------
+   Hadamard normalization
+   ------------------------------------------------------------------------- *)
+
+fun mat_traverse_raw f m = 
+  let val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE} in
+    Array2.appi Array2.RowMajor f range
+  end;
+  
+fun zip_hadamard m = 
+  let 
+    val r = ref 1
+    fun f (i,j,x) = r := !r * 2 + IntInf.fromInt x
+  in
+    mat_traverse_raw f m; !r
+  end
+
+fun hadm_to_graph hadm = 
+  let 
+    val edgecl = ref []
+    val (n,m) = Array2.dimensions hadm
+    val il = List.tabulate (n,I)
+    val jl = List.tabulate (m,I)
+    fun samev i = 
+      edgecl := ((2*i,2*i+1),2) :: !edgecl
+    fun samew j = 
+      edgecl := ((2*(n + j),2*(n + j)+1),2) :: !edgecl
+    fun f (i,j,k) = 
+      let 
+        val (v,w) = (2*i,2*(n + j)) 
+        val (v',w') = (v+1,w+1)  
+      in
+        if k = 1 then 
+          edgecl := ((v,w),1) :: ((v',w'),1) :: !edgecl
+        else if k = 0 then 
+          edgecl := ((v,w'),1) :: ((v',w),1) :: !edgecl
+        else raise ERR "hadamard" "unexpected"
+      end
+  in
+    app samev il; app samew jl; mat_traverse_raw f hadm;
+    edgecl_to_mat (2*(n+m)) (!edgecl)
+  end;
+  
+fun graph_to_hadm (n,m) graph =
+  let fun f (i,j) =  
+    if Array2.sub (graph,2*i,2*(n + j)) = 1 then 1 else 0
+  in
+    Array2.tabulate Array2.RowMajor (n,m,f)
+  end
+  
+fun normalize_hadamard hadm =
+  let 
+    val (n,m) = Array2.dimensions hadm
+    val graph = hadm_to_graph hadm
+    val part = [List.tabulate (2*n,I),List.tabulate (2*m,fn x => 2*n+x)]; 
+    val norm = normalize_nauty_wpart part graph
+  in
+    graph_to_hadm (n,m) norm
+  end
+
+(* 
+load "nauty"; open aiLib kernel graph nauty;
+fun f(i,j) = if random_real () > 0.5 then 1 else 0;
+val (n,m) = (256,256);
+val hadm = Array2.tabulate Array2.RowMajor (n,m,f);
+val (hadm',t) = add_time normalize_hadamard hadm;
+
+fun f(i,j) = if random_real () > 0.5 then 1 else 0;
+val hadm = Array2.tabulate Array2.RowMajor (n,m,f);
+val hadm' = normalize_hadamard hadm;
+
+*)
+
 (*
 load "nauty"; open aiLib kernel graph nauty;
 val m = random_mat 10;

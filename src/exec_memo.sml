@@ -735,12 +735,11 @@ val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
 
 (* 
 load "exec_memo"; open exec_memo;
-parallel_bcheck 40 "bfile1";
+parallel_bcheck 40 "bfile2";
 
+cd exp/bfile1
 
-70842 output
-
-
+wc -l output
 grep -r "Equal" output | wc -l
 grep -r "NotPrefix" output | wc -l
 
@@ -749,37 +748,7 @@ grep -r "Timeout" output | wc -l
 grep -r "Failure" output | wc -l
 
 
-
-
-
-
-
-
-vim oeis-bfile/b46501.txt
-failure 
-timeout 
-success
 *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

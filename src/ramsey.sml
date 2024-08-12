@@ -3,8 +3,6 @@ structure ramsey :> ramsey = struct
 open HolKernel Abbrev boolLib aiLib dir kernel human
 val ERR = mk_HOL_ERR "ramsey"
 
-
-
 (* -------------------------------------------------------------------------
    Converting list of booleans to a single arbitrary integer 
    ------------------------------------------------------------------------- *)
@@ -30,17 +28,17 @@ exception RamseyTimeout;
    Efficiently checking if a graph contains a k-clique or not
    ------------------------------------------------------------------------- *)
 
-fun exists_withtail f l = case l of 
+fun exist_withtail f l = case l of 
     [] => false
-  | a :: m => f a m orelse exists_withtail f m
+  | a :: m => f a m orelse exist_withtail f m
 
-fun exist_clique_v n (f:int*int->bool) v l =
+fun exist_clique_v n f v l =
   exist_clique (n-1) f (filter (fn x => f(v,x)) l)
   
 and exist_clique n f l = 
   if n = 0 then true else
   if length l < n then false else
-  exists_withtail (exist_clique_v n f) l
+  exist_withtail (exist_clique_v n f) l
 
 (* -------------------------------------------------------------------------
    Efficiently checking if a graph contains a k-clique or not with a timeout
@@ -57,7 +55,7 @@ fun exist_clique_v_tim tim n (f:int*int->bool) v l =
 and exist_clique_tim tim n f l = 
   if n <= 0 then true else
   if length l < n then false else
-  exists_withtail (exist_clique_v_tim tim n f) l
+  exist_withtail (exist_clique_v_tim tim n f) l
 
 fun exist_clique_timer tim n f l =
   (cliquetimer := 0; exist_clique_tim tim n f l)
@@ -92,61 +90,6 @@ fun greedy_random_clique f clique v maxgraphsize =
     then greedy_random_clique f (v :: clique) (v+1) maxgraphsize
     else greedy_random_clique f clique (v+1) maxgraphsize;
 
-
-val cmp_len = cpl_compare (inv_cmp Int.compare) (list_compare Int.compare)
-
-fun smallest_aux cmp best l = case l of 
-    [] => best
-  | a :: m => if cmp (a,best) = LESS 
-              then smallest_aux cmp a m 
-              else smallest_aux cmp best m
-
-fun smallest cmp l = case l of 
-    [] => raise ERR "smallest" ""
-  | a :: m => smallest_aux cmp a m
-
-fun bestfirst_clique width f clique vl =  
-  if null vl then clique else 
-  let 
-    fun g v = 
-      let
-        val neigh = filter (fn x => if x = v then false else 
-                                if x < v then f(x,v) else f(v,x)) vl
-      in
-        (length neigh,neigh)
-      end
-    val candl = map_assoc g (random_subset width vl)                          
-    val (chosenv,(_,newvl)) = smallest (snd_compare cmp_len) candl
-    val newclique = chosenv :: clique
-  in
-    random_clique f newclique newvl
-  end
-
-
-(*
-load "ramsey"; open aiLib kernel ramsey;
-fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
-val clique = bestfirst_clique 100 f [] (List.tabulate (1024*1024,I));
-val (r,t) = add_time (random_clique f []) (List.tabulate (1024*1024,I));
-val r = list_imax (List.tabulate (100, fn _ => 
-  length (random_clique f [] (List.tabulate (1024*1024,I))));
-fun compare_length (a,b) = cpl_compare (inv_cmp Int.compare) (list_compare Int.compare)
-  ((length a, a),(length b, b));
-val r = dict_sort compare_length (List.tabulate (100, fn _ => 
-  random_clique f [] (List.tabulate (1024*1024,I))));
-length (hd r);
-val r = dict_sort compare_length (List.tabulate (1, fn _ => 
-  greedy_random_clique f [] 0 (1024*1024*1024)));
-length (hd r);
-average_int (map length r);
-64; 1024*1024;
-val (r,t) = add_time (greedy_clique f [] 0) (1024*1024);
-*)
-
-(* timer *)
-
-
-  
 (* -------------------------------------------------------------------------
    Matrice short cuts
    ------------------------------------------------------------------------- *)
@@ -178,6 +121,83 @@ fun invert m =
   if a=b then false else not (mat_sub (m,a,b)))
 
 (* -------------------------------------------------------------------------
+   Generating clauses
+   ------------------------------------------------------------------------- *)
+
+fun random_clause n = List.tabulate (2*n, fn _ => random_int (~1,1));   
+   
+fun frombin_aux acc l = case l of 
+[] => acc
+  | a :: m => frombin_aux (2 * acc + a) m
+
+fun frombin l = frombin_aux 0 l;
+   
+fun edgel_of_clause clause = 
+  let 
+    val nvar = length clause div 2
+    val (clause1,clause2) = part_n nvar clause 
+    fun f x = if x = 0 then [0,1] else if x > 0 then [1] else [0]
+    val clause1' = cartesian_productl (map f clause1) 
+    val l1 = map frombin clause1'
+    val clause2' = cartesian_productl (map f clause2)
+    val l2 = map frombin clause2'
+  in
+    filter (fn (x,y) => x < y) (cartesian_product l1 l2)
+  end;
+
+fun update_edge m (i,j) = mat_update_sym (m,i,j,true);
+fun update_edgel m edgel = app (update_edge m) edgel;
+
+
+fun gen_lit (f:int-> int -> int -> IntInf.int) varn clausei vari =
+  let val x = f varn clausei vari in
+    if x = 0 then 0 else if x > 0 then 1 else ~1
+  end
+  
+fun gen_clause f varn clausei =
+  let val varl = 
+    List.tabulate (varn, fn x => ~(x+1)) @ List.tabulate (varn, fn x => x+1)
+  in
+    map (gen_lit f varn clausei) varl
+  end
+
+fun pass_clausel bl tim f varn = 
+  let
+    val vl = List.tabulate (int_pow 2 varn,I)
+    val m = mat_empty (int_pow 2 varn)
+    fun loop clausei = 
+      if clausei >= varn*varn then () else 
+      let 
+        val clause = gen_clause f varn clausei
+        val edgel = edgel_of_clause clause
+        val _ = update_edgel m edgel
+      in
+        loop (clausei+1)
+      end
+    val _ = loop 0
+    fun g (i,j,b) = bl := b :: !bl
+    val _ = mat_traverse g m
+    fun f (i,j) = mat_sub (m,i,j)
+  in
+    if exist_clique_timer tim (2*varn+1) f vl then false
+    else if exist_clique_timer tim (2*varn+1) (not o f) vl then false
+    else true
+  end
+  handle 
+      Empty => false
+    | Div => false
+    | ProgTimeout => false
+    | Overflow => false
+    | RamseyTimeout => false
+
+  
+fun loop_pass_clausel bl f (varn,maxvarn,tim) =
+  if varn > maxvarn then maxvarn else 
+  if pass_clausel bl tim f varn 
+  then loop_pass_clausel bl f (varn+1,maxvarn,tim)
+  else varn - 1
+
+(* -------------------------------------------------------------------------
    Preparting a function for fast clique testing
    (essentially pre-computing the adjacacency matrix)
    ------------------------------------------------------------------------- *)
@@ -196,17 +216,14 @@ fun extend_mat m v =
       else raise ERR "extend_mat" ""
   in
     Array2.tabulate Array2.RowMajor (n+1,n+1,f)
-  end 
-
+  end
+  
 (* -------------------------------------------------------------------------
    Check for cliques and anticliques of increasing sizes
    ------------------------------------------------------------------------- *)
 
-fun is_clique f l = all f (all_pairs l);
-
 val skip_test = ref false
 val diagonal_flag = ref true
-
 
 fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize) 
   (bl,clique,anticlique) =
@@ -239,8 +256,8 @@ fun next_minclique (f,m) (maxgraphsize,tim) (cliquesize,anticliquesize)
     val newanticlique' = map (fn (_,x) => x-1) newanticlique
     val newbl = vector_to_list v @ bl
     fun test () = 
-      (b1 andalso int_div graphsize (snd (hd clique)) < 1.5) orelse
-      (b2 andalso int_div graphsize (snd (hd anticlique)) < 1.5)
+      (b1 andalso int_div graphsize (snd (hd clique)) < 1.414) orelse
+      (b2 andalso int_div graphsize (snd (hd anticlique)) < 1.414)
   in 
     if not (!skip_test) andalso test ()
       then ((prevsize, hash_bl bl), (clique, anticlique))
@@ -301,6 +318,7 @@ fun timed_prog p =
     f1
   end
   
+
 (* -------------------------------------------------------------------------
    Parallel execution testing larger sizes and
    returning cliques, anticliques and derivative
@@ -358,8 +376,6 @@ val execspec : (unit, prog, int * (int list * int list)) smlParallel.extspec =
   read_result = read_result
   }
 
-
-
 fun parallel_exec expname =
   let  
     val dir = selfdir ^ "/exp/" ^ expname
@@ -404,69 +420,47 @@ cd ..
 sh hol.sh
 load "ramsey"; open ramsey;
 parallel_exec "ramsey22extra";
-
 *)
 
 (* -------------------------------------------------------------------------
    Ranking programs according to their scores
    ------------------------------------------------------------------------- *)
 
-fun ramsey_score p = 
-  let 
-    val f = timed_prog p 
+fun timed_prog3 p = 
+  let
+    val _ = push_counter := 0
+    val f0 = exec_memo.mk_exec p
+    fun f1 n i j = 
+      (
+      exec_memo.n_glob := IntInf.fromInt n;
+      abstimer := 0; timelimit := !timeincr;
+      hd (f0 (convert i, convert j))
+      )
   in
-    SOME (fst (loop_minclique f (128,100000000))) 
-    handle  
-      Empty => NONE
-    | Div => NONE
-    | ProgTimeout => NONE
-    | Overflow => NONE
-    | RamseyTimeout => NONE 
+    f1
   end
 
-(*
-load "ramsey"; open ramsey; 
-load "aiLib"; open aiLib;
-fun f (i,j) = j*j mod (2*(i+j)+1) > i+j;
-skip_test := true;
-no_hash := true;
-
-val ((sc,(a,b)),t) = add_time (loop_minclique f) (1024,100000000);
- 
-fun rate l = case l of
-    [] => raise Match
-  | [a] => []
-  | a :: b :: m => (int_div b a) :: rate (b :: m);
- 
-val newclique' = rev (map (fn (_,x) => x-1) a);
-val newanticlique' = rev (map (fn (_,x) => x-1) b);
-
-val ratel1 = rate (tl newclique');
-val ratel2 = rate (tl newanticlique');
-
-fun f x = 
-  
-
-
-fun f (i,j) = (((((2-i) mod j) div 2) div 2) - j) mod 2 <= 0;
-
-val clique = map (fn (_,x) => x-1) (rev a);
-val anticlique = map (fn (_,x) => x-1) (rev b);
-derive clique;
-derive anticlique;  
-
-val a =
-   [(1, 1), (2, 3), (3, 6), (4, 8), (5, 20), (6, 27), (7, 43), (8, 67),
-    (9, 91)]: (int * int) list
-val b =
-   [(1, 1), (2, 2), (3, 4), (4, 10), (5, 14), (6, 22), (7, 33), (8, 59),
-    (9, 89), (10, 118)]: (int * int) list
-val t = 0.039823: real
-
-
-
-*)
-
+fun ramsey_score p = 
+  if !rams_dnf then 
+    let 
+      val f = timed_prog3 p 
+      val bl = ref []
+      val r = loop_pass_clausel bl f (3,7,100000000)
+    in
+      if r <= 2 then NONE else SOME (r,hash_bl (!bl))
+    end
+  else
+    let 
+      val f = timed_prog p 
+    in
+      SOME (fst (loop_minclique f (128,100000000))) 
+      handle  
+        Empty => NONE
+      | Div => NONE
+      | ProgTimeout => NONE
+      | Overflow => NONE
+      | RamseyTimeout => NONE 
+    end
 
 
 end (* struct *)   
