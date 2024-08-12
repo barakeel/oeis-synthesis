@@ -1,3 +1,8 @@
+if [ -z "$1" ]; then
+  echo "Error: Argument is empty."
+  exit 1
+fi
+
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
