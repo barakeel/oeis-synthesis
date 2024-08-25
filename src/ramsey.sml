@@ -25,6 +25,33 @@ val cliquetimer = ref 0
 exception RamseyTimeout;
 
 (* -------------------------------------------------------------------------
+   Arithmetical functions
+   ------------------------------------------------------------------------- *)  
+
+fun remove_div a m = filter (fn x => x mod a <> 0) m;
+
+fun get_primes acc l = case l of 
+    [] => rev acc 
+  | a :: m => get_primes (a :: acc) (remove_div a m);
+  
+fun primes_leq n = get_primes [] (List.tabulate (n-1, fn x => x + 2));
+
+fun all_squares_mod b =
+  if b = 0 
+  then enew Int.compare [] 
+  else enew Int.compare (map (fn x => (x * x) mod b) (List.tabulate (b,I)));
+
+fun create_is_square_mod vn = 
+  let
+    val all_squares = Vector.tabulate (vn,all_squares_mod);
+    fun is_square_mod (a,b) = if b = 0 then false 
+      else emem (a mod b) (Vector.sub (all_squares,b));
+    val m = Array2.tabulate Array2.RowMajor (vn, vn, is_square_mod);
+  in
+    fn (a,b) => Array2.sub (m,a,b)
+  end;
+
+(* -------------------------------------------------------------------------
    Efficiently checking if a graph contains a k-clique or not
    ------------------------------------------------------------------------- *)
 
@@ -39,6 +66,57 @@ and exist_clique n f l =
   if n = 0 then true else
   if length l < n then false else
   exist_withtail (exist_clique_v n f) l
+  
+(* -------------------------------------------------------------------------
+   Finding maximum clique
+   ------------------------------------------------------------------------- *)
+
+val cliquemax = ref 0
+
+fun app_withtail f l = case l of 
+    [] => ()
+  | a :: m => (f a m; app_withtail f m)
+
+fun max_clique_v cliquen f v l =
+  max_clique_aux (cliquen + 1) f (filter (fn x => f(v,x)) l)
+  
+and max_clique_aux cliquen f l = 
+  if null l then 
+    (if cliquen > !cliquemax then cliquemax := cliquen else ())
+  else if cliquen + length l <= !cliquemax then ()
+  else app_withtail (max_clique_v cliquen f) l
+ 
+fun max_clique f l = (cliquemax := 0; max_clique_aux 0 f l; !cliquemax)
+
+fun max_clique_both (n,f) = 
+  let val vl = tl (List.tabulate (n,I)) in
+    Int.max (max_clique f vl, max_clique (not o f) vl)
+  end
+ 
+fun max_clique_both0 (n,f) = 
+  let 
+    val vl = tl (List.tabulate (n,I))
+    val vl1 = filter (fn x => f(0,x)) vl
+    val vl2 = filter (fn x => not(f(0,x))) vl
+  in
+    1 + Int.max (max_clique f vl1, max_clique (not o f) vl2)
+  end
+
+(* -------------------------------------------------------------------------
+   List all cliques of size n
+   ------------------------------------------------------------------------- *)
+
+fun all_withtail f l = case l of 
+    [] => []
+  | a :: m => f a m @ all_withtail f m
+
+fun all_clique_v n f v l =
+  map (fn x => v :: x) (all_clique (n-1) f (filter (fn x => f(v,x)) l))
+
+and all_clique n f l = 
+  if n = 0 then [[]] else
+  if length l < n then [] else
+  all_withtail (all_clique_v n f) l;  
 
 (* -------------------------------------------------------------------------
    Efficiently checking if a graph contains a k-clique or not with a timeout
@@ -99,7 +177,8 @@ fun mat_update (m,i,j,x) = Array2.update(m,i,j,x)
 fun mat_update_sym (m,i,j,x) = 
   (mat_update (m,i,j,x); mat_update (m,j,i,x))
 fun mat_empty n = Array2.array (n,n,false);
-fun mat_tabulate (n,f) = Array2.tabulate Array2.RowMajor (n,n,f)
+fun mat_tabulate (n, (f:int * int -> bool)) = 
+  Array2.tabulate Array2.RowMajor (n,n,f)
 fun mat_traverse f m = 
   let 
     val range = {base=m,row=0,col=0,nrows=NONE,ncols=NONE}
@@ -116,9 +195,25 @@ fun mat_copy graph =
     mat_tabulate (mat_size graph, f)
   end  
 
+fun mat_bti m = graph.mat_tabulate (mat_size m, fn (x,y) => if
+  mat_sub (m,x,y) then 1 else 0) 
+fun mat_itb m = mat_tabulate (graph.mat_size m, fn (x,y) => if
+  graph.mat_sub (m,x,y) > 0 then true else false)
+
 fun invert m = 
   mat_tabulate (mat_size m, fn (a,b) => 
-  if a=b then false else not (mat_sub (m,a,b)))
+    if a=b then false else not (mat_sub (m,a,b)))
+
+fun mat_to_ll m = 
+  let val size = mat_size m in
+    List.tabulate (size, fn i => List.tabulate (size,fn j => mat_sub (m,i,j)))
+  end
+
+fun blts l = String.concatWith " " (map (fn x => if x then "1" else "0") l)
+
+fun string_of_mat m = String.concatWith "\n" (map blts (mat_to_ll m))
+
+fun print_mat m = print_endline (string_of_mat m); 
 
 (* -------------------------------------------------------------------------
    Generating clauses
@@ -318,6 +413,195 @@ fun timed_prog p =
     f1
   end
   
+(*
+load "aiLib"; open aiLib;
+load "ramsey"; open ramsey;
+load "graph";
+load "nauty"; open nauty;
+
+val is_square_mod = create_is_square_mod 1024;
+
+fun paley_graph p =
+  let fun f (a,b) = if a = b then false 
+                    else is_square_mod ((a - b) mod p, p) in
+    mat_bti (mat_tabulate (p,f))
+  end;
+
+fun neighbor_graph p =
+  let 
+    fun f (a,b) = is_square_mod ((a - b) mod p, p)
+    val vl = List.tabulate (p,I)
+    val neighborl = filter (fn x => f(0,x)) (tl vl)
+  in
+    graph.mat_permute (paley_graph p, length neighborl) 
+      (graph.mk_permf neighborl)
+  end;
+
+
+val m = paley_graph 17;
+graph.print_mat m;
+val m' = neighbor_graph 17;
+graph.print_mat m';
+
+val m' = Array2.tabulate Array2.RowMajor 
+  (8,8, fn (x,y) => if mat_sub (m,x,y) then 1 else 0);
+print_mat m;
+
+val m'' = normalize_nauty m';
+
+val m = paley_graph 9;
+
+
+
+
+load "graph";
+
+val m = paley_graph 13;
+
+
+fun g p =
+  let
+    fun f k (a,b) = is_square_mod (((a - b) - k) mod p, p);
+    val shiftl = List.tabulate (p,I);
+    val fl = map f shiftl;
+    val fl' = map (fn x => (p,x)) fl;
+    val rl = map max_clique_both0 fl'
+  in
+    rl
+  end;
+
+
+(* vertex degrees in the neighbor graph *)
+fun f p (a,b) = is_square_mod ((a - b) mod p, p);
+
+val p = 17
+
+fun degree2 p = 
+  let
+    val g = f p;
+    val vl = List.tabulate (p,I)
+    val neighborl = filter (fn x => g(0,x)) (tl vl)
+    val v0 = hd neighborl
+    val neighborl2 = filter (fn x => g(v0,x)) (tl neighborl)
+    
+    fun degree vl a = 
+      let fun f x = if a = x then false else g(a,x) in
+        length (filter f vl)
+      end;
+  in
+    map_assoc (degree neighborl2) neighborl2
+  end;
+  
+val l = filter (fn x => x mod 4 = 1) (primes_leq 128);
+val r = map degree2 l;
+
+fun is_constant l = case l of 
+    [] => true
+  | [b] => true
+  | a :: b :: m => b = a andalso is_constant (b :: m);  
+
+all (is_constant o map snd) r;
+
+x - a  - b
+
+
+val rll = map g l;
+fun test l = all (fn x => (hd l) < x-2) (tl l);
+map test rll;
+
+
+
+
+
+
+val fl = map_assoc f l;
+val scl = map (fn (a,b) => (a,eval (a,b))) fl;
+fun dominate (a,b) (c,d) = b <= d;
+fun remove_worse a l = filter (fn x => not (dominate a x)) l;
+fun loop l = case l of [] => [] 
+             | a :: m => 
+  let val l' = remove_worse a m in a :: loop l' end;
+
+val bestl = (rev o loop o rev) scl;
+
+(a-b)=(b-a)
+
+which Paley graphs are subgraphs of each other?
+
+
+val sclorg = [(2, 2), (3, 2), (5, 2), (7, 3), (11, 4), (13, 3), (17, 3), (19, 4),
+    (23, 5), (29, 4), (31, 5), (37, 4), (41, 5), (43, 6), (47, 6), (53, 5),
+    (59, 7), (61, 5), (67, 7), (71, 7), (73, 5), (79, 7), (83, 7), (89, 5),
+    (97, 6), (101, 5), (103, 9), (107, 8), (109, 6), (113, 7), (127, 9),
+    (131, 9), (137, 7), (139, 8), (149, 7), (151, 9), (157, 7), (163, 10),
+    (167, 9), (173, 8), (179, 10), (181, 7), (191, 9), (193, 7), (197, 8),
+    (199, 10), (211, 10), (223, 10), (227, 10), (229, 9), (233, 7),
+    (239, 10), (241, 7), (251, 11)];
+[(5, 2), (17, 3), (37, 4), (101, 5), 
+ (109, 6), (281, 7), (373, 8)]
+
+find other permutations?
+
+[int_div 17 5, int_div 37 17, int_div 101 37, int_div 109 101, int_div 281 109];
+
+val sclorg' = filter (fn (x,y) => x mod 4 = 1) sclorg
+val scl' = filter (fn (x,y) => x mod 4 = 1) scl;
+
+val bestl' = (rev o loop o rev) scl';
+
+fun all_ssquares_mod b =
+  if b = 0 
+  then enew Int.compare [] 
+  else enew Int.compare (map (fn x => ((x * x) + 2*x+1) mod b) (List.tabulate (b,I)));
+
+val l1 = map_assoc (elength o all_ssquares_mod) l;
+
+val vn = last (filter (fn x => x mod 4 = 1) (primes_leq 269)); 
+
+int_div 37 5;
+int_div 109 37;
+int_div 241 109;
+
+
+(* 
+idea: look at growth rate of size of clique
+need the maxclique algorithm 
+*)
+
+val f = create_f2 vn (vn+1);
+val vl = List.tabulate (vn, fn x => x);
+exist_clique 8 f vl;
+exist_clique 8 (not o f) vl;
+val l1 = all_clique 8 f vl;
+val l2 = all_clique 8 (not o f) vl;
+
+fun all_diff l = 
+  let val r = cartesian_product l l in
+    mk_fast_set Int.compare (map (fn (a,b) => (a-b) mod vn) r)
+  end;
+
+val l1' = mk_fast_set (list_compare Int.compare) (map all_diff l1);
+
+
+
+val cliquesize = 6
+val vn = int_pow 2 cliquesize;
+val f = create_f vn;
+val vl = filter (fn x => x mod 4 = 1) (primes_leq vn); 
+length vl;
+val l1 = all_clique 3 f vl;
+val l2 = all_clique 3 (not o f) vl;
+
+
+
+exist_clique (cliquesize+2) f vl;
+exist_clique (cliquesize+1) (not o f) vl;
+
+
+val vl = (List.tabulate (vn-2, fn x => x + 2));
+val vl = primes_leq vn;
+*)
+
 
 (* -------------------------------------------------------------------------
    Parallel execution testing larger sizes and
