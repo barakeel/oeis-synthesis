@@ -69,8 +69,9 @@ sig
   val prnntim : int
   val prnnwidth : int
   val veggy_flag : bool ref
+  val arcagi_flag : bool ref
   
-  (* flags not read from disk *)
+  (* flags not read from config *)
   val expname : string ref
   val ngen_glob : int ref
   

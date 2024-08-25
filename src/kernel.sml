@@ -126,6 +126,7 @@ val nauto_check = bflag "nauto_check"
 val veggy_flag = bflag "veggy_flag"
 val hanabi_flag = bflag "hanabi_flag"
 val hanabi_short = bflag "hanabi_short"
+val arcagi_flag = bflag "arcagi_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

@@ -25,6 +25,11 @@ sig
   (* ramsey *)
   val n_glob : IntInf.int ref
   
+  (* arcagi *)
+  val mati_glob : int Array2.array ref
+  val dimi_glob : (IntInf.int * IntInf.int) ref
+  val dimo_glob : (IntInf.int * IntInf.int) ref
+
   (* parallel b-file checking *)
   val bcheckspec : (unit, int * prog list, string) smlParallel.extspec
   val parallel_bcheck : int -> string -> unit

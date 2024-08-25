@@ -9,6 +9,17 @@ type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 
 (* load "kernel"; open kernel aiLib; *)
 
+(* -------------------------------------------------------------------------
+   Globals
+   ------------------------------------------------------------------------- *)
+
+(* arcagi *)
+val mati_glob = ref (Array2.tabulate Array2.RowMajor (1,1,fn (a,b) => 0))
+val dimi_glob = ref (IntInf.fromInt 1,IntInf.fromInt 1)
+val dimo_glob = ref (IntInf.fromInt 1,IntInf.fromInt 1)
+
+(* ramsey *)
+val n_glob = ref (IntInf.fromInt 0)
 
 (* -------------------------------------------------------------------------
    Mark constant programs with true
@@ -61,6 +72,7 @@ fun store_mem ((mema,memn),n,x) =
    ------------------------------------------------------------------------- *)  
   
 local open IntInf in
+  val aonem = fromInt (~1)
   val azero = fromInt 0
   val aone = fromInt 1
   val atwo = fromInt 2
@@ -140,6 +152,9 @@ fun mk_binfmult costn opf fl = case fl of
   | _ => raise ERR "mk_binfmult" ""
 
 
+fun mk_binf opf fl = case fl of
+   [f1,f2] => (fn x => checktimer (opf (f1 x, f2 x)))
+  | _ => raise ERR "mk_binf" ""
 
 fun mk_ternf opf fl = case fl of
    [f1,f2,f3] => (fn x => checktimer (opf (f1 x, f2 x, f3 x)))
@@ -148,6 +163,11 @@ fun mk_ternf opf fl = case fl of
 fun mk_ternf1 opf fl = case fl of
    [f1,f2,f3] => (fn x => checktimer (opf (f1, f2 x, f3 x)))
   | _ => raise ERR "mk_ternf1" ""
+
+fun mk_quadf opf fl = case fl of
+   [f1,f2,f3,f4] => (fn x => checktimer (opf (f1 x, f2 x, f3 x, f4 x)))
+  | _ => raise ERR "mk_quadf" ""
+
 
 fun mk_quintf2 opf fl = case fl of
    [f1,f2,f3,f4,f5] => (fn x => checktimer (opf (f1, f2, f3 x, f4 x, f5 x)))
@@ -161,7 +181,6 @@ fun mk_quintf3 opf fl = case fl of
    Basic intructions
    ------------------------------------------------------------------------- *)
 
-val n_glob = ref (IntInf.fromInt 0)
 
 local open IntInf in  
 
@@ -344,13 +363,57 @@ fun compr_f fl = case fl of
     end
   | _ => raise ERR "compr_f" ""
 
+(* -------------------------------------------------------------------------
+   arcagi primitives
+   ------------------------------------------------------------------------- *)
+
+fun in_mati (a,b) = 
+  let val (dima,dimb) = !dimi_glob in
+    azero <= a andalso a < dima andalso azero <= b andalso b < dimb
+  end 
+
+fun equalcolor (a',b',c',d') = 
+  let val (a,b,c,d) = (hd a', hd b', hd c', hd d') in
+    if not (in_mati (a,b) andalso in_mati (c,d)) then [aonem]
+    else if Array2.sub (!mati_glob, IntInf.toInt a, IntInf.toInt b) = 
+            Array2.sub (!mati_glob, IntInf.toInt c, IntInf.toInt d) 
+      then [aone] else [azero]
+  end
+  
+val equalcolor_f = mk_quadf equalcolor
+
+fun is_out (a',b') = 
+  let val (a,b) = (hd a', hd b') in
+    if not (in_mati (a,b)) then [aone] else [azero]
+  end
+  
+fun is_black (a',b') = 
+  let val (a,b) = (hd a', hd b') in
+    if not (in_mati (a,b)) then [aonem] else
+    if Array2.sub (!mati_glob, IntInf.toInt a, IntInf.toInt b) = 0
+    then [aone] else [azero]
+  end
+  
+fun is_equal (a,b) = if hd a = hd b then [aone] else [azero]
+
+val is_out_f = mk_binf is_out
+val is_black_f = mk_binf is_black
+val is_equal_f = mk_binf is_equal
+
+val common_height_f = mk_nullf (fn (x,y) => [fst (!dimo_glob)])
+val common_width_f = mk_nullf (fn (x,y) => [snd (!dimo_glob)])
 
 (* -------------------------------------------------------------------------
    Instruction sets
    ------------------------------------------------------------------------- *)
 
 val org_execl = 
-  if !rams_noloop then
+  if !arcagi_flag then
+    [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
+     loop_f, x_f, y_f, compr_f, loop2_f, equalcolor_f, 
+     is_out_f, is_black_f, is_equal_f, common_height_f, common_width_f]
+  
+  else if !rams_noloop then
     [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f, x_f, 
      y_f]
   else if !rams_short then
