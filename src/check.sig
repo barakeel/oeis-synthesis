@@ -51,9 +51,11 @@ sig
   val merge_hanabi : string option -> kernel.hanabi list
  
   (* arcagi experiment *)
+  val checkinit_arcagi : unit -> unit
+  val checkonline_arcagi : prog -> unit
+  val checkfinal_arcagi : unit -> kernel.arcagi list
   val compare_arcagi : (prog * bool * int) * (prog * bool * int) -> order
-  val merge_arcagi : 
-    kernel.arcagi list -> string option -> kernel.arcagi list
+  val merge_arcagi : kernel.arcagi list -> string option -> kernel.arcagi list
 
   (* standard checking *)
   val check_wind : (int, (int * prog) list) dict ref ->

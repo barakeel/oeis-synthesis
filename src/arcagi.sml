@@ -4,12 +4,11 @@ open HolKernel Abbrev boolLib aiLib dir kernel human json exec_memo
 val ERR = mk_HOL_ERR "arc_agi"
 type mat = int Array2.array
 
-type ex = (mat * mat) list * (mat * mat)
+type ex = (mat * mat) list * (mat * mat) list
 
-
-val best_glob = ref []
 val defaultmat = Array2.tabulate Array2.RowMajor (1,1,fn (a,b) => 0);
-val ex_glob = ref ([(defaultmat,defaultmat)],(defaultmat,defaultmat))
+val ex_glob = ref ([(defaultmat,defaultmat)],[(defaultmat,defaultmat)])
+val exi_glob = ref 0
 val trainex_glob = ref (Vector.fromList [])
 
 (* --------------------------------------------------------------------------
@@ -61,7 +60,7 @@ fun read_trainex () =
   let 
     val dir = selfdir ^ "/data/arc-agi/training"
     val filel = map (fn x => dir ^ "/" ^ x) (listDir dir)
-    val r = distrib (map read_ex filel)
+    val r = map read_ex filel
   in
     trainex_glob := Vector.fromList r
   end  
@@ -70,7 +69,7 @@ fun read_trainex () =
    Evaluating a program on the training part of one example
    -------------------------------------------------------------------------- *)
 
-fun get_colo matol = 
+fun get_colorv matl = 
   let
     val d = ref (dempty Int.compare)
     val counter = ref 0 
@@ -78,31 +77,31 @@ fun get_colo matol =
       (if dmem x (!d) then () else d := dadd x (!counter) (!d);
        incr counter)   
     fun f mato = Array2.app Array2.RowMajor g mato
-    val _ = app f matol
+    val _ = app f matl
+    val l = map fst (dict_sort (snd_compare Int.compare) (dlist (!d)))
   in
-    map fst (dict_sort (snd_compare Int.compare) (dlist (!d)))
+    Vector.fromList (0 :: filter (fn x => x <> 0) l)
   end
 
 fun get_dimo matol = 
   let 
     val l = map Array2.dimensions matol 
     val set = enew (cpl_compare Int.compare Int.compare) l
+    fun f (a,b) = (IntInf.fromInt a, IntInf.fromInt b)
   in
-    if elength set = 1 then hd l else (0,0)
+    f (if elength set = 1 then hd l else (0,0))
   end
 
-fun mk_fun ex p = 
+fun mk_fun ex mati p = 
   let
-    val matil = fst (snd ex) :: map fst (fst ex)
-    val coliv = Vector.fromList (0 :: filter (fn x => x <> 0) (get_colo matil));
-    val matol = map snd (fst ex);
-    val colov = Vector.fromList (0 :: filter (fn x => x <> 0) (get_colo matol));
-    val _ = mati_glob := fst (snd ex)
-    val _ = dimo_glob := let val (a,b) = get_dimo matol in 
-      (IntInf.fromInt a, IntInf.fromInt b) end
-    val _ = dimi_glob := let val (a,b) = Array2.dimensions (!mati_glob) in 
-      (IntInf.fromInt a, IntInf.fromInt b) end
-    val _ = coliv_glob := coliv
+    val _ = mati_glob := mati
+    val matil = map fst (fst ex)
+    val _ = coliv_glob := get_colorv matil
+    val matol = map snd (fst ex)
+    val colov = get_colorv matol
+    val _ = dimo_glob := get_dimo matol
+    fun fdim (a,b) = (IntInf.fromInt a, IntInf.fromInt b)
+    val _ = dimi_glob := fdim (Array2.dimensions (!mati_glob))
     val _ = push_counter := 0
     val f0 = exec_memo.mk_exec p
     fun f1 (i,j) = 
@@ -130,30 +129,27 @@ fun mk_fun ex p =
     f1
   end
  
-fun match_output f m = 
+fun match_io ex p (mi,mo) = 
   let
-    val (a,b) = Array2.dimensions m
-    fun test (x,y) = f(x,y) = Array2.sub(m,x,y)
-    val m' = Array2.tabulate Array2.RowMajor (a,b,test)
+    val f = mk_fun ex mi p
+    val (a,b) = Array2.dimensions mo
+    fun test (x,y) = f(x,y) = Array2.sub(mo,x,y)
+    val mo' = Array2.tabulate Array2.RowMajor (a,b,test)
     val counter = ref 0
     fun count x = if x then incr counter else ()
     val _ = counter := 0
-    val errors = (Array2.app Array2.RowMajor count m'; !counter)
+    val errors = (Array2.app Array2.RowMajor count mo'; !counter)
     val errorwidth = if f(0,b) < 0 then 1 else 0
     val errorheight = if f(a,0) < 0 then 1 else 0
     val sc = errors + errorwidth + errorheight
   in
-    (sc = a*b+2, sc)   
-  end  
-  handle Subscript => raise ERR "match_output" ""
+    (sc = a*b+2, (sc * 1000 * 1000) div (a*b+2))
+  end
 
 fun score ex p =
-  let 
-    val f = mk_fun ex p
-    val m = snd (snd ex)
-  in
-    SOME (match_output f m)
-  end 
+  let val (bl,scl) = split (map (match_io ex p) (fst ex)) in                  
+    SOME (all I bl, (sum_int scl * 1000) div (length scl))
+  end
   handle     
     Empty => NONE
   | Div => NONE
@@ -197,14 +193,7 @@ load "game"; open game;
 load "search";
 PolyML.print_depth 1; val exl = read_trainex (); PolyML.print_depth 40;
  
-fun test ex tim =
-  (
-  best_glob := (Ins(0,[]),false,0);
-  ex_glob := ex;
-  search.randsearch_flag := true;
-  search.search (0,tim);
-  !best_glob
-  );
+
 
 val ex = random_elem exl;
 val (p,b,sc) = test ex 10.0;

@@ -880,14 +880,15 @@ fun stats_hanabi dir hanabisol =
 
 fun search_arcagi_ex () exi =
   let 
+    val _ = checkinit_arcagi ()
     val _ = print_endline "search start" 
     val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
+    val _ = arcagi.exi_glob := exi
     val _ = arcagi.ex_glob := Vector.sub (!arcagi.trainex_glob, exi)
   in
     (
-    arcagi.best_glob := [];
     search.search (!nvis,rtimloc);
-    map (fn (a,b,c) => (exi,a,b,c)) (!arcagi.best_glob)
+    checkfinal_arcagi 
     )
   end
 
