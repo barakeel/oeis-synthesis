@@ -5,6 +5,7 @@ sig
   
   type mat = int Array2.array
   type ex = (mat * mat) list * (mat * mat)
+
             
   val read_ex : string -> (mat * mat) list * (mat * mat) list
   val trainex_glob : ex vector ref

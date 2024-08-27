@@ -3,7 +3,9 @@ structure arcagi :> arcagi = struct
 open HolKernel Abbrev boolLib aiLib dir kernel human json exec_memo
 val ERR = mk_HOL_ERR "arc_agi"
 type mat = int Array2.array
+
 type ex = (mat * mat) list * (mat * mat)
+
 
 val best_glob = ref []
 val defaultmat = Array2.tabulate Array2.RowMajor (1,1,fn (a,b) => 0);
@@ -51,9 +53,7 @@ fun read_traintest x =
   let val (a,b) = dest_traintest x in (read_iol a, read_iol b) end
 
 fun read_ex file = 
-  let
-    val json = parse (hd (readl file)) 
-  in
+  let val json = parse (hd (readl file)) in
     read_traintest (dest_ok json)
   end
   
