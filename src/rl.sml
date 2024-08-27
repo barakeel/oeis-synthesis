@@ -888,7 +888,7 @@ fun search_arcagi_ex () exi =
   in
     (
     search.search (!nvis,rtimloc);
-    checkfinal_arcagi 
+    checkfinal_arcagi ()
     )
   end
 
