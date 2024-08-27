@@ -400,7 +400,8 @@ fun exec_fun move l1 l2 =
   in
     if !randsearch_flag then (p,empty_emb,empty_emb) :: l2 else
     let
-      val oper = Vector.sub (operv,move)
+      val oper = Vector.sub (operv,move) 
+                 handle Subscript => raise ERR "operv" ""
       val emb1 = 
         if arity_of oper <= 0 
         then f oper []
@@ -440,6 +441,7 @@ fun create_pol targete boarde ml =
     val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
     val pol2 = map (fn x => (x, Vector.sub (pol1,x))) 
       (if !stop_flag then maxmove :: ml else ml)
+      handle Subscript => raise ERR "pol2" ""
     val pol3 = normalize_distrib pol2
     val pol4 = if !game.noise_flag then add_noise pol3 else pol3
   in
