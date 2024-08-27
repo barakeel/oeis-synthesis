@@ -290,6 +290,15 @@ val hanabi_operle = if !hanabi_short then
    ("tmcol",1,0),("tmnum",1,0),
    ("hist",0,0),("mem",0,0)
    ];
+  
+val arcagi_operl = org_operl @ [("push",2),("pop",1)] @
+  [("equalcolor",4), ("is_out",2), ("is_colori",3), 
+   ("is_equal",2), 
+   ("input_heigth",0),
+   ("input_width",0),
+   ("common_height",0), 
+   ("common_width",0)]
+  
    
 val hanabi_operl = map (fn (a,b,c) => (a,b)) hanabi_operle   
 val hanabi_hoargl = map (fn (a,b,c) => c) hanabi_operle
@@ -333,7 +342,8 @@ val extra_operl =
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !hanabi_flag then hanabi_operl
+  if !arcagi_flag then arcagi_operl 
+  else if !hanabi_flag then hanabi_operl
   else if !ramsey_flag then ramsey_operl 
   else if !rams_flag then 
     if !rams_noloop then 
@@ -406,7 +416,10 @@ val extra_ho_ariv =
 
 val ho_ariv = Vector.fromList 
   (
-  if !hanabi_flag 
+  if !arcagi_flag
+    then List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 
+         List.tabulate (10,fn _ => 0)
+  else if !hanabi_flag 
     then hanabi_hoargl
   else if !ramsey_flag 
     then List.tabulate (9,fn _ => 0) @ [1,0,0,2,0,0,0] 
@@ -658,7 +671,31 @@ fun read_hanabil file =
   in
     map f (readl file)
   end
+  
+type arcagi = int * prog * bool * int  
+  
+fun write_arcagil file r = 
+  let fun f (exi,p,b,sc) = String.concatWith " "
+    (its exi :: bts b :: its sc :: map its (tokenl_of_prog p))
+  in
+    writel file (map f r)
+  end
 
+fun read_arcagil file =
+  let fun f s = 
+    let 
+      val sl = String.tokens Char.isSpace s
+      val exi = string_to_int (List.nth (sl,0))
+      val b = string_to_bool (List.nth (sl,1))
+      val sc = string_to_int (List.nth (sl,2))
+      val p = prog_of_tokenl (map string_to_int (tl (tl (tl sl))))
+    in
+      (exi,p,b,sc)
+    end
+  in
+    map f (readl file)
+  end
+ 
 (* -------------------------------------------------------------------------
    Simple export of sequence program pairs
    ------------------------------------------------------------------------- *)  

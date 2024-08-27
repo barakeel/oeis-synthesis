@@ -44,12 +44,17 @@ sig
   val checkfinal_ramsey : unit -> kernel.ramsey list
   val merge_ramsey : string option -> kernel.ramsey list
  
-   (* ramsey experiment *)
+  (* hanabi experiment *)
   val checkinit_hanabi : unit -> unit
   val checkonline_hanabi : prog -> unit
   val checkfinal_hanabi : unit -> kernel.hanabi list
   val merge_hanabi : string option -> kernel.hanabi list
  
+  (* arcagi experiment *)
+  val compare_arcagi : (prog * bool * int) * (prog * bool * int) -> order
+  val merge_arcagi : 
+    kernel.arcagi list -> string option -> kernel.arcagi list
+
   (* standard checking *)
   val check_wind : (int, (int * prog) list) dict ref ->
     prog * (int * int) list -> unit

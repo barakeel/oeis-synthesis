@@ -215,5 +215,9 @@ sig
   val write_hanabil : string -> hanabi list -> unit
   val read_hanabil : string -> hanabi list
 
+  (* arcagi experiment *)
+  type arcagi = int * prog * bool * int
+  val write_arcagil : string -> arcagi list -> unit
+  val read_arcagil : string -> arcagi list
 
 end

@@ -77,6 +77,42 @@ fun merge_ramsey fileo =
   end
 
 (* -------------------------------------------------------------------------
+   arcagi check
+   ------------------------------------------------------------------------- *)
+
+fun compare_arcagi ((p1,b1,sc1),(p2,b2,sc2)) =
+  cpl_compare (inv_cmp Int.compare) prog_compare_size ((sc1,p1),(sc2,p2))
+
+fun checkonline_arcagi p =
+  case arcagi.score (!arcagi.ex_glob) p of
+      NONE => ()
+    | SOME (b,sc) =>
+      if null (!arcagi.best_glob) then arcagi.best_glob := [(p,b,sc)] else 
+        if compare_arcagi ((p,b,sc),hd (!arcagi.best_glob)) = LESS
+        then arcagi.best_glob := [(p,b,sc)]
+        else ()
+ 
+val arcagid = ref (dempty Int.compare)
+     
+fun update_arcagid (exi,p,b,sc) = case dfindo exi (!arcagid) of
+    NONE => arcagid := dadd exi [(p,b,sc)] (!arcagid)
+  | SOME [] => arcagid := dadd exi [(p,b,sc)] (!arcagid)
+  | SOME (old :: m) => 
+    if compare_arcagi ((p,b,sc),old) = LESS
+    then arcagid := dadd exi [(p,b,sc)] (!arcagid)
+    else ()
+         
+fun merge_arcagi arcagil fileo = 
+  let 
+    val _ = arcagid := dempty Int.compare
+    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
+    val arcagilold = if isSome fileo then read_arcagil (valOf fileo) else []
+  in
+    app update_arcagid (arcagil @ arcagilold);
+    map (fn (a,(b,c,d)) => (a,b,c,d)) (distrib (dlist (!arcagid)))
+  end   
+      
+(* -------------------------------------------------------------------------
    hanabi check: to do move to its own file
    hanabid: contains list of hanabi programs sorted by score
    hanabih: contains the set of hashes from hanabid
@@ -143,7 +179,6 @@ fun merge_hanabi fileo =
   in
     checkfinal_hanabi ()
   end
-
 
 (* -------------------------------------------------------------------------
    Update set of solutions
@@ -425,7 +460,8 @@ fun checkf_prnn2 p =
   end  
 
 fun checkonline nnvalue (p,exec) = 
-  if !ramsey_flag then checkonline_ramsey (p,exec)
+  if !arcagi_flag then checkonline_arcagi p
+  else if !ramsey_flag then checkonline_ramsey (p,exec)
   else if !hanabi_flag then checkonline_hanabi p
   else if !rams_flag then checkonline_hanabi p
   else if !seq_flag then checkf_seq (p,exec)

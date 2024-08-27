@@ -58,6 +58,9 @@ sig
   val hanabispec : 
     (unit, (prog list * real) list, kernel.hanabi list) smlParallel.extspec
  
+  (* searching for arcagi programs *)
+  val search_arcagi_ex : unit -> int -> kernel.arcagi list
+  val arcagispec : (unit, int, kernel.arcagi list) smlParallel.extspec
   
   (* train from a isol *)
   val trainf_isol : string -> (int * kernel.prog) list -> unit
