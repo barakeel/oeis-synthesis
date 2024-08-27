@@ -13,8 +13,6 @@ sig
   val read_ex : string -> ex
   val read_trainex : unit -> unit
   val compute_output : (int * int -> int) -> int Array2.array
-  
-
   val score : ex -> kernel.prog -> (bool * int) option
           
   

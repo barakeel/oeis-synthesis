@@ -889,9 +889,11 @@ fun search_arcagi_ex () exi =
   in
     (
     search.search (!nvis,rtimloc);
+    print_endline ("search end on example " ^ (its exi));
     checkfinal_arcagi ()
     )
   end
+  handle Subscript => raise ERR "search_arcagi_ex" ""
 
 fun write_int file i = writel file [its i]
 fun read_int file = string_to_int (hd (readl file))
