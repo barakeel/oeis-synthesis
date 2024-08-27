@@ -310,7 +310,9 @@ fun search (vis,tinc) =
     val _ = prog_counter := 0
     val _ = checkinit ()
     val targete = 
-      if !randsearch_flag then Vector.fromList [100.0] else get_targete ()
+      if !randsearch_flag orelse !notarget_flag
+      then Vector.fromList [100.0] 
+      else get_targete ()
     val rt = Timer.startRealTimer ()
     val (_,t) = add_time (search_aux rt 0 (vis,(0.0,tinc)) targete) []
   in
