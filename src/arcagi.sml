@@ -61,9 +61,11 @@ fun read_trainex () =
     val dir = selfdir ^ "/data/arc-agi/training"
     val filel = map (fn x => dir ^ "/" ^ x) (listDir dir)
     val r = map read_ex filel
+    val _ = print_endline ("Read " ^ its (length r) ^ 
+            " training examples from " ^ dir) 
   in
     trainex_glob := Vector.fromList r
-  end  
+  end
 
 (* --------------------------------------------------------------------------
    Evaluating a program on the training part of one example

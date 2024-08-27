@@ -881,10 +881,11 @@ fun stats_hanabi dir hanabisol =
 fun search_arcagi_ex () exi =
   let 
     val _ = checkinit_arcagi ()
-    val _ = print_endline "search start" 
+    val _ = print_endline ("search start on example " ^ (its exi))
     val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
     val _ = arcagi.exi_glob := exi
-    val _ = arcagi.ex_glob := Vector.sub (!arcagi.trainex_glob, exi)
+    val _ = arcagi.ex_glob := (Vector.sub (!arcagi.trainex_glob, exi)
+      handle Subscript => raise ERR "search_arcagi_ex" "")
   in
     (
     search.search (!nvis,rtimloc);
