@@ -58,7 +58,9 @@ fun exec_fun (move,exec) l1 l2 =
   in
     if !randsearch_flag then (p,exec,empty_emb,empty_emb) :: l2 else
     let
-      val oper = Vector.sub (operv,move)
+      val oper = Vector.sub (operv,move) 
+        handle Subscript => raise ERR "operv1" 
+          (its (Vector.length operv) ^ " " ^ its move)
       val emb1 = 
         if arity_of oper <= 0 
         then f oper []
