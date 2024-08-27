@@ -273,6 +273,7 @@ fun create_pol targete boarde mfl =
     in
       pol4
     end
+    handle Subscript => raise ERR "create_pol" ""
     
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout
