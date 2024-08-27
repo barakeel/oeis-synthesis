@@ -267,13 +267,13 @@ fun create_pol targete boarde mfl =
       val prepolie = f prepoli [preboarde]
       val ende = f head_poli [prepolie]
       val pol1 = Vector.fromList (mlNeuralNetwork.descale_out ende)
-      val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl
+      val pol2 = map (fn x => (x, Vector.sub (pol1, fst x))) mfl    
       val pol3 = normalize_distrib (add_temp pol2)
       val pol4 = if !game.noise_flag then add_noise pol3 else pol3
     in
       pol4
     end
-    handle Subscript => raise ERR "create_pol" ""
+
     
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout

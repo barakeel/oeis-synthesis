@@ -908,7 +908,8 @@ val arcagispec : (unit, int, arcagi list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
-     "arcagi.read_trainex ()"]
+     "arcagi.read_trainex ()",
+     "rl.init_cube ()"]
     ^ ")"),
   function = search_arcagi_ex,
   write_param = let fun f _ () = () in f end,
