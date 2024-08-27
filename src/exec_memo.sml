@@ -17,7 +17,7 @@ type exec = IntInf.int list * IntInf.int list -> IntInf.int list
 val mati_glob = ref (Array2.tabulate Array2.RowMajor (1,1,fn (a,b) => 0))
 val dimi_glob = ref (IntInf.fromInt 1,IntInf.fromInt 1)
 val dimo_glob = ref (IntInf.fromInt 1,IntInf.fromInt 1)
-
+val coliv_glob = ref (Vector.fromList [0])
 (* ramsey *)
 val n_glob = ref (IntInf.fromInt 0)
 
@@ -387,19 +387,26 @@ fun is_out (a',b') =
     if not (in_mati (a,b)) then [aone] else [azero]
   end
   
-fun is_black (a',b') = 
-  let val (a,b) = (hd a', hd b') in
-    if not (in_mati (a,b)) then [aonem] else
-    if Array2.sub (!mati_glob, IntInf.toInt a, IntInf.toInt b) = 0
+fun is_colori (a',b',c') = 
+  let val (a,b,c) = (hd a', hd b',hd c') in
+    if not (in_mati (a,b)) 
+      then [aonem] else
+    if c < IntInf.fromInt 0 orelse c >= 
+       IntInf.fromInt (Vector.length (!coliv_glob))
+      then [aonem] else
+    if Array2.sub (!mati_glob, IntInf.toInt a, IntInf.toInt b) = 
+       Vector.sub (!coliv_glob, IntInf.toInt c)
     then [aone] else [azero]
   end
   
 fun is_equal (a,b) = if hd a = hd b then [aone] else [azero]
 
 val is_out_f = mk_binf is_out
-val is_black_f = mk_binf is_black
+val is_colori_f = mk_ternf is_colori
 val is_equal_f = mk_binf is_equal
 
+val input_height_f = mk_nullf (fn (x,y) => [fst (!dimi_glob)])
+val input_width_f = mk_nullf (fn (x,y) => [snd (!dimi_glob)])
 val common_height_f = mk_nullf (fn (x,y) => [fst (!dimo_glob)])
 val common_width_f = mk_nullf (fn (x,y) => [snd (!dimo_glob)])
 
@@ -408,12 +415,7 @@ val common_width_f = mk_nullf (fn (x,y) => [snd (!dimo_glob)])
    ------------------------------------------------------------------------- *)
 
 val org_execl = 
-  if !arcagi_flag then
-    [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
-     loop_f, x_f, y_f, compr_f, loop2_f, equalcolor_f, 
-     is_out_f, is_black_f, is_equal_f, common_height_f, common_width_f]
-  
-  else if !rams_noloop then
+  if !rams_noloop then
     [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f, x_f, 
      y_f]
   else if !rams_short then
@@ -423,7 +425,10 @@ val org_execl =
     [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
      loop_f, x_f, y_f, compr_f, loop2_f]
 
-val execv = Vector.fromList (org_execl @ [push_f, pop_f])
+val arcagi_extra = if !arcagi_flag then [equalcolor_f, is_out_f, is_colori_f, is_equal_f, input_height_f, input_width_f, common_height_f, common_width_f] 
+   else []
+
+val execv = Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)
 
 (* -------------------------------------------------------------------------
    Creates executable for a program

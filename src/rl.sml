@@ -120,6 +120,19 @@ fun write_hanabisol_atomic ngen hanabisol =
     write_hanabil oldfile hanabisol;
     OS.FileSys.rename {old = oldfile, new = newfile}
   end
+  
+(* arcagi experiment *)
+fun read_arcagisol ngen = read_arcagil (itsol_file ngen)
+
+fun write_arcagisol_atomic ngen arcagisol = 
+  let
+    val newfile = itsol_file ngen
+    val oldfile = newfile ^ "_temp"
+  in
+    write_arcagil oldfile arcagisol;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end  
+  
 
 (* -------------------------------------------------------------------------
    Training
@@ -166,6 +179,20 @@ fun trainf_hanabi datadir pid =
     val hanabisol = read_hanabisol (find_last_itsol ())
     val progl = map (snd o fst) hanabisol
     val progset = shuffle (mk_fast_set prog_compare progl)
+    val _ = print_endline ("programs " ^ its (length progset))
+    val ex = create_exl_progset progset
+    val nex = length ex
+    val _ = print_endline (its (length ex) ^ " examples created")
+  in
+    if nex < 10 then raise ERR "too few examples" "" else
+    export_traindata datadir num_epoch learning_rate dim_glob ex
+  end
+  
+fun trainf_arcagi datadir pid =
+  let
+    val arcagisol = read_arcagisol (find_last_itsol ())
+    val progl = map #2 arcagisol
+    val progset = shuffle progl
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_progset progset
     val nex = length ex
@@ -249,7 +276,8 @@ fun trainf_start pid =
     (* if !smartselect_flag then ... else ... *)
     if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
-    else if !hanabi_flag orelse !rams_flag then trainf_hanabi datadir pid    
+    else if !hanabi_flag orelse !rams_flag then trainf_hanabi datadir pid
+    else if !arcagi_flag then trainf_arcagi datadir pid  
     else trainf_tnn datadir pid
     ;
     print_endline "exporting end"
@@ -847,6 +875,66 @@ fun stats_hanabi dir hanabisol =
 
 
 (* -------------------------------------------------------------------------
+   Searching for arcagi programs
+   ------------------------------------------------------------------------- *)
+
+fun search_arcagi_ex () exi =
+  let 
+    val _ = print_endline "search start" 
+    val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
+    val _ = arcagi.ex_glob := Vector.sub (!arcagi.trainex_glob, exi)
+  in
+    (
+    arcagi.best_glob := [];
+    search.search (!nvis,rtimloc);
+    map (fn (a,b,c) => (exi,a,b,c)) (!arcagi.best_glob)
+    )
+  end
+
+fun write_int file i = writel file [its i]
+fun read_int file = string_to_int (hd (readl file))
+
+
+val arcagispec : (unit, int, arcagi list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.arcagispec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "kernel.expname := " ^ mlquote (!expname),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
+     "arcagi.read_trainex ()"]
+    ^ ")"),
+  function = search_arcagi_ex,
+  write_param = let fun f _ () = () in f end,
+  read_param = let fun f _ = () in f end,
+  write_arg = write_int,
+  read_arg = read_int,
+  write_result = write_arcagil,
+  read_result = read_arcagil
+  }
+
+fun search_arcagi () = 
+  let
+    val _ = arcagi.read_trainex ()
+    val n = Vector.length (!arcagi.trainex_glob)
+    val l = List.tabulate (n,I)
+    val arcagill = smlParallel.parmap_queue_extern ncore arcagispec () l
+  in
+    List.concat arcagill
+  end
+
+fun string_of_arcagisol (exi,p,b,sc) = String.concatWith ", "
+  ["ex: " ^ its exi, "solved: " ^ bts b, "score: " ^ its sc,
+   "size: " ^ its (prog_size p), "prog: " ^ human_trivial p]
+
+fun stats_arcagi dir arcagisol =
+  writel (dir ^ "/stats") (map string_of_arcagisol (rev arcagisol))
+
+
+(* -------------------------------------------------------------------------
    Statistics
    ------------------------------------------------------------------------- *)
 
@@ -985,6 +1073,19 @@ fun rl_search_only_hanabi ngen =
     stats_hanabi (!buildheap_dir) newhanabisol
   end
   
+fun rl_search_only_arcagi ngen =
+  let 
+    val (arcagisol,t) = add_time search_arcagi ()
+    val _ = log ("search time: " ^ rts_round 6 t)
+    val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
+    val newarcagisol = merge_arcagi arcagisol oldfileo
+    val actualsol = filter (fn (a,b,c,d) => c) newarcagisol
+    val _ = log ("arcagi solutions: " ^ its (length actualsol))
+  in 
+    write_arcagisol_atomic ngen newarcagisol;
+    stats_arcagi (!buildheap_dir) newarcagisol
+  end  
+  
 
 fun rl_search_only ngen =
   let 
@@ -1001,6 +1102,7 @@ fun rl_search_only ngen =
     if !pgen_flag then rl_search_only_pgen ngen
     else if !ramsey_flag then rl_search_only_ramsey ngen
     else if !hanabi_flag orelse !rams_flag then rl_search_only_hanabi ngen
+    else if !arcagi_flag then rl_search_only_arcagi ngen
     else rl_search_only_default ngen
   end
   

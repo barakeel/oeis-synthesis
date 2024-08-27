@@ -29,6 +29,7 @@ sig
   val mati_glob : int Array2.array ref
   val dimi_glob : (IntInf.int * IntInf.int) ref
   val dimo_glob : (IntInf.int * IntInf.int) ref
+  val coliv_glob : int vector ref
 
   (* parallel b-file checking *)
   val bcheckspec : (unit, int * prog list, string) smlParallel.extspec
