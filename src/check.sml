@@ -84,28 +84,25 @@ val arcagid = ref (dempty Int.compare)
 
 fun compare_arcagi ((p1,b1,sc1),(p2,b2,sc2)) =
   cpl_compare (inv_cmp Int.compare) prog_compare_size ((sc1,p1),(sc2,p2))
-
-fun dominate_arcagi (p1,b1,sc1) (p2,b2,sc2) =
-  case prog_compare_size (p1,p2) of
-      LESS => sc1 <= sc2
-    | EQUAL => true
-    | GREATER => false
     
-fun insert_pbsc cand pbscl = 
-  if exists (fn x => dominate_arcagi x cand) pbscl
-  then pbscl 
-  else cand :: (filter (fn x => not (dominate_arcagi cand x)) pbscl) 
-    
+fun insert_pbsc (p,b,sc) pbscl = case pbscl of
+    [] => [(p,b,sc)]
+  | (p',b',sc') :: m => 
+    (
+    case Int.compare (sc,sc') of
+       GREATER => (p,b,sc) :: (p',b',sc') :: m
+     | EQUAL => if prog_compare_size (p,p') = LESS 
+                then (p,b,sc) :: m
+                else (p',b',sc') :: m
+     | LESS => (p',b',sc') :: insert_pbsc (p,b,sc) m
+    )
 
 fun update_arcagid (exi,p,b,sc) = 
   case dfindo exi (!arcagid) of
     NONE => arcagid := dadd exi [(p,b,sc)] (!arcagid) 
   | SOME pbscl => 
-    let 
-      val newpbscl1 = insert_pbsc (p,b,sc) pbscl 
-      val newpbscl2 = first_n 20 (dict_sort compare_arcagi newpbscl1)
-    in
-      arcagid := dadd exi newpbscl2 (!arcagid)
+    let val newpbscl = first_n 10 (insert_pbsc (p,b,sc) pbscl) in
+      arcagid := dadd exi newpbscl (!arcagid)
     end
 
 fun checkonline_arcagi p =
@@ -123,8 +120,7 @@ fun merge_arcagi arcagil fileo =
     val arcagilold = if isSome fileo then read_arcagil (valOf fileo) else []
   in
     app update_arcagid (arcagil @ arcagilold);
-    map (fn (a,(b,c,d)) => (a,b,c,d)) (distrib
-      (map_snd (first_n 10) (dlist (!arcagid))))
+    checkfinal_arcagi ()
   end   
       
 (* -------------------------------------------------------------------------
