@@ -85,43 +85,27 @@ val arcagid = ref (dempty Int.compare)
 fun compare_arcagi ((p1,b1,sc1),(p2,b2,sc2)) =
   cpl_compare (inv_cmp Int.compare) prog_compare_size ((sc1,p1),(sc2,p2))
 
-fun remove_pbsc sc l = case l of
-      [] => []
-    | (p',b',sc') :: m => if sc >= sc' then remove_pbsc sc m else l
+fun dominate_arcagi (p1,b1,sc1) (p2,b2,sc2) =
+  case prog_compare_size (p1,p2) of
+      LESS => sc1 <= sc2
+    | EQUAL => true
+    | GREATER => false
+    
+fun insert_pbsc cand pbscl = 
+  if exists (fn x => dominate_arcagi x cand) pbscl
+  then pbscl 
+  else cand :: (filter (fn x => not (dominate_arcagi cand x)) pbscl) 
+    
 
-fun insert_pbsc (p,b,sc) pbscl = case pbscl of 
-    [] => [(p,b,sc)]
-  | (p',b',sc') :: m => 
-    (
-    case Int.compare (prog_size p, prog_size p') of
-        LESS => (p,b,sc) :: remove_pbsc sc pbscl
-      | EQUAL => if sc' < sc then pbscl
-                 else if sc' = sc then 
-                   if prog_compare_size (p,p') = LESS 
-                   then (p,b,sc) :: remove_pbsc sc m
-                   else pbscl
-                 else (p,b,sc) :: remove_pbsc sc m
-      | GREATER => if sc > sc' 
-                   then (p',b',sc') :: insert_pbsc (p,b,sc) m
-                   else pbscl
-        
-    )
-(*
-fun update_arcagid (exi,p,b,sc) = 
-  case dfindo exi (!arcagid) of
-    NONE => arcagid := dadd exi [(p,b,sc)] (!arcagid)
-  | SOME [] => arcagid := dadd exi [(p,b,sc)] (!arcagid)
-  | SOME (old :: m) => 
-    if compare_arcagi ((p,b,sc),old) = LESS
-    then arcagid := dadd exi [(p,b,sc)] (!arcagid)
-    else ()
-*)
 fun update_arcagid (exi,p,b,sc) = 
   case dfindo exi (!arcagid) of
     NONE => arcagid := dadd exi [(p,b,sc)] (!arcagid) 
   | SOME pbscl => 
-    let val newpbscl = insert_pbsc (p,b,sc) pbscl in
-      arcagid := dadd exi (rev (first_n 20 (rev newpbscl))) (!arcagid)
+    let 
+      val newpbscl1 = insert_pbsc (p,b,sc) pbscl 
+      val newpbscl2 = first_n 20 (dict_sort compare_arcagi newpbscl1)
+    in
+      arcagid := dadd exi newpbscl2 (!arcagid)
     end
 
 fun checkonline_arcagi p =
@@ -136,12 +120,11 @@ fun checkfinal_arcagi () =
 fun merge_arcagi arcagil fileo = 
   let 
     val _ = checkinit_arcagi ()
-    val filel = map (fn x => mergedir ^ "/" ^ x) (listDir mergedir)
     val arcagilold = if isSome fileo then read_arcagil (valOf fileo) else []
   in
     app update_arcagid (arcagil @ arcagilold);
     map (fn (a,(b,c,d)) => (a,b,c,d)) (distrib
-      (map_snd (rev o first_n 10 o rev) (dlist (!arcagid))))
+      (map_snd (first_n 10) (dlist (!arcagid))))
   end   
       
 (* -------------------------------------------------------------------------

@@ -16,6 +16,9 @@ sig
   val rtim : real ref
   val maxgen : int option ref
 
+  (* load openblas tnn *)
+  val auto_load_ob : unit -> unit
+  
   (* functions *)
   val search : unit -> int -> sol list
   val parspec : (unit, int, sol list) smlParallel.extspec
@@ -38,7 +41,7 @@ sig
   val start_cube : int -> (prog list, int) mcts.tree
   val search_cube : unit -> (prog list * real) list -> sol list
   val cubespec : (unit, (prog list * real) list, sol list) smlParallel.extspec
-  val init_cube : unit -> unit
+  
   val get_boardsc : (prog list, int) mcts.tree -> (prog list * real) list
   
   (* pgen experiment (* deprecated *) *)

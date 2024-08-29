@@ -539,8 +539,8 @@ fun load_ob () =
   end
     
 
-(* also used in non-cubing *)
-fun init_cube () =
+(* Loading OpenBlas TNN via the FFI *)
+fun auto_load_ob () =
   let
     val _ = search.randsearch_flag := not (can find_last_ob ())
     val _ = if !search.randsearch_flag 
@@ -589,7 +589,7 @@ val parspec : (unit, int, sol list) extspec =
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"] 
+     "rl.auto_load_ob ()"] 
     ^ ")"),
   function = search,
   write_param = let fun f _ () = () in f end,
@@ -684,7 +684,7 @@ val cubespec : (unit, (prog list * real) list, sol list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
-     "rl.init_cube ()"] 
+     "rl.auto_load_ob ()"] 
     ^ ")"),
   function = search_cube,
   write_param = let fun f _ () = () in f end,
@@ -739,7 +739,7 @@ val pgenspec : (unit, (prog list * real) list, pgen list) extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
-     "rl.init_cube ()"] 
+     "rl.auto_load_ob ()"] 
     ^ ")"),
   function = search_pgen,
   write_param = let fun f _ () = () in f end,
@@ -785,7 +785,7 @@ val ramseyspec : (unit, (prog list * real) list, ramsey list) extspec =
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"]
+     "rl.auto_load_ob ()"]
     ^ ")"),
   function = search_ramsey_branchl,
   write_param = let fun f _ () = () in f end,
@@ -842,7 +842,7 @@ val hanabispec : (unit, (prog list * real) list, hanabi list) extspec =
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
      "game.time_opt := " ^ string_of_timeo (),
-     "rl.init_cube ()"]
+     "rl.auto_load_ob ()"]
     ^ ")"),
   function = search_hanabi_branchl,
   write_param = let fun f _ () = () in f end,
@@ -886,7 +886,6 @@ fun search_arcagi_ex () exi =
     val rtimloc = if !ngen_glob <= 0 then !rtim_init else !rtim
     val _ = arcagi.exi_glob := exi
     val _ = arcagi.ex_glob := Vector.sub (!arcagi.trainex_glob, exi)
-   
   in
     (
     search.search (!nvis,rtimloc);
@@ -909,7 +908,7 @@ val arcagispec : (unit, int, arcagi list) extspec =
      "kernel.expname := " ^ mlquote (!expname),
      "kernel.ngen_glob := " ^ its (!ngen_glob),
      "arcagi.read_trainex ()",
-     "rl.init_cube ()"]
+     "rl.auto_load_ob ()"]
     ^ ")"),
   function = search_arcagi_ex,
   write_param = let fun f _ () = () in f end,
@@ -935,7 +934,7 @@ fun string_of_arcagisol (exi,p,b,sc) = String.concatWith ", "
    "size: " ^ its (prog_size p), "prog: " ^ human_trivial p]
 
 fun stats_arcagi dir arcagisol =
-  writel (dir ^ "/stats") (map string_of_arcagisol (rev arcagisol))
+  writel (dir ^ "/stats") (map string_of_arcagisol arcagisol)
 
 
 (* -------------------------------------------------------------------------
