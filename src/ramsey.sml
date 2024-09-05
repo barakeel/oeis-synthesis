@@ -794,6 +794,7 @@ fun not_exist_clique_both tim k f =
  
 fun ramsey_score_nicer f k =
   let
+    val blbefore = !bl_glob
     fun f1 (a,b) = if a=b then false else (if a < b then f(a,b) else f(b,a))
     val m = mat_tabulate (int_pow 2 k,f1)
     fun f2 (a,b) = mat_sub (m,a,b)
@@ -802,7 +803,7 @@ fun ramsey_score_nicer f k =
     then (if k >= 6 
           then (k, hash_bl (!bl_glob)) 
           else ramsey_score_nicer f (k+1))
-    else (k-1, hash_bl (!bl_glob))
+    else (k-1, hash_bl blbefore)
   end
   
 fun ramsey_score p = 
