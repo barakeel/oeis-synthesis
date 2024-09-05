@@ -210,6 +210,7 @@ sig
   val rams_diff : bool ref
   val rams_double : bool ref
   val rams_dnf : bool ref
+  val rams_nicer : bool ref
   val nauto_check : bool ref
   type hanabi = (int * prog) * IntInf.int
   val write_hanabil : string -> hanabi list -> unit

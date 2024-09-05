@@ -419,6 +419,8 @@ load "ramsey"; open ramsey;
 load "graph";
 load "nauty"; open nauty;
 
+
+
 val is_square_mod = create_is_square_mod 1024;
 
 fun paley_graph p =
@@ -561,7 +563,6 @@ val vn = last (filter (fn x => x mod 4 = 1) (primes_leq 269));
 int_div 37 5;
 int_div 109 37;
 int_div 241 109;
-
 
 (* 
 idea: look at growth rate of size of clique
@@ -706,6 +707,49 @@ load "ramsey"; open ramsey;
 parallel_exec "ramsey22extra";
 *)
 
+(*
+Stirling number
+*)
+
+(*
+load "aiLib"; open aiLib;
+load "ramsey"; open ramsey;
+
+val tot = 1024;
+
+local open IntInf in
+fun g(x) = (3 * x) div 2;
+fun f n acc =  
+  if n <= 1 then rev acc else f (n-1) (g (hd acc) :: acc);
+end;
+
+val ll = List.tabulate (tot, 
+  fn x => f (IntInf.fromInt tot) [IntInf.fromInt x]);
+
+local open IntInf in
+val rr = map (map (fn x => x mod 2)) ll;
+end;
+
+val vv = Vector.fromList (map Vector.fromList rr);
+
+fun f(a,b) = Vector.sub (Vector.sub (vv,a),b);
+fun f'(a,b) = if a <= b 
+  then f(a,b) > IntInf.fromInt 0 else f(b,a) > IntInf.fromInt 0;
+
+val (r,t) = add_time max_clique_both (tot,f');
+
+writel (selfdir ^ "/collatz_ramsey1024) [its r];
+
+8, 4
+16, 5
+32, 8
+64, 9
+128, 11
+256, 13
+512, 14
+1024, 
+*)
+
 (* -------------------------------------------------------------------------
    Ranking programs according to their scores
    ------------------------------------------------------------------------- *)
@@ -724,8 +768,57 @@ fun timed_prog3 p =
     f1
   end
 
+val bl_glob = ref ([]: bool list)
+
+fun mk_cache2 f = 
+  let 
+    val d = ref (dempty (cpl_compare Int.compare Int.compare)) 
+    fun g k =
+        (
+        case dfindo k (!d) of 
+          SOME v => v  
+        | NONE => let val v = f k in 
+            (bl_glob := v :: !bl_glob; d := dadd k v (!d); v) end
+        )
+  in
+    g                   
+  end   
+  
+  
+fun not_exist_clique_both tim k f =
+  let val vl = List.tabulate (int_pow 2 k, I) in
+    if exist_clique_timer tim (2*k) f vl then false
+    else if exist_clique_timer tim (2*k) (not o f) vl then false
+    else true     
+  end
+ 
+fun ramsey_score_nicer f k =
+  let
+    fun f1 (a,b) = if a=b then false else (if a < b then f(a,b) else f(b,a))
+    val m = mat_tabulate (int_pow 2 k,f1)
+    fun f2 (a,b) = mat_sub (m,a,b)
+  in
+    if not_exist_clique_both 10000000 k f2
+    then (if k >= 6 
+          then (k, hash_bl (!bl_glob)) 
+          else ramsey_score_nicer f (k+1))
+    else (k-1, hash_bl (!bl_glob))
+  end
+  
 fun ramsey_score p = 
-  if !rams_dnf then 
+  if !rams_nicer then 
+    let 
+      val _ = bl_glob := []
+      val f = mk_cache2 (timed_prog p) 
+    in
+      SOME (ramsey_score_nicer f 2) handle  
+        Empty => NONE
+      | Div => NONE
+      | ProgTimeout => NONE
+      | Overflow => NONE
+      | RamseyTimeout => NONE 
+    end 
+  else if !rams_dnf then 
     let 
       val f = timed_prog3 p 
       val bl = ref []
