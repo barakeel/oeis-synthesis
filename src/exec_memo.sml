@@ -430,8 +430,8 @@ val arcagi_extra = if !arcagi_flag then [equalcolor_f, is_out_f, is_colori_f, is
 
 val execv = 
   if !rams_nicer then 
-  Vector.fromList [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
-    cond_f,loop_f, x_f, y_f, loop2_f]
+  Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
+    x_f, y_f]
   else 
   Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)
 

@@ -357,9 +357,9 @@ val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
       ("cond",3),("loop",3),("x",0),("y",0),("n",0),("loop2",5)]
       @ [("push",2),("pop",1)]
     else if !rams_nicer then 
-      [("zero",0),("one",0),("two",0),
-      ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-      ("cond",3),("loop",3),("x",0),("y",0),("loop2",5)]
+      [("one",0),("two",0),
+       ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+       ("x",0),("y",0)]
     else org_operl @ [("push",2),("pop",1)]
   else if !array_flag then array_operl
   else if !turing_flag then turing_operl
@@ -441,7 +441,7 @@ val ho_ariv = Vector.fromList
     then List.tabulate (9,fn _ => 0) @ [1,0,0,0,2] @ 
          List.tabulate (2, fn _ => 0)
     else if !rams_nicer then 
-         List.tabulate (9,fn _ => 0) @ [1,0,0,2]
+         List.tabulate (Vector.length operv, fn _ => 0)
     else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 
          List.tabulate (2, fn _ => 0) 
   else List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ extra_ho_ariv

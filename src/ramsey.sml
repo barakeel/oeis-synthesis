@@ -161,12 +161,39 @@ fun random_clique f clique vl =
     in
       random_clique f newclique newvl
     end
+    
+fun exists_random_clique f vl limit =  
+  if limit <= 0 then true else 
+  if null vl then false else 
+    let 
+      val v = random_elem vl 
+      val newvl = filter (fn x => if x = v then false else 
+                                  if x < v then f(x,v) else f(v,x)) vl
+    in
+      exists_random_clique f newvl (limit - 1)
+    end
+ 
+fun exists_random_clique_both f vl limit =
+  exists_random_clique f vl limit orelse
+  exists_random_clique (not o f) vl limit  
 
 fun greedy_random_clique f clique v maxgraphsize =  
   if v >= maxgraphsize then clique else 
     if all (fn x => f(x,v)) clique  andalso random_real () < 0.5
     then greedy_random_clique f (v :: clique) (v+1) maxgraphsize
     else greedy_random_clique f clique (v+1) maxgraphsize;
+
+fun exists_greedy_random_clique f clique v maxgraphsize maxcliquesize =  
+  if length clique >= maxcliquesize then true else
+  if v >= maxgraphsize then false else 
+    if all (fn x => f(x,v)) clique andalso random_real () < 0.5
+    then exists_greedy_random_clique f (v :: clique) (v+1) 
+         maxgraphsize maxcliquesize
+    else exists_greedy_random_clique f clique (v+1) maxgraphsize maxcliquesize;
+
+fun exists_greedy_random_clique_both f k =
+  exists_greedy_random_clique f [] 0 (int_pow 2 k) (2*k) orelse
+  exists_greedy_random_clique (not o f) [] 0 (int_pow 2 k) (2*k)
 
 (* -------------------------------------------------------------------------
    Matrice short cuts
@@ -412,197 +439,6 @@ fun timed_prog p =
   in
     f1
   end
-  
-(*
-load "aiLib"; open aiLib;
-load "ramsey"; open ramsey;
-load "graph";
-load "nauty"; open nauty;
-
-
-
-val is_square_mod = create_is_square_mod 1024;
-
-fun paley_graph p =
-  let fun f (a,b) = if a = b then false 
-                    else is_square_mod ((a - b) mod p, p) in
-    mat_bti (mat_tabulate (p,f))
-  end;
-
-fun neighbor_graph p =
-  let 
-    fun f (a,b) = is_square_mod ((a - b) mod p, p)
-    val vl = List.tabulate (p,I)
-    val neighborl = filter (fn x => f(0,x)) (tl vl)
-  in
-    graph.mat_permute (paley_graph p, length neighborl) 
-      (graph.mk_permf neighborl)
-  end;
-
-
-val m = paley_graph 17;
-graph.print_mat m;
-val m' = neighbor_graph 17;
-graph.print_mat m';
-
-val m' = Array2.tabulate Array2.RowMajor 
-  (8,8, fn (x,y) => if mat_sub (m,x,y) then 1 else 0);
-print_mat m;
-
-val m'' = normalize_nauty m';
-
-val m = paley_graph 9;
-
-
-
-
-load "graph";
-
-val m = paley_graph 13;
-
-
-fun g p =
-  let
-    fun f k (a,b) = is_square_mod (((a - b) - k) mod p, p);
-    val shiftl = List.tabulate (p,I);
-    val fl = map f shiftl;
-    val fl' = map (fn x => (p,x)) fl;
-    val rl = map max_clique_both0 fl'
-  in
-    rl
-  end;
-
-
-(* vertex degrees in the neighbor graph *)
-fun f p (a,b) = is_square_mod ((a - b) mod p, p);
-
-val p = 17
-
-fun degree2 p = 
-  let
-    val g = f p;
-    val vl = List.tabulate (p,I)
-    val neighborl = filter (fn x => g(0,x)) (tl vl)
-    val v0 = hd neighborl
-    val neighborl2 = filter (fn x => g(v0,x)) (tl neighborl)
-    
-    fun degree vl a = 
-      let fun f x = if a = x then false else g(a,x) in
-        length (filter f vl)
-      end;
-  in
-    map_assoc (degree neighborl2) neighborl2
-  end;
-  
-val l = filter (fn x => x mod 4 = 1) (primes_leq 128);
-val r = map degree2 l;
-
-fun is_constant l = case l of 
-    [] => true
-  | [b] => true
-  | a :: b :: m => b = a andalso is_constant (b :: m);  
-
-all (is_constant o map snd) r;
-
-x - a  - b
-
-
-val rll = map g l;
-fun test l = all (fn x => (hd l) < x-2) (tl l);
-map test rll;
-
-
-
-
-
-
-val fl = map_assoc f l;
-val scl = map (fn (a,b) => (a,eval (a,b))) fl;
-fun dominate (a,b) (c,d) = b <= d;
-fun remove_worse a l = filter (fn x => not (dominate a x)) l;
-fun loop l = case l of [] => [] 
-             | a :: m => 
-  let val l' = remove_worse a m in a :: loop l' end;
-
-val bestl = (rev o loop o rev) scl;
-
-(a-b)=(b-a)
-
-which Paley graphs are subgraphs of each other?
-
-
-val sclorg = [(2, 2), (3, 2), (5, 2), (7, 3), (11, 4), (13, 3), (17, 3), (19, 4),
-    (23, 5), (29, 4), (31, 5), (37, 4), (41, 5), (43, 6), (47, 6), (53, 5),
-    (59, 7), (61, 5), (67, 7), (71, 7), (73, 5), (79, 7), (83, 7), (89, 5),
-    (97, 6), (101, 5), (103, 9), (107, 8), (109, 6), (113, 7), (127, 9),
-    (131, 9), (137, 7), (139, 8), (149, 7), (151, 9), (157, 7), (163, 10),
-    (167, 9), (173, 8), (179, 10), (181, 7), (191, 9), (193, 7), (197, 8),
-    (199, 10), (211, 10), (223, 10), (227, 10), (229, 9), (233, 7),
-    (239, 10), (241, 7), (251, 11)];
-[(5, 2), (17, 3), (37, 4), (101, 5), 
- (109, 6), (281, 7), (373, 8)]
-
-find other permutations?
-
-[int_div 17 5, int_div 37 17, int_div 101 37, int_div 109 101, int_div 281 109];
-
-val sclorg' = filter (fn (x,y) => x mod 4 = 1) sclorg
-val scl' = filter (fn (x,y) => x mod 4 = 1) scl;
-
-val bestl' = (rev o loop o rev) scl';
-
-fun all_ssquares_mod b =
-  if b = 0 
-  then enew Int.compare [] 
-  else enew Int.compare (map (fn x => ((x * x) + 2*x+1) mod b) (List.tabulate (b,I)));
-
-val l1 = map_assoc (elength o all_ssquares_mod) l;
-
-val vn = last (filter (fn x => x mod 4 = 1) (primes_leq 269)); 
-
-int_div 37 5;
-int_div 109 37;
-int_div 241 109;
-
-(* 
-idea: look at growth rate of size of clique
-need the maxclique algorithm 
-*)
-
-val f = create_f2 vn (vn+1);
-val vl = List.tabulate (vn, fn x => x);
-exist_clique 8 f vl;
-exist_clique 8 (not o f) vl;
-val l1 = all_clique 8 f vl;
-val l2 = all_clique 8 (not o f) vl;
-
-fun all_diff l = 
-  let val r = cartesian_product l l in
-    mk_fast_set Int.compare (map (fn (a,b) => (a-b) mod vn) r)
-  end;
-
-val l1' = mk_fast_set (list_compare Int.compare) (map all_diff l1);
-
-
-
-val cliquesize = 6
-val vn = int_pow 2 cliquesize;
-val f = create_f vn;
-val vl = filter (fn x => x mod 4 = 1) (primes_leq vn); 
-length vl;
-val l1 = all_clique 3 f vl;
-val l2 = all_clique 3 (not o f) vl;
-
-
-
-exist_clique (cliquesize+2) f vl;
-exist_clique (cliquesize+1) (not o f) vl;
-
-
-val vl = (List.tabulate (vn-2, fn x => x + 2));
-val vl = primes_leq vn;
-*)
-
 
 (* -------------------------------------------------------------------------
    Parallel execution testing larger sizes and
@@ -707,49 +543,6 @@ load "ramsey"; open ramsey;
 parallel_exec "ramsey22extra";
 *)
 
-(*
-Stirling number
-*)
-
-(*
-load "aiLib"; open aiLib;
-load "ramsey"; open ramsey;
-
-val tot = 1024;
-
-local open IntInf in
-fun g(x) = (3 * x) div 2;
-fun f n acc =  
-  if n <= 1 then rev acc else f (n-1) (g (hd acc) :: acc);
-end;
-
-val ll = List.tabulate (tot, 
-  fn x => f (IntInf.fromInt tot) [IntInf.fromInt x]);
-
-local open IntInf in
-val rr = map (map (fn x => x mod 2)) ll;
-end;
-
-val vv = Vector.fromList (map Vector.fromList rr);
-
-fun f(a,b) = Vector.sub (Vector.sub (vv,a),b);
-fun f'(a,b) = if a <= b 
-  then f(a,b) > IntInf.fromInt 0 else f(b,a) > IntInf.fromInt 0;
-
-val (r,t) = add_time max_clique_both (tot,f');
-
-writel (selfdir ^ "/collatz_ramsey1024) [its r];
-
-8, 4
-16, 5
-32, 8
-64, 9
-128, 11
-256, 13
-512, 14
-1024, 
-*)
-
 (* -------------------------------------------------------------------------
    Ranking programs according to their scores
    ------------------------------------------------------------------------- *)
@@ -783,8 +576,7 @@ fun mk_cache2 f =
   in
     g                   
   end   
-  
-  
+
 fun not_exist_clique_both tim k f =
   let val vl = List.tabulate (int_pow 2 k, I) in
     if exist_clique_timer tim (2*k) f vl then false
@@ -799,26 +591,30 @@ fun ramsey_score_nicer f k =
     val m = mat_tabulate (int_pow 2 k,f1)
     fun f2 (a,b) = mat_sub (m,a,b)
   in
-    if not_exist_clique_both 10000000 k f2
-    then (if k >= 6 
-          then (k, hash_bl (!bl_glob)) 
+    if not_exist_clique_both (1000 * 1000 * 1000) k f2
+    then (if k >= 7
+          then (k, hash_bl (!bl_glob))
           else ramsey_score_nicer f (k+1))
     else (k-1, hash_bl blbefore)
   end
+
+fun catch_error f x = SOME (f x) handle  
+    Empty => NONE
+  | Div => NONE
+  | ProgTimeout => NONE
+  | Overflow => NONE
+  | RamseyTimeout => NONE
+    
   
 fun ramsey_score p = 
   if !rams_nicer then 
     let 
       val _ = bl_glob := []
       val f = mk_cache2 (timed_prog p) 
+      val testn = int_pow 2 7
     in
-      SOME (ramsey_score_nicer f 2) handle  
-        Empty => NONE
-      | Div => NONE
-      | ProgTimeout => NONE
-      | Overflow => NONE
-      | RamseyTimeout => NONE 
-    end 
+      catch_error (ramsey_score_nicer f) 2 
+    end
   else if !rams_dnf then 
     let 
       val f = timed_prog3 p 

@@ -19,6 +19,12 @@ sig
   val max_clique_both : int * (int * int -> bool) -> int
   val max_clique_both0 : int * (int * int -> bool) -> int
   val all_clique : int -> (int * int -> bool) -> int list -> int list list
+  val exists_random_clique_both : (int * int -> bool) -> int list -> int -> bool
+  val greedy_random_clique : 
+    (int * int -> bool) -> int list -> int -> int -> int list
+  val exists_greedy_random_clique_both : 
+    (int * int -> bool) -> int -> bool
+  val not_exist_clique_both : int -> int -> (int * int -> bool) -> bool
   
   (* arithmetic *)
   val primes_leq : int -> int list
