@@ -42,4 +42,8 @@ sig
   val parallel_exec : string -> unit
   val skip_test : bool ref
   
+  (* parallel checks *)
+  val execspec2 : (unit, prog, int) smlParallel.extspec
+  val parallel_exec2 : string -> unit
+   
 end

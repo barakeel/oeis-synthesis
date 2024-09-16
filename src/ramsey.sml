@@ -584,17 +584,19 @@ fun not_exist_clique_both tim k f =
     else true     
   end
  
-fun ramsey_score_nicer f k =
+fun ramsey_score_nicer f limit k =
   let
     val blbefore = !bl_glob
     fun f1 (a,b) = if a=b then false else (if a < b then f(a,b) else f(b,a))
     val m = mat_tabulate (int_pow 2 k,f1)
     fun f2 (a,b) = mat_sub (m,a,b)
   in
-    if not_exist_clique_both (1000 * 1000 * 1000) k f2
-    then (if k >= 7
-          then (k, hash_bl (!bl_glob))
-          else ramsey_score_nicer f (k+1))
+    if not_exist_clique_both (1000 * 1000 * 1000 * 1000) k f2
+    then (
+         if k >= limit
+         then (k, hash_bl (!bl_glob))
+         else ramsey_score_nicer f limit (k+1)
+         )
     else (k-1, hash_bl blbefore)
   end
 
@@ -611,9 +613,8 @@ fun ramsey_score p =
     let 
       val _ = bl_glob := []
       val f = mk_cache2 (timed_prog p) 
-      val testn = int_pow 2 7
     in
-      catch_error (ramsey_score_nicer f) 2 
+      catch_error (ramsey_score_nicer f 7) 2 
     end
   else if !rams_dnf then 
     let 
@@ -635,6 +636,88 @@ fun ramsey_score p =
       | Overflow => NONE
       | RamseyTimeout => NONE 
     end
+
+
+(* -------------------------------------------------------------------------
+   Parallel execution testing larger sizes and
+   returning cliques, anticliques and derivative
+   ------------------------------------------------------------------------- *)  
+
+  
+fun write_result file a = writel file [its a]
+fun read_result file = string_to_int (hd (readl_empty file))
+  
+fun execspec_fun2 () p =
+  let 
+    val default = 0
+    val _ = no_hash := true
+    val _ = bl_glob := []
+    val f = mk_cache2 (timed_prog p) 
+  in
+    case catch_error (ramsey_score_nicer f 9) 2 of
+        SOME (a,_) => a
+      | NONE => 0
+  end
+
+fun write_noparam (_:string) () = ()
+fun read_noparam (_:string) = ()
+
+val execspec2 : (unit, prog, int) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "ramsey.execspec2",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir),
+     "ramsey.no_hash := true"  
+    ] 
+    ^ ")"),
+  function = execspec_fun2,
+  write_param = write_noparam,
+  read_param = read_noparam,
+  write_arg = write_prog,
+  read_arg = read_prog,
+  write_result = write_result,
+  read_result = read_result
+  }
+
+fun parallel_exec2 expname =
+  let  
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = mkDir_err (selfdir ^ "/exp")
+    val _ = mkDir_err dir
+    val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = smlExecScripts.buildheap_dir := dir
+    val sol = read_hanabil (dir ^ "/input")
+    val pl = map (snd o fst) sol;
+    val (rl,t) = add_time 
+      (smlParallel.parmap_queue_extern ncore execspec2 ()) pl
+    val prl = combine (pl,rl)
+    val prl2 = map (fn (p,sc) => (p,(sc,prog_size p))) prl
+    val cmp = cpl_compare (inv_cmp Int.compare) Int.compare
+    val prl3 = dict_sort (snd_compare cmp) prl2
+    fun f (p,(sc,size)) =
+      String.concatWith "\n"
+      [its sc ^ " | " ^ its size ^ " | " ^
+       human_trivial p ^ " | " ^ gpt_of_prog p]
+  in
+    writel (dir ^ "/log") ["time: " ^ rts t];
+    writel (dir ^ "/output") (map f prl3)
+  end  
+
+(*
+cd oeis-synthesis/src/exp
+mkdir rams_nicer2e1
+cp rams_nicer2/hist/itsol0 rams_nicer2/input
+cd ..
+sh hol.sh
+load "ramsey"; open ramsey;
+parallel_exec2 "rams_nicer2e1";
+*)
 
 
 end (* struct *)   
