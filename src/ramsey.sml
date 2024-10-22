@@ -712,7 +712,7 @@ fun parallel_exec2 expname =
 (*
 cd oeis-synthesis/src/exp
 mkdir rams_nicer2e1
-cp rams_nicer2/hist/itsol0 rams_nicer2/input
+cp rams_nicer2/hist/itsol0 rams_nicer2e1/input
 cd ..
 sh hol.sh
 load "ramsey"; open ramsey;

@@ -427,10 +427,15 @@ val org_execl =
 
 val arcagi_extra = if !arcagi_flag then [equalcolor_f, is_out_f, is_colori_f, is_equal_f, input_height_f, input_width_f, common_height_f, common_width_f] 
    else []
+   
+   
 
 val execv = 
-  if !rams_nicer then 
-  Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
+  if !smt_flag then
+    Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
+     x_f, y_f]
+  else if !rams_nicer 
+  then Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
     x_f, y_f]
   else 
   Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)

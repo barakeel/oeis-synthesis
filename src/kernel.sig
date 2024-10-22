@@ -70,6 +70,7 @@ sig
   val prnnwidth : int
   val veggy_flag : bool ref
   val arcagi_flag : bool ref
+  val smt_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref
@@ -220,5 +221,13 @@ sig
   type arcagi = int * prog * bool * int
   val write_arcagil : string -> arcagi list -> unit
   val read_arcagil : string -> arcagi list
+
+  (* parallelization of function of the type string to string *)
+  val stringspec_fun_default : string -> string
+  val stringspec_fun_glob : (string -> string) ref
+  val stringspec_funname_glob : string ref
+  val stringspec : (unit, string, string) smlParallel.extspec
+  val parmap_sl : int -> string -> string list -> string list
+  val test_fun : string -> string
 
 end

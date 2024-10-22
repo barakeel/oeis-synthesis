@@ -470,8 +470,11 @@ fun checkf_prnn2 p =
     app f anumtl
   end  
 
+fun checkonline_smt p = ()
+
 fun checkonline nnvalue (p,exec) = 
-  if !arcagi_flag then checkonline_arcagi p
+  if !smt_flag then checkonline_smt p
+  else if !arcagi_flag then checkonline_arcagi p
   else if !ramsey_flag then checkonline_ramsey (p,exec)
   else if !hanabi_flag then checkonline_hanabi p
   else if !rams_flag then checkonline_hanabi p

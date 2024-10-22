@@ -8,13 +8,15 @@ type emb = real vector
 
 val ncore = (string_to_int (dfind "ncore" configd) handle NotFound => 32)
 
-(* first embedding is prog embedding, second is stack *)
+
+
+(* todo: remove exec.exec field as it is not used anymore *)
 type boarde = (kernel.prog * exec.exec * emb * emb) list
 val randsearch_flag = ref false
 val rand_exp = ref 1.0
 
 (* -------------------------------------------------------------------------
-   Noise
+   Noise (not used anymore)
    ------------------------------------------------------------------------- *)
 
 fun add_noise prepol =

@@ -128,6 +128,7 @@ val veggy_flag = bflag "veggy_flag"
 val hanabi_flag = bflag "hanabi_flag"
 val hanabi_short = bflag "hanabi_short"
 val arcagi_flag = bflag "arcagi_flag"
+val smt_flag = bflag "smt_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
@@ -761,5 +762,63 @@ fun valid_topdown_aux argn ml =
     end
     
 fun valid_topdown ml = valid_topdown_aux 1 ml
+
+(* -------------------------------------------------------------------------
+   General parallelizer for function : unit -> string -> string
+   as long as the function can be named
+   ------------------------------------------------------------------------- *)
+
+fun write_string file s = writel file [s]
+fun read_string file = singleton_of_list (readl file)
+fun write_unit file () = ()
+fun read_unit file = ()
+
+fun stringspec_fun_default (s:string) = "default"
+val stringspec_fun_glob = ref stringspec_fun_default
+val stringspec_funname_glob = ref "kernel.stringspec_fun_default"
+
+val stringspec : (unit, string, string) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "kernel.stringspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    [
+    "smlExecScripts.buildheap_dir := " ^ 
+       mlquote (!smlExecScripts.buildheap_dir),
+    "kernel.stringspec_fun_glob := " ^ (!stringspec_funname_glob)
+    ]
+    ^ ")"),
+  function = let fun f () s = (!stringspec_fun_glob) s in f end,
+  write_param = write_unit,
+  read_param = read_unit,
+  write_arg = write_string,
+  read_arg = read_string,
+  write_result = write_string,
+  read_result = read_string
+  }
+
+fun parmap_sl ncore funname sl =
+  let  
+    val dir = selfdir ^ "/exp/reserved_stringspec"
+    val _ = app mkDir_err [(selfdir ^ "/exp"), dir]
+    val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
+      (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
+    val _ = stringspec_funname_glob := funname
+    val _ = smlExecScripts.buildheap_dir := dir
+    val slo = smlParallel.parmap_queue_extern ncore stringspec () sl
+  in
+    slo
+  end
+
+fun test_fun s = (implode o rev o explode) s
+
+(*
+load "kernel"; open aiLib kernel;
+val sl = List.tabulate (1000, its);
+parmap_sl 2 "kernel.test_fun" sl; 
+*)
+
 
 end (* struct *)
