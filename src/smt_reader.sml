@@ -393,9 +393,6 @@ fun const_file file =
   end;
   
 
-
-
-
 (* --------------------------------------------------------------------------
    Finger printing programs
    -------------------------------------------------------------------------- *)
@@ -442,7 +439,7 @@ val inputl3 =
   end;
 
 fun fingerprint (exec,reset_cache) = case exec of 
-    Fun0 f0 => raise ERR "function" "0 arguments"
+    Fun0 f0 => fingerprint_aux (f0,reset_cache) [()]
   | Fun1 f1 => fingerprint_aux (f1,reset_cache) inputl1
   | Fun2 f2 => fingerprint_aux (uncurry f2, reset_cache) inputl2
   | Fun3 f3 => fingerprint_aux (uncurry3 f3, reset_cache) inputl3
@@ -451,12 +448,12 @@ fun fingerprint_file file =
   let 
     val _ = print_endline ("Read: " ^ file);
     val l0 = read_smt_exec (selfdir ^ "/smt/" ^ file);
-    val l1 = filter (fn (((a,b,c),d),e) => b > 0 andalso c) l0
-    val l2 = map (fn (((a,b,c),d),e) => ((a,b),e)) l1
+    val l2 = map (fn (((a,b,c),d),e) => ((a,b,c),e)) l0
     val l3 = map_snd fingerprint l2 
     val l4 = filter (fn (a,b) => isSome b) l3
     val l5 = map (fn (a,b) => (a,valOf b)) l4
-    fun f ((a,b),l) = a ^ " " ^ its b ^ " : " ^ 
+    fun f ((a,b,c),l) = a ^ " " ^ its b ^ " " ^ 
+      (if c then "r" else "p") ^ " : " ^ 
       String.concatWith " " (map IntInf.toString l)
   in
     String.concatWith " | " (file :: map f l5)
@@ -561,7 +558,7 @@ val (a,b) = read_smt_exec "smt/A83696.smt2";
 (*
 load "smt_reader"; open aiLib kernel smt_reader;
 val filel = listDir (selfdir ^ "/smt");
-val sl = parmap_sl 40 "smt_reader.fingerprint_file" (random_subset 20 filel);
+val sl = parmap_sl 40 "smt_reader.fingerprint_file" filel;
 writel (selfdir ^ "/fingerprint_recursive") sl;
 *)
 
