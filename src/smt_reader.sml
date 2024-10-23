@@ -546,7 +546,7 @@ fun fingerprint_file file =
     val l3 = map_snd fingerprint l0
     val l4 = filter (fn (a,b) => isSome b) l3
     val l5 = map (fn (a,b) => (a,valOf b)) l4
-    fun f ((a,b,c,d),l) = file ^ ".a" ^ " " ^ its b ^ " " ^ 
+    fun f ((a,b,c,d),l) = file ^ "." ^ a ^ " " ^ its b ^ " " ^ 
       (if c then "r" else "p") ^ " " ^ d ^ " : " ^ 
       String.concatWith " " (map IntInf.toString l)
   in
@@ -609,6 +609,33 @@ load "smt_reader"; open aiLib kernel smt_reader;
 val filel = listDir (selfdir ^ "/smt");
 val sl = parmap_sl 40 "smt_reader.fingerprint_file" filel;
 writel (selfdir ^ "/fingerprint") sl;
+
+val sl1 = List.concat (map (String.tokens (fn x => x = #"|")) sl);
+
+val ERR = mk_HOL_ERR "test";
+
+fun regroup_sem sl =
+  let
+    val d = ref (dempty (cpl_compare Int.compare (list_compare IntInf.compare)))
+    fun f s = 
+      let 
+        val (infos,seqs) = pair_of_list (String.tokens (fn x => x = #":") s) 
+        val bs = List.nth (String.tokens Char.isSpace infos, 1)
+          handle HOL_ERR _ => raise ERR "" infos
+        val seq = map (valOf o IntInf.fromString)
+          (String.tokens Char.isSpace seqs)
+        val key = (string_to_int bs,seq)
+        val value = infos
+      in
+        d := dappend (key,value) (!d)
+      end
+  in
+    app f sl; dlist (!d)
+  end;
+
+val l2 = regroup_sem sl1;
+
+
 *)
 
 
