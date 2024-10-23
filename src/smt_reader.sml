@@ -3,7 +3,8 @@ struct
 
 open HolKernel Abbrev boolLib aiLib dir kernel
 val ERR = mk_HOL_ERR "smt_reader"
-type finfo = (string * int * bool) * string
+type finfo = string * int * bool
+type finfox = string * int * bool * string
 
 (* --------------------------------------------------------------------------
    Parsing SMT file into S-expressions
@@ -172,7 +173,7 @@ fun tleq x1 x2 =
   end
 
 (* --------------------------------------------------------------------------
-   From HOL terms to SML programs
+   From HOL terms to first-order SML programs
    -------------------------------------------------------------------------- *)
 
 fun string_of_var x = fst (dest_var x);
@@ -316,6 +317,140 @@ fun create_execl idsl =
   (smlExecute.quse_string (parse_prog idsl); (!funl_glob,!reset_cache_glob))
 
 (* --------------------------------------------------------------------------
+   From HOL terms to programs in the original programming language
+   -------------------------------------------------------------------------- *)
+
+fun dfind s d = aiLib.dfind s d handle NotFound => raise ERR "dfind" s
+
+fun find_allfun vls deftop = 
+  let
+    val acc = ref []
+    val reserved = (["+","-","*","divf","modf","<=","ite"] @ vls)
+    fun find_allfun_aux def =
+      let 
+        val (oper,argl) = strip_comb def 
+        val opers = string_of_var oper
+      in
+        if mem opers reserved then () else acc := opers :: !acc;
+        app find_allfun_aux argl
+      end
+  in
+    find_allfun_aux deftop; !acc
+  end
+
+fun hol_to_prog_aux fd vls def =
+  let 
+    fun binop s argl =
+      let val (a,b) = pair_of_list argl in 
+         ["("] @ hol_to_prog_aux fd vls a @ [s] @ 
+                 hol_to_prog_aux fd vls b @ [")"]
+      end
+    val (oper,argl) = strip_comb def
+  in
+    case string_of_var oper of
+       "+" => binop "+" argl
+     | "-" => binop "-" argl
+     | "*" => binop "*" argl
+     | "divf" => binop "div" argl
+     | "modf" => binop "mod" argl
+     | "<=" => binop "<=" argl
+     | "ite" => 
+       let val (a,b,c) = triple_of_list argl in
+         ["(","if"] @ hol_to_prog_aux fd vls a @ 
+         ["then"] @ hol_to_prog_aux fd vls b @ 
+         ["else"] @ hol_to_prog_aux fd vls c @ [")"]
+       end
+     | s => if null argl then 
+               if mem s vls then [s] else [dfind s (!fd)]
+             else
+              ["(", dfind s (!fd)] @ 
+              List.concat (map (hol_to_prog_aux fd vls) argl) @
+              [")"]
+  end;
+
+fun hol_to_prog operd fd tm = 
+  let
+    val (decl,def) = dest_eq (snd (strip_forall tm)) 
+    val opers = string_of_var (fst (strip_comb decl))
+    val vls = ["0","1","2"] @ map string_of_var (snd (strip_comb decl))
+  in
+    (* loop help function *)
+    if hd_string opers = #"u" andalso 
+       emem ("v" ^ tl_string opers) operd andalso 
+       not (emem ("w" ^ tl_string opers) operd)
+    then
+       let 
+         val recsl = find_allfun vls def
+         val recs = singleton_of_list (filter (fn x => x <> opers) recsl)  
+         val r = "( " ^ "loop1u" ^ " " ^ dfind recs (!fd) ^ " )"       
+       in
+         fd := dadd opers r (!fd)
+       end
+    (* loop function *)
+    else if hd_string opers = #"v" andalso
+       not (emem ("w" ^ tl_string opers) operd)
+    then
+      let val r = "( loop1 " ^ 
+        String.concatWith " " (hol_to_prog_aux fd vls def) ^ " )"
+      in
+        fd := dadd opers r (!fd)
+      end
+    (* loop2 help functions *)   
+    else if mem (hd_string opers) [#"u",#"v"] andalso 
+      emem ("w" ^ tl_string opers) operd 
+    then
+       let 
+         val recsl = find_allfun vls def
+         val recs = singleton_of_list 
+           (filter (fn x => not (mem (hd_string x) [#"u",#"v"])) recsl) 
+       in
+         fd := dadd opers recs (!fd)
+       end 
+    else if hd_string opers = #"w"
+    then
+       let 
+         val is = tl_string opers
+         val fs = dfind ("u" ^ is) (!fd)
+         val gs = dfind ("v" ^ is) (!fd)
+         val fdef = dfind fs (!fd)
+         val gdef = dfind gs (!fd)
+         val r1 = "( loop2u " ^ fdef ^ " " ^ gdef ^ " )"
+         val r2 = "( loop2v " ^ fdef ^ " " ^ gdef ^ " )"
+         val _ = fd := dadd ("u" ^ is) r1 (!fd)
+         val _ = fd := dadd ("v" ^ is) r2 (!fd)
+         val r = "( loop2 " ^ 
+           String.concatWith " " (hol_to_prog_aux fd vls def) ^ " )"
+      in
+        fd := dadd opers r (!fd)
+      end 
+    else
+      let
+         val r = String.concatWith " " (hol_to_prog_aux fd vls def)
+      in
+        fd := dadd opers r (!fd)
+      end
+  end
+  
+fun clean_paren_aux charl acc = case charl of
+    [] => rev acc
+  | #"(" :: #" " :: m => clean_paren_aux m (#"(" :: acc)  
+  | #" " :: #")" :: m => clean_paren_aux m (#")" :: acc)  
+  | a :: m => clean_paren_aux m (a :: acc)   
+
+fun clean_paren s = implode (clean_paren_aux (explode s) []) 
+  
+fun hol_to_progd idtml = 
+  let 
+    val (idl,tml) = split idtml
+    val operd = enew String.compare (map #1 idl)
+    val fd = ref (dempty String.compare)
+  in
+    app (hol_to_prog operd fd) tml; 
+    dnew String.compare (map_snd clean_paren (dlist (!fd)))
+  end
+
+
+(* --------------------------------------------------------------------------
    Main functions
    -------------------------------------------------------------------------- *)
 
@@ -327,7 +462,7 @@ fun read_smt_hol file =
     val l3 = map smt_to_hol (butlast l2)
     val l4 = map hol_to_sml l3
   in
-    combine (l4,l3)
+    combine (map fst l4,l3)
   end
 
 fun read_smt_exec file =   
@@ -337,61 +472,13 @@ fun read_smt_exec file =
     val l2 = List.mapPartial get_assert l1;  
     val l3 = map smt_to_hol (butlast l2);
     val l4 = map hol_to_sml l3;
+    val l5 = map fst l4
+    val fd = hol_to_progd (combine (l5,l3))
     val (execl,reset_cache) = create_execl l4
   in
-    map (fn (a,b) => (a,(b,reset_cache))) (combine (l4,execl))
+    map (fn ((a,b,c),e) => ((a,b,c,dfind a fd),(e,reset_cache))) 
+      (combine (l5,execl))
   end
-
-(* --------------------------------------------------------------------------
-   Finding constant functions
-   -------------------------------------------------------------------------- *)
-
-fun catch_error f x = 
-  (SOME (f x) handle
-    Div => NONE
-  | ProgTimeout => NONE
-  | Overflow => NONE
-  );
-
-fun is_const (vo: IntInf.int option) inputl f = case inputl of 
-    [] => true
-  | input :: m =>
-    let val r = (abstimer := 0; catch_error f input) in
-      case r of
-         NONE => false
-       | SOME newv => (case vo of 
-           NONE => is_const (SOME newv) m f
-         | SOME v => if newv <> v then false else is_const vo m f)
-    end
-;
-
-fun uncurry3 f (a,b,c) = f a b c;
-fun cartesian_product3 l = map triple_of_list (cartesian_productl [l,l,l]); 
-  
-fun is_constant n (exec,reset_cache) =
-  let 
-    val _ = reset_cache ()
-    val l = List.tabulate (n,IntInf.fromInt)
-    val l' = List.tabulate (n div 2,IntInf.fromInt)
-  in
-    case exec of 
-      Fun0 f0 => false
-    | Fun1 f1 => is_const NONE l f1
-    | Fun2 f2 => is_const NONE (cartesian_product l l) (uncurry f2)
-    | Fun3 f3 => is_const NONE (cartesian_product3 l') (uncurry3 f3)
-  end;
-  
-
-
-fun const_file file = 
-  let 
-    val _ = print_endline ("Reading programs from: " ^ file);
-    val l1 = read_smt_exec (selfdir ^ "/smt/" ^ file);
-    val l2 = filter (#3 o fst o fst) l1
-  in
-    filter (is_constant 10 o snd) l2
-  end;
-  
 
 (* --------------------------------------------------------------------------
    Finger printing programs
@@ -413,6 +500,9 @@ fun fingerprint_aux (f,reset_cache) xltop =
     | ProgTimeout => NONE
     | Overflow => NONE
   end;
+ 
+fun uncurry3 f (a,b,c) = f a b c
+fun cartesian_product3 l = map triple_of_list (cartesian_productl [l,l,l]) 
   
 val inputl1 = List.tabulate (20,IntInf.fromInt);   
 
@@ -448,78 +538,32 @@ fun fingerprint_file file =
   let 
     val _ = print_endline ("Read: " ^ file);
     val l0 = read_smt_exec (selfdir ^ "/smt/" ^ file);
-    val l2 = map (fn (((a,b,c),d),e) => ((a,b,c),e)) l0
-    val l3 = map_snd fingerprint l2 
+    val l3 = map_snd fingerprint l0
     val l4 = filter (fn (a,b) => isSome b) l3
     val l5 = map (fn (a,b) => (a,valOf b)) l4
-    fun f ((a,b,c),l) = a ^ " " ^ its b ^ " " ^ 
-      (if c then "r" else "p") ^ " : " ^ 
+    fun f ((a,b,c,d),l) = file ^ ".a" ^ " " ^ its b ^ " " ^ 
+      (if c then "r" else "p") ^ " " ^ d ^ " : " ^ 
       String.concatWith " " (map IntInf.toString l)
   in
-    String.concatWith " | " (file :: map f l5)
+    String.concatWith " | " (map f l5)
   end;
 
-(* --------------------------------------------------------------------------
-   Finding pairs of equal subprograms
-   -------------------------------------------------------------------------- *)
 
-local open IntInf in
-  val aonem = fromInt (~1)
-  val azero = fromInt 0
-  val aone = fromInt 1
-  val atwo = fromInt 2
-  fun aincr x = x + aone
-  fun adecr x = x - aone
-  val maxint = fromInt (valOf (Int.maxInt))
-  val minint = fromInt (valOf (Int.minInt))
-  fun large_int x = x > maxint orelse x < minint
-  fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
-  fun pow2 b = arb_pow atwo (fromInt b)
-  val maxarb = arb_pow (fromInt 10) (fromInt maxintsize)
-  val minarb = ~maxarb
-  val large_arb = 
-    if !maxint_flag 
-    then (fn x => x > maxarb orelse x < minarb)
-    else (fn x => false)
-end; 
-
-fun s13 (a,b,c) = a;
-
-fun split_smll acc l = 
-  if null l then raise ERR "split_smll" "" else
-  if (s13 o fst o fst) (hd l) = "small"
-  then (rev (hd l :: acc), tl l)  
-  else split_smll (hd l :: acc) (tl l)
-  ;
-
-fun find_pairs file = 
-  let 
-    val _ = print_endline ("Reading programs from: " ^ file);
-    val l = read_smt_exec (selfdir ^ "/smt/" ^ file);
-    val (l0small,l0fast) = split_smll [] l;
-    val l1small = filter (fn (((a,e,_),c),b) => 
-      e = 1 andalso (mem (hd_string a) [#"v",#"w"])) l0small;
-    val l1fast = filter (fn (((a,e,_),c),b) => 
-      e = 1 andalso (mem (hd_string a) [#"v",#"w"])) l0fast;
-    val l2small = map (fn (((a,_,_),_),b) => (a,fingerprint b)) l1small;  
-    val l2fast = map (fn (((a,_,_),_),b) => (a,fingerprint b)) l1fast;  
-    val ll = cartesian_product l2small l2fast;
-    fun test ((a,b),(c,d)) = if b = d then SOME (a,c) else NONE;
-    val ll' = List.mapPartial test ll;
-  in
-    append_endline (selfdir ^ "/smtpairs") 
-    (file ^ ":" ^ String.concatWith " " (map (fn (a,b) => a ^ "-" ^ b) ll'))
-  end;
-  
 
 end (* struct *)
 
 (*
 load "smt_reader"; open aiLib kernel smt_reader;
+val l0 = read_smt_hol "smt/A83696.smt2";
+val d = hol_to_progd l0;
+val l = dlist d;
+
+
 val l0 = read_smt_exec "smt/A28242.smt2";
 val l1 = filter (fn (((a,b,c),d),e) => b <> 0 andalso c) l0;
 val l2 = map (fn (((a,b,c),d),e) => ((a,b),e)) l1;
 val l3 = map_snd fingerprint l2;
+
 
 
 val f = assoc "small" l';
@@ -559,7 +603,7 @@ val (a,b) = read_smt_exec "smt/A83696.smt2";
 load "smt_reader"; open aiLib kernel smt_reader;
 val filel = listDir (selfdir ^ "/smt");
 val sl = parmap_sl 40 "smt_reader.fingerprint_file" filel;
-writel (selfdir ^ "/fingerprint_recursive") sl;
+writel (selfdir ^ "/fingerprint") sl;
 *)
 
 
