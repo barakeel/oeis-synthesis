@@ -373,12 +373,35 @@ fun hol_to_prog operd fd tm =
     val (decl,def) = dest_eq (snd (strip_forall tm)) 
     val opers = string_of_var (fst (strip_comb decl))
     val vls = ["0","1","2"] @ map string_of_var (snd (strip_comb decl))
+    val operc = hd_string opers
+    val operi = tl_string opers
+    val (ts,us,vs,ws) = ("t" ^ operi,"u" ^ operi,"v" ^ operi,"w" ^ operi)
+    fun memorize () = 
+      let 
+        val recsl = find_allfun vls def
+        val recs = singleton_of_list 
+          (filter (fn x => not (mem (hd_string x) [#"t",#"u",#"v"])) recsl) 
+       in
+         fd := dadd opers recs (!fd)
+       end 
   in
-    (* loop help function *)
-    if hd_string opers = #"u" andalso 
-       emem ("v" ^ tl_string opers) operd andalso 
-       not (emem ("w" ^ tl_string opers) operd)
-    then
+    (* compr *)
+    if operc = #"t" then memorize ()
+    else if operc = #"u" andalso emem ts operd then ()
+    else if operc = #"v" andalso emem ts operd then
+       let
+         val fdef = dfind (dfind ts (!fd)) (!fd)
+         val rt = "( comprt " ^ fdef ^ ")"
+         val ru = "( compru " ^ fdef ^ ")"
+         val _ = fd := dadd ts rt (!fd)
+         val _ = fd := dadd us ru (!fd)
+         val r = "( compr " ^ 
+           String.concatWith " " (hol_to_prog_aux fd vls def) ^ " )"
+      in
+        fd := dadd opers r (!fd)
+      end 
+    (* loop *)
+    else if operc = #"u" andalso emem vs operd andalso not (emem ws operd) then
        let 
          val recsl = find_allfun vls def
          val recs = singleton_of_list (filter (fn x => x <> opers) recsl)  
@@ -386,47 +409,29 @@ fun hol_to_prog operd fd tm =
        in
          fd := dadd opers r (!fd)
        end
-    (* loop function *)
-    else if hd_string opers = #"v" andalso
-       not (emem ("w" ^ tl_string opers) operd)
-    then
+    else if operc = #"v" andalso not (emem ws operd) then
       let val r = "( loop1 " ^ 
         String.concatWith " " (hol_to_prog_aux fd vls def) ^ " )"
       in
         fd := dadd opers r (!fd)
       end
-    (* loop2 help functions *)   
-    else if mem (hd_string opers) [#"u",#"v"] andalso 
-      emem ("w" ^ tl_string opers) operd 
-    then
-       let 
-         val recsl = find_allfun vls def
-         val recs = singleton_of_list 
-           (filter (fn x => not (mem (hd_string x) [#"u",#"v"])) recsl) 
-       in
-         fd := dadd opers recs (!fd)
-       end 
-    else if hd_string opers = #"w"
-    then
-       let 
-         val is = tl_string opers
-         val fs = dfind ("u" ^ is) (!fd)
-         val gs = dfind ("v" ^ is) (!fd)
-         val fdef = dfind fs (!fd)
-         val gdef = dfind gs (!fd)
+    (* loop2 *)   
+    else if mem operc [#"u",#"v"] andalso emem ws operd then memorize ()
+    else if operc = #"w" then
+       let
+         val fdef = dfind (dfind us (!fd)) (!fd)
+         val gdef = dfind (dfind vs (!fd)) (!fd)
          val r1 = "( loop2u " ^ fdef ^ " " ^ gdef ^ " )"
          val r2 = "( loop2v " ^ fdef ^ " " ^ gdef ^ " )"
-         val _ = fd := dadd ("u" ^ is) r1 (!fd)
-         val _ = fd := dadd ("v" ^ is) r2 (!fd)
+         val _ = fd := dadd us r1 (!fd)
+         val _ = fd := dadd vs r2 (!fd)
          val r = "( loop2 " ^ 
            String.concatWith " " (hol_to_prog_aux fd vls def) ^ " )"
       in
         fd := dadd opers r (!fd)
       end 
     else
-      let
-         val r = String.concatWith " " (hol_to_prog_aux fd vls def)
-      in
+      let val r = String.concatWith " " (hol_to_prog_aux fd vls def) in
         fd := dadd opers r (!fd)
       end
   end
@@ -554,7 +559,7 @@ end (* struct *)
 
 (*
 load "smt_reader"; open aiLib kernel smt_reader;
-val l0 = read_smt_hol "smt/A83696.smt2";
+val l0 = read_smt_hol "smt/A14690.smt2";
 val d = hol_to_progd l0;
 val l = dlist d;
 
