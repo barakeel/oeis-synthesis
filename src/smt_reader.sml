@@ -826,7 +826,9 @@ fun find_subprog_pairs file =
     val dir = selfdir ^ "/smtsubpairs"
     val _ = mkDir_err dir 
   in
-    writel (dir ^ "/" ^ OS.Path.base (OS.Path.file file)) l3;
+    (if null l3 then () else 
+     writel (dir ^ "/" ^ OS.Path.base (OS.Path.file file)) l3)
+    ;
     "done"
   end
 
@@ -837,7 +839,7 @@ end (* struct *)
 (*
 load "smt_reader"; open aiLib kernel smt_reader;
 val filel = listDir (selfdir ^ "/smt");
-val sl = parmap_sl 40 "smt_reader.find_subprog_pairs" filel;
+val _ = parmap_sl 40 "smt_reader.find_subprog_pairs" filel;
 
 
 
