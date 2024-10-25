@@ -7,7 +7,8 @@ sig
   
   val mk_exec : prog -> exec
   val mk_exec_onev : prog -> (IntInf.int -> IntInf.int)
-
+  val mk_exec_twov : prog -> (IntInf.int * IntInf.int -> IntInf.int)
+  
   (* match oeis *)
   val coverf_oeis : exec -> (int * int) list
   

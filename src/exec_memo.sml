@@ -298,6 +298,14 @@ fun loop_f_aux (f1,n,x1) =
   helper f1 (fn (x1,x2) => [aincr (hd x2)]) (hd n) x1 [aone]
 val loop_f = mk_ternf1 loop_f_aux
 
+(* this loop is not memoized *)
+fun helpersnd f1 f2 n x1 x2 = 
+  if n <= azero then x2 else 
+  helpersnd f1 f2 (adecr n) (f1 (x1,x2)) (f2 (x1,x2))
+
+fun loop2snd_f_aux (f1,f2,n,x1,x2) = helpersnd f1 f2 (hd n) x1 x2
+val loop2snd_f = mk_quintf2 loop2snd_f_aux
+
 (* -------------------------------------------------------------------------
    While Loop
    ------------------------------------------------------------------------- *)
@@ -425,20 +433,19 @@ val org_execl =
     [zero_f, one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, cond_f,
      loop_f, x_f, y_f, compr_f, loop2_f]
 
-val arcagi_extra = if !arcagi_flag then [equalcolor_f, is_out_f, is_colori_f, is_equal_f, input_height_f, input_width_f, common_height_f, common_width_f] 
-   else []
+val arcagi_extra = [equalcolor_f, is_out_f, is_colori_f, is_equal_f,   input_height_f, input_width_f, common_height_f, common_width_f] 
    
-   
+val smt_extra = [loop2snd_f] 
 
 val execv = 
-  if !smt_flag then
-    Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
-     x_f, y_f]
-  else if !rams_nicer 
+  if !rams_nicer 
   then Vector.fromList [one_f, two_f, addi_f, diff_f, mult_f, divi_f, modu_f, 
     x_f, y_f]
-  else 
-  Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)
+  else if !smt_flag
+    then Vector.fromList (org_execl @ [push_f, pop_f] @ smt_extra)
+  else if !arcagi_flag 
+    then Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)
+  else Vector.fromList (org_execl @ [push_f, pop_f])
 
 (* -------------------------------------------------------------------------
    Creates executable for a program
@@ -456,7 +463,7 @@ fun wrap_const f =
   end
 
 fun wrap_loop p id fl = case p of
-    Insb (9,b,[p1,p2,p3]) => 
+    Insb (9,b,[p1,p2,p3]) =>
     if not b andalso is_const p3 
     then (loopm_f ()) fl
     else Vector.sub (execv,id) fl
@@ -479,6 +486,9 @@ fun mk_exec p =  mk_exec_loop (mk_progb p)
 
 fun mk_exec_onev p = 
   let val exec = mk_exec p in (fn x => hd (exec ([x],[azero]))) end
+
+fun mk_exec_twov p = 
+  let val exec = mk_exec p in (fn (x,y) => hd (exec ([x],[y]))) end
 
 fun coverf_oeis exec = 
   let fun g x = hd (exec ([x], [azero])) in 

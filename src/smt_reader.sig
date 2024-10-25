@@ -33,13 +33,15 @@ sig
   val read_smt_hol : string -> (finfo * term) list
   val read_smt_exec : string -> (finfox * (recfun * (unit -> unit))) list
 
-  val hol_to_progd : ((string * int * bool) * term) list -> 
+  val hol_to_progd : (finfo * term) list -> 
     (string, string) Redblackmap.dict
 
   val fingerprint : recfun * (unit -> unit) -> IntInf.int list option
   val fingerprint_file : string -> string
   
-
+  datatype progx = Insx of ((int * string option) * progx list)
+  val hol_to_progxd : (finfo * term) list -> (progx * progx)
   
+  val find_subprog_pairs : string -> string
   
 end

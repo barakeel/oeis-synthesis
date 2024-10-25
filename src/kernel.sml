@@ -129,6 +129,7 @@ val hanabi_flag = bflag "hanabi_flag"
 val hanabi_short = bflag "hanabi_short"
 val arcagi_flag = bflag "arcagi_flag"
 val smt_flag = bflag "smt_flag"
+val nooeisdata_flag = bflag "nooeisdata_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
@@ -332,7 +333,8 @@ val extra_operl =
   else if !ctree_flag then ctree_operl 
   else if !wrat_flag then wrat_operl 
   else if !prnn_flag then prnn_operl
-  else if !memo_flag then [("push",2),("pop",1)]
+  else if !memo_flag then [("push",2),("pop",1)] @ 
+                           (if !smt_flag then [("loop2snd",5)] else [])
   else if !intl_flag then [("push",2),("pop",1)] 
   else if !rps_flag then [("hist1",1),("hist2",1)] 
   else if !think_flag then [("think1",1),("think2",1)] 
@@ -413,7 +415,8 @@ val extra_ho_ariv =
     then List.tabulate (length ctree_operl, fn _ => 0) 
   else if !wrat_flag then [0,0,3,0,0] 
   else if !intl_flag then List.tabulate (2, fn _ => 0) 
-  else if !memo_flag then List.tabulate (2, fn _ => 0) 
+  else if !memo_flag then List.tabulate (2, fn _ => 0) @ 
+                          (if !smt_flag then [2] else [])
   else if !prnn_flag then List.tabulate (length prnn_operl, fn _ => 0) 
   else if !think_flag then List.tabulate (2, fn _ => 0) 
   else if !run_flag then List.tabulate (12, fn _ => 0) 

@@ -317,15 +317,13 @@ fun create_execl idsl =
   (smlExecute.quse_string (parse_prog idsl); (!funl_glob,!reset_cache_glob))
 
 (* --------------------------------------------------------------------------
-   From HOL terms to programs in the original programming language
+   From HOL terms to programs in the original programming language (string)
    -------------------------------------------------------------------------- *)
-
-fun dfind s d = aiLib.dfind s d handle NotFound => raise ERR "dfind" s
 
 fun find_allfun vls deftop = 
   let
     val acc = ref []
-    val reserved = (["+","-","*","divf","modf","<=","ite"] @ vls)
+    val reserved = (["0","1","2","+","-","*","divf","modf","<=","ite"] @ vls)
     fun find_allfun_aux def =
       let 
         val (oper,argl) = strip_comb def 
@@ -454,6 +452,96 @@ fun hol_to_progd idtml =
     dnew String.compare (map_snd clean_paren (dlist (!fd)))
   end
 
+(* --------------------------------------------------------------------------
+   From HOL terms to programs in the original programming language
+   storing the mapping to the SMT functions
+   -------------------------------------------------------------------------- *)
+
+datatype progx = Insx of ((int * string option) * progx list)
+
+fun dfind s d = aiLib.dfind s d handle NotFound => raise ERR "dfind" s
+
+fun hol_to_progx_aux fd def =
+  let 
+    fun fop s argl = 
+      Insx ((oper_of_name s,NONE), map (hol_to_progx_aux fd) argl)
+    val (oper,argl) = strip_comb def
+  in
+    case string_of_var oper of
+      "0" => fop "zero" argl
+    | "1" => fop "one" argl
+    | "2" => fop "two" argl
+    | "+" => fop "addi" argl
+    | "-" => fop "diff" argl
+    | "*" => fop "mult" argl
+    | "divf" => fop "divi" argl
+    | "modf" => fop "modu" argl
+    | "ite" =>
+      let 
+        val (a,b,c) = triple_of_list argl 
+        val (a',_) = pair_of_list (snd (strip_comb a)) 
+      in
+        fop "cond" [a',b,c]
+      end
+    | "x" => fop "x" argl
+    | "y" => fop "y" argl 
+    | s => dfind s (!fd)        
+  end;
+
+fun hol_to_progx operd (memd,fd) tm = 
+  let
+    val (decl,def) = dest_eq (snd (strip_forall tm)) 
+    val opers = string_of_var (fst (strip_comb decl))
+    val vls = map string_of_var (snd (strip_comb decl))
+    val operc = hd_string opers
+    val operi = tl_string opers
+    val (ts,us,vs,ws) = ("t" ^ operi,"u" ^ operi,"v" ^ operi,"w" ^ operi)
+    fun memorize () = 
+      let 
+        val recsl = find_allfun vls def
+        val recs = singleton_of_list 
+          (filter (fn x => not (mem (hd_string x) [#"t",#"u",#"v"])) recsl)
+          handle HOL_ERR _ => raise ERR "hol_to_progx" 
+            (String.concatWith " " recsl)
+       in
+         memd := dadd opers recs (!memd)
+       end
+    fun f_ho honame hoargl =
+       let
+         val a = (oper_of_name honame, SOME opers)
+         val hoprogxl = map (fn x => dfind (dfind x (!memd)) (!fd)) hoargl
+         val (_,argl) = strip_comb def 
+         val progxl = map (hol_to_progx_aux fd) argl
+         val r = Insx (a, hoprogxl @ progxl)
+      in
+        fd := dadd opers r (!fd)
+      end 
+  in
+    (* compr *)
+    if operc = #"t" then memorize ()
+    else if operc = #"u" andalso emem ts operd then ()
+    else if operc = #"v" andalso emem ts operd then f_ho "compr" [ts] 
+    (* loop *)
+    else if operc = #"u" andalso emem vs operd andalso not (emem ws operd) 
+      then memorize ()
+    else if operc = #"v" andalso not (emem ws operd) then f_ho "loop" [us]
+    (* loop2 *)   
+    else if mem operc [#"u",#"v"] andalso emem ws operd then memorize ()
+    else if operc = #"w" then f_ho "loop2" [us,vs]
+    (* other *)
+    else fd := dadd opers (hol_to_progx_aux fd def) (!fd)
+  end
+
+fun hol_to_progxd idtml = 
+  let 
+    val (idl,tml) = split idtml
+    val operd = enew String.compare (map #1 idl)
+    val memd = ref (dempty String.compare)
+    val fd = ref (dempty String.compare)
+  in
+    app (hol_to_progx operd (memd,fd)) tml; 
+    (dfind "small" (!fd), dfind "fast" (!fd))
+  end
 
 (* --------------------------------------------------------------------------
    Main functions
@@ -546,12 +634,201 @@ fun fingerprint_file file =
     val l3 = map_snd fingerprint l0
     val l4 = filter (fn (a,b) => isSome b) l3
     val l5 = map (fn (a,b) => (a,valOf b)) l4
-    fun f ((a,b,c,d),l) = file ^ "." ^ a ^ " " ^ its b ^ " " ^ 
+    fun f ((a,b,c,d),l) = OS.Path.base file ^ "." ^ a ^ " " ^ its b ^ " " ^ 
       (if c then "r" else "p") ^ " " ^ d ^ " : " ^ 
       String.concatWith " " (map IntInf.toString l)
   in
     String.concatWith " | " (map f l5)
   end;
+
+(* --------------------------------------------------------------------------
+   Finding equal pairs of subprograms 
+   (extra function for second higher argument of loop2)
+   Functions with different arity can't be equal
+   -------------------------------------------------------------------------- *)
+
+fun subprogx_aux rl (p as (Insx (a,pl))) =
+  ( 
+  app (subprogx_aux rl) pl; 
+  rl := p :: !rl
+  );
+
+fun subprogx p = let val rl = ref [] in subprogx_aux rl p; !rl end;
+
+fun progx_to_prog (Insx ((i,_),pl)) = Ins (i, map progx_to_prog pl);
+
+val inputl1_0 = map (fn x => (x,azero)) inputl1;
+val inputl2 = 
+  let 
+    val l1 = List.tabulate (10,IntInf.fromInt) 
+    fun cmp ((a,b),(c,d)) = case IntInf.compare (a+b,c+d) of
+        EQUAL => list_compare IntInf.compare ([a,b],[c,d])
+      | x => x
+    val l2 = dict_sort cmp (cartesian_product l1 l1)
+  in
+    l2
+  end;
+
+fun fenum f xltop =
+  let
+    fun init () = (abstimer := 0; timelimit := 100000)
+    fun loop acc xl = 
+      (
+      init ();
+      if null xl orelse f (hd xl) > maxarb
+      then SOME (rev acc)
+      else loop (f (hd xl) :: acc) (tl xl)
+      )
+  in
+    loop [] xltop handle
+      Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+  end;
+ 
+val fingerprint_cmp = cpl_compare Int.compare (list_compare IntInf.compare)
+
+
+  
+fun fenum_px px = 
+  let 
+    val p = progx_to_prog px 
+    val arity = if depend_on_z p then raise ERR "fenum_px" ""
+                else if depend_on_y p then 2 
+                else if depend_on_x p then 1 else 0
+    val f = exec_memo.mk_exec_twov p
+  in
+    if arity = 0 
+      then (arity, fenum f [(azero,azero)])
+    else if arity = 1 
+      then (arity, fenum f inputl1_0)
+    else if arity = 2
+      then (arity, fenum f inputl2)
+    else raise ERR "fenum_px" ""
+  end
+
+fun map_sndo l3 =      
+  let 
+    val l4 = filter (fn (a,(c,b)) => isSome b) l3
+    val l5 = map (fn (a,(c,b)) => (a,(c,valOf b))) l4
+  in
+    l5
+  end
+  
+fun progx_compare (Insx(s1,pl1),Insx(s2,pl2)) =
+  cpl_compare (cpl_compare Int.compare (option_compare String.compare)) 
+    (list_compare progx_compare) ((s1,pl1),(s2,pl2))
+
+fun progx_size (Insx(id,pl)) = 1 + sum_int (map progx_size pl)
+
+fun progx_compare_size (p1,p2) =
+  cpl_compare Int.compare progx_compare ((progx_size p1,p1),(progx_size p2,p2))  
+  
+fun mk_progx_set pxl = elist (enew progx_compare pxl)
+
+(*
+val org_operl = [("zero",0),("one",0),("two",0),
+  ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
+  ("cond",3),("loop",3),("x",0),("y",0),("compr",2),("loop2",5)]
+*)
+
+fun arity_px px = 
+  let
+    val p = progx_to_prog px 
+    val arity = if depend_on_z p then raise ERR "fenum_px" ""
+                else if depend_on_y p then 2 
+                else if depend_on_x p then 1 else 0
+  in
+    arity
+  end
+
+fun progx_to_smt (px as Insx ((id,so),pxl)) =
+  let 
+    fun fop x = "(" ^ String.concatWith " " ("+" :: map progx_to_smt pxl) ^ ")"
+  in
+    case so of NONE =>
+    (
+    case id of
+      0 => "0"
+    | 1 => "1"
+    | 2 => "2"
+    | 3 => fop "+"
+    | 4 => fop "-"
+    | 5 => fop "*"
+    | 6 => fop "div" (* divf in new format *)
+    | 7 => fop "mod" (* modf in new format *)
+    | 8 => let val (a,b,c) = triple_of_list (map progx_to_smt pxl) in
+             "(ite (<= " ^ a ^ " 0) " ^ b ^ " " ^ c ^ ")"
+           end
+    | 9 => raise ERR "progx_to_smt" "loop" 
+    | 10 => "x"
+    | 11 => "y"
+    | 12 => raise ERR "progx_to_smt" "compr"
+    | 13 => raise ERR "progx_to_smt" "loop2"
+    | 16 => raise ERR "progx_to_smt" "loop2snd"
+    | _ => raise ERR "progx_to_smt" "not supported"
+    )
+    | SOME s => 
+      if id = 16 then 
+        let val (_,_,c,d,e) = quintuple_of_list pxl in
+          "(" ^ String.concatWith " " (s :: map progx_to_smt [c,d,e]) ^ ")"
+        end
+      else
+      let val arity = arity_px px in
+        if arity = 0 then s
+        else if arity = 1 then "(" ^ s ^ " x)" 
+        else if arity = 2 then "(" ^ s ^ " x y)"
+        else raise ERR "progx_to_smt" "unexpected"
+      end
+  end
+ 
+fun add_loop2snd_one px = case px of
+    Insx((13,SOME s),argl) => [px, Insx((16, SOME ("v" ^ tl_string s)),argl)]
+  | _ => [px]
+  
+fun add_loop2snd pxl = List.concat (map add_loop2snd_one pxl);
+
+fun find_subprog_pairs file =
+  let 
+    val _ = print_endline ("Read: " ^ file);
+    val idtml = read_smt_hol (selfdir ^ "/smt/" ^ file);
+    val (small,fast) = hol_to_progxd idtml
+    val (smallpl,fastpl) = (tl (subprogx small),tl (subprogx fast))
+    val (smallpl1,fastpl1) = (mk_progx_set smallpl, mk_progx_set fastpl)
+    val (smallpl2,fastpl2) = (add_loop2snd smallpl, add_loop2snd fastpl)
+    val (smalle,faste) = (map_assoc fenum_px smallpl1,
+                          map_assoc fenum_px fastpl1)
+    val (smalle1,faste1) = (map_sndo smalle, map_sndo faste)                     
+    val d = ref (dempty fingerprint_cmp)
+    fun fsmall (progx,seq) = 
+      let 
+        val (oldsmall,oldfast) = 
+          case dfindo seq (!d) of NONE => ([],[]) | SOME x => x
+        val newsmall = progx :: oldsmall 
+      in
+        d := dadd seq (newsmall,oldfast) (!d)
+      end
+    fun ffast (progx,seq) = 
+      let 
+        val (oldsmall,oldfast) = 
+          case dfindo seq (!d) of NONE => ([],[]) | SOME x => x
+        val newfast = progx :: oldfast
+      in
+        d := dadd seq (oldsmall,newfast) (!d)
+      end    
+    val _ = app fsmall smalle1
+    val _ = app ffast faste1
+    val l = dlist (!d)
+    fun mk_pairs (seq,(progl1,progl2)) = cartesian_product progl1 progl2
+    val l1 = List.concat (map mk_pairs l)
+    val l2 = filter (fn (a,b) => a <> b) l1
+    val l3 = map (fn (a,b) => progx_to_smt a ^ " | " ^ progx_to_smt b) l2
+    val dir = selfdir ^ "/smtsubpairs"
+    val _ = mkDir_err dir 
+  in
+    writel (dir ^ "/" ^ OS.Path.base (OS.Path.file file)) l3;
+    "done"
+  end
 
 
 
@@ -559,10 +836,23 @@ end (* struct *)
 
 (*
 load "smt_reader"; open aiLib kernel smt_reader;
-val l0 = read_smt_hol "smt/A14690.smt2";
-val d = hol_to_progd l0;
-val l = dlist d;
+val filel = listDir (selfdir ^ "/smt");
+val sl = parmap_sl 40 "smt_reader.find_subprog_pairs" filel;
 
+
+
+
+
+val l0 = read_smt_hol "smt/A14690.smt2";
+val (small,fast) = hol_to_progxd l0;
+
+load "exec_memo";
+val f = exec_memo.mk_exec_onev (progx_to_prog small);
+abstimer := 0;
+List.tabulate (10, f o IntInf.fromInt);
+val f = exec_memo.mk_exec_onev (progx_to_prog fast);
+abstimer := 0;
+List.tabulate (10, f o IntInf.fromInt);
 
 val l0 = read_smt_exec "smt/A28242.smt2";
 val l1 = filter (fn (((a,b,c),d),e) => b <> 0 andalso c) l0;
@@ -610,7 +900,6 @@ val filel = listDir (selfdir ^ "/smt");
 val sl = parmap_sl 40 "smt_reader.fingerprint_file" filel;
 writel (selfdir ^ "/fingerprint") sl;
 
-val sl1 = List.concat (map (String.tokens (fn x => x = #"|")) sl);
 
 val ERR = mk_HOL_ERR "test";
 
@@ -633,7 +922,37 @@ fun regroup_sem sl =
     app f sl; dlist (!d)
   end;
 
+fun parse_infos infos = case String.tokens Char.isSpace infos of
+    s1 :: s2 :: s3 :: m => (String.concatWith " " m, (s1,s2,s3))
+  | _ => raise ERR "parse_infos" "";
+   
+fun str_cmp (a,b) = case Int.compare (String.size a, String.size b) of
+    EQUAL => String.compare (a,b)
+  | x => x;
+
+fun parse_infosl infosl = 
+  dict_sort (fst_compare str_cmp) 
+  (dlist (dappendl (map parse_infos infosl) (dempty String.compare)));
+     
+
+val sl1 = List.concat (map (String.tokens (fn x => x = #"|")) sl);
 val l2 = regroup_sem sl1;
+val l3 = map_snd parse_infosl l2;
+val l4 = map_assoc (length o snd) l3;
+val l5 = dict_sort compare_imax l4;
+
+fun print_info (a,b,c) = String.concatWith " " [a,b,c]
+fun print_prog (s,l) = "prog: " ^ s ^ " | " ^ String.concatWith ", " 
+  (map print_info l);
+
+fun print_seq (((a,seq),progl),freq) =
+  "freq: " ^ its freq ^ ", arity: " ^ its a ^ "\n" ^ 
+  "seq: " ^ String.concatWith " " (map IntInf.toString seq) ^ "\n" ^
+  String.concatWith "\n" (map print_prog progl);
+
+writel "fingerprint" (map print_seq l5);
+
+
 
 
 *)

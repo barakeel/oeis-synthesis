@@ -130,7 +130,7 @@ end
 
 val oraw = 
   if !fs_flag orelse !ramsey_flag orelse !hanabi_flag orelse !rams_flag
-  orelse !arcagi_flag then [] else 
+  orelse !arcagi_flag orelse !nooeisdata_flag then [] else 
   if !veggy_flag 
   then 
     let 
@@ -149,8 +149,6 @@ val oseq =
   if !fs_flag 
   then Array.tabulate (30000, fn _ => NONE)
   else Array.tabulate (400000, fn _ => NONE)
-
-
 
 fun trim_seq n l = 
   if n <= 0 then [] else
