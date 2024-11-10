@@ -127,7 +127,7 @@ fun best_move distop =
   let 
     fun loop (maxmove,maxsc) dis = case dis of
         [] => maxmove
-      | ((a,b),c) :: m => 
+      | ((a,b),c) :: m =>
         let val sc = b / (Real.fromInt (c + 1)) in
           if sc > maxsc then loop (fst a,sc) m else loop (maxmove,maxsc) m
         end

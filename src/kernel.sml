@@ -186,6 +186,10 @@ val timer_glob5 = ref 0.0
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
 
+fun string_of_var x = fst (dest_var x)
+
+fun length_geq l n = length (first_n n l) >= n
+
 (* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
@@ -816,6 +820,7 @@ fun parmap_sl ncore funname sl =
   end
 
 fun test_fun s = (implode o rev o explode) s
+
 
 (*
 load "kernel"; open aiLib kernel;

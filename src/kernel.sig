@@ -101,6 +101,8 @@ sig
   val timer_glob4 : real ref
   val timer_glob5 : real ref
   val inv_cmp : ('a * 'b -> 'c) -> 'b * 'a -> 'c
+  val string_of_var : term -> string
+  val length_geq : 'a list -> int -> bool
   
   (* sequences *)
   type seq = IntInf.int list

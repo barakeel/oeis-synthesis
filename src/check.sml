@@ -905,6 +905,20 @@ fun merge_pgen fileo =
     checkfinal_pgen ()
   end  
 
+(* -------------------------------------------------------------------------
+   Enumerate all programs and compute their fingerprint.
+   If a program does not depend on y then 20 elements else 10x10.
+   If two programs compute the same fingerprint choose the smallest.
+   ------------------------------------------------------------------------- *)
+
+
+
+
+
+
+
+
+
 
 
 
