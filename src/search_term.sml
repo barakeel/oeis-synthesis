@@ -336,9 +336,11 @@ fun z3_prove_inductl pp =
 
 (* -------------------------------------------------------------------------
    Translation from induction predicates to NMT
+   up to 20 loops are allowed
    ------------------------------------------------------------------------- *)
 
 val smtn_glob = length smt_operl
+val macron_glob = 20
 
 (* conversion to programs *)
 fun induct_to_prog d tm = 
@@ -355,15 +357,36 @@ fun prog_to_induct v (Ins (opern,pl)) =
 
 (* programs to strings *)
 fun uppercase id = Char.toString (Char.chr (65 + id));
-fun lowercase id = Char.toString (Char.chr (97 + id - smtn_glob));
-fun id_to_string id = 
-  if id < smtn_glob then uppercase id else lowercase id;
+
+fun fuzzify_macro_aux mn id = 
+  let 
+    val idl = 
+      let 
+        val l = ref [id] 
+        fun loop start = 
+          if start + mn >= macron_glob then () else 
+          (l := start+mn :: (!l); loop (start+mn))
+    
+        in
+          loop id; !l
+        end
+  in
+    random_elem idl
+  end
+       
+fun fuzzify_macro mn id = 
+  if random_real () > 0.1 then id else fuzzify_macro_aux mn id;        
+
+fun lowercase id = Char.toString (Char.chr (97 + 
+  fuzzify_macro mn (id - smtn_glob)));
+fun id_to_string mn id = 
+  if id < smtn_glob then uppercase id else lowercase mn id;
 fun string_to_id s =
   let val n = Char.ord (valOf (Char.fromString s)) in 
-    if n < 97 then n - 65 else (n - 97 + smtn_glob)
+    if n < 97 then n - 65 else (97 + ((n - smtn_glob) mod macron_glob))
   end;
 
-fun idl_to_string idl = String.concatWith " " (map id_to_string idl);
+fun idl_to_string mn idl = String.concatWith " " (map (id_to_string mn) idl);
 fun string_to_idl s = 
   let val idsl = String.tokens Char.isSpace s in
     map string_to_id idsl
@@ -384,7 +407,9 @@ fun idl_to_progl v idl = case idl of
     
 (* alltogether *)
 fun induct_to_string d tm = 
-  (idl_to_string o prog_to_idl o induct_to_prog d) tm;
+  let val macron = dlength d - smtn_glob in
+    (idl_to_string mn o prog_to_idl o induct_to_prog d) tm
+  end
 fun string_to_induct v tm = 
   (prog_to_induct v o (hd o idl_to_progl v) o string_to_idl) tm;
 
@@ -411,10 +436,25 @@ load "search_term";
 open aiLib kernel search_term smt_hol smt_progx progx;
 
 val appl = read_anumprogpairs "smt_benchmark_progpairs"; 
+val lgood = filter (fn x => f (snd x) <= macron_glob) appl;
+
+fun g (Ins (id,pl)) =
+  (if mem id [9,12,13] then [hd pl] else []) @ 
+   List.concat (map g pl);
+
+fun score_subloop (Ins (id,pl)) = if id = 13 then 2 else 1;
+
+fun f (p1,p2) = 
+ let 
+   val l = mk_fast_set prog_compare (g p1 @ g p2)
+ in   
+   sum_int (map score_subloop l)
+ end;
+
+
 val (a,pp) = random_elem appl;
 
 val inductl = get_inductl 1.0 pp;
-
 val sl = inductl_to_stringl pp inductl;
 val inductl2 = stringl_to_inductl pp sl;
 list_compare Term.compare (inductl,inductl2);
