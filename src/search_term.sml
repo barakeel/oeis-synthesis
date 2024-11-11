@@ -438,7 +438,7 @@ fun z3_prove_inductl filein fileout pp =
     val _ = subtml_glob := get_subtml pp
     val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
     val _ = print_endline "create induction instances"
-    val inductl = search_smt recfl 15.0
+    val inductl = search_smt recfl 60.0
     val _ = print_endline (its (length inductl) ^ " induction instances")
     fun provable t sel = 
       z3_prove filein fileout t decl sel
@@ -456,7 +456,7 @@ fun z3_prove_inductl filein fileout pp =
       in 
         if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
       end
-    val r = loop 32
+    val r = loop 120
   in
     print_endline ""; r
   end
