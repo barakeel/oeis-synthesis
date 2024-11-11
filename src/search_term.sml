@@ -33,7 +33,9 @@ fun compatible f tml =
 
 fun available_move board move =  
   if term_eq move ``$~`` andalso not (null board) andalso is_neg (hd board)
-  then false
+    then false
+  else if is_var move andalso mem (string_of_var move) ["loop","loop2","compr"]
+    then false
   else compatible move (fst (part_n (arity_of move) board))
   
 fun available_movel fl board = filter (available_move board) fl
@@ -182,8 +184,8 @@ fun search fl lim =
 
 val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   [("0",0),("1",0),("2",0),
-  ("+",2),("-",2),("*",2),("divf",2),("modf",2),
-  ("ite",3),("x",0),("y",0)];
+   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
+   ("ite",3),("x",0),("y",0)];
   
 val smt_operl_pred = 
  [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
@@ -353,6 +355,7 @@ fun inductl_to_stringl pp tml =
   in
     map (induct_to_string d) tml
   end
+  handle HOL_ERR _ => raise ERR "inductl_to_stringl" ""
 
 fun stringl_to_inductl pp sl =
   let
@@ -377,12 +380,13 @@ val z3_bin = selfdir ^ "/z3"
 fun z3_cmd t1s t2s filein fileout = String.concatWith " "
   ["timeout",t1s,z3_bin,t2s,filein,">",fileout]
 
-fun z3_prove filein fileout t decl inductltop = 
+fun z3_prove filein fileout t decl inductltop =
   let 
     val inductl = map induct_cj inductltop
     val cmd = z3_cmd (its (t + 1)) ("-T:" ^ its t) filein fileout
     val _ = write_induct_pb filein decl inductl
     val _ = OS.Process.system cmd
+    val _ = OS.Process.sleep (Time.fromReal 0.1)
     val s = read_status fileout
     val _ = app remove_file [filein,fileout]
   in 
@@ -405,7 +409,8 @@ fun z3_prove_inductl filein fileout pp =
     val _ = print_endline "create induction instances"
     val inductl = search_smt recfl 5.0
     val _ = print_endline (its (length inductl) ^ " induction instances")
-    fun provable t sel = z3_prove filein fileout t decl sel
+    fun provable t sel = 
+      z3_prove filein fileout t decl sel
     fun minimize acc sel = case sel of 
         [] => String.concatWith " | " ("unsat" :: inductl_to_stringl pp acc)  
       | a :: m =>
@@ -447,12 +452,21 @@ fun z3_prove_anum anum =
 load "search_term"; 
 open aiLib kernel smt_progx search_term;
 val appl1 = read_anumprogpairs "smt_benchmark_progpairs"
-val appl2 = filter (good_pp o snd) appl1;
-val al = map fst appl2;
+val d = enew String.compare 
+  (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
+
+val appl2 = filter (fn x => emem (fst x) d) appl1;
+val appl3 = filter (good_pp o snd) appl2;
+
+val al = map fst appl3;
 val al' = random_subset 10 al;
 val rl = parmap_sl 2 "search_term.z3_prove_anum" al'; 
 
-val rl = parmap_sl 50 "search_term.z3_prove_anum" al; 
+
+
+val rl = parmap_sl 50 "search_term.z3_prove_anum" al;
+writel (selfdir ^ "/aaa_random_induction_experiment") rl;
+ 
 *)
 
 
