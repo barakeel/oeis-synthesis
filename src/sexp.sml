@@ -5,6 +5,7 @@
 structure sexp :> sexp =
 struct
 
+open HolKernel
 val ERR = mk_HOL_ERR "sexp"
 
 datatype sexp = Atom of string | Sexp of sexp list

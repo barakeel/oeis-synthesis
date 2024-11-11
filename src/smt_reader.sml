@@ -68,8 +68,6 @@ val imp_flag = ref false
 val eq_flag = ref false
 val share_n = ref 0
 
-
-
 fun retranslate dir file = 
   let
     val _ = mkDir_err dir
@@ -109,7 +107,8 @@ fun retranslate dir file =
                 "(check-sat)"
                ]               
     in   
-      write_hol_smt (dir ^ "/" ^ file) (infol @ logic) decl (extrasl @ cj)
+      write_hol_smt (dir ^ "/" ^ file) (infol @ logic) decl 
+        (extrasl @ cj)
     end
   end
 
@@ -135,10 +134,11 @@ fun create_decl pptop =
   in
     decl @ eql @ impl
   end
-     
+
 fun write_induct_pb file decl inductl =
   write_hol_smt file header (decl @ inductl) footer
 
+  
   
 end (* struct *)
 

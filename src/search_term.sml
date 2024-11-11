@@ -213,52 +213,7 @@ fun search_smt fl t =
     filter (fn x => contain_x x andalso contain_rec x) tml1
   end  
 
-(* -------------------------------------------------------------------------
-   Filter conjectures by z3
-   ------------------------------------------------------------------------- *)
 
-fun read_status file = 
-  String.concatWith " " (String.tokens Char.isSpace (hd (readl file)));
-  
-fun z3_test1 decl cj = 
-  (
-  write_hol_smt "aaatest" ["(set-logic UFNIA)"] (decl @ [cj]) 
-  ["(check-sat)"];
-  OS.Process.system "timeout 2 ./z3 -t:40 aaatest > aaatestout";
-  let val s = read_status "aaatestout" in
-    if s = "unsat" then print "p" else print "."; s 
-  end
-  );
-
-fun z3_test decl cj = 
-  let 
-    val poscj = forallxy cj
-    val negcj = mk_neg (forallxy cj)
-  in
-    (* print_endline (term_to_string cj); *)
-    (cj, (z3_test1 decl poscj, z3_test1 decl negcj))
- end
-
-fun z3_filter decl cjl = 
-  let 
-    val resultl = map (z3_test decl) cjl;
-    fun test (a,(b,c)) = not (mem b ["unsat"] orelse mem c ["unsat"])
-  in
-    map fst (filter test resultl)
-  end
-
-fun z3_prove t decl inductl = 
-  let 
-    val cmd = "timeout " ^ its (t + 1) ^
-              " ./z3 -T:" ^ its t ^ " aaatest > aaatestout"
-    val _ = write_induct_pb "aaatest" decl inductl
-    val _ = OS.Process.system cmd
-    val s = read_status "aaatestout"
-  
-  in 
-    if s = "unsat" then print "p" else print "."; s
-  end
-  
 (* -------------------------------------------------------------------------
    Induction axiom
    ------------------------------------------------------------------------- *)
@@ -275,11 +230,14 @@ val pvar = mk_var ("P", ``:'a -> 'a -> bool``)
 
 val induct_axiom =
   let 
-    fun fP x y = list_mk_comb (pvar,[x,y]);
-    val base_tm = mk_forall (yvar, fP var0 yvar);
+    fun fP x y = list_mk_comb (pvar,[x,y])
+    val base_tm = mk_forall (yvar, fP var0 yvar)
     val imp_tm = list_mk_forall ([xvar,yvar],
-      mk_imp (fP xvar yvar, fP xvari yvar));
-    val concl_tm = list_mk_forall ([xvar,yvar],fP xvar yvar);
+      mk_imp (fP xvar yvar, fP xvari yvar))
+    val leq = mk_var ("<=",``:'a -> 'a -> bool``)
+    val cond = list_mk_comb (leq,[var0,xvar])
+    val concl_tm = list_mk_forall ([xvar,yvar],
+      mk_imp (cond, fP xvar yvar))  
   in
     mk_imp (mk_conj (base_tm,imp_tm), concl_tm)
   end
@@ -294,17 +252,6 @@ fun induct_cj cj =
     beta_reduce (subst sub induct_axiom)
   end
 
-fun get_inductl t pp = 
-  let
-    val ppx = progpair_to_progxpair_shared pp
-    val recfl = get_recfl_ws ppx
-    val cjl = search_smt recfl t
-    val _  = print_endline ("\n" ^ its (length cjl) ^ " conjectures") 
-    val decl = create_decl pp
-  in
-    z3_filter decl cjl
-  end
-
 fun get_subtml pp =
   let
     val (px1,px2) = progpair_to_progxpair_shared pp;
@@ -315,24 +262,8 @@ fun get_subtml pp =
     subtml
   end
 
-fun z3_prove_inductl pp = 
-  let
-    val decl = create_decl pp (* include s *) 
-    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
-                           human.humanf (snd pp))
-    val _ = subtml_glob := get_subtml pp
-    val _ = print_endline (its (length (!subtml_glob)) ^ " subprograms") 
-    val inductl = get_inductl 10.0 pp
-    val _ = print_endline (its (length inductl) ^ " nontrivial conjectures") 
-    fun loop n = 
-      if n <= 0 then "unknown" else 
-      let val r = z3_prove 10 decl (map induct_cj (random_subset 32 inductl)) in
-        if r = "unsat" then "unsat" else loop (n-1)
-      end
-  in
-    loop 10
-  end
-
+fun get_inductl t pp = 
+  search_smt (get_recfl_ws (progpair_to_progxpair_shared pp)) t
 
 (* -------------------------------------------------------------------------
    Translation from induction predicates to NMT
@@ -377,7 +308,7 @@ fun fuzzify_macro_aux mn id =
 fun fuzzify_macro mn id = 
   if random_real () > 0.1 then id else fuzzify_macro_aux mn id;        
 
-fun lowercase id = Char.toString (Char.chr (97 + 
+fun lowercase mn id = Char.toString (Char.chr (97 + 
   fuzzify_macro mn (id - smtn_glob)));
 fun id_to_string mn id = 
   if id < smtn_glob then uppercase id else lowercase mn id;
@@ -407,12 +338,13 @@ fun idl_to_progl v idl = case idl of
     
 (* alltogether *)
 fun induct_to_string d tm = 
-  let val macron = dlength d - smtn_glob in
+  let val mn = dlength d - smtn_glob in
     (idl_to_string mn o prog_to_idl o induct_to_prog d) tm
   end
 fun string_to_induct v tm = 
-  (prog_to_induct v o (hd o idl_to_progl v) o string_to_idl) tm;
-
+  (prog_to_induct v o (hd o idl_to_progl v) o string_to_idl) tm
+  handle Empty => raise ERR "string_to_induct" "empty input string"
+  
 fun inductl_to_stringl pp tml = 
   let
     val ppx = progpair_to_progxpair_shared pp
@@ -430,35 +362,99 @@ fun stringl_to_inductl pp sl =
   in
     map (string_to_induct v) sl
   end
+
+(* -------------------------------------------------------------------------
+   Find good induction predicates
+   ------------------------------------------------------------------------- *)
+
+fun read_status file =
+  if not (exists_file file) orelse null (readl file) 
+  then "unknown"
+  else String.concatWith " " (String.tokens Char.isSpace (hd (readl file)));
   
+val z3_bin = selfdir ^ "/z3"
+
+fun z3_cmd t1s t2s filein fileout = String.concatWith " "
+  ["timeout",t1s,z3_bin,t2s,filein,">",fileout]
+
+fun z3_prove filein fileout t decl inductltop = 
+  let 
+    val inductl = map induct_cj inductltop
+    val cmd = z3_cmd (its (t + 1)) ("-T:" ^ its t) filein fileout
+    val _ = write_induct_pb filein decl inductl
+    val _ = OS.Process.system cmd
+    val s = read_status fileout
+    val _ = app remove_file [filein,fileout]
+  in 
+    s = "unsat"
+  end
+
+fun z3_prove_inductl filein fileout pp = 
+  let
+    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
+                           human.humanf (snd pp))
+    val _ = print_endline "find recursive functions"
+    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
+    val _ = print_endline (its (length recfl) ^ " recursive functions")
+    val _ = print_endline "declare functions"
+    val decl = create_decl pp
+    val _ = print_endline (its (length recfl) ^ " declarations")
+    val _ = print_endline "get_subterms"
+    val _ = subtml_glob := get_subtml pp
+    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
+    val _ = print_endline "create induction instances"
+    val inductl = search_smt recfl 5.0
+    val _ = print_endline (its (length inductl) ^ " induction instances")
+    fun provable t sel = z3_prove filein fileout t decl sel
+    fun minimize acc sel = case sel of 
+        [] => String.concatWith " | " ("unsat" :: inductl_to_stringl pp acc)  
+      | a :: m =>
+        if not (provable 2 (acc @ m))
+        then minimize (acc @ [a]) m
+        else minimize acc m
+    fun loop n = 
+      if n <= 0 then "unknown" else 
+      let 
+        val sel = random_subset 32 inductl
+        val b = z3_prove filein fileout 1 decl sel
+      in 
+        if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
+      end
+    val r = loop 20
+  in
+    print_endline ""; r
+  end
+
+
+fun good_pp pp = 
+  let val recfl = get_recfl_ws (progpair_to_progxpair_shared pp) in
+    length recfl <= 20
+  end
+  
+fun z3_prove_anum anum =
+  let
+    val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs")
+    val _ = print_endline anum
+    val pp = assoc anum appl
+    val filein = selfdir ^ "/z3_" ^ anum ^ "_in.smt2"
+    val fileout = selfdir ^ "/z3_" ^ anum ^ "_out"
+    val r = z3_prove_inductl filein fileout pp
+  in
+    anum ^ " " ^ r 
+  end
+
 (*
 load "search_term"; 
-open aiLib kernel search_term smt_hol smt_progx progx;
+open aiLib kernel smt_progx search_term;
+val appl1 = read_anumprogpairs "smt_benchmark_progpairs"
+val appl2 = filter (good_pp o snd) appl1;
+val al = map fst appl2;
+val al' = random_subset 10 al;
+val rl = parmap_sl 2 "search_term.z3_prove_anum" al'; 
 
-val appl = read_anumprogpairs "smt_benchmark_progpairs"; 
-val lgood = filter (fn x => f (snd x) <= macron_glob) appl;
-
-fun g (Ins (id,pl)) =
-  (if mem id [9,12,13] then [hd pl] else []) @ 
-   List.concat (map g pl);
-
-fun score_subloop (Ins (id,pl)) = if id = 13 then 2 else 1;
-
-fun f (p1,p2) = 
- let 
-   val l = mk_fast_set prog_compare (g p1 @ g p2)
- in   
-   sum_int (map score_subloop l)
- end;
-
-
-val (a,pp) = random_elem appl;
-
-val inductl = get_inductl 1.0 pp;
-val sl = inductl_to_stringl pp inductl;
-val inductl2 = stringl_to_inductl pp sl;
-list_compare Term.compare (inductl,inductl2);
+val rl = parmap_sl 50 "search_term.z3_prove_anum" al; 
 *)
+
 
 end (* struct *)
 

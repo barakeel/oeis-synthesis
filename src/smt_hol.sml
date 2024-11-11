@@ -122,6 +122,12 @@ fun hol_to_smt_aux tm =
 fun hol_to_smt tm = Sexp [Atom "assert",hol_to_smt_aux tm]
   handle HOL_ERR _ => raise ERR "hol_to_smt" (term_to_string tm)
 
+fun hol_to_smt_tag (so,tm) = case so of 
+    NONE => hol_to_smt tm
+  | SOME s => (Sexp [Atom "assert",Sexp 
+               [Atom "!", hol_to_smt_aux tm, Atom ":named", Atom s]]
+      handle HOL_ERR _ => raise ERR "hol_to_smt_tag" (term_to_string tm))
+
 (* --------------------------------------------------------------------------
    Writing a SMT file from HOL terms
    -------------------------------------------------------------------------- *)
