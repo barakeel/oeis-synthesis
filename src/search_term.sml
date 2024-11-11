@@ -349,13 +349,11 @@ fun string_to_induct v tm =
   
 fun inductl_to_stringl pp tml = 
   let
-    val ppx = progpair_to_progxpair_shared pp
-    val recfl = get_recfl_ws ppx
+    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
     val d = dnew Term.compare (number_snd 0 (smt_operl @ recfl))
   in
     map (induct_to_string d) tml
   end
-  handle HOL_ERR _ => raise ERR "inductl_to_stringl" ""
 
 fun stringl_to_inductl pp sl =
   let
@@ -460,13 +458,14 @@ val appl3 = filter (good_pp o snd) appl2;
 
 val al = map fst appl3;
 val al' = random_subset 10 al;
-val rl = parmap_sl 2 "search_term.z3_prove_anum" al'; 
+load "smlRedirect"; open smlRedirect;
+
+val rl = hide_in_file (selfdir ^ "/aaa_debug") 
+  (parmap_sl 50 "search_term.z3_prove_anum") al; 
 
 
 
-val rl = parmap_sl 50 "search_term.z3_prove_anum" al;
-writel (selfdir ^ "/aaa_random_induction_experiment") rl;
- 
+
 *)
 
 
