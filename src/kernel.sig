@@ -103,6 +103,7 @@ sig
   val inv_cmp : ('a * 'b -> 'c) -> 'b * 'a -> 'c
   val string_of_var : term -> string
   val length_geq : 'a list -> int -> bool
+  val first_diff : ('a * 'a -> order) -> 'a list -> 'a list -> ('a * 'a) option
   
   (* sequences *)
   type seq = IntInf.int list

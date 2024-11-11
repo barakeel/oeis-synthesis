@@ -7,6 +7,7 @@ val ERR = mk_HOL_ERR "searchnew"
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
 fun auto_comb (n,tml) = list_mk_comb (mk_varn (n,length tml),tml)
 val var0 = mk_varn("0",0);
+
 fun ite_template (t1,t2,t3) =
   auto_comb ("ite", [auto_comb ("<=", [t1,var0]),t2,t3]);
 
@@ -287,14 +288,27 @@ fun induct_to_prog d tm =
     val opern = dfind oper d 
       handle NotFound => raise ERR "induct_to_prog" (term_to_string oper)
   in
-    Ins (opern, map (induct_to_prog d) argl)
+    if opern = 8 (* ite *)
+    then
+      let 
+        val (a,b,c) = triple_of_list argl 
+        val a1 = fst (pair_of_list (snd (strip_comb a)))
+      in
+        Ins (opern, map (induct_to_prog d) [a1,b,c])
+      end
+    else Ins (opern, map (induct_to_prog d) argl)
   end;
 
 fun unfuzzify_macro mn id = id mod mn
 
 fun prog_to_induct v (Ins (opern,pl)) =
   let val oper = Vector.sub (v,opern) in 
-    list_mk_comb (oper,map (prog_to_induct v) pl)
+    if opern = 8 
+    then 
+      let val (a,b,c) = triple_of_list (map (prog_to_induct v) pl) in
+        ite_template (a,b,c)
+      end
+    else list_mk_comb (oper,map (prog_to_induct v) pl)
   end
 
 (* programs to strings *)
@@ -321,6 +335,7 @@ fun fuzzify_macro mn id =
 
 fun lowercase mn id = Char.toString (Char.chr (97 + 
   fuzzify_macro mn (id - smtn_glob)));
+
 fun id_to_string mn id = 
   if id < smtn_glob then uppercase id else lowercase mn id;
 
@@ -480,15 +495,16 @@ load "smlRedirect"; open smlRedirect;
 val rl = hide_in_file (selfdir ^ "/aaa_debug") 
   (parmap_sl 50 "search_term.z3_prove_anum") al; 
 
+writel "aaa_result" rl;
+
 val (a,pp) = random_elem appl3;
 
-val l0 = get_inductl 5.0 pp;
+val l0 = get_inductl 15.0 pp;
 val l1 = inductl_to_stringl pp l0;
 val l2 = stringl_to_inductl pp l1;
-val l3 = inductl_to_stringl pp l2;
-val l4 =  stringl_to_inductl pp l3;
 list_compare Term.compare (l0,l2);
-list_compare Term.compare (l2,l4);
+
+
 *)
 
 

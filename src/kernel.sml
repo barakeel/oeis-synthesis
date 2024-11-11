@@ -190,6 +190,13 @@ fun string_of_var x = fst (dest_var x)
 
 fun length_geq l n = length (first_n n l) >= n
 
+fun first_diff cmp l1 l2 = case (l1,l2) of
+    ([],_) => NONE
+  | (_,[]) => NONE
+  | (a1 :: m1, a2 :: m2) => if cmp (a1,a2) = EQUAL 
+                            then first_diff cmp m1 m2
+                            else SOME (a1,a2);
+
 (* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
