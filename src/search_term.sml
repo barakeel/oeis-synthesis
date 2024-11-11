@@ -182,10 +182,15 @@ fun search fl lim =
    Operator to produce SMT formulas
    ------------------------------------------------------------------------- *)
 
+fun fake_var s = mk_var (s,``:num -> num``)
+
 val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   [("0",0),("1",0),("2",0),
    ("+",2),("-",2),("*",2),("divf",2),("modf",2),
-   ("ite",3),("x",0),("y",0)];
+   ("ite",3)] @ 
+   [fake_var "loop"] @
+   map (fn x => mk_var (x, alpha)) ["x","y"] @
+   map fake_var ["compr","loop2"]
   
 val smt_operl_pred = 
  [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
@@ -285,8 +290,12 @@ fun induct_to_prog d tm =
     Ins (opern, map (induct_to_prog d) argl)
   end;
 
+fun unfuzzify_macro mn id = id mod mn
+
 fun prog_to_induct v (Ins (opern,pl)) =
-  list_mk_comb (Vector.sub (v,opern), map (prog_to_induct v) pl);
+  let val oper = Vector.sub (v,opern) in 
+    list_mk_comb (oper,map (prog_to_induct v) pl)
+  end
 
 (* programs to strings *)
 fun uppercase id = Char.toString (Char.chr (65 + id));
@@ -314,15 +323,20 @@ fun lowercase mn id = Char.toString (Char.chr (97 +
   fuzzify_macro mn (id - smtn_glob)));
 fun id_to_string mn id = 
   if id < smtn_glob then uppercase id else lowercase mn id;
-fun string_to_id s =
+
+exception Parse;
+
+fun string_to_id mn s =
   let val n = Char.ord (valOf (Char.fromString s)) in 
-    if n < 97 then n - 65 else (97 + ((n - smtn_glob) mod macron_glob))
+    if n < 97 then 
+      if mem (n - 65) [9,12,13] then raise Parse else n - 65
+    else (smtn_glob + unfuzzify_macro mn (n - 97))
   end;
 
 fun idl_to_string mn idl = String.concatWith " " (map (id_to_string mn) idl);
-fun string_to_idl s = 
+fun string_to_idl mn s = 
   let val idsl = String.tokens Char.isSpace s in
-    map string_to_id idsl
+    map (string_to_id mn) idsl
   end;
  
 fun prog_to_idl (Ins (i,pl)) = i :: List.concat (map prog_to_idl pl);
@@ -334,8 +348,7 @@ fun idl_to_progl v idl = case idl of
       val arity = arity_of (Vector.sub (v,id))
       val (pl1,pl2) = part_n arity pl
     in
-      if length pl1 <> arity then raise ERR "idl_to_prog" "" else 
-      Ins (id,pl1) :: pl2
+      if length pl1 <> arity then raise Parse else Ins (id,pl1) :: pl2
     end
     
 (* alltogether *)
@@ -343,9 +356,14 @@ fun induct_to_string d tm =
   let val mn = dlength d - smtn_glob in
     (idl_to_string mn o prog_to_idl o induct_to_prog d) tm
   end
-fun string_to_induct v tm = 
-  (prog_to_induct v o (hd o idl_to_progl v) o string_to_idl) tm
-  handle Empty => raise ERR "string_to_induct" "empty input string"
+
+fun string_to_induct v s = 
+  let 
+    fun hd_err x = hd x handle Empty => raise Parse 
+    val mn = Vector.length v - smtn_glob
+  in 
+    (prog_to_induct v o (hd_err o idl_to_progl v) o (string_to_idl mn)) s
+  end
   
 fun inductl_to_stringl pp tml = 
   let
@@ -452,7 +470,6 @@ open aiLib kernel smt_progx search_term;
 val appl1 = read_anumprogpairs "smt_benchmark_progpairs"
 val d = enew String.compare 
   (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
-
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
 
@@ -463,9 +480,15 @@ load "smlRedirect"; open smlRedirect;
 val rl = hide_in_file (selfdir ^ "/aaa_debug") 
   (parmap_sl 50 "search_term.z3_prove_anum") al; 
 
+val (a,pp) = random_elem appl3;
 
-
-
+val l0 = get_inductl 5.0 pp;
+val l1 = inductl_to_stringl pp l0;
+val l2 = stringl_to_inductl pp l1;
+val l3 = inductl_to_stringl pp l2;
+val l4 =  stringl_to_inductl pp l3;
+list_compare Term.compare (l0,l2);
+list_compare Term.compare (l2,l4);
 *)
 
 
