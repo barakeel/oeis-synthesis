@@ -5,6 +5,7 @@ open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
 val ERR = mk_HOL_ERR "searchnew"
 exception Parse;
 fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
+  handle HOL_ERR _ => raise ERR "split_pair" (Char.toString c ^ ": " ^ s)
 
 fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
   handle HOL_ERR _ => raise Parse
