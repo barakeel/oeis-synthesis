@@ -636,10 +636,10 @@ val d = enew String.compare
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
 
+(* create input file *)
 val ppl3 = map snd appl3;
-val ppltest = random_subset 10 ppl3;
+val ppltest = random_subset 20 ppl3;
 val sl1 = map pp_to_string ppltest;
-
 val sl2 = parmap_sl 2 "search_term.random_inductl" sl1;
 val expname = "test100";
 val _ = mkDir_err (selfdir ^ "/exp/" ^ expname);
