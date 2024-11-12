@@ -33,6 +33,29 @@ fun name_progx (s,Insx ((px,no),pxl)) = case no of
   | NONE => Insx ((px,SOME s),pxl)
   
 fun unname_progx (Insx ((px,no),pxl)) = (Insx ((px,NONE),pxl)) 
+ 
+fun progx_to_string p = 
+  let   
+    fun h p = progx_to_string p
+    fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
+  in
+    case p of
+      Insx ((0,_),[]) => its 0
+    | Insx ((1,_),[]) => its 1
+    | Insx ((2,_),[]) => its 2
+    | Insx ((3,_),[p1,p2]) => sbinop "+" (p1,p2)
+    | Insx ((4,_),[p1,p2]) => sbinop "-" (p1,p2) 
+    | Insx ((5,_),[p1,p2]) => sbinop "*" (p1,p2)
+    | Insx ((6,_),[p1,p2]) => sbinop "div" (p1,p2)
+    | Insx ((7,_),[p1,p2]) => sbinop "mod" (p1,p2)
+    | Insx ((8,_),[p1,p2,p3]) => 
+      "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+    | Insx ((id,_),[]) => name_of_oper id
+    | Insx ((id,NONE),pl) => 
+      "(" ^ String.concatWith " " (name_of_oper id :: map h pl) ^ ")"
+    | Insx ((id,SOME s),pl) => 
+      "(" ^ String.concatWith " " (name_of_oper id ^ ":" ^ s :: map h pl) ^ ")"  
+  end 
   
 (* --------------------------------------------------------------------------
    Converting between the type progx and prog with and without name sharing

@@ -11,6 +11,7 @@ sig
   val progx_compare_size : progx * progx -> order
   val name_progx : string * progx -> progx
   val unname_progx : progx -> progx
+  val progx_to_string : progx -> string
   
   (* convert between prog and progx *)
   val progx_to_prog : progx -> prog

@@ -17,7 +17,7 @@ fun ite_template (t1,t2,t3) =
    Global parameters from config file
    ------------------------------------------------------------------------- *)
 
-val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 32
+val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
 val z3try = string_to_int (dfind "z3tim" configd) handle NotFound => 20
@@ -489,11 +489,11 @@ fun z3_prove_inductl filein fileout pp =
     fun minimize acc sel = case sel of 
         [] => String.concatWith " | " ("unsat" :: inductl_to_stringl pp acc)  
       | a :: m =>
-        if not (provable 2 (acc @ m))
+        if not (provable z3tim (acc @ m))
         then minimize (acc @ [a]) m
         else minimize acc m
     fun loop n = 
-      if n <= 0 then "unknown" else 
+      if n <= 0 then "unknown" else
       let 
         val sel = random_subset z3lem inductl
         val b = z3_prove filein fileout z3tim decl sel
@@ -518,7 +518,7 @@ fun z3_prove_inductl_tml filein fileout pp inductl =
     fun minimize acc sel = case sel of 
         [] => String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc)  
       | a :: m =>
-        if not (provable 2 (acc @ m))
+        if not (provable z3tim (acc @ m))
         then minimize (acc @ [a]) m
         else minimize acc m
     fun loop n = 
@@ -601,8 +601,21 @@ fun z3_prove_ppil s =
   end
 
 
+fun standard_space s = String.concatWith " " (String.tokens Char.isSpace s);
+fun tts tm = standard_space (term_to_string tm);
+
+fun human_out (s,sl) = 
+  let 
+    val pp = string_to_pp s
+    val (px1,px2) = progpair_to_progxpair_shared pp
+    val tml = stringl_to_inductl pp sl
+  in
+    progx_to_string px1 ^ " = " ^ progx_to_string px2 ^ "\n" ^ 
+    String.concatWith " | " (map tts tml)
+  end
 
 fun z3_prove_para expname = 
+  if expname = "" then raise ERR "z3_prove_para" "empty expname" else
   let
     val expdir = selfdir ^ "/exp"
     val dir = expdir ^ "/" ^ expname
@@ -623,9 +636,14 @@ fun z3_prove_para expname =
     fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
     val l7 = List.concat (map tonmt l6)
     val _ = logl l7 "examples"
+    val cmd = "sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; " ^
+              "s/\\$var\\$(2)/2/g' " ^ dir ^ "/output_human"
   in
-    writel (dir ^ "/output") l7
+    writel (dir ^ "/output") l7;
+    writel (dir ^ "/output_human") (map human_out l5);
+    ignore (OS.Process.system cmd)
   end
+
 
 (*
 load "search_term"; 
@@ -635,6 +653,9 @@ val d = enew String.compare
   (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
+
+writel "proof0_infer" (map (pp_to_string o snd) appl3);
+
 
 (* create input file *)
 val ppl3 = map snd appl3;

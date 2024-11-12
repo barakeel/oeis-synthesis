@@ -185,7 +185,7 @@ val appl1 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs");
 val d = enew String.compare 
   (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
 val appl2 = filter (fn x => emem (fst x) d) appl1;
-val appl3 = filter (good_pp o snd) appl2;  
+val appl3 = filter (good_pp o snd) appl2;
 
 val appl7 = subprog_eq_list appl3;
 length appl7;
@@ -203,32 +203,10 @@ writel (selfdir ^ "/proof0_ex") (List.concat (map tonmt rl21));
 
 load "progx"; open progx;
 
-fun progx_to_string p = 
-  let   
-    fun h p = progx_to_string p
-    fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
-  in
-    case p of
-      Insx ((0,_),[]) => its 0
-    | Insx ((1,_),[]) => its 1
-    | Insx ((2,_),[]) => its 2
-    | Insx ((3,_),[p1,p2]) => sbinop "+" (p1,p2)
-    | Insx ((4,_),[p1,p2]) => sbinop "-" (p1,p2) 
-    | Insx ((5,_),[p1,p2]) => sbinop "*" (p1,p2)
-    | Insx ((6,_),[p1,p2]) => sbinop "div" (p1,p2)
-    | Insx ((7,_),[p1,p2]) => sbinop "mod" (p1,p2)
-    | Insx ((8,_),[p1,p2,p3]) => 
-      "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
-    | Insx ((id,_),[]) => name_of_oper id
-    | Insx ((id,NONE),pl) => 
-      "(" ^ String.concatWith " " (name_of_oper id :: map h pl) ^ ")"
-    | Insx ((id,SOME s),pl) => 
-      "(" ^ String.concatWith " " (name_of_oper id ^ ":" ^ s :: map h pl) ^ ")"  
-  end;
+
 
 fun tohuman ((s1,s2),sl) =
-  let 
-    val (pp as (p1,p2)) = dfind s1 d1 
+  let
     val (p1x,p2x) = progpair_to_progxpair_shared pp
   in 
     ((s1,s2), (progx_to_string p1x, progx_to_string p2x), 
@@ -237,17 +215,7 @@ fun tohuman ((s1,s2),sl) =
 
 val rl21t = map tohuman rl21;
 
-fun tts tm = rm_space
-   (String.translate (fn c => if c = #"\n" then " " else str c)
-  (term_to_string tm));
-fun g ((s1,s2),(s3,s4),tml) = 
-  s1 ^ "\n" ^ 
-  s3 ^ " = " ^ s4 ^ "\n" ^
-  String.concatWith " | " (map tts tml);
-  
-writel "proof0_human" (map g rl21t);
 
-OS.Process.system ("sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; s/\\$var\\$(2)/2/g' proof0_human");
 
 
 
@@ -259,6 +227,9 @@ p1=p2>cj1
 p1=p2>cj2
 p1=p2>cj3
 ...
+
+val sel = filter (fn ((a,b),l) => not (b = "unsat" andalso null l)) rl1;
+val sel1 = map (fst o fst) sel;
 *)
 
 
