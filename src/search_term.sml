@@ -3,6 +3,8 @@ struct
 
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
 val ERR = mk_HOL_ERR "searchnew"
+exception Parse;
+fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
 
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
 fun auto_comb (n,tml) = list_mk_comb (mk_varn (n,length tml),tml)
@@ -10,6 +12,15 @@ val var0 = mk_varn("0",0);
 
 fun ite_template (t1,t2,t3) =
   auto_comb ("ite", [auto_comb ("<=", [t1,var0]),t2,t3]);
+
+(* -------------------------------------------------------------------------
+   Global parameters from config file
+   ------------------------------------------------------------------------- *)
+
+val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 32
+val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
+val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
+val z3try = string_to_int (dfind "z3tim" configd) handle NotFound => 20
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -339,7 +350,7 @@ fun lowercase mn id = Char.toString (Char.chr (97 +
 fun id_to_string mn id = 
   if id < smtn_glob then uppercase id else lowercase mn id;
 
-exception Parse;
+
 
 fun string_to_id mn s =
   let val n = Char.ord (valOf (Char.fromString s)) in 
@@ -396,6 +407,16 @@ fun stringl_to_inductl pp sl =
   in
     map (string_to_induct v) sl
   end
+  
+fun stringl_to_inductl_option pp sl =
+  let
+    val ppx = progpair_to_progxpair_shared pp
+    val recfl = get_recfl_ws ppx
+    val v = Vector.fromList (smt_operl @ recfl)
+    fun f s = SOME (string_to_induct v s) handle Parse => NONE
+  in
+    List.mapPartial f sl
+  end  
 
 (* -------------------------------------------------------------------------
    Find good induction predicates
@@ -424,6 +445,29 @@ fun z3_prove filein fileout t decl inductltop =
     s = "unsat"
   end
 
+fun string_to_pp s =
+  let val (s1,s2) = split_pair #"=" s in (prog_of_gpt s1, prog_of_gpt s2) end
+  
+fun pp_to_string (p1,p2) = gpt_of_prog p1 ^ "=" ^ gpt_of_prog p2
+    
+
+fun random_inductl pps = 
+  let
+    val pp = string_to_pp pps
+    val _ = print_endline "find recursive functions"
+    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
+    val _ = print_endline (its (length recfl) ^ " recursive functions")
+    val _ = print_endline "get_subterms"
+    val _ = subtml_glob := get_subtml pp
+    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
+    val _ = print_endline "create induction instances"
+    val inductl = search_smt recfl 5.0
+  in
+    if null inductl then raise ERR "random_inductl" "" else 
+    pps ^ ">" ^ String.concatWith "|" (inductl_to_stringl pp inductl)
+  end
+
+
 fun z3_prove_inductl filein fileout pp = 
   let
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
@@ -433,7 +477,7 @@ fun z3_prove_inductl filein fileout pp =
     val _ = print_endline (its (length recfl) ^ " recursive functions")
     val _ = print_endline "declare functions"
     val decl = create_decl pp
-    val _ = print_endline (its (length recfl) ^ " declarations")
+    val _ = print_endline (its (length decl) ^ " declarations")
     val _ = print_endline "get_subterms"
     val _ = subtml_glob := get_subtml pp
     val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
@@ -451,22 +495,51 @@ fun z3_prove_inductl filein fileout pp =
     fun loop n = 
       if n <= 0 then "unknown" else 
       let 
-        val sel = random_subset 32 inductl
-        val b = z3_prove filein fileout 1 decl sel
+        val sel = random_subset z3lem inductl
+        val b = z3_prove filein fileout z3tim decl sel
       in 
         if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
       end
-    val r = loop 20
+    val r = loop z3try
   in
     print_endline ""; r
   end
 
+fun z3_prove_inductl_tml filein fileout pp inductl = 
+  let
+    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
+                           human.humanf (snd pp))
+    val _ = print_endline "declare functions"
+    val decl = create_decl pp
+    val _ = print_endline (its (length decl) ^ " declarations")
+    val _ = print_endline (its (length inductl) ^ " induction instances")
+    fun provable t sel = 
+      z3_prove filein fileout t decl sel
+    fun minimize acc sel = case sel of 
+        [] => String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc)  
+      | a :: m =>
+        if not (provable 2 (acc @ m))
+        then minimize (acc @ [a]) m
+        else minimize acc m
+    fun loop n = 
+      if n <= 0 then "unknown" else 
+      let 
+        val sel = random_subset z3lem inductl
+        val b = z3_prove filein fileout z3tim decl sel
+      in 
+        if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
+      end
+    val r = loop z3try
+  in
+    print_endline ""; r
+  end
 
 fun good_pp pp = 
   let val recfl = get_recfl_ws (progpair_to_progxpair_shared pp) in
     length recfl <= 20
   end
-  
+
+
 fun z3_prove_anum anum =
   let
     val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs")
@@ -479,6 +552,81 @@ fun z3_prove_anum anum =
     anum ^ " " ^ r 
   end
 
+(* -------------------------------------------------------------------------
+   Evaluation: parsing
+   ------------------------------------------------------------------------- *)
+
+(* p1=p2>cj1|cj2|cj3|... *)
+
+  
+fun parse_ppil stop =
+  let 
+    val (i,ppil) = split_pair #":" stop
+    val (s1,s2) = split_pair #">" ppil
+    val (s11,s12) = split_pair #"=" s1
+    val pp = (prog_of_gpt s11, prog_of_gpt s12) 
+    val sl = String.tokens (fn x => x = #"|") s2
+    val _ = print_endline (its (length sl) ^ " induction predicates")
+    val tml = stringl_to_inductl_option pp sl
+    val _ = print_endline (its (length sl - length tml) ^ " parse errors")
+  in
+    (i,(pp,tml))
+  end
+
+(* -------------------------------------------------------------------------
+   Evaluation: printing
+   ------------------------------------------------------------------------- *)
+
+fun get_lemmas s = 
+  let 
+    val (s0,s1) = split_pair #">" s
+    val sl2 = String.tokens (fn x => x = #"|") s1
+    val _ = if null sl2 then raise ERR "get_status" "" else ()  
+  in
+    (s0,(hd sl2,tl sl2))
+  end;  
+
+(* -------------------------------------------------------------------------
+   Evaluation: main functions
+   ------------------------------------------------------------------------- *)
+
+fun z3_prove_ppil s = 
+  let 
+    val (i,(pp,tml)) = parse_ppil s
+    val filein = selfdir ^ "/z3_" ^ i ^ "_in.smt2"
+    val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
+    val r = z3_prove_inductl_tml filein fileout pp tml
+  in
+    pp_to_string pp ^ ">" ^ r
+  end
+
+
+
+fun z3_prove_para expname = 
+  let
+    val expdir = selfdir ^ "/exp"
+    val dir = expdir ^ "/" ^ expname
+    fun log s = append_endline (dir ^ "/log") s
+    fun logl l s = log (its (length l) ^ " " ^ s)
+    val _ = app mkDir_err [expdir,dir]
+    val l1 = readl (dir ^ "/input")
+    val _ = logl l1 "targets"
+    val l1' = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l1)
+    val (l2,t) = add_time (parmap_sl ncore "search_term.z3_prove_ppil") l1'
+    val _ = log ("proving time: " ^ rts t)
+    val l3 = map get_lemmas l2
+    val l4 = filter (fn (a,(b,c)) => b = "unsat") l3
+    val l5 = map (fn (a,(b,c)) => (a,c)) l4
+    val _ = logl l5 "unsat"
+    val l6 = filter (fn (a,c) => not (null c)) l5  
+    val _ = logl l6 "nontrivial"
+    fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
+    val l7 = List.concat (map tonmt l6)
+    val _ = logl l7 "examples"
+  in
+    writel (dir ^ "/output") l7
+  end
+
 (*
 load "search_term"; 
 open aiLib kernel smt_progx search_term;
@@ -487,6 +635,17 @@ val d = enew String.compare
   (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
+
+val ppl3 = map snd appl3;
+val ppltest = random_subset 10 ppl3;
+val sl1 = map pp_to_string ppltest;
+
+val sl2 = parmap_sl 2 "search_term.random_inductl" sl1;
+val expname = "test100";
+val _ = mkDir_err (selfdir ^ "/exp/" ^ expname);
+writel (selfdir ^ "/exp/" ^ expname ^ "/input") sl2;
+
+
 
 val al = map fst appl3;
 load "smlRedirect"; open smlRedirect;
@@ -501,13 +660,9 @@ val l1 = inductl_to_stringl pp l0;
 val l2 = stringl_to_inductl pp l1;
 list_compare Term.compare (l0,l2);
 
+todo: create the input from random
 
 *)
 
 
 end (* struct *)
-
-
-
-
-

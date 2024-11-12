@@ -3,6 +3,7 @@ struct
 
 open aiLib dir kernel sexp progx smt_hol smt_progx
 val ERR = mk_HOL_ERR "smt_eval"
+type prog = kernel.prog
 type progx = progx.progx
 
 (* --------------------------------------------------------------------------
@@ -16,9 +17,9 @@ fun add_loop2snd_one px = case px of
 fun add_loop2snd pxl = mk_fast_set progx_compare 
   (List.concat (map add_loop2snd_one pxl));
 
-fun all_subprog_extra px =
-  add_loop2snd (mk_fast_set progx_compare (all_subprog px))
 
+(* add_loop2snd temporary removed *)
+fun all_subprog_extra px = mk_fast_set progx_compare (all_subprog px)
 
 (* --------------------------------------------------------------------------
    Finger print a program
@@ -92,10 +93,7 @@ val fingerprint_cmp = list_compare IntInf.compare
  
 fun fingerprint_px px = 
   let 
-    val p = progx_to_prog px 
-    val arity = if depend_on_z p then raise ERR "fenum_px" ""
-                else if depend_on_y p then 2 
-                else if depend_on_x p then 1 else 0
+    val p = progx_to_prog px
     val f = exec_memo.mk_exec_twov p
   in
     fenum f inputl2
@@ -114,12 +112,15 @@ fun fingerprint_pxl pxl =
    Finger print a program
    -------------------------------------------------------------------------- *)
 
+fun const_seq l = null l orelse all (fn x => x = hd l) l
+
 fun subprog_equalities (smallxx,fastxx) =
   let
     val (smallpl,fastpl) = (all_subprog_extra smallxx, all_subprog_extra fastxx)
     val (smalle,faste) = (fingerprint_pxl smallpl, fingerprint_pxl fastpl)
     val d = ref (dempty fingerprint_cmp)
     fun fsmall (progx,seq) = 
+      if const_seq seq then () else
       let 
         val (oldsmall,oldfast) = 
           case dfindo seq (!d) of NONE => ([],[]) | SOME x => x
@@ -128,6 +129,7 @@ fun subprog_equalities (smallxx,fastxx) =
         d := dadd seq (newsmall,oldfast) (!d)
       end
     fun ffast (progx,seq) = 
+      if const_seq seq then () else
       let 
         val (oldsmall,oldfast) = 
           case dfindo seq (!d) of NONE => ([],[]) | SOME x => x
@@ -143,21 +145,122 @@ fun subprog_equalities (smallxx,fastxx) =
     filter (fn (a,b) => progx_to_prog a <> 
                         progx_to_prog b) (List.concat (map mk_pairs l))
   end
-  
+
+(* --------------------------------------------------------------------------
+   create subprogram pairs
+   -------------------------------------------------------------------------- *)
+
+fun subprog_eq_one (a,(small,fast)) =
+  let 
+    val (smallx,fastx) = progpair_to_progxpair_shared (small,fast)
+    val smallxx = progx_to_progxx smallx
+    val fastxx = progx_to_progxx fastx
+    fun distribute (a,l) = 
+      let fun f (x,i) = (a ^ "_" ^ its i, x) in
+        map f (number_snd 0 l) 
+      end;
+    
+  in
+    distribute (a, subprog_equalities (smallxx,fastxx))
+  end
+ 
+fun contain_loop (Ins(i,pl)) = mem i [9,12,13] orelse 
+  exists contain_loop pl 
+ 
+fun subprog_eq_list appl3 =
+  let 
+    val appl4 = List.concat (map subprog_eq_one appl3)
+    val appl6 = map_snd progxpair_to_progpair appl4
+    fun test (a,(p1,p2)) = contain_loop p1 orelse contain_loop p2
+    val appl7 = filter test appl6
+  in
+    appl7
+  end
+ 
 (*
-load "smt_eval"; open kernel aiLib progx smt_eval;
-val (_,(small,fast)) = 
-  random_elem (smt_progx.read_anumprogpairs "smt_benchmark_progpairs");
-val (smallx,fastx) = progpair_to_progxpair (small,fast);
-val smallxx = progx_to_progxx smallx;
-val fastxx = progx_to_progxx fastx;
-val ppl = subprog_equalities (smallxx,fastxx);
+load "smt_eval"; load "search_term";
+open kernel aiLib progx smt_eval smt_progx search_term;
 
-load "human"; open human;
-fun f (p1,p2) = humanf (progx_to_prog p1) ^ " | " ^ humanf (progx_to_prog p2);
+val appl1 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs");
+val d = enew String.compare 
+  (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
+val appl2 = filter (fn x => emem (fst x) d) appl1;
+val appl3 = filter (good_pp o snd) appl2;  
 
-app print_endline (map f ppl);
+val appl7 = subprog_eq_list appl3;
+length appl7;
+
+write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sub") appl7;
 *)  
   
+(*
+
+
+  
+writel (selfdir ^ "/proof0_ex") (List.concat (map tonmt rl21));
+
+(* human output *)
+
+load "progx"; open progx;
+
+fun progx_to_string p = 
+  let   
+    fun h p = progx_to_string p
+    fun sbinop s (p1,p2) = "(" ^ h p1 ^ " " ^ s ^ " " ^ h p2 ^ ")"  
+  in
+    case p of
+      Insx ((0,_),[]) => its 0
+    | Insx ((1,_),[]) => its 1
+    | Insx ((2,_),[]) => its 2
+    | Insx ((3,_),[p1,p2]) => sbinop "+" (p1,p2)
+    | Insx ((4,_),[p1,p2]) => sbinop "-" (p1,p2) 
+    | Insx ((5,_),[p1,p2]) => sbinop "*" (p1,p2)
+    | Insx ((6,_),[p1,p2]) => sbinop "div" (p1,p2)
+    | Insx ((7,_),[p1,p2]) => sbinop "mod" (p1,p2)
+    | Insx ((8,_),[p1,p2,p3]) => 
+      "(if " ^ h p1 ^ " <= 0 then " ^ h p2  ^ " else " ^ h p3 ^ ")"
+    | Insx ((id,_),[]) => name_of_oper id
+    | Insx ((id,NONE),pl) => 
+      "(" ^ String.concatWith " " (name_of_oper id :: map h pl) ^ ")"
+    | Insx ((id,SOME s),pl) => 
+      "(" ^ String.concatWith " " (name_of_oper id ^ ":" ^ s :: map h pl) ^ ")"  
+  end;
+
+fun tohuman ((s1,s2),sl) =
+  let 
+    val (pp as (p1,p2)) = dfind s1 d1 
+    val (p1x,p2x) = progpair_to_progxpair_shared pp
+  in 
+    ((s1,s2), (progx_to_string p1x, progx_to_string p2x), 
+     stringl_to_inductl pp sl)
+  end;
+
+val rl21t = map tohuman rl21;
+
+fun tts tm = rm_space
+   (String.translate (fn c => if c = #"\n" then " " else str c)
+  (term_to_string tm));
+fun g ((s1,s2),(s3,s4),tml) = 
+  s1 ^ "\n" ^ 
+  s3 ^ " = " ^ s4 ^ "\n" ^
+  String.concatWith " | " (map tts tml);
+  
+writel "proof0_human" (map g rl21t);
+
+OS.Process.system ("sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; s/\\$var\\$(2)/2/g' proof0_human");
+
+
+
+
+training output (eval input): proof0_cj 
+p1=p2>cj1|cj2|cj3|...
+training input (eval output): proof0_ex
+p1=p2>cj1
+p1=p2>cj2
+p1=p2>cj3
+...
+*)
+
+
 
 end (* struct *)

@@ -17,11 +17,18 @@ sig
   (* z3 calls *)
   val z3_prove : string -> string -> int -> term list -> term list -> bool
   
+  (* *)
+  val pp_to_string : prog * prog -> string
+  val string_to_pp : string -> prog * prog
+  
   (* induction axiom *)
   val induct_cj : term -> term
   val get_inductl : real -> prog * prog -> term list
+  val random_inductl : string -> string
   val z3_prove_inductl : string -> string -> prog * prog -> string
   val z3_prove_anum : string -> string
+  val z3_prove_ppil : string -> string
+  val z3_prove_para : string -> unit
   
   (* conversion of inductions predicates between term and NMT representations *)
   val inductl_to_stringl : prog * prog -> term list -> string list
@@ -29,6 +36,5 @@ sig
   
   (* filter out the 3 problems that have too many macros *)
   val good_pp : prog * prog -> bool
-
+  
 end
-
