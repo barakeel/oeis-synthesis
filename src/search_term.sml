@@ -413,7 +413,11 @@ fun stringl_to_inductl_option pp sl =
     val ppx = progpair_to_progxpair_shared pp
     val recfl = get_recfl_ws ppx
     val v = Vector.fromList (smt_operl @ recfl)
-    fun f s = SOME (string_to_induct v s) handle Parse => NONE
+    fun f s = 
+      let val r = string_to_induct v s in 
+        if type_of r = bool then SOME r else NONE 
+      end  
+      handle Parse => NONE
   in
     List.mapPartial f sl
   end  
