@@ -577,14 +577,36 @@ fun parse_ppil stop =
    Evaluation: printing
    ------------------------------------------------------------------------- *)
 
-fun get_lemmas s = 
+fun compare_string_size (s1,s2) = cpl_compare
+  Int.compare String.compare ((String.size s1,s1), (String.size s2,s2))
+
+fun compare_lemmal (lemmal1,lemmal2) =
+  compare_string_size 
+    (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
+
+
+fun get_status_lemmas s = 
   let 
     val (s0,s1) = split_pair #">" s
     val sl2 = String.tokens (fn x => x = #"|") s1
-    val _ = if null sl2 then raise ERR "get_status" "" else ()  
+    val _ = if null sl2 then raise ERR "get_status_lemmas" "" else ()  
   in
     (s0,(hd sl2,tl sl2))
-  end;  
+  end;
+  
+fun string_to_lemmas s = 
+  let 
+    val (s0,s1) = split_pair #">" s
+    val sl2 = 
+      if s1 = "empty" 
+      then [] 
+      else String.tokens (fn x => x = #"|") s1
+  in
+    (s0,sl2)
+  end
+  
+fun lemmas_to_string (s,sl) = 
+  s ^ ">" ^ (if null sl then "empty" else String.concatWith "|" sl)
 
 (* -------------------------------------------------------------------------
    Evaluation: main functions
@@ -610,10 +632,25 @@ fun human_out (s,sl) =
     val (px1,px2) = progpair_to_progxpair_shared pp
     val tml = stringl_to_inductl pp sl
   in
-    progx_to_string px1 ^ " = " ^ progx_to_string px2 ^ "\n" ^ 
-    String.concatWith " | " (map tts tml)
+    progx_to_string px1 ^ "=" ^ progx_to_string px2 ^ "\n" ^ 
+    String.concatWith "|" (map tts tml)
   end
-
+  
+fun merge lold lnew =
+  let 
+    val setold = enew String.compare (map fst lold)
+    val ldiff = filter (fn (x,_) => not (emem x setold)) lnew
+    val d = ref (dempty String.compare)
+    fun f (k,v) = case dfindo k (!d) of
+       NONE => d := dadd k v (!d)
+     | SOME oldl => if compare_lemmal (v,oldl) = LESS 
+                    then d := dadd k v (!d) else ()
+    val _ = app f (lold @ lnew) 
+  in
+    (ldiff, dlist (!d))
+  end
+  
+  
 fun z3_prove_para expname = 
   if expname = "" then raise ERR "z3_prove_para" "empty expname" else
   let
@@ -626,26 +663,38 @@ fun z3_prove_para expname =
     val _ = logl l1 "targets"
     val l1' = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l1)
     val (l2,t) = add_time (parmap_sl ncore "search_term.z3_prove_ppil") l1'
-    val _ = log ("proving time: " ^ rts t)
-    val l3 = map get_lemmas l2
+    val _ = log ("proving time: " ^ rts t) 
+    val l3 = map get_status_lemmas l2
     val l4 = filter (fn (a,(b,c)) => b = "unsat") l3
     val l5 = map (fn (a,(b,c)) => (a,c)) l4
     val _ = logl l5 "unsat"
-    val l6 = filter (fn (a,c) => not (null c)) l5  
-    val _ = logl l6 "nontrivial"
+    val lold = if not (exists_file (dir ^ "/previous"))
+               then []
+               else map string_to_lemmas (readl (dir ^ "/previous"))
+    val (ldiff,lmerge) = merge lold l5
+    val _ = logl lold "previous"
+    val _ = logl ldiff "diff"
+    val _ = logl lmerge "current"
     fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
-    val l7 = List.concat (map tonmt l6)
+    val l7 = List.concat (map tonmt lmerge)
     val _ = logl l7 "examples"
-    val cmd = "sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; " ^
-              "s/\\$var\\$(2)/2/g' " ^ dir ^ "/output_human"
+    fun cmd file = 
+      "sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; " ^
+      "s/\\$var\\$(2)/2/g' " ^ dir ^ "/" ^ file
   in
     writel (dir ^ "/output") l7;
-    writel (dir ^ "/output_human") (map human_out l5);
-    ignore (OS.Process.system cmd)
+    writel (dir ^ "/diff") (map lemmas_to_string ldiff);
+    writel (dir ^ "/current") (map lemmas_to_string lmerge);
+    writel (dir ^ "/diff_human") (map human_out ldiff);
+    writel (dir ^ "/current_human") (map human_out lmerge);
+    ignore (OS.Process.system (cmd "diff_human"));
+    ignore (OS.Process.system (cmd "current_human"))
   end
 
 
 (*
+name the file "previous" and "current"
+
 load "search_term"; 
 open aiLib kernel smt_progx search_term;
 val appl1 = read_anumprogpairs "smt_benchmark_progpairs"

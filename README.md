@@ -122,7 +122,7 @@ the following format:
 ``p1=p2>c1|c2|...``
 where c1 and c2 are conjectured predicates.
 
-### Running the prover
+### Prove
 - Copy a binary of `z3` to the `src` directory (name it `z3`).
 
 - Create a directory under the `your_expname` under the `exp` directory.
@@ -141,7 +141,10 @@ z3try 20
 You may change any of the last 4 parameters.
 
 - Run the command `sh prove.sh` to produce a file called `output` to
-be used in the next learning iteration.
+be used in the next learning iteration. 
+
+- Copy the file named `current` to
+the directory of the next proving iteration and rename it to `previous`.
 
 
 ### Known issues:
