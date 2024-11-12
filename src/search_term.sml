@@ -7,9 +7,7 @@ exception Parse;
 fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
 
 fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
-  handle HOL_ERR _ => 
-    raise ERR "list_mk_comb_err" (term_to_string oper ^ " " ^ 
-      String.concatWith " " (map term_to_string argl));
+  handle HOL_ERR _ => raise Parse
 
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
 fun auto_comb (n,tml) = list_mk_comb_err (mk_varn (n,length tml),tml)
