@@ -6,8 +6,13 @@ val ERR = mk_HOL_ERR "searchnew"
 exception Parse;
 fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
 
+fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
+  handle HOL_ERR _ => 
+    raise ERR "list_mk_comb_err" (term_to_string oper ^ " " ^ 
+      String.concatWith " " (map term_to_string argl));
+
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
-fun auto_comb (n,tml) = list_mk_comb (mk_varn (n,length tml),tml)
+fun auto_comb (n,tml) = list_mk_comb_err (mk_varn (n,length tml),tml)
 val var0 = mk_varn("0",0);
 
 fun ite_template (t1,t2,t3) =
@@ -68,7 +73,7 @@ fun apply_move move board =
   in
     if is_var move andalso string_of_var move = "ite" 
     then ite_template (triple_of_list (rev l1)) :: l2
-    else list_mk_comb (move,rev l1) :: l2
+    else list_mk_comb_err (move,rev l1) :: l2
   end
 
 (* -------------------------------------------------------------------------
@@ -238,7 +243,7 @@ fun search_smt fl t =
    ------------------------------------------------------------------------- *)
 
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
-fun auto_comb (n,tml) = list_mk_comb (mk_varn (n,length tml),tml)
+fun auto_comb (n,tml) = list_mk_comb_err (mk_varn (n,length tml), tml)
 val xvar = mk_var ("x",alpha)
 val yvar = mk_var ("y",alpha)
 val zvar = mk_var ("z",alpha)
@@ -249,12 +254,12 @@ val pvar = mk_var ("P", ``:'a -> 'a -> bool``)
 
 val induct_axiom =
   let 
-    fun fP x y = list_mk_comb (pvar,[x,y])
+    fun fP x y = list_mk_comb_err (pvar,[x,y])
     val base_tm = mk_forall (yvar, fP var0 yvar)
     val imp_tm = list_mk_forall ([xvar,yvar],
       mk_imp (fP xvar yvar, fP xvari yvar))
     val leq = mk_var ("<=",``:'a -> 'a -> bool``)
-    val cond = list_mk_comb (leq,[var0,xvar])
+    val cond = list_mk_comb_err (leq,[var0,xvar])
     val concl_tm = list_mk_forall ([xvar,yvar],
       mk_imp (cond, fP xvar yvar))  
   in
@@ -289,6 +294,8 @@ fun get_inductl t pp =
    up to 20 loops are allowed
    ------------------------------------------------------------------------- *)
 
+
+
 val smtn_glob = length smt_operl
 val macron_glob = 20
 
@@ -319,7 +326,7 @@ fun prog_to_induct v (Ins (opern,pl)) =
       let val (a,b,c) = triple_of_list (map (prog_to_induct v) pl) in
         ite_template (a,b,c)
       end
-    else list_mk_comb (oper,map (prog_to_induct v) pl)
+    else list_mk_comb_err (oper, map (prog_to_induct v) pl)
   end
 
 (* programs to strings *)
@@ -416,7 +423,7 @@ fun stringl_to_inductl_option pp sl =
     fun f s = 
       let val r = string_to_induct v s in 
         if type_of r = bool then SOME r else NONE 
-      end  
+      end 
       handle Parse => NONE
   in
     List.mapPartial f sl
