@@ -317,7 +317,7 @@ val inputl =
 
 fun create_fed pp =
   let
-    val fpl = get_recfpl_ws (progpair_to_progxpair pp)
+    val fpl = get_recfpl_ws (progpair_to_progxpair_shared pp)
     val fed = dnew Term.compare (map_snd exec_memo.mk_exec_twov fpl)
   in
     fed
@@ -883,27 +883,16 @@ val d = enew String.compare
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
 
-val pp = random_elem (map snd appl3);
-val fed = create_fed pp;
+val sl = map pp_to_stringtag (map snd appl3);
+val dir = selfdir ^ "/exp/smt5";
+val _ = mkDir_err dir;
 
-val inductl = random_inductl pp;
-
-length inductl; length inductl2;
-
-
-
-
-val ERR = mk_HOL_ERR "test";
+val sl2 = parmap_sl 50 "search_term.random_inductl_string" sl;
+writel (dir ^ "/input") sl2;
 
 
 
 
-
-  [("0",0),("1",0),("2",0),
-   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
-   ("ite",3)] @ 
-   [fake_var "loop"] @
-   map (fn x => mk_var (x, alpha)) ["x","y"]
 
 
 *)
