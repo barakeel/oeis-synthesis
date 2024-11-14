@@ -197,20 +197,41 @@ fun get_recfl (px1,px2) =
     val sl = mk_fast_set (cpl_compare String.compare Int.compare) 
       (map namea_of_px ((all_subnamed px1) @ (all_subnamed px2)))
   in
-    map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
-    (dict_sort (cpl_compare mycmp Int.compare) sl)
+    map mk_varn (dict_sort (cpl_compare mycmp Int.compare) sl)
   end; 
+
+fun namep_of_px (px as (Insx ((_, vo),_))) = 
+  ((valOf vo, arity_of_progx px), progx_to_prog px);
+
+fun get_recfpl (px1,px2) =
+  let 
+    fun mycmp (s1,s2) = Int.compare 
+      (string_to_int (tl_string s1), string_to_int (tl_string s2))
+    val l = mk_fast_set (fst_compare (fst_compare mycmp))
+      (map namep_of_px ((all_subnamed px1) @ (all_subnamed px2)))   
+  in
+    map_fst mk_varn l
+  end;  
 
 (* --------------------------------------------------------------------------
    Adding SMT definition for loop2_snd
    -------------------------------------------------------------------------- *)
+
+fun mk_svar tm = mk_varn ("s" ^ tl_string (string_of_var tm), arity_of tm)
  
 fun add_s tm = 
   if hd_string (string_of_var tm) = #"w" 
-  then [tm, mk_varn ("s" ^ tl_string (string_of_var tm), arity_of tm)]
+  then [tm, mk_svar tm]
   else [tm]; 
  
 fun get_recfl_ws (px1,px2) = List.concat (map add_s (get_recfl (px1,px2)))
+
+fun add_sp (tm,(p as Ins (_,pl))) = 
+  if hd_string (string_of_var tm) = #"w"
+  then [(tm,p), (mk_svar tm, Ins (16,pl))]
+  else [(tm,p)]
+
+fun get_recfpl_ws (px1,px2) = List.concat (map add_sp (get_recfpl (px1,px2)))
 
 fun add_sdec tm =
   let 

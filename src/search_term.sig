@@ -18,13 +18,22 @@ sig
   val z3_prove : string -> string -> int -> term list -> term list -> bool
   
   (* *)
-  val pp_to_string : prog * prog -> string
-  val string_to_pp : string -> prog * prog
+  val pp_to_stringtag : prog * prog -> string
+  val stringtag_to_pp : string -> prog * prog
+  
+  (* evaluate a predicate *)
+  val create_fed :  prog * prog -> 
+    (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict
+  val eval_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict ->
+    term -> (IntInf.int * IntInf.int) -> bool
+  val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict ->
+    term -> bool
   
   (* induction axiom *)
   val induct_cj : term -> term
-  val get_inductl : real -> prog * prog -> term list
-  val random_inductl : string -> string
+  val random_inductl : prog * prog -> term list
+  val random_inductl_string : string -> string
+  val ppil_to_string : (prog * prog) * term list -> string
   val z3_prove_inductl : string -> string -> prog * prog -> string
   val z3_prove_anum : string -> string
   val z3_prove_ppil : string -> string

@@ -4,6 +4,7 @@ struct
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
 val ERR = mk_HOL_ERR "searchnew"
 exception Parse;
+
 fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
   handle HOL_ERR _ => raise ERR "split_pair" (Char.toString c ^ ": " ^ s)
 
@@ -22,9 +23,12 @@ fun ite_template (t1,t2,t3) =
    ------------------------------------------------------------------------- *)
 
 val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
+val smtgentim = (valOf o Real.fromString)
+  (dfind "smtgentim" configd) handle NotFound => 5.0
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
 val z3try = string_to_int (dfind "z3tim" configd) handle NotFound => 20
+
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -194,6 +198,10 @@ fun search fl lim =
     elist (!progd)
   end
 
+
+
+
+
 (* -------------------------------------------------------------------------
    Operator to produce SMT formulas
    ------------------------------------------------------------------------- *)
@@ -236,6 +244,101 @@ fun search_smt fl t =
     filter (fn x => contain_x x andalso contain_rec x) tml1
   end  
 
+(* -------------------------------------------------------------------------
+   Evaluating predicates
+   ------------------------------------------------------------------------- *)
+
+(* create a binary function for each loop function *)
+
+fun eval_term fed tm input =
+  let 
+    val (oper,argl) = strip_comb tm
+    fun binop f = 
+      let val (a,b) = pair_of_list argl in
+        f (eval_term fed a input, eval_term fed b input)
+      end   
+  in
+    case string_of_var oper of
+      "0" => IntInf.fromInt 0
+    | "1" => IntInf.fromInt 1
+    | "2" => IntInf.fromInt 2
+    | "+" => binop IntInf.+
+    | "-" => binop IntInf.-
+    | "*" => binop IntInf.*
+    | "divf" => binop IntInf.div
+    | "modf" => binop IntInf.mod
+    | "ite" => let val (a,b,c) = triple_of_list argl in 
+                 if eval_pred fed a input
+                 then eval_term fed b input
+                 else eval_term fed c input
+               end
+    | "x" => fst input
+    | "y" => snd input
+    | s => 
+      case dfindo oper fed of
+        NONE => raise ERR "eval_term" ("operator not found: " ^ s)
+      | SOME f => (
+                  case argl of
+                    [] => f (IntInf.fromInt 0, IntInf.fromInt 0)
+                  | [a] => f (eval_term fed a input, IntInf.fromInt 0)
+                  | [a,b] =>  f (eval_term fed a input, eval_term fed b input)
+                  | _ => raise ERR "eval_term" "arity"
+                  )
+  end
+
+and eval_pred fed tm input =
+  if is_conj tm then
+    let val (a,b) = dest_conj tm in
+      eval_pred fed a input andalso eval_pred fed b input
+    end
+  else if is_neg tm then not (eval_pred fed (dest_neg tm) input)
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in
+      not (eval_pred fed a input) orelse eval_pred fed b input
+    end
+  else if is_eq tm then
+    let val (a,b) = dest_eq tm in
+      eval_term fed a input = eval_term fed b input
+    end
+  else if string_of_var (fst (strip_comb tm)) = "<=" then
+    let val (a,b) = pair_of_list (snd (strip_comb tm)) in
+      eval_term fed a input <= eval_term fed b input
+    end
+  else raise ERR "eval_pred" "not a predicate"
+
+
+val inputl = 
+  let 
+    val l1 = List.tabulate (10,IntInf.fromInt)
+    val l1b = List.tabulate (19,fn x => IntInf.fromInt (x-9))
+  in
+    cartesian_product l1 l1b
+  end;
+
+fun create_fed pp =
+  let
+    val fpl = get_recfpl_ws (progpair_to_progxpair pp)
+    val fed = dnew Term.compare (map_snd exec_memo.mk_exec_twov fpl)
+  in
+    fed
+  end
+  
+fun true_pred fed pred =
+  let
+    fun f x = 
+      (
+      abstimer := 0;
+        ( 
+        eval_pred fed pred x handle
+          Div => false
+        | ProgTimeout => true
+        | Overflow => true
+        | Empty => true
+        )
+      )
+  in
+    all f inputl
+  end
 
 (* -------------------------------------------------------------------------
    Induction axiom
@@ -284,9 +387,6 @@ fun get_subtml pp =
   in
     subtml
   end
-
-fun get_inductl t pp = 
-  search_smt (get_recfl_ws (progpair_to_progxpair_shared pp)) t
 
 (* -------------------------------------------------------------------------
    Translation from induction predicates to NMT
@@ -429,7 +529,7 @@ fun stringl_to_inductl_option pp sl =
   end  
 
 (* -------------------------------------------------------------------------
-   Find good induction predicates
+   Running Z3 with induction predicates
    ------------------------------------------------------------------------- *)
 
 fun read_status file =
@@ -455,28 +555,110 @@ fun z3_prove filein fileout t decl inductltop =
     s = "unsat"
   end
 
-fun string_to_pp s =
-  let val (s1,s2) = split_pair #"=" s in (prog_of_gpt s1, prog_of_gpt s2) end
-  
+(* -------------------------------------------------------------------------
+   Printing pairs of programs with tags and without tags
+   ------------------------------------------------------------------------- *)
+ 
+(*
 fun pp_to_string (p1,p2) = gpt_of_prog p1 ^ "=" ^ gpt_of_prog p2
-    
+ 
+fun string_to_pp s =
+  let val (s1,s2) = split_pair #"=" s in (prog_of_gpt s1, prog_of_gpt s2) end   
+*)
 
-fun random_inductl pps = 
-  let
-    val pp = string_to_pp pps
-    val _ = print_endline "find recursive functions"
-    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
-    val _ = print_endline (its (length recfl) ^ " recursive functions")
-    val _ = print_endline "get_subterms"
-    val _ = subtml_glob := get_subtml pp
-    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
-    val _ = print_endline "create induction instances"
-    val inductl = search_smt recfl 5.0
+fun id_to_nmt id = Char.toString (Char.chr (65 + id));
+fun nmt_to_id s = Char.ord (valOf (Char.fromString s)) - 65
+fun nmt_macro i = Char.toString (Char.chr (97 + i));
+
+(* write tagged programs *)
+fun vo_to_idl recd vo = case vo of 
+    NONE => []
+  | SOME s => if hd_string s = #"w" 
+              then [dfind s recd, dfind ("s" ^ tl_string s) recd]
+              else [dfind s recd];
+               
+fun px_to_sl recd (Insx ((i,vo),pl)) = 
+  id_to_nmt i :: (vo_to_idl recd vo) @ List.concat (map (px_to_sl recd) pl);
+
+fun px_to_string recd px = String.concatWith " " (px_to_sl recd px);
+
+fun pp_to_stringtag pp = 
+  let 
+    fun create_recd ppx =
+      let 
+        val l1 = map string_of_var (get_recfl_ws ppx); 
+        val l2 = List.tabulate (length l1, nmt_macro)
+      in
+        dnew String.compare (combine (l1,l2))
+      end
+    val ppx = progpair_to_progxpair_shared pp
+    val recd = create_recd ppx
   in
-    if null inductl then raise ERR "random_inductl" "" else 
-    pps ^ ">" ^ String.concatWith "|" (inductl_to_stringl pp inductl)
+    px_to_string recd (fst ppx) ^ "=" ^ px_to_string recd (snd ppx)
   end
 
+(* read tagged programs *)
+fun idl_to_pxl idl = case idl of
+    [] => []
+  | id :: m => 
+    let
+      val pl = idl_to_pxl m
+      val arity = arity_of_oper id
+      val (pl1,pl2) = part_n arity pl
+    in
+      if length pl1 <> arity then raise Parse else Ins (id,pl1) :: pl2
+    end
+
+fun stringtag_to_prog s = 
+  let 
+    val sl1 = String.tokens Char.isSpace s
+    val sl2 = filter (fn x => Char.isUpper (valOf (Char.fromString x))) sl1
+    val idl = map nmt_to_id sl2
+    val pl = idl_to_pxl idl
+  in
+    singleton_of_list pl handle HOL_ERR _ => raise ERR "stringtag_to_prog" s
+  end
+  
+fun stringtag_to_pp s =
+  let val (s1,s2) = split_pair #"=" s in
+    (stringtag_to_prog s1, stringtag_to_prog s2)
+  end
+
+(* -------------------------------------------------------------------------
+   Generating random induction predicates
+   ------------------------------------------------------------------------- *)
+
+fun random_inductl pp = 
+  let
+    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
+    val _ = print_endline (its (length recfl) ^ " recursive functions")
+    val _ = subtml_glob := get_subtml pp
+    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
+    val inductl = search_smt recfl smtgentim
+    val _ = print_endline (its (length inductl) ^ " predicates") 
+    val fed = create_fed pp
+    val inductl2 = filter (true_pred fed) inductl
+    val _ = print_endline (its (length inductl2) ^ " true predicates")     
+  in
+    inductl2
+  end
+
+fun ppil_to_string (pp,il) = 
+  if null il then raise ERR "ppil_to_string" "empty" else
+  pp_to_stringtag pp ^ ">" ^ 
+  String.concatWith "|" (inductl_to_stringl pp il)
+
+fun random_inductl_string pps =
+  let 
+    val pp = stringtag_to_pp pps 
+    val il = random_inductl pp 
+  in
+    ppil_to_string (pp,il)
+  end
+
+(* -------------------------------------------------------------------------
+   Proof: calling z3
+   ------------------------------------------------------------------------- *)
 
 fun z3_prove_inductl filein fileout pp = 
   let
@@ -492,7 +674,7 @@ fun z3_prove_inductl filein fileout pp =
     val _ = subtml_glob := get_subtml pp
     val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
     val _ = print_endline "create induction instances"
-    val inductl = search_smt recfl 5.0
+    val inductl = search_smt recfl smtgentim
     val _ = print_endline (its (length inductl) ^ " induction instances")
     fun provable t sel = 
       z3_prove filein fileout t decl sel
@@ -563,12 +745,9 @@ fun z3_prove_anum anum =
   end
 
 (* -------------------------------------------------------------------------
-   Evaluation: parsing
+   Proof: parsing
    ------------------------------------------------------------------------- *)
 
-(* p1=p2>cj1|cj2|cj3|... *)
-
-  
 fun parse_ppil stop =
   let 
     val (i,ppil) = split_pair #":" stop
@@ -584,7 +763,7 @@ fun parse_ppil stop =
   end
 
 (* -------------------------------------------------------------------------
-   Evaluation: printing
+   Proof output
    ------------------------------------------------------------------------- *)
 
 fun compare_string_size (s1,s2) = cpl_compare
@@ -593,7 +772,6 @@ fun compare_string_size (s1,s2) = cpl_compare
 fun compare_lemmal (lemmal1,lemmal2) =
   compare_string_size 
     (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
-
 
 fun get_status_lemmas s = 
   let 
@@ -619,7 +797,7 @@ fun lemmas_to_string (s,sl) =
   s ^ ">" ^ (if null sl then "empty" else String.concatWith "|" sl)
 
 (* -------------------------------------------------------------------------
-   Evaluation: main functions
+   Proof: main functions
    ------------------------------------------------------------------------- *)
 
 fun z3_prove_ppil s = 
@@ -629,16 +807,15 @@ fun z3_prove_ppil s =
     val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
     val r = z3_prove_inductl_tml filein fileout pp tml
   in
-    pp_to_string pp ^ ">" ^ r
+    pp_to_stringtag pp ^ ">" ^ r
   end
-
 
 fun standard_space s = String.concatWith " " (String.tokens Char.isSpace s);
 fun tts tm = standard_space (term_to_string tm);
 
 fun human_out (s,sl) = 
   let 
-    val pp = string_to_pp s
+    val pp = stringtag_to_pp s
     val (px1,px2) = progpair_to_progxpair_shared pp
     val tml = stringl_to_inductl pp sl
   in
@@ -703,23 +880,28 @@ fun z3_prove_para expname =
 
 
 (*
-name the file "previous" and "current"
 
 load "search_term"; 
 open aiLib kernel smt_progx search_term;
-val appl1 = read_anumprogpairs "smt_benchmark_progpairs"
+val appl1 = read_anumprogpairs "smt_benchmark_progpairs";
 val d = enew String.compare 
   (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
 val appl2 = filter (fn x => emem (fst x) d) appl1;
 val appl3 = filter (good_pp o snd) appl2;
 
-writel "proof0_infer" (map (pp_to_string o snd) appl3);
+val ppl1 = map snd appl1;
+val ppl2 = map pp_to_stringtag ppl1;
+val ppl3 = map stringtag_to_pp ppl2;
+list_compare (cpl_compare prog_compare prog_compare) (ppl1,ppl3);
+
+writel "proof0_infer" (map (pp_to_stringtag o snd) appl3);load "search_term"; 
+open aiLib kernel smt_progx search_term;
 
 
 (* create input file *)
 val ppl3 = map snd appl3;
 val ppltest = random_subset 20 ppl3;
-val sl1 = map pp_to_string ppltest;
+val sl1 = map pp_to_stringtag ppltest;
 val sl2 = parmap_sl 2 "search_term.random_inductl" sl1;
 val expname = "test100";
 val _ = mkDir_err (selfdir ^ "/exp/" ^ expname);
@@ -740,7 +922,38 @@ val l1 = inductl_to_stringl pp l0;
 val l2 = stringl_to_inductl pp l1;
 list_compare Term.compare (l0,l2);
 
-todo: create the input from random
+
+
+load "search_term";
+open aiLib kernel progx smt_progx search_term;
+val appl1 = read_anumprogpairs "smt_benchmark_progpairs";
+val d = enew String.compare 
+  (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
+val appl2 = filter (fn x => emem (fst x) d) appl1;
+val appl3 = filter (good_pp o snd) appl2;
+
+val pp = random_elem (map snd appl3);
+val fed = create_fed pp;
+
+val inductl = random_inductl pp;
+
+length inductl; length inductl2;
+
+
+
+
+val ERR = mk_HOL_ERR "test";
+
+
+
+
+
+  [("0",0),("1",0),("2",0),
+   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
+   ("ite",3)] @ 
+   [fake_var "loop"] @
+   map (fn x => mk_var (x, alpha)) ["x","y"]
+
 
 *)
 

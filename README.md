@@ -95,7 +95,7 @@ These files were generated using a random generator and selecting the smallest a
 Moving the file `solnew` from a `expname=generation_n` directory to 
 the file `solold` of a `expname=generation_n+1` directory is left to the user.
 
-##External machine learner
+## External machine learner
 Disclaimer: the following toolkit is hard to install 
 (need the right version of python) and does not work 
 for some of the new GPU cards.
@@ -105,7 +105,7 @@ https://github.com/tensorflow/nmt.
 The parameters and scripts for training the model 
 on GPU are given in the `src/nmt` directory.
 
-##Learning to prove by induction
+## Learning to prove by induction
 Machine learners can also attempt to learn by induction.
 
 ### Training 
@@ -148,7 +148,7 @@ the directory of the next proving iteration and rename it to `previous`.
 
 
 ### Known issues:
-####How do I install MKL for older versions of Ubuntu?
+#### How do I install MKL for older versions of Ubuntu?
 See https://github.com/eddelbuettel/mkl4deb
 
 After installing, you need to add the following lines to your `/home/user/.bash_aliases`:

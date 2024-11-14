@@ -55,7 +55,7 @@ fun progx_to_string p =
       "(" ^ String.concatWith " " (name_of_oper id :: map h pl) ^ ")"
     | Insx ((id,SOME s),pl) => 
       "(" ^ String.concatWith " " (name_of_oper id ^ ":" ^ s :: map h pl) ^ ")"  
-  end 
+  end
   
 (* --------------------------------------------------------------------------
    Converting between the type progx and prog with and without name sharing

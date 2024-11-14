@@ -21,6 +21,7 @@ sig
   (* definition for loop2_snd *)
   val get_recfl_ws : progx * progx -> term list
   val add_sdecl : term list -> term list
+  val get_recfpl_ws : progx * progx -> (term * prog) list
   
   (* extra equalities for equality congruence (on px not pxx) *)
   val eq_loop : progx * progx -> term list
