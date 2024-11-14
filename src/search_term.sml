@@ -558,13 +558,6 @@ fun z3_prove filein fileout t decl inductltop =
 (* -------------------------------------------------------------------------
    Printing pairs of programs with tags and without tags
    ------------------------------------------------------------------------- *)
- 
-(*
-fun pp_to_string (p1,p2) = gpt_of_prog p1 ^ "=" ^ gpt_of_prog p2
- 
-fun string_to_pp s =
-  let val (s1,s2) = split_pair #"=" s in (prog_of_gpt s1, prog_of_gpt s2) end   
-*)
 
 fun id_to_nmt id = Char.toString (Char.chr (65 + id));
 fun nmt_to_id s = Char.ord (valOf (Char.fromString s)) - 65
@@ -703,8 +696,7 @@ fun parse_ppil stop =
   let 
     val (i,ppil) = split_pair #":" stop
     val (s1,s2) = split_pair #">" ppil
-    val (s11,s12) = split_pair #"=" s1
-    val pp = (prog_of_gpt s11, prog_of_gpt s12) 
+    val pp = stringtag_to_pp s1 
     val sl = String.tokens (fn x => x = #"|") s2
     val _ = print_endline (its (length sl) ^ " induction predicates")
     val tml = stringl_to_inductl_option pp sl

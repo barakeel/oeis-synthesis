@@ -141,7 +141,7 @@ fun read_anumprogpairs file =
       end
   in
     map f (readl file)
-  end 
+  end
   
 (*
 load "smt_progx"; open aiLib kernel smt_progx;
