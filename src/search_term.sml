@@ -660,44 +660,7 @@ fun random_inductl_string pps =
    Proof: calling z3
    ------------------------------------------------------------------------- *)
 
-fun z3_prove_inductl filein fileout pp = 
-  let
-    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
-                           human.humanf (snd pp))
-    val _ = print_endline "find recursive functions"
-    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
-    val _ = print_endline (its (length recfl) ^ " recursive functions")
-    val _ = print_endline "declare functions"
-    val decl = create_decl pp
-    val _ = print_endline (its (length decl) ^ " declarations")
-    val _ = print_endline "get_subterms"
-    val _ = subtml_glob := get_subtml pp
-    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") 
-    val _ = print_endline "create induction instances"
-    val inductl = search_smt recfl smtgentim
-    val _ = print_endline (its (length inductl) ^ " induction instances")
-    fun provable t sel = 
-      z3_prove filein fileout t decl sel
-    fun minimize acc sel = case sel of 
-        [] => String.concatWith " | " ("unsat" :: inductl_to_stringl pp acc)  
-      | a :: m =>
-        if not (provable z3tim (acc @ m))
-        then minimize (acc @ [a]) m
-        else minimize acc m
-    fun loop n = 
-      if n <= 0 then "unknown" else
-      let 
-        val sel = random_subset z3lem inductl
-        val b = z3_prove filein fileout z3tim decl sel
-      in 
-        if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
-      end
-    val r = loop z3try
-  in
-    print_endline ""; r
-  end
-
-fun z3_prove_inductl_tml filein fileout pp inductl = 
+fun z3_prove_inductl filein fileout pp inductl = 
   let
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
@@ -731,18 +694,6 @@ fun good_pp pp =
     length recfl <= 20
   end
 
-
-fun z3_prove_anum anum =
-  let
-    val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs")
-    val _ = print_endline anum
-    val pp = assoc anum appl
-    val filein = selfdir ^ "/z3_" ^ anum ^ "_in.smt2"
-    val fileout = selfdir ^ "/z3_" ^ anum ^ "_out"
-    val r = z3_prove_inductl filein fileout pp
-  in
-    anum ^ " " ^ r 
-  end
 
 (* -------------------------------------------------------------------------
    Proof: parsing
@@ -805,7 +756,7 @@ fun z3_prove_ppil s =
     val (i,(pp,tml)) = parse_ppil s
     val filein = selfdir ^ "/z3_" ^ i ^ "_in.smt2"
     val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
-    val r = z3_prove_inductl_tml filein fileout pp tml
+    val r = z3_prove_inductl filein fileout pp tml
   in
     pp_to_stringtag pp ^ ">" ^ r
   end
