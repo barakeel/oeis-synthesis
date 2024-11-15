@@ -18,6 +18,41 @@ val var0 = mk_varn("0",0);
 fun ite_template (t1,t2,t3) =
   auto_comb ("ite", [auto_comb ("<=", [t1,var0]),t2,t3]);
 
+
+(* -------------------------------------------------------------------------
+   Operator to produce SMT formulas
+   Q = and, R = ==>, S = not
+   ------------------------------------------------------------------------- *)
+
+fun fake_var s = mk_var (s,``:num -> num``)
+
+val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
+  [("0",0),("1",0),("2",0),
+   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
+   ("ite",3)] @ 
+   [fake_var "loop"] @
+   map (fn x => mk_var (x, alpha)) ["x","y"] @
+   map fake_var ["compr","loop2"]
+  
+val smt_operl_pred = 
+ [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
+  mk_var ("<=",``:'a -> 'a -> bool``)];
+
+val smt_operl_logic = [``$/\``,``$==>``,``$~``];
+
+val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
+
+val smt_operd = enew Term.compare smt_operl
+
+fun is_recf oper = 
+  is_var oper andalso 
+  mem (hd_string (string_of_var oper)) [#"v",#"w",#"s"]
+
+fun contain_recf tm = 
+  let val (oper,argl) = strip_comb tm in
+    is_recf oper orelse exists contain_recf argl
+  end
+
 (* -------------------------------------------------------------------------
    Global parameters from config file
    ------------------------------------------------------------------------- *)
@@ -28,7 +63,8 @@ val smtgentim = (valOf o Real.fromString)
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
 val z3try = string_to_int (dfind "z3tim" configd) handle NotFound => 20
-
+val nonesting = string_to_bool (dfind "nonesting" configd) 
+  handle NotFound => false
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -52,11 +88,14 @@ fun compatible f tml =
   end
 
 fun available_move board move =  
-  if term_eq move ``$~`` andalso not (null board) andalso is_neg (hd board)
+  if nonesting andalso is_recf move andalso 
+    exists contain_recf (first_n (arity_of move) board)
+    then false
+  else if term_eq move ``$~`` andalso not (null board) andalso is_neg (hd board)
     then false
   else if is_var move andalso mem (string_of_var move) ["loop","loop2","compr"]
     then false
-  else compatible move (fst (part_n (arity_of move) board))
+  else compatible move (first_n (arity_of move) board)
   
 fun available_movel fl board = filter (available_move board) fl
 
@@ -202,27 +241,7 @@ fun search fl lim =
 
 
 
-(* -------------------------------------------------------------------------
-   Operator to produce SMT formulas
-   ------------------------------------------------------------------------- *)
 
-fun fake_var s = mk_var (s,``:num -> num``)
-
-val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
-  [("0",0),("1",0),("2",0),
-   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
-   ("ite",3)] @ 
-   [fake_var "loop"] @
-   map (fn x => mk_var (x, alpha)) ["x","y"] @
-   map fake_var ["compr","loop2"]
-  
-val smt_operl_pred = 
- [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
-  mk_var ("<=",``:'a -> 'a -> bool``)];
-
-val smt_operl_logic = [``$/\``,``$==>``,``$~``];
-
-val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
 
 fun forallxy tm = 
   let 
@@ -754,7 +773,19 @@ fun z3_prove_ppil s =
   end
 
 fun standard_space s = String.concatWith " " (String.tokens Char.isSpace s);
-fun tts tm = standard_space (term_to_string tm);
+
+fun string_of_varconst oper =
+  if is_var oper then fst (dest_var oper)
+  else if is_const oper then fst (dest_const oper)
+  else raise ERR "string_of_varconst" (term_to_string oper);
+
+fun tts tm = 
+  let val (oper,argl) = strip_comb tm in
+    if null argl
+    then string_of_varconst oper
+    else "(" ^ String.concatWith " " (string_of_varconst oper :: 
+         map tts argl) ^ ")"
+  end 
 
 fun human_out (s,sl) = 
   let 
@@ -762,8 +793,8 @@ fun human_out (s,sl) =
     val (px1,px2) = progpair_to_progxpair_shared pp
     val tml = stringl_to_inductl pp sl
   in
-    progx_to_string px1 ^ "=" ^ progx_to_string px2 ^ "\n" ^ 
-    String.concatWith "|" (map tts tml)
+    progx_to_string px1 ^ " = " ^ progx_to_string px2 ^ "\n" ^ 
+    String.concatWith " | " (map tts tml)
   end
   
 fun merge lold lnew =
@@ -808,17 +839,12 @@ fun z3_prove_para expname =
     fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
     val l7 = List.concat (map tonmt lmerge)
     val _ = logl l7 "examples"
-    fun cmd file = 
-      "sed -i 's/\\$var\\$(0)/0/g; s/\\$var\\$(1)/1/g; " ^
-      "s/\\$var\\$(2)/2/g' " ^ dir ^ "/" ^ file
   in
     writel (dir ^ "/output") l7;
     writel (dir ^ "/diff") (map lemmas_to_string ldiff);
     writel (dir ^ "/current") (map lemmas_to_string lmerge);
     writel (dir ^ "/diff_human") (map human_out ldiff);
-    writel (dir ^ "/current_human") (map human_out lmerge);
-    ignore (OS.Process.system (cmd "diff_human"));
-    ignore (OS.Process.system (cmd "current_human"))
+    writel (dir ^ "/current_human") (map human_out lmerge)
   end
 
 
