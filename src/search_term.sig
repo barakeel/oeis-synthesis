@@ -42,7 +42,8 @@ sig
   val inductl_to_stringl : prog * prog -> term list -> string list
   val stringl_to_inductl : prog * prog -> string list -> term list
   
-  (* filter out the 3 problems that have too many macros *)
+  (* generate random predicates in parallel *)
   val good_pp : prog * prog -> bool
+  val gen_init : string -> unit
   
 end

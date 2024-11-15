@@ -847,6 +847,26 @@ fun z3_prove_para expname =
     writel (dir ^ "/current_human") (map human_out lmerge)
   end
 
+fun gen_init expname =
+  let
+    val dir = selfdir ^ "/exp/" ^ expname
+    val _ = app mkDir_err [selfdir ^ "/exp", dir]
+    fun log s = append_endline (dir ^ "/log") s
+    fun logl l s = log (its (length l) ^ " " ^ s)
+    val appl1 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs")
+    val _ = logl appl1 "problems"
+    val d = enew String.compare 
+      (map OS.Path.base (readl (selfdir ^ "/../../oeis-smt/aind_sem")))
+    val appl2 = filter (fn x => emem (fst x) d) appl1
+    val _ = logl appl2 "inductive problems"
+    val appl3 = filter (good_pp o snd) appl2
+    val _ = logl appl3 "inductive problems with not too many loops"
+    val sl = map pp_to_stringtag (map snd appl3)
+    val (sl2,t) = add_time (parmap_sl 50 "search_term.random_inductl_string") sl
+    val _ = log ("generating time: " ^ rts t) 
+  in
+    writel (dir ^ "/input") sl2
+  end
 
 (*
 
@@ -895,18 +915,6 @@ list_compare Term.compare (l0,l2);
 
 load "search_term";
 open aiLib kernel progx smt_progx search_term;
-val appl1 = read_anumprogpairs "smt_benchmark_progpairs";
-val d = enew String.compare 
-  (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
-val appl2 = filter (fn x => emem (fst x) d) appl1;
-val appl3 = filter (good_pp o snd) appl2;
-
-val sl = map pp_to_stringtag (map snd appl3);
-val dir = selfdir ^ "/exp/smt5";
-val _ = mkDir_err dir;
-
-val sl2 = parmap_sl 50 "search_term.random_inductl_string" sl;
-writel (dir ^ "/input") sl2;
 
 
 
