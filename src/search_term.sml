@@ -5,8 +5,28 @@ open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
 val ERR = mk_HOL_ERR "searchnew"
 exception Parse;
 
+(* -------------------------------------------------------------------------
+   Global parameters from config file
+   ------------------------------------------------------------------------- *)
+
+val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
+val smtgentim = (valOf o Real.fromString)
+  (dfind "smtgentim" configd) handle NotFound => 5.0
+val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
+val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
+val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 20
+val nonesting = ref false
+
+(* -------------------------------------------------------------------------
+   Parsing functions
+   ------------------------------------------------------------------------- *)
+
 fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
   handle HOL_ERR _ => raise ERR "split_pair" (Char.toString c ^ ": " ^ s)
+
+(* -------------------------------------------------------------------------
+   Term functions
+   ------------------------------------------------------------------------- *)
 
 fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
   handle HOL_ERR _ => raise Parse
@@ -29,7 +49,8 @@ fun contain_x tm =
   let val (oper,argl) = strip_comb tm in
     is_xvar oper orelse exists contain_x argl
   end
-  
+ 
+(* language dependent *)
 fun is_recvar v = is_var v andalso
   mem (hd_string (string_of_var v)) [#"w",#"v",#"s"]
 
@@ -45,7 +66,6 @@ fun is_nested tm =
   
 fun contain_nested tm = (not o null o (find_terms is_nested)) tm;
 
-(* language dependent *)
 fun acceptable tm = contain_x tm andalso contain_rec tm
 
 (* -------------------------------------------------------------------------
@@ -73,17 +93,7 @@ val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
 
 val smt_operd = enew Term.compare smt_operl
 
-(* -------------------------------------------------------------------------
-   Global parameters from config file
-   ------------------------------------------------------------------------- *)
 
-val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
-val smtgentim = (valOf o Real.fromString)
-  (dfind "smtgentim" configd) handle NotFound => 5.0
-val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
-val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
-val z3try = string_to_int (dfind "z3tim" configd) handle NotFound => 20
-val nonesting = ref false
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -996,6 +1006,18 @@ fun gen_prove_init expname =
   end
 
 (* -------------------------------------------------------------------------
+   Create inference file
+   ------------------------------------------------------------------------- *)
+
+(*
+load "search_term"; 
+open aiLib kernel smt_hol smt_progx search_term;
+val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
+val sl = writel (selfdir ^ "/smt_inference") 
+  (map pp_to_stringtag (map snd appl));
+*)
+
+(* -------------------------------------------------------------------------
    Removing equivalent predicates (not used)
    ------------------------------------------------------------------------- *)
 
@@ -1025,22 +1047,9 @@ fun z3quotient filein fileout inductl =
   end
 
 (*
-(* create input file *)
-val ppl3 = map snd appl3;
-val ppltest = random_subset 20 ppl3;
-val sl1 = map pp_to_stringtag ppltest;
-val sl2 = parmap_sl 2 "search_term.random_inductl" sl1;
-val expname = "test100";
-val _ = mkDir_err (selfdir ^ "/exp/" ^ expname);
-writel (selfdir ^ "/exp/" ^ expname ^ "/input") sl2;
-(* todo create the new "smt_inference" file *)
-
 load "search_term"; 
 open aiLib kernel smt_hol smt_progx search_term;
 val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
-val sl = writel (selfdir ^ "/smt_inference") 
-  (map pp_to_stringtag (map snd appl));
-
 val (a,pp) = random_elem appl;
 val l1 = random_inductl pp; 
 val l1conj = filter (not o null o (find_terms is_conj)) l1;
