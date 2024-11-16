@@ -19,5 +19,6 @@ sig
   val get_decl_md : term list -> string list
   val get_assertl : term list -> string list
   val write_hol_smt : string -> string list -> term list -> string list -> unit 
+  val write_smt : string -> term list -> unit
   
 end

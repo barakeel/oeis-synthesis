@@ -12,7 +12,9 @@ sig
   val smt_operl : term list 
   val search_smt : term list -> real -> term list
   
-  val subtml_glob : term list ref
+  val nonesting : bool ref
+  val contain_nested : term -> bool
+  (* val subtml_glob : term list ref *)
   
   (* z3 calls *)
   val z3_prove : string -> string -> int -> term list -> term list -> bool
@@ -45,5 +47,10 @@ sig
   (* generate random predicates in parallel *)
   val good_pp : prog * prog -> bool
   val gen_init : string -> unit
+  val gen_prove_string : string -> string
+  val gen_prove_init : string -> unit
+  
+  (* filter predicates of the same equivalence classes *)
+  val z3quotient : string -> string -> term list -> term list
   
 end

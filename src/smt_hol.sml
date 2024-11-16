@@ -105,6 +105,10 @@ fun hol_to_smt_aux tm =
     let val (a,b) = dest_conj tm in
       Sexp [Atom "and",hol_to_smt_aux a, hol_to_smt_aux b]
     end
+  else if is_disj tm then
+    let val (a,b) = dest_disj tm in
+      Sexp [Atom "or",hol_to_smt_aux a, hol_to_smt_aux b]
+    end
   else if is_neg tm then
     let val a = dest_neg tm in
       Sexp [Atom "not",hol_to_smt_aux a]
@@ -177,6 +181,15 @@ fun get_assertl tml = map (sexp_to_string o hol_to_smt) tml
 
 fun write_hol_smt file header tml footer = 
   writel file (header @ get_decl tml @ get_assertl tml @ footer)
+
+(* --------------------------------------------------------------------------
+   Writing a SMT file from HOL terms: useful instances
+   -------------------------------------------------------------------------- *)
+
+val header = ["(set-logic UFNIA)"]
+val footer = ["(check-sat)"]     
+
+fun write_smt file tml = write_hol_smt file header tml footer
 
 
 end (* struct *)

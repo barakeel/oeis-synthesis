@@ -186,9 +186,13 @@ val timer_glob5 = ref 0.0
 
 fun inv_cmp cmp (a,b) = cmp (b,a)
 
-fun string_of_var x = fst (dest_var x)
+fun string_of_var x = fst (dest_var x) 
+  handle HOL_ERR _ => raise ERR "string_of_var" (term_to_string x)
 
 fun length_geq l n = length (first_n n l) >= n
+fun length_eq l n = case l of 
+    [] => n = 0 
+  | a :: m => length_eq m (n-1)
 
 fun first_diff cmp l1 l2 = case (l1,l2) of
     ([],_) => NONE
