@@ -3,6 +3,8 @@ struct
 
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
 val ERR = mk_HOL_ERR "searchnew"
+
+type ppsisl = string * string list
 exception Parse;
 
 (* -------------------------------------------------------------------------
@@ -818,7 +820,7 @@ fun z3_prove_inductl filein fileout pp inductl =
       in 
         if b then (print_endline 
           ("proof found after " ^ its (z3try - n + 1) ^ " tries in " ^
-           rts_round 2 t1 "seconds")
+           rts_round 2 t1 ^ " seconds")
           ; minimize_wrap sel) else loop (n-1)
       end
     val (r,t) = add_time loop z3try
@@ -838,17 +840,21 @@ fun good_pp pp =
    Proof: parsing
    ------------------------------------------------------------------------- *)
 
-fun parse_ppil stop =
+fun parse_ppil ppils =
   let 
-    val (i,ppil) = split_pair #":" stop
-    val (s1,s2) = split_pair #">" ppil
+    val (s1,s2) = split_pair #">" ppils
     val pp = stringtag_to_pp s1 
-    val sl = String.tokens (fn x => x = #"|") s2
+    val sl = if s2 = "empty" then [] else String.tokens (fn x => x = #"|") s2
     val _ = print_endline (its (length sl) ^ " induction predicates")
-    val tml = stringl_to_inductl_option pp sl
-    val _ = print_endline (its (length sl - length tml) ^ " parse errors")
+    val il = stringl_to_inductl_option pp sl
+    val _ = print_endline (its (length sl - length il) ^ " parse errors")
   in
-    (i,(pp,tml))
+    (pp,il)
+  end
+
+fun parse_ippil ippils =
+  let val (jobns,ppils) = split_pair #":" ippils in
+    (jobns, parse_ppil ppils)
   end
 
 (* -------------------------------------------------------------------------
@@ -862,16 +868,16 @@ fun compare_lemmal (lemmal1,lemmal2) =
   compare_string_size 
     (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
 
-fun get_status_lemmas s = 
+fun get_status_ppsisl s = 
   let 
     val (s0,s1) = split_pair #">" s
     val sl2 = String.tokens (fn x => x = #"|") s1
-    val _ = if null sl2 then raise ERR "get_status_lemmas" "" else ()  
+    val _ = if null sl2 then raise ERR "get_status_ppsisl" "" else ()  
   in
     (s0,(hd sl2,tl sl2))
   end;
   
-fun string_to_lemmas s = 
+fun string_to_ppsisl s = 
   let 
     val (s0,s1) = split_pair #">" s
     val sl2 = 
@@ -882,8 +888,31 @@ fun string_to_lemmas s =
     (s0,sl2)
   end
   
-fun lemmas_to_string (s,sl) = 
+fun ppsisl_to_string (s,sl) = 
   s ^ ">" ^ (if null sl then "empty" else String.concatWith "|" sl)
+
+(* -------------------------------------------------------------------------
+   Merging
+   ------------------------------------------------------------------------- *)
+
+fun merge l1 l2 =
+  let
+    val d = ref (dempty String.compare)
+    fun f (k,v) = case dfindo k (!d) of
+       NONE => d := dadd k v (!d)
+     | SOME oldv => if compare_lemmal (v,oldv) = LESS 
+                    then d := dadd k v (!d) else ()
+    val _ = app f (l1 @ l2) 
+  in
+    dlist (!d)
+  end
+  
+fun merge_diff l1 l2 =
+  let val setold = enew String.compare (map fst l1) in
+    filter (fn (x,_) => not (emem x setold)) l2
+  end
+    
+fun merge_simple l1 l2 = l1 @ (merge_diff l1 l2)
 
 (* -------------------------------------------------------------------------
    Proof: main functions
@@ -900,7 +929,7 @@ fun z3_prove_ppil_aux (i,(pp,il)) =
 
 fun z3_prove_ppil s = 
   let 
-    val (i,(pp,il1)) = parse_ppil s
+    val (i,(pp,il1)) = parse_ippil s
     val _ = print_endline (pp_to_stringtag pp)
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
@@ -936,19 +965,7 @@ fun human_out (s,sl) =
     String.concatWith " | " (map tts tml)
   end
   
-fun merge lold lnew =
-  let 
-    val setold = enew String.compare (map fst lold)
-    val ldiff = filter (fn (x,_) => not (emem x setold)) lnew
-    val d = ref (dempty String.compare)
-    fun f (k,v) = case dfindo k (!d) of
-       NONE => d := dadd k v (!d)
-     | SOME oldl => if compare_lemmal (v,oldl) = LESS 
-                    then d := dadd k v (!d) else ()
-    val _ = app f (lold @ lnew) 
-  in
-    (ldiff, dlist (!d))
-  end
+
   
   
 fun tag_job l = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l)  
@@ -957,14 +974,17 @@ fun process_proofl dir l2 =
   let
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
-    val l3 = map get_status_lemmas l2
-    val l4 = filter (fn (a,(b,c)) => b = "unsat") l3
-    val l5 = map (fn (a,(b,c)) => (a,c)) l4
+    fun is_unsat (a,(b,c)) = b = "unsat"
+    fun remove_status (a,(b,c)) = (a,c)
+    val l5 = map remove_status (filter is_unsat (map get_status_ppsisl l2))
     val _ = logl l5 "unsat"
+    val _ = logl (filter (fn (a,c) => not (null c)) l5) 
+      "unsat with at least one lemma"
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
-               else map string_to_lemmas (readl (dir ^ "/previous"))
-    val (ldiff,lmerge) = merge lold l5
+               else map string_to_ppsisl (readl (dir ^ "/previous"))
+    val lmerge = merge lold l5
+    val ldiff = merge_diff lold l5
     val _ = logl lold "previous"
     val _ = logl ldiff "diff"
     val _ = logl lmerge "current"
@@ -973,8 +993,8 @@ fun process_proofl dir l2 =
     val _ = logl l7 "examples"
   in
     writel (dir ^ "/output") l7;
-    writel (dir ^ "/diff") (map lemmas_to_string ldiff);
-    writel (dir ^ "/current") (map lemmas_to_string lmerge);
+    writel (dir ^ "/diff") (map ppsisl_to_string ldiff);
+    writel (dir ^ "/current") (map ppsisl_to_string lmerge);
     writel (dir ^ "/diff_human") (map human_out ldiff);
     writel (dir ^ "/current_human") (map human_out lmerge)
   end

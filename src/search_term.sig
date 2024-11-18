@@ -5,7 +5,8 @@ sig
   
   type prog = kernel.prog
   type seq = kernel.seq
- 
+  type ppsisl = string * string list
+  
   datatype searchlimit = Visits of int | Seconds of real * real
   val search : term list -> searchlimit -> term list
    
@@ -19,9 +20,12 @@ sig
   (* z3 calls *)
   val z3_prove : string -> string -> int -> term list -> term list -> bool
   
-  (* *)
+  (* parse *)
   val pp_to_stringtag : prog * prog -> string
   val stringtag_to_pp : string -> prog * prog
+  val parse_ppil : string -> (prog * prog) * term list
+  val string_to_ppsisl : string -> ppsisl
+  val ppsisl_to_string : ppsisl -> string
   
   (* evaluate a predicate *)
   val create_fed :  prog * prog -> 
@@ -30,6 +34,11 @@ sig
     term -> (IntInf.int * IntInf.int) -> bool
   val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict ->
     term -> bool
+  
+  (* merging different solutions *)
+  val merge : ppsisl list -> ppsisl list -> ppsisl list
+  val merge_diff : ppsisl list -> ppsisl list -> ppsisl list
+  val merge_simple : ppsisl list -> ppsisl list -> ppsisl list
   
   (* induction axiom *)
   val induct_cj : term -> term
