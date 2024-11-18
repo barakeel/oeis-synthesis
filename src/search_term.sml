@@ -14,7 +14,7 @@ val smtgentim = (valOf o Real.fromString)
   (dfind "smtgentim" configd) handle NotFound => 5.0
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
-val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 20
+val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
 val nonesting = ref false
 
 (* -------------------------------------------------------------------------
@@ -795,7 +795,7 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline (its (length decl) ^ " declarations")
     val _ = print_endline (its (length inductl) ^ " induction instances")
     val _ = print_endline (its z3try ^ " tries")
-    val _ = print_endline (its z3tim ^ " timeout in seconds")
+    val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " seconds")
     val _ = print_endline (its z3lem ^ " sampled lemmas")
     fun provable t sel = 
       z3_prove filein fileout t decl sel
@@ -808,20 +808,23 @@ fun z3_prove_inductl filein fileout pp inductl =
         else minimize acc m
     fun minimize_wrap sel = 
       let val (r,t) = add_time (minimize []) sel in
-        print_endline ("minimization time: " ^ rts_round 2 t); r
+        print_endline ("minimization time: " ^ rts_round 2 t ^ " seconds"); r
       end
     fun loop n = 
       if n <= 0 then (print_endline "unknown"; "unknown") else 
       let 
         val sel = random_subset z3lem inductl
-        val b = z3_prove filein fileout z3tim decl sel
+        val (b,t1) = add_time (z3_prove filein fileout z3tim decl) sel
       in 
-        if b then (print_endline ("proof found: " ^ its (z3try - n + 1) ^ " tries;")
+        if b then (print_endline 
+          ("proof found after " ^ its (z3try - n + 1) ^ " tries in " ^
+           rts_round 2 t1 "seconds")
           ; minimize_wrap sel) else loop (n-1)
       end
     val (r,t) = add_time loop z3try
+    val _ =  print_endline ("total proving time (includes minimization): " ^ 
+      rts_round 2 t)
   in
-    print_endline ("proving time (includes minimization): " ^ rts_round 2 t); 
     r
   end
 
@@ -1098,8 +1101,8 @@ search_term.gen_prove_init "smt7";
 
 load "search_term"; load "smlRedirect";
 
-smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt10") 
-  search_term.gen_prove_init "smt10";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt11")
+  search_term.gen_prove_init "smt11";
 
 (* todo: merge all the examples from all the experiments *)
 
