@@ -800,9 +800,8 @@ fun z3_prove_inductl filein fileout pp inductl =
     fun provable t sel = 
       z3_prove filein fileout t decl sel
     fun minimize acc sel = case sel of 
-        [] => (print_endline 
-          (its (length acc) ^ " minmized lemmas");
-          String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc)  
+        [] => (print_endline (its (length acc) ^ " minimized lemmas");
+               String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc))
       | a :: m =>
         if not (provable z3tim (acc @ m))
         then minimize (acc @ [a]) m
