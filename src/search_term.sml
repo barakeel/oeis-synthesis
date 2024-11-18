@@ -800,11 +800,17 @@ fun z3_prove_inductl filein fileout pp inductl =
     fun provable t sel = 
       z3_prove filein fileout t decl sel
     fun minimize acc sel = case sel of 
-        [] => String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc)  
+        [] => (print_endline 
+          (its (length acc) ^ " minmized lemmas");
+          String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc)  
       | a :: m =>
         if not (provable z3tim (acc @ m))
         then minimize (acc @ [a]) m
         else minimize acc m
+    fun minimize_wrap sel = 
+      let val (r,t) = add_time (minimize []) sel in
+        print_endline ("minimization time: " ^ rts_round 2 t); r
+      end
     fun loop n = 
       if n <= 0 then (print_endline "unknown"; "unknown") else 
       let 
@@ -812,7 +818,7 @@ fun z3_prove_inductl filein fileout pp inductl =
         val b = z3_prove filein fileout z3tim decl sel
       in 
         if b then (print_endline ("proof found: " ^ its (z3try - n + 1) ^ " tries;")
-          ; minimize [] sel) else loop (n-1)
+          ; minimize_wrap sel) else loop (n-1)
       end
     val (r,t) = add_time loop z3try
   in
@@ -1093,8 +1099,8 @@ search_term.gen_prove_init "smt7";
 
 load "search_term"; load "smlRedirect";
 
-smlRedirect.hide_in_file (selfdir ^ "/aaa_gen_prove_init_debug")   
-search_term.gen_prove_init "smt8";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt10") 
+  search_term.gen_prove_init "smt10";
 
 (* todo: merge all the examples from all the experiments *)
 
