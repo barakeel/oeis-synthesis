@@ -13,7 +13,7 @@ val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
 val smtgentim = (valOf o Real.fromString)
   (dfind "smtgentim" configd) handle NotFound => 5.0
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
-val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 1
+val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
 val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 20
 val nonesting = ref false
 
@@ -92,8 +92,6 @@ val smt_operl_logic = [``$/\``,``$==>``,``$~``];
 val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
 
 val smt_operd = enew Term.compare smt_operl
-
-
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -334,6 +332,8 @@ fun search_smt fl t = search (smt_operl @ fl) (Seconds (0.0,t))
 
 fun eval_term fed tm input =
   let 
+    val _ = incr abstimer
+    val _ = if !abstimer > !timelimit then raise ProgTimeout else ()
     val (oper,argl) = strip_comb tm
     fun binop f = 
       let val (a,b) = pair_of_list argl in
@@ -738,25 +738,37 @@ fun stringtag_to_pp s =
    Generating random induction predicates
    ------------------------------------------------------------------------- *)
 
+fun filter_eval (pp,il1) =
+  let
+    val _ = print_endline "evaluation initialization"
+    val fed = create_fed pp 
+    val _ = print_endline "evaluation"
+    fun test i = true_pred fed i handle Interrupt => raise Interrupt | _ => 
+      (print_endline ("error during evaluation of " ^ term_to_string i); true)
+    val (il2,t) = add_time (filter test) il1
+    val _ = print_endline (its (length il2) ^ 
+      " true predicates in " ^ rts_round 2 t ^ " seconds")
+  in
+    il2
+  end
+  handle Interrupt => raise Interrupt | _ => 
+    (print_endline ("error during evaluation initialization"); il1)
+
 fun random_inductl pp = 
   let
     val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
     val _ = print_endline (its (length recfl) ^ " recursive functions")
     (* val _ = subtml_glob := get_subtml pp
-    val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") *)
+       val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") *)
     val _ = nonesting := false
-    val inductl1 = search_smt recfl smtgentim
+    val il1 = search_smt recfl smtgentim
     val _ = nonesting := true
-    val inductl1' = search_smt recfl smtgentim
+    val il2 = search_smt recfl smtgentim
     val _ = nonesting := false
-    val inductl1'' = mk_fast_set Term.compare (inductl1 @ inductl1')
-    val _ = print_endline (its (length inductl1'') ^ " merged predicates")
-    val fed = create_fed pp
-    val (inductl2,t) = add_time (filter (true_pred fed)) inductl1''
-    val _ = print_endline (its (length inductl2) ^ 
-      " true predicates in " ^ rts_round 2 t ^ " seconds")
+    val il3 = mk_fast_set Term.compare (il1 @ il2)
+    val _ = print_endline (its (length il3) ^ " merged predicates")
   in
-    inductl2
+    filter_eval (pp,il3)
   end
 
 fun ppil_to_string (pp,il) = 
@@ -778,12 +790,13 @@ fun random_inductl_string pps =
 
 fun z3_prove_inductl filein fileout pp inductl = 
   let
-    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
-                           human.humanf (snd pp))
     val _ = print_endline "declare functions"
     val decl = create_decl pp
     val _ = print_endline (its (length decl) ^ " declarations")
     val _ = print_endline (its (length inductl) ^ " induction instances")
+    val _ = print_endline (its z3try ^ " tries")
+    val _ = print_endline (its z3tim ^ " timeout in seconds")
+    val _ = print_endline (its z3lem ^ " sampled lemmas")
     fun provable t sel = 
       z3_prove filein fileout t decl sel
     fun minimize acc sel = case sel of 
@@ -793,16 +806,18 @@ fun z3_prove_inductl filein fileout pp inductl =
         then minimize (acc @ [a]) m
         else minimize acc m
     fun loop n = 
-      if n <= 0 then "unknown" else 
+      if n <= 0 then (print_endline "unknown"; "unknown") else 
       let 
         val sel = random_subset z3lem inductl
         val b = z3_prove filein fileout z3tim decl sel
       in 
-        if b then (print_endline "minimize"; minimize [] sel) else loop (n-1)
+        if b then (print_endline ("proof found: " ^ its (z3try - n + 1) ^ " tries;")
+          ; minimize [] sel) else loop (n-1)
       end
-    val r = loop z3try
+    val (r,t) = add_time loop z3try
   in
-    print_endline ""; r
+    print_endline ("proving time (includes minimization): " ^ rts_round 2 t); 
+    r
   end
 
 fun good_pp pp = 
@@ -866,16 +881,27 @@ fun lemmas_to_string (s,sl) =
    Proof: main functions
    ------------------------------------------------------------------------- *)
 
-fun z3_prove_ppil_aux (i,(pp,tml)) =
+fun z3_prove_ppil_aux (i,(pp,il)) =
   let
     val filein = selfdir ^ "/z3_" ^ i ^ "_in.smt2"
     val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
-    val r = z3_prove_inductl filein fileout pp tml
+    val r = z3_prove_inductl filein fileout pp il
   in
     pp_to_stringtag pp ^ ">" ^ r
   end 
 
-fun z3_prove_ppil s = z3_prove_ppil_aux (parse_ppil s)
+fun z3_prove_ppil s = 
+  let 
+    val (i,(pp,il1)) = parse_ppil s
+    val _ = print_endline (pp_to_stringtag pp)
+    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
+                           human.humanf (snd pp))
+    val _ = print_endline (its (length il1) ^ " predicates")
+    val il2 = filter_eval (pp,il1)
+  in
+    z3_prove_ppil_aux (i,(pp,il2))
+  end
+
 
 fun standard_space s = String.concatWith " " (String.tokens Char.isSpace s);
 
@@ -982,9 +1008,12 @@ fun gen_init expname =
    ------------------------------------------------------------------------- *)
 
 fun gen_prove_string s =
-  let 
+  let
+    val _ = print_endline s
     val (jobn,pps) = split_pair #":" s
     val pp = stringtag_to_pp pps
+    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
+                           human.humanf (snd pp))
     val il = random_inductl pp
   in
     z3_prove_ppil_aux (jobn,(pp,il))
@@ -1061,6 +1090,12 @@ length l1; length l1nest; length l1neg; length l1imp; length l1conj;
 
 load "search_term";
 search_term.gen_prove_init "smt7";
+
+load "search_term";
+search_term.gen_prove_init "smt8";
+
+(* todo: merge all the examples from all the experiments *)
+
 *)
 
 
