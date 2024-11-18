@@ -1091,7 +1091,9 @@ length l1; length l1nest; length l1neg; length l1imp; length l1conj;
 load "search_term";
 search_term.gen_prove_init "smt7";
 
-load "search_term";
+load "search_term"; load "smlRedirect";
+
+smlRedirect.hide_in_file (selfdir ^ "/aaa_gen_prove_init_debug")   
 search_term.gen_prove_init "smt8";
 
 (* todo: merge all the examples from all the experiments *)
