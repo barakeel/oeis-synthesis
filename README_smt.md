@@ -47,10 +47,10 @@ where c1 and c2 are predicates produced during inference.
 1. Run the command `sh prove.sh smt0`.
 2. Monitor the progress of the run in the directory 
    `src/exp/reserved_stringspec`.
-3. This produces a file (after 3 hours) named `output`. 
-It can be used to train the model for the next iteration (see self-learning and training).
-4. This also produces a file named `current`. 
-It is used to keep track of the solutions found up until that point.
+3. After approximately 3 hours, this produces `src/exp/smt0/output`. 
+   It is used to train the model for the next iteration.
+4. This also produces a file named `src/exp/smt0/current`. 
+   It keeps track of the solutions found up until that point.
 
 ### Self-Learning loop
 You can repeat this process (training,inference,proving) 
