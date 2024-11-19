@@ -23,8 +23,10 @@ Each line of file is of the form `p1=p2>c`
 where p1=p2 is a proven equality and c is a predicate.
 
 ### Inference
-For inference, use as input the file 
-`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer`.
+At iteration 0, use as input the file 
+`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer` at iteration 0.
+
+At iteration 5 (for example), use the file `src/exp/smt4/output`.
 
 Each line of the file is of the form `p1=p2` and 
 should be completed to produce a file where each line has the form:
@@ -35,12 +37,12 @@ where c1 and c2 are predicates produced during inference.
 1. Copy a binary of `z3` to the `src` directory and rename it to `z3`.
 
 2. Create the directory `src/exp` and `src/exp/smt0`
-   (Replace `smt0` by `smt5` if you are at the 5th iteration, etc) 
+   (Replace `smt0` by `smt5` if you are at iteration 5, etc) 
 
 3. Copy the file produced during inference to `src/exp/smt0/input`.
 
-4. Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` to  `src/exp/smt0/previous`. For later iteration, for example for iteration 5,
-   copy the file `src/exp/smt4/current` to `src/exp/smt5/previous`.
+4. At iteration 0, copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` to `src/exp/smt0/previous`.
+   At iteration 5 (for example), copy the file `src/exp/smt4/current` to `src/exp/smt5/previous`.
 
 5. You may edit the `config` file to change the number of cores `ncore`.
 
