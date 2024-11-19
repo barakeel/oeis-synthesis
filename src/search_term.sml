@@ -38,12 +38,12 @@ fun list_mk_comb_err2 (oper,argl) = list_mk_comb (oper,argl)
 (term_to_string oper ^ ": " ^ String.concatWith " " (map term_to_string argl))
 
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
-fun auto_comb (n,tml) = list_mk_comb_err2 (mk_varn (n,length tml),tml)
+fun auto_comb (n,tml) = list_mk_comb_err (mk_varn (n,length tml),tml)
 val var0 = mk_varn("0",0);
 
 fun ite_template (t1,t2,t3) =
   auto_comb ("ite", [auto_comb ("<=", [t1,var0]),t2,t3]);
-
+  
 val xvar = ``x:'a``;
 fun is_xvar x = term_eq x xvar;
 
@@ -1140,8 +1140,8 @@ val l5 = merge_simple l4 (merge l3 (merge l2 l1));
 fun f dir l = 
   let
     val _ = mkDir_err dir
-    fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
-    val ldis = List.concat (map tonmt l)
+    fun g (key,sl) = map (fn x => key ^ ">" ^ x) sl
+    val ldis = List.concat (map g l)
   in
     writel (dir ^ "/output") ldis;
     writel (dir ^ "/current") (map ppsisl_to_string l);
