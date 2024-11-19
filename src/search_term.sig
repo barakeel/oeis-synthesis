@@ -30,15 +30,16 @@ sig
   (* evaluate a predicate *)
   val create_fed :  prog * prog -> 
     (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict
-  val eval_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict ->
-    term -> (IntInf.int * IntInf.int) -> bool
-  val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict ->
-    term -> bool
+  val eval_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict 
+    -> term -> (IntInf.int * IntInf.int) -> bool
+  val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict  
+    -> term -> bool
   
   (* merging different solutions *)
   val merge : ppsisl list -> ppsisl list -> ppsisl list
   val merge_diff : ppsisl list -> ppsisl list -> ppsisl list
   val merge_simple : ppsisl list -> ppsisl list -> ppsisl list
+  val human_out : ppsisl -> string
   
   (* induction axiom *)
   val induct_cj : term -> term
