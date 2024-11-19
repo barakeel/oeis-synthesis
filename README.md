@@ -121,7 +121,7 @@ Each line of file is of the form `p1=p2>c`
 where p1=p2 is a proven equality and c is a predicate.
 
 ### Inference
-For inference use as input the file 
+For inference, use as input the file 
 `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer`.
 
 Each line of the file is of the form `p1=p2` and 
