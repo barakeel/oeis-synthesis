@@ -106,7 +106,12 @@ The parameters and scripts for training the model
 on GPU are given in the `src/nmt` directory.
 
 ## Learning to prove by induction
-Machine learners can also attempt to learn by induction.
+One can also trained an external machine learner to provide
+instances of the induction schema to the SMT solver Z3 in order
+to prove equalities between pairs of programs.
+
+We provide the initial data from which the self-learning process 
+can be started.
 
 ### Training 
 For training, use as input the file 
