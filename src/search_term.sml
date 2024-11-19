@@ -1125,6 +1125,31 @@ smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt11")
   search_term.gen_prove_init "smt11";
 
 (* todo: merge all the examples from all the experiments *)
+load "search_term"; 
+open aiLib kernel smt_hol smt_progx search_term;
+
+
+val expdir = selfdir ^ "/exp";
+val l1 = map string_to_ppsisl (readl (expdir ^ "/smt5/current"));
+val l2 = map string_to_ppsisl (readl (expdir ^ "/smt6/current"));
+val l3 = map string_to_ppsisl (readl (expdir ^ "/smt7/current"));
+val l4 = map string_to_ppsisl (readl (expdir ^ "/smt11/current"));
+
+val l5 = merge_simple l4 (merge l3 (merge l2 l1));
+
+fun f dir l = 
+  let
+    val _ = mkDir_err dir
+    fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
+    val ldis = List.concat (map tonmt l)
+  in
+    writel (dir ^ "/output") ldis;
+    writel (dir ^ "/current") (map ppsisl_to_string l);
+    writel (dir ^ "/current_human") (map human_out l)
+  end;
+  
+f (selfdir ^ "/smt_rl0") l5;
+
 
 *)
 

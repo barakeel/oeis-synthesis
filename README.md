@@ -109,43 +109,58 @@ on GPU are given in the `src/nmt` directory.
 Machine learners can also attempt to learn by induction.
 
 ### Training 
-wget http://grid01.ciirc.cvut.cz/~thibault/proof0_ex
-Each line of file is of the form:
-``p1=p2>c``
-where p1=p2 is a proven equality and c is a predicate that remains in
-the proof after minimization.
+For training, use as input the file 
+`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/output`.
+
+Each line of file is of the form `p1=p2>c`
+where p1=p2 is a proven equality and c is a predicate.
 
 ### Inference
-wget http://grid01.ciirc.cvut.cz/~thibault/proof0_infer
-Each of the line should be completed to produce a file with 
-the following format:
-``p1=p2>c1|c2|...``
-where c1 and c2 are conjectured predicates.
+For inference use as input the file 
+`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer`.
+
+Each line of the file is of the form `p1=p2` and 
+should be completed to produce a file where each line has the form:
+`p1=p2>c1|c2|...`
+where c1 and c2 predicates produced during inference.
 
 ### Prove
+
+Setting things up:
+
 - Copy a binary of `z3` to the `src` directory (name it `z3`).
 
-- Create a directory under the `your_expname` under the `exp` directory.
-The file produced during inference should have the following path `exp/your_expname/input`.
+- Create a directory under the `your_expname0` under the `exp` directory.
+
+- Copy the file produced during inference to `exp/your_expname0/input`.
+
+- Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` in to 
+`exp/yourexpname0/previous`.
 
 - The config file should contain: 
 ```
 memo_flag true
 smt_flag true
 nooeisdata_flag true
-ncore 50
+ncore 64
 z3lem 32
-z3tim 1
-z3try 20
+z3tim 2
+z3try 10
 ```
 You may change any of the last 4 parameters.
+
+Running the prover:
 
 - Run the command `sh prove.sh` to produce a file called `output` to
 be used in the next learning iteration. 
 
-- Copy the file named `current` to
-the directory of the next proving iteration and rename it to `previous`.
-
+Self-learning loop:
+  You can repeat this full learning iteration many times by learning
+  from the newly created `output` file. 
+  To avoid losing previously found solutions, 
+  copy the `current` file
+  from the directory of iteration `n` to the directory of iteration `n+1`
+  and rename it to `previous`.
 
 ### Known issues:
 #### How do I install MKL for older versions of Ubuntu?
