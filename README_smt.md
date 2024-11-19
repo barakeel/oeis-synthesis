@@ -1,5 +1,5 @@
 ## Install (includes polyml and hol)
-This takes about 10 min to complete
+This takes about 10 min to complete.
 
 ``` 
 sudo apt install -y libgmp-dev rlwrap
@@ -30,7 +30,7 @@ For inference, use as input the file
 Each line of the file is of the form `p1=p2` and 
 should be completed to produce a file where each line has the form:
 `p1=p2>c1|c2|...`
-where c1 and c2 predicates produced during inference.
+where c1 and c2 are predicates produced during inference.
 
 ### Setting up the prover
 - Copy a binary of `z3` to the `src` directory (name it `z3`).
