@@ -48,7 +48,7 @@ where c1 and c2 are predicates produced during inference.
 
 5. You may edit the `config` file to change the number of cores `ncore`.
 
-### Running the prover
+### Evaluation: running the prover
 1. Run the command `sh prove.sh smt0`.
 2. Monitor the progress of the run in the directory 
    `src/exp/reserved_stringspec`.
