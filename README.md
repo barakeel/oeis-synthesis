@@ -139,7 +139,7 @@ Setting things up:
 
 - Copy the file produced during inference to `exp/your_expname0/input`.
 
-- Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` in to 
+- Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` to 
 `exp/yourexpname0/previous`.
 
 - The config file should contain: 
