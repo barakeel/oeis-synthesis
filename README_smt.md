@@ -16,19 +16,19 @@ sh install_smt.sh
 This system can train an external machine learner to provide induction schema instances to the SMT solver (Z3), enabling it to prove equalities between program pairs. Initial data is provided for starting this process.
 
 ### Training 
-For training, use as input the file 
+At iteration 0, use as training examples the file 
 `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/output`.
+
+At iteration 5 (for example), use the file `src/exp/smt4/output`.
 
 Each line of file is of the form `p1=p2>c`
 where p1=p2 is a proven equality and c is a predicate.
 
 ### Inference
-At iteration 0, use as input the file 
-`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer` at iteration 0.
+In all iterations, use the file
+`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer`.
 
-At iteration 5 (for example), use the file `src/exp/smt4/output`.
-
-Each line of the file is of the form `p1=p2` and 
+Each line of the file corresponds to a problem `p1=p2` and 
 should be completed to produce a file where each line has the form:
 `p1=p2>c1|c2|...`
 where c1 and c2 are predicates produced during inference.
@@ -55,11 +55,16 @@ where c1 and c2 are predicates produced during inference.
    - `src/exp/smt0/current`: tracks solutions found up until that point.
 
 ### Self-Learning loop
-You can repeat this process (training,inference,proving) 
-many times starting from the newly created `output` file.
-To keep previously found solutions, copy the `current` file from the 
-directory of iteration `n` to the directory of iteration `n+1` and 
-rename it to `previous`.
-Ensure directory naming matches the iteration (`smt0`, `smt1`, etc).
+To continue the self-learning process:
+
+1. Use the `src/exp/smtN/output` file from iteration `n` as the training data for iteration `n+1`.
+
+2. Copy the current file from iteration `n` to the previous file for iteration `n+1`:
+
+```
+src/exp/smtN/current -> src/exp/smtN+1/previous
+```
+
+3. Ensure directory naming matches the iteration (`smt0`, `smt1`, etc.).
 
 
