@@ -58,6 +58,6 @@ many times starting from the newly created `output` file.
 To keep previously found solutions, copy the `current` file from the 
 directory of iteration `n` to the directory of iteration `n+1` and 
 rename it to `previous`.
-Ensure directory naming matches the iteration (smt0, smt1, etc).
+Ensure directory naming matches the iteration (`smt0`, `smt1`, etc).
 
 
