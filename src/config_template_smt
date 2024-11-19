@@ -1,0 +1,15 @@
+ncore 40
+search_memory 10000
+train_memory 10000
+dim_glob 128
+ntarget 200
+rtim 600.0
+short_timeincr 100000
+long_timeincr 100000
+memo_flag true
+smt_flag true
+nooeisdata_flag true
+smtgentim 4.0
+z3try 10
+z3tim 2
+z3lem 32
