@@ -33,23 +33,27 @@ should be completed to produce a file where each line has the form:
 where c1 and c2 predicates produced during inference.
 
 ### Setting up the prover
-- Copy a binary of `z3` to the `src` directory (name it `z3`)
+- Copy a binary of `z3` to the `src` directory (name it `z3`).
 
-- Create a directory `smt0` (you can choose what ever name you prefer) under the `exp` directory.
+- Create the `exp` under the `src` directory.
+
+- Create a directory `smt0` (or `smt4` if you are at the 5th iteration) 
+  under the `exp` directory.
 
 - Copy the file produced during inference to `exp/smt0/input`.
 
 - Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` to 
-`exp/yourexpname0/previous`
+`exp/yourexpname0/previous`.
 
-- You may edit the `config` file to change the number of cores `ncore` 
+- You may edit the `config` file to change the number of cores `ncore`.
 
 ### Running the prover
-Run the command `sh prove.sh smt0`.
-This produces a file named `output`. 
-It can be used to train the model for the next iteration (see self-learning and training).
-This also produces a file named `current`. 
-It is used to keep track of the solutions found up until that point.
+- Run the command `sh prove.sh smt0`.
+- You can check the progress of the run in the directory `exp/reserved_stringspec`.
+- This produces a file (after 3 hours) named `output`. 
+- It can be used to train the model for the next iteration (see self-learning and training).
+- This also produces a file named `current`. 
+- It is used to keep track of the solutions found up until that point.
 
 ### Self-Learning loop
 You can repeat this process (training,inference,proving) 
