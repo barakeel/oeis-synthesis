@@ -17,6 +17,8 @@ val smtgentim = (valOf o Real.fromString)
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
 val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
+val softmerge_flag = string_to_bool (dfind "softmerge_flag" configd) handle NotFound => false
+
 val nonesting = ref false
 
 (* -------------------------------------------------------------------------
@@ -914,6 +916,11 @@ fun merge_diff l1 l2 =
     
 fun merge_simple l1 l2 = l1 @ (merge_diff l1 l2)
 
+fun merge_soft l1 l2 = 
+  let val cmp = cpl_compare String.compare (list_compare String.compare) in
+    mk_fast_set cmp (l1 @ l2)
+  end
+  
 (* -------------------------------------------------------------------------
    Proof: main functions
    ------------------------------------------------------------------------- *)
@@ -983,7 +990,7 @@ fun process_proofl dir l2 =
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
-    val lmerge = merge lold l5
+    val lmerge = if softmerge_flag then merge_soft lold l5 else merge lold l5
     val ldiff = merge_diff lold l5
     val _ = logl lold "previous"
     val _ = logl ldiff "diff"
