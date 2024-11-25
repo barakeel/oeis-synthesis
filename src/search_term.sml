@@ -761,7 +761,7 @@ fun random_inductl pp =
     *)
     val _ = nonesting := true
     val il2 = search_smt recfl smtgentim
-    val il3 = mk_fast_set Term.compare il1 (* il1 @ il2 *)
+    val il3 = mk_fast_set Term.compare il2 (* il1 @ il2 *)
     val _ = print_endline (its (length il3) ^ " merged predicates")
   in
     filter_eval (pp,il3)
