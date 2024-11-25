@@ -262,9 +262,8 @@ fun split_tim (torg,tinc) dis =
 
 fun create_pol ml =
   let fun f move = 
-    let val r = if tmem move smt_operl_logic then 2.0 * random_real () else
-      random_real ()
-    in 
+    if smtgentemp = 1.0 then random_real () else
+    let val r = random_real () in 
       Math.pow (Math.e, (1.0 / smtgentemp) * r) 
     end
   in
