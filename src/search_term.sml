@@ -75,6 +75,8 @@ fun acceptable tm = contain_x tm andalso contain_rec tm
 (* -------------------------------------------------------------------------
    Operator to produce SMT formulas
    Q = and, R = ==>, S = not
+   A B C D E F G H I            J    K L M     N     O P  Q   R       S  
+   0 1 2 + - * / % if then else loop x y compr loop2 = <= and implies not
    ------------------------------------------------------------------------- *)
 
 fun fake_var s = mk_var (s,``:num -> num``)
@@ -257,8 +259,8 @@ fun split_tim (torg,tinc) dis =
    Allocate time in advance according to the prior probabilities
    ------------------------------------------------------------------------- *) 
 
+val temperature = 0.5
 
-val temperature = 0.1 
 fun create_pol ml =
   let fun f move = 
     let val r = if tmem move smt_operl_logic then 2.0 * random_real () else
@@ -655,21 +657,10 @@ fun z3_cmd t1s t2s filein fileout = String.concatWith " "
 fun z3_prove filein fileout t decl inductltop =
   let 
     val inductl = map induct_cj inductltop
-    val cmd = z3_cmd (its (t + 1)) ("-T:" ^ its t) filein fileout
+    val cmd = z3_cmd (its (t div 1000 + 1)) ("-t:" ^ its t) filein fileout
     val _ = write_induct_pb filein decl inductl
     val _ = OS.Process.system cmd
     val _ = OS.Process.sleep (Time.fromReal 0.1)
-    val s = read_status fileout
-    val _ = app remove_file [filein,fileout]
-  in 
-    s = "unsat"
-  end
-
-fun z3_prove_tml filein fileout t tml =
-  let
-    val cmd = z3_cmd "1" ("-t:" ^ its t) filein fileout
-    val _ = write_smt filein tml
-    val _ = OS.Process.system cmd
     val s = read_status fileout
     val _ = app remove_file [filein,fileout]
   in 
@@ -764,12 +755,13 @@ fun random_inductl pp =
     val _ = print_endline (its (length recfl) ^ " recursive functions")
     (* val _ = subtml_glob := get_subtml pp
        val _ = print_endline (its (length (!subtml_glob)) ^ " subterms") *)
+    (* 
     val _ = nonesting := false
     val il1 = search_smt recfl smtgentim
+    *)
     val _ = nonesting := true
     val il2 = search_smt recfl smtgentim
-    val _ = nonesting := false
-    val il3 = mk_fast_set Term.compare (il1 @ il2)
+    val il3 = mk_fast_set Term.compare il1 (* il1 @ il2 *)
     val _ = print_endline (its (length il3) ^ " merged predicates")
   in
     filter_eval (pp,il3)
@@ -799,7 +791,7 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline (its (length decl) ^ " declarations")
     val _ = print_endline (its (length inductl) ^ " induction instances")
     val _ = print_endline (its z3try ^ " tries")
-    val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " seconds")
+    val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
     val _ = print_endline (its z3lem ^ " sampled lemmas")
     fun provable t sel = 
       z3_prove filein fileout t decl sel
@@ -946,7 +938,6 @@ fun z3_prove_ppil s =
     z3_prove_ppil_aux (i,(pp,il2))
   end
 
-
 fun standard_space s = String.concatWith " " (String.tokens Char.isSpace s);
 
 fun string_of_varconst oper =
@@ -971,10 +962,7 @@ fun human_out (s,sl) =
     progx_to_string px1 ^ " = " ^ progx_to_string px2 ^ "\n" ^ 
     String.concatWith " | " (map tts tml)
   end
-  
 
-  
-  
 fun tag_job l = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l)  
  
 fun process_proofl dir l2 = 
@@ -1094,6 +1082,17 @@ fun equiv_template_one a b =
 fun equiv_template a predl =
   mk_neg (list_mk_disj (map (equiv_template_one a) predl))
 
+fun z3_prove_tml filein fileout t tml =
+  let
+    val cmd = z3_cmd "1" ("-t:" ^ its t) filein fileout
+    val _ = write_smt filein tml
+    val _ = OS.Process.system cmd
+    val s = read_status fileout
+    val _ = app remove_file [filein,fileout]
+  in 
+    s = "unsat"
+  end
+
 fun z3quotient filein fileout inductl =
   let 
     val predl = ref []
@@ -1127,7 +1126,6 @@ load "search_term";
 search_term.gen_prove_init "smt7";
 
 load "search_term"; load "smlRedirect";
-
 smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt11")
   search_term.gen_prove_init "smt11";
 

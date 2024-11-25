@@ -11,5 +11,5 @@ smt_flag true
 nooeisdata_flag true
 smtgentim 4.0
 z3try 10
-z3tim 2
+z3tim 2000
 z3lem 32

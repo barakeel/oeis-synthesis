@@ -105,67 +105,7 @@ https://github.com/tensorflow/nmt.
 The parameters and scripts for training the model 
 on GPU are given in the `src/nmt` directory.
 
-## Learning to prove by induction
-One can also trained an external machine learner to provide
-instances of the induction schema to the SMT solver Z3 in order
-to prove equalities between pairs of programs.
 
-We provide the initial data from which the self-learning process 
-can be started.
-
-### Training 
-For training, use as input the file 
-`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/output`.
-
-Each line of file is of the form `p1=p2>c`
-where p1=p2 is a proven equality and c is a predicate.
-
-### Inference
-For inference, use as input the file 
-`http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/infer`.
-
-Each line of the file is of the form `p1=p2` and 
-should be completed to produce a file where each line has the form:
-`p1=p2>c1|c2|...`
-where c1 and c2 predicates produced during inference.
-
-### Prove
-
-Setting things up:
-
-- Copy a binary of `z3` to the `src` directory (name it `z3`).
-
-- Create a directory under the `your_expname0` under the `exp` directory.
-
-- Copy the file produced during inference to `exp/your_expname0/input`.
-
-- Copy the file `http://grid01.ciirc.cvut.cz/~thibault/smt_rl0/current` to 
-`exp/yourexpname0/previous`.
-
-- The config file should contain: 
-```
-memo_flag true
-smt_flag true
-nooeisdata_flag true
-ncore 64
-z3lem 32
-z3tim 2
-z3try 10
-```
-You may change any of the last 4 parameters.
-
-Running the prover:
-
-- Run the command `sh prove.sh` to produce a file called `output` to
-be used in the next learning iteration. 
-
-Self-learning loop:
-  You can repeat this full learning iteration many times by learning
-  from the newly created `output` file. 
-  To avoid losing previously found solutions, 
-  copy the `current` file
-  from the directory of iteration `n` to the directory of iteration `n+1`
-  and rename it to `previous`.
 
 ### Known issues:
 #### How do I install MKL for older versions of Ubuntu?
