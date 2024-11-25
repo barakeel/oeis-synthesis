@@ -18,6 +18,8 @@ val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
 val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
 val softmerge_flag = string_to_bool (dfind "softmerge_flag" configd) handle NotFound => false
+val smtgentemp = (valOf o Real.fromString)
+  (dfind "smtgentemp" configd) handle NotFound => 1.0
 
 val nonesting = ref false
 
@@ -258,18 +260,17 @@ fun split_tim (torg,tinc) dis =
    Allocate time in advance according to the prior probabilities
    ------------------------------------------------------------------------- *) 
 
-val temperature = 0.5
-
 fun create_pol ml =
   let fun f move = 
     let val r = if tmem move smt_operl_logic then 2.0 * random_real () else
       random_real ()
     in 
-      Math.pow (Math.e, (1.0 / temperature) * r) 
+      Math.pow (Math.e, (1.0 / smtgentemp) * r) 
     end
   in
     normalize_distrib (map_assoc f ml)
   end
+
 (* -------------------------------------------------------------------------
    Search limited by number of visits or a timeout
    ------------------------------------------------------------------------- *)
@@ -300,6 +301,22 @@ and search_aux rt depth lim fl board =
     search_move rt (depth + 1) lim fl board pol
   end
 
+(*
+val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
+  [("0",0),("1",0),("2",0),
+   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
+   ("ite",3)] @ 
+   [fake_var "loop"] @
+   map (fn x => mk_var (x, alpha)) ["x","y"] @
+   map fake_var ["compr","loop2"]
+  
+val smt_operl_pred = 
+ [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
+  mk_var ("<=",``:'a -> 'a -> bool``)];
+
+val smt_operl_logic = [``$/\``,``$==>``,``$~``];
+*)
+
 fun search fl lim =
   let
     val _ = if !ngen_glob <= 0 then timeincr := init_timeincr else ()
@@ -310,6 +327,9 @@ fun search fl lim =
     val board = ([],[])
     fun test move = not (is_var move andalso
       mem (string_of_var move) ["loop","loop2","compr"])
+    fun test move = not (is_var move andalso
+      mem (string_of_var move) 
+        ["0","2","divf","modf","ite","y","loop","loop2","compr"])  
     val newfl = filter test fl
     val (_,t) = add_time (search_aux rt depth lim newfl) board
     val tml = elist (!progd)
@@ -1121,6 +1141,25 @@ val l1neg= filter (not o null o (find_terms is_neg)) l1;
 val l1nest = filter (not o contain_nested) l1;
 length l1; length l1nest; length l1neg; length l1imp; length l1conj;
 random_elem l1;
+
+fun chad_like0 tm = 
+  is_conj tm andalso 
+  let val (a,b) = dest_conj tm in 
+    is_eq a andalso is_eq b
+  end;
+
+fun chad_like tm = 
+  is_conj tm andalso 
+  let val (a,b) = dest_conj tm in 
+    is_eq a andalso is_eq b andalso 
+    is_comb (fst (dest_eq a)) andalso
+    is_comb (fst (dest_eq b)) andalso
+    is_comb (snd (dest_eq a)) andalso
+    is_comb (snd (dest_eq b))
+  end;
+
+val l1chad = filter chad_like l1; length l1chad;
+val l1chad0 = filter chad_like0 l1; length l1chad0;
 
 
 load "search_term";
