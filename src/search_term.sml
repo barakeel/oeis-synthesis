@@ -139,7 +139,8 @@ fun available_move (board1,board2) move =
       then false 
       else length_geq board1 (arity_of move)
   else if is_predoper move
-    then length_geq board1 (arity_of move)
+    then length_geq board1 (arity_of move) andalso
+         not (term_eq (List.nth (board1,0)) (List.nth (board1,1)))
   else if is_logicoper move
     then
       (* if not (null board1) then false else *) 
