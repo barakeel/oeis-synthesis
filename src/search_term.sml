@@ -95,7 +95,7 @@ val smt_operl_pred =
  [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
   mk_var ("<=",``:'a -> 'a -> bool``)];
 
-val smt_operl_logic = [``$/\``,``$==>``,``$~``];
+val smt_operl_logic = []; (* [``$/\``,``$==>``,``$~``]; *)
 
 val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
 
@@ -329,7 +329,7 @@ fun search fl lim =
       mem (string_of_var move) ["loop","loop2","compr"])
     fun test move = not (is_var move andalso
       mem (string_of_var move) 
-        ["0","2","divf","modf","ite","y","loop","loop2","compr"])  
+        ["0","2","-","*","divf","modf","ite","y","loop","loop2","compr"])  
     val newfl = filter test fl
     val (_,t) = add_time (search_aux rt depth lim newfl) board
     val tml = elist (!progd)
