@@ -140,11 +140,10 @@ fun available_move (board1,board2) move =
     then length_geq board1 (arity_of move)
   else if is_logicoper move
     then
-      (* if not (null board1) then false
-      else *) 
+      (* if not (null board1) then false else *) 
       if term_eq move ``$~`` andalso not (null board2) andalso 
-          is_neg (hd board2)
-        then false
+         is_neg (hd board2)
+      then false
       else length_geq board2 (arity_of move)
   else raise ERR "availaible_move" (term_to_string move)
 
@@ -174,7 +173,7 @@ fun apply_move move (board1,board2) =
       val arity = arity_of move
       val (l1,l2) = part_n arity board1
     in
-      (board1, list_mk_comb_err2 (move, l1) :: board2)
+      (l2, list_mk_comb_err2 (move, l1) :: board2)
     end
   else if is_logicoper move then
     let 
@@ -1006,6 +1005,7 @@ fun z3_prove_para expname =
     val _ = logl l1 "targets"
     val (l2,t) = add_time 
       (parmap_sl ncore "search_term.z3_prove_ppil") (tag_job l1)
+    val _ = log ("proving time: " ^ rts_round 2 t)
   in 
     process_proofl dir l2
   end
@@ -1120,14 +1120,15 @@ val l1imp = filter (not o null o (find_terms is_imp_only)) l1;
 val l1neg= filter (not o null o (find_terms is_neg)) l1;
 val l1nest = filter (not o contain_nested) l1;
 length l1; length l1nest; length l1neg; length l1imp; length l1conj;
+random_elem l1;
 
 
 load "search_term";
 search_term.gen_prove_init "smt7";
 
 load "search_term"; load "smlRedirect";
-smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt11")
-  search_term.gen_prove_init "smt11";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt12")
+  search_term.gen_prove_init "smt12";
 
 (* todo: merge all the examples from all the experiments *)
 load "search_term"; 
