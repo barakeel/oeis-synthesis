@@ -46,6 +46,7 @@ sig
   val random_inductl : prog * prog -> term list
   val random_inductl_string : string -> string
   val ppil_to_string : (prog * prog) * term list -> string
+  val write_ppils_pb : string -> string -> unit
   val z3_prove_inductl : string -> string -> prog * prog -> term list -> string
   val z3_prove_ppil : string -> string
   val z3_prove_para : string -> unit

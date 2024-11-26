@@ -870,6 +870,15 @@ fun parse_ippil ippils =
     (jobns, parse_ppil ppils)
   end
 
+fun write_ppils_pb file ppils = 
+  let
+    val (pp,il) = parse_ppil ppils
+    val decl = create_decl pp
+    val inductl = map induct_cj il
+  in
+    write_induct_pb file decl inductl
+  end
+  
 (* -------------------------------------------------------------------------
    Proof output
    ------------------------------------------------------------------------- *)
