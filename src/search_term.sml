@@ -95,7 +95,7 @@ val smt_operl_pred =
  [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
   mk_var ("<=",``:'a -> 'a -> bool``)];
 
-val smt_operl_logic = []; (* [``$/\``,``$==>``,``$~``]; *)
+val smt_operl_logic = [``$/\``,``$==>``,``$~``];
 
 val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
 
