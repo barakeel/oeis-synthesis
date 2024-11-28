@@ -1341,7 +1341,7 @@ fun gen_prove_string s =
     val pp = stringtag_to_pp pps
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
-    val tml = kolmo_pp pp 10000
+    val tml = kolmo_pp pp 1024
     val il = gen_pp pp tml
   in
     z3_prove_ppil_aux (jobn,(pp,il))
