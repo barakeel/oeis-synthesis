@@ -13,6 +13,8 @@ sig
   val smt_operl : term list 
   val search_smt : term list -> real -> term list
   
+  (* syntax *)
+  val is_recvar : term -> bool
   val nonesting : bool ref
   val contain_nested : term -> bool
   (* val subtml_glob : term list ref *)
@@ -27,13 +29,16 @@ sig
   val string_to_ppsisl : string -> ppsisl
   val ppsisl_to_string : ppsisl -> string
   
-  (* evaluate a predicate *)
+  (* evaluate terms and predicates *)
   val create_fed :  prog * prog -> 
     (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict
+  val eval_term : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict 
+    -> term -> (IntInf.int * IntInf.int) -> IntInf.int
   val eval_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict 
     -> term -> (IntInf.int * IntInf.int) -> bool
   val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict  
     -> term -> bool
+
   
   (* merging different solutions *)
   val merge : ppsisl list -> ppsisl list -> ppsisl list
@@ -43,6 +48,7 @@ sig
   
   (* induction axiom *)
   val induct_cj : term -> term
+  val gen_pp : prog * prog -> term list -> term list
   val random_inductl : prog * prog -> term list
   val random_inductl_string : string -> string
   val ppil_to_string : (prog * prog) * term list -> string

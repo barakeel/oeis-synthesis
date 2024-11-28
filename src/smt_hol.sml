@@ -169,7 +169,7 @@ fun get_decl tml =
   end
   
 fun get_decl_md tml = 
-  let    
+  let
     val vl1 = all_varsl tml
     val vl2 = filter (fn x => not (mem (string_of_var x) reservedout_md)) vl1
     val vl3 = mk_fast_set Term.compare vl2

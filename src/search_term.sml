@@ -1,7 +1,7 @@
 structure search_term :> search_term =
 struct
 
-open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader
+open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader kolmo
 val ERR = mk_HOL_ERR "searchnew"
 
 type ppsisl = string * string list
@@ -72,11 +72,391 @@ fun is_nested tm =
   
 fun contain_nested tm = (not o null o (find_terms is_nested)) tm;
 
-fun acceptable tm = contain_x tm andalso contain_rec tm
+fun acceptable tm = true (* contain_x tm andalso contain_rec tm *)
+
+fun term_compare_size (t1,t2) = cpl_compare Int.compare Term.compare
+  ((term_size t1,t1), (term_size t2, t2));
+
+(* -------------------------------------------------------------------------
+   Evaluating predicates
+   ------------------------------------------------------------------------- *)
+
+val inputl = 
+  let 
+    val l1 = List.tabulate (10,IntInf.fromInt)
+    val l1b = List.tabulate (15,fn x => IntInf.fromInt (x-5))
+  in
+    cartesian_product l1 l1b
+  end
+
+fun eval_term fed tm input =
+  let 
+    val _ = incr abstimer
+    val _ = if !abstimer > !timelimit then raise ProgTimeout else ()
+    val (oper,argl) = strip_comb tm
+    fun binop f = 
+      let val (a,b) = pair_of_list argl in
+        f (eval_term fed a input, eval_term fed b input)
+      end   
+  in
+    case string_of_var oper of
+      "0" => IntInf.fromInt 0
+    | "1" => IntInf.fromInt 1
+    | "2" => IntInf.fromInt 2
+    | "+" => binop IntInf.+
+    | "-" => binop IntInf.-
+    | "*" => binop IntInf.*
+    | "divf" => binop IntInf.div
+    | "modf" => binop IntInf.mod
+    | "ite" => let val (a,b,c) = triple_of_list argl in 
+                 if eval_pred fed a input
+                 then eval_term fed b input
+                 else eval_term fed c input
+               end
+    | "x" => fst input
+    | "y" => snd input
+    | s => 
+      case dfindo oper fed of
+        NONE => raise ERR "eval_term" ("operator not found: " ^ s)
+      | SOME f => (
+                  case argl of
+                    [] => f (IntInf.fromInt 0, IntInf.fromInt 0)
+                  | [a] => f (eval_term fed a input, IntInf.fromInt 0)
+                  | [a,b] =>  f (eval_term fed a input, eval_term fed b input)
+                  | _ => raise ERR "eval_term" "arity"
+                  )
+  end
+
+and eval_pred fed tm input =
+  if is_conj tm then
+    let val (a,b) = dest_conj tm in
+      eval_pred fed a input andalso eval_pred fed b input
+    end
+  else if is_neg tm then not (eval_pred fed (dest_neg tm) input)
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in
+      not (eval_pred fed a input) orelse eval_pred fed b input
+    end
+  else if is_eq tm then
+    let val (a,b) = dest_eq tm in
+      eval_term fed a input = eval_term fed b input
+    end
+  else if string_of_var (fst (strip_comb tm)) = "<=" then
+    let val (a,b) = pair_of_list (snd (strip_comb tm)) in
+      eval_term fed a input <= eval_term fed b input
+    end
+  else raise ERR "eval_pred" "not a predicate"
+
+fun add_cache f = 
+  let 
+    val d = ref (dempty (cpl_compare IntInf.compare IntInf.compare)) 
+    fun newf input = case dfindo input (!d) of
+      NONE => 
+        let val (r,b) = (f input,true) 
+          handle 
+              Div => (IntInf.fromInt 0,false)
+            | ProgTimeout => (IntInf.fromInt 1,false)
+            | Overflow => (IntInf.fromInt 1,false)
+            | Empty => (IntInf.fromInt 1,false)
+        in
+          d := dadd input (r,b) (!d); 
+          if b then r else
+          if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
+        end      
+     | SOME (r,b) => 
+       if b then r else
+       if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
+  in
+    newf
+  end
+
+fun create_fed pp =
+  let
+    val fpl = get_recfpl_ws (progpair_to_progxpair_shared pp)
+    val fed = dnew Term.compare 
+      (map_snd (add_cache o exec_memo.mk_exec_twov) fpl)
+  in
+    fed
+  end
+  
+fun true_pred fed pred =
+  let
+    fun f x = 
+      (
+      abstimer := 0;
+        ( 
+        eval_pred fed pred x handle
+          Div => false
+        | ProgTimeout => true
+        | Overflow => true
+        | Empty => true
+        )
+      )
+  in
+    all f inputl
+  end
+
+(* -------------------------------------------------------------------------
+   Fingerprinting (add maxint_flag true to config for safety)
+   ------------------------------------------------------------------------- *)
+
+fun fenum f xltop =
+  let
+    fun init () = abstimer := 0
+    fun loop acc xl = 
+      (
+      init ();
+      if null xl 
+      then SOME (rev acc)
+      else loop (f (hd xl) :: acc) (tl xl)
+      )
+  in
+    loop [] xltop handle
+      Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+  end;
+  
+fun fingerprint fed tm = case fenum (eval_term fed tm) inputl of NONE => NONE
+  | SOME seq => SOME (seq,tm);
+
+
+fun fenumb f xltop =
+  let
+    fun init () = abstimer := 0
+    fun loop acc xl = 
+      (
+      init ();
+      if null xl
+      then SOME (rev acc)
+      else loop (f (hd xl) :: acc) (tl xl)
+      )
+  in
+    loop [] xltop handle
+      Div => NONE
+    | ProgTimeout => NONE
+    | Overflow => NONE
+  end;
+  
+fun fingerprintb fed tm = case fenumb (eval_pred fed tm) inputl of NONE => NONE
+  | SOME seq => SOME (seq,tm);
+
+(* -------------------------------------------------------------------------
+   Generate and test terms
+   ------------------------------------------------------------------------- *)
+
+fun gen_true_eq fed tml =
+  let
+    val seqtml = List.mapPartial (fingerprint fed) tml;
+    val d = dappendl seqtml (dempty (list_compare IntInf.compare));
+    val l1 = dlist d;
+    val l2 = filter (fn x => length (snd x) >= 2) l1;
+    val l3 = map_snd (all_pairs o random_subset 3) l2;
+    val l4 = map mk_eq (List.concat (map snd l3));
+  in
+    l4
+  end;
+  
+val leqoper = mk_var ("<=",``:'a -> 'a -> bool``);
+fun mk_leq (a,b) = list_mk_comb (leqoper, [a,b]); 
+fun gen_eq tml = mk_eq (pair_of_list (random_subset 2 tml));
+fun gen_leq tml = mk_leq (pair_of_list (random_subset 2 tml));
+
+fun gen_true fed generator tml k = 
+  let  
+    val d = ref (eempty Term.compare)
+    fun loop n = 
+      (
+      if n mod 100 = 0 then print "." else ();
+      if elength (!d) >= k orelse n <= 0 then elist (!d) else
+      let val r = generator tml in
+        if true_pred fed r then d := eadd r (!d) else ();
+        loop (n-1)
+      end
+      ) 
+  in
+    loop (100 * k)
+  end;  
+
+fun gen_partial fed generator tml k = 
+  let  
+    val d = ref (eempty Term.compare)
+    fun loop n = 
+      (
+      if n mod 100 = 0 then print "." else ();
+      if elength (!d) >= k orelse n <= 0 then elist (!d) else
+      let val r = generator tml in
+        if true_pred fed r orelse true_pred fed (mk_neg r) 
+        then () 
+        else d := eadd r (!d);
+        loop (n-1)
+      end
+      ) 
+  in
+    loop (100 * k)
+  end; 
+
+fun is_truish bl = let val n = length (filter I bl) in
+   n >= 75 andalso n < 150
+   end;
+
+fun gen_truish fed generator tml k = 
+  let  
+    val d = ref (eempty Term.compare)
+    fun loop n = 
+      (
+      if n mod 100 = 0 then print "." else ();
+      if elength (!d) >= k orelse n <= 0 then elist (!d) else
+      let 
+        val r = generator tml 
+        val blo = fingerprintb fed r
+      in
+        if isSome blo andalso is_truish (fst (valOf blo)) 
+        then d := eadd r (!d)
+        else ();
+        loop (n-1)
+      end
+      ) 
+  in
+    loop (10 * k)
+  end; 
+
+fun test_truish (seq1,seq2) = 
+  is_truish (map (fn (x,y) => x = y) (combine (seq1,seq2)));
+
+fun gen_truish_eq (seqtml : (IntInf.int list * term) list) k =
+  let  
+    val d = ref (eempty Term.compare)
+    fun loop n = 
+      (
+      if n mod 100 = 0 then print "." else ();
+      if elength (!d) >= k orelse n <= 0 then elist (!d) else
+      let 
+        val (seq1,t1) = random_elem seqtml
+        val (seq2,t2) = random_elem seqtml
+        val b = test_truish (seq1,seq2)
+      in
+        if b then d := eadd (mk_eq (t1,t2)) (!d) else ();
+        loop (n-1)
+      end
+      ) 
+  in
+    loop (10 * k)
+  end
+
+(* conj *)
+fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha);
+fun mk_svar tm = mk_varn ("s" ^ tl_string (string_of_var tm), arity_of tm);
+fun mk_wvar tm = mk_varn ("w" ^ tl_string (string_of_var tm), arity_of tm);  
+ 
+fun add_sw tm = 
+  if hd_string (string_of_var tm) = #"w" 
+  then [tm, mk_svar tm]
+  else if hd_string (string_of_var tm) = #"s"
+  then [tm, mk_wvar tm]
+  else [tm] 
+
+fun all_recvar tm = 
+  let val (oper,argl) = strip_comb tm in 
+    (if is_recvar oper then [oper] else []) @
+    List.concat (map all_recvar argl)
+  end 
+ 
+fun all_recvar_sw tm = 
+  mk_fast_set Term.compare (List.concat (map add_sw (all_recvar tm)));
+
+(* disj *)
+fun complement_score (seq1,tm1) (seq2,tm2) = 
+  let val l = combine (seq1,seq2) in
+    if not (all (fn (a,b) => a orelse b) l) 
+    then NONE
+    else SOME ((tm1,tm2),length (filter (fn (a,b) => a = b) l)) 
+  end;
+
+fun complement_ex alluslbl ex =
+  let 
+    val scl = List.mapPartial (complement_score ex) alluslbl
+  in
+    if null scl then NONE else 
+    if random_real () < 0.5 
+    then SOME (fst (random_elem scl))
+    else SOME (fst (hd (dict_sort compare_imin scl)))
+  end;
+  
+fun mk_imp_from_disj (a,b) = 
+  let val a' = if is_neg a then dest_neg a else mk_neg a in
+    mk_imp (a',b)
+  end 
+
+fun gen_pp pp tml =
+  let
+    val fed = create_fed pp
+    (* true *)
+    val eqtl = random_subset 250 (gen_true_eq fed tml);
+    val noteqtl = gen_true fed (mk_neg o gen_eq) tml 250;
+    val leqtl = gen_true fed  gen_leq tml 250;
+    val notleqtl = gen_true fed (mk_neg o gen_leq)  tml 250;
+    val alltl = eqtl @ noteqtl @ leqtl @ noteqtl
+    val _ = print_endline "true"
+    (* conj *)
+    val alltlsw = map_assoc all_recvar_sw alltl
+    fun is_conjable ((t1,l1),(t2,l2)) = 
+      if exists (fn x => tmem x l2) l1 then SOME (mk_conj (t1,t2)) else NONE;
+    val (conjl,t) = add_time (random_subset 1000) 
+      (List.mapPartial is_conjable (all_pairs alltlsw))
+    val _ = print_endline (its (length conjl) ^ " conjunctions in " ^
+      rts_round 2 t)
+    (* undecided *)
+    val equl = gen_partial fed gen_eq tml 250;
+    val notequl = gen_partial fed (mk_neg o gen_eq) tml 250;
+    val lequl = gen_partial fed gen_leq tml 250;
+    val notlequl = gen_partial fed (mk_neg o gen_leq) tml 250;
+    val allul = equl @ notequl @ lequl @ notequl;
+    val _ = print_endline "undecided"
+    (* equiv *)
+    fun mk_equiv (a,b) = mk_conj (mk_imp (a,b),mk_imp (b,a));
+    val equivl = map mk_equiv (all_pairs allul);
+    val (equivtl,t) = add_time (filter (true_pred fed)) equivl;
+    val _ = print_endline (its (length equivtl) ^ " equivalences in " ^
+      rts_round 2 t)
+    val equivtl' = random_subset 1000 equivtl
+    (* truish *)
+    val seqtml = List.mapPartial (fingerprint fed) tml;
+    val eqsl = gen_truish_eq seqtml 250
+    val noteqsl = gen_truish fed (mk_neg o gen_eq) tml 250;
+    val leqsl = gen_truish fed  gen_leq tml 250;
+    val notleqsl = gen_truish fed (mk_neg o gen_leq)  tml 250;
+    val allsl = eqsl @ leqsl @ notleqsl @ noteqsl;
+    val _ = print_endline "truish"
+    (* combine truish and undecided *)
+    val allusl = equl @ eqsl @ lequl @ notlequl @ leqsl @ 
+                 notleqsl @ notequl @ noteqsl
+    (* disj *)
+    val allslbl = List.mapPartial (fingerprintb fed) allsl
+    val alluslbl = List.mapPartial (fingerprintb fed) allusl
+    val (disjl,t) = add_time (List.mapPartial (complement_ex alluslbl)) allslbl
+    val _ = print_endline (its (length disjl) ^ " implications in " ^
+      rts_round 2 t)
+    val disjl' = map mk_imp_from_disj disjl
+  in
+    mk_fast_set Term.compare (alltl @ conjl @ equivtl' @ disjl')
+  end  
+ 
+
+(*
+load "kolmo";
+open aiLib kernel smt_hol progx smt_progx kolmo;
+val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
+val (a,pp) = random_elem appl;
+val tml = kolmo_pp pp 6;
+load "search_term"; open search_term;
+val inductl = gen_pp pp tml;
+
+*)
+
 
 (* -------------------------------------------------------------------------
    Operator to produce SMT formulas
-   Q = and, R = ==>, S = not
    A B C D E F G H I            J    K L M     N     O P  Q   R       S  
    0 1 2 + - * / % if then else loop x y compr loop2 = <= and implies not
    ------------------------------------------------------------------------- *)
@@ -106,7 +486,8 @@ val smt_operd = enew Term.compare smt_operl
    ------------------------------------------------------------------------- *)
 
 val prog_counter = ref 0
-val progd = ref (eempty Term.compare)
+val afd_glob = ref (dempty Term.compare)
+val progd = ref (dempty (list_compare IntInf.compare))
 
 (* -------------------------------------------------------------------------
    Available moves
@@ -188,14 +569,18 @@ fun apply_move move (board1,board2) =
   else raise ERR "apply_move" (term_to_string move)
   
 (* -------------------------------------------------------------------------
-   Save a program if it is alone
+   Save a program if it generates something new
    ------------------------------------------------------------------------- *)
 
 fun save_program board = case board of
-    (_, p :: _) => 
-      if acceptable p
-      then (incr prog_counter; progd := eadd p (!progd))
-      else ()
+    (t :: _, _) => 
+    let val l = [] in
+      case dfindo l (!progd) of
+        NONE => progd := dadd l t (!progd)
+      | SOME told => if term_compare_size (t,told) = LESS 
+                     then progd := dadd l t (!progd)
+                     else ()
+    end
   | _ => ()
 
 (* -------------------------------------------------------------------------
@@ -238,7 +623,7 @@ fun split_vis nvis dis =
 
 (* -------------------------------------------------------------------------
    Allocate time in advance according to the prior probabilities
-   ------------------------------------------------------------------------- *)  
+   ------------------------------------------------------------------------- *)
    
 fun split_tim (torg,tinc) dis = 
   let 
@@ -301,40 +686,25 @@ and search_aux rt depth lim fl board =
     search_move rt (depth + 1) lim fl board pol
   end
 
-(*
-val smt_operl_term = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
-  [("0",0),("1",0),("2",0),
-   ("+",2),("-",2),("*",2),("divf",2),("modf",2),
-   ("ite",3)] @ 
-   [fake_var "loop"] @
-   map (fn x => mk_var (x, alpha)) ["x","y"] @
-   map fake_var ["compr","loop2"]
-  
-val smt_operl_pred = 
- [mk_thy_const {Name="=", Thy="min", Ty=``:'a -> 'a -> bool``},
-  mk_var ("<=",``:'a -> 'a -> bool``)];
-
-val smt_operl_logic = [``$/\``,``$==>``,``$~``];
-*)
 
 fun search fl lim =
   let
     val _ = if !ngen_glob <= 0 then timeincr := init_timeincr else ()
-    val _ = prog_counter := 0
-    val _ = progd := eempty Term.compare
+    val _ = progd := dempty (list_compare IntInf.compare)
+    val _ = afd_glob := dempty Term.compare
     val rt = Timer.startRealTimer ()
     val depth = 0    
     val board = ([],[])
-    fun test move = not (is_var move andalso
-      mem (string_of_var move) ["loop","loop2","compr"])
-    fun test move = not (is_var move andalso
+    fun test move = 
+      not (tmem move (smt_operl_pred @ smt_operl_logic)) andalso
+      not (is_var move andalso
       mem (string_of_var move) 
-        ["0","2","-","*","divf","modf","ite","y","loop","loop2","compr"])  
+        ["*","divf","modf","ite","loop","loop2","compr"])  
     val newfl = filter test fl
     val (_,t) = add_time (search_aux rt depth lim newfl) board
-    val tml = elist (!progd)
+    val tml = map snd (dlist (!progd))
   in
-    print_endline (its (elength (!progd)) ^ " predicates " ^ 
+    print_endline (its (dlength (!progd)) ^ " predicates " ^ 
       "in "  ^ rts_round 2 t ^ " seconds");
     tml
   end
@@ -349,127 +719,7 @@ fun forallxy tm =
 
 fun search_smt fl t = search (smt_operl @ fl) (Seconds (0.0,t))
 
-(* -------------------------------------------------------------------------
-   Evaluating predicates
-   ------------------------------------------------------------------------- *)
 
-(* create a binary function for each loop function *)
-
-fun eval_term fed tm input =
-  let 
-    val _ = incr abstimer
-    val _ = if !abstimer > !timelimit then raise ProgTimeout else ()
-    val (oper,argl) = strip_comb tm
-    fun binop f = 
-      let val (a,b) = pair_of_list argl in
-        f (eval_term fed a input, eval_term fed b input)
-      end   
-  in
-    case string_of_var oper of
-      "0" => IntInf.fromInt 0
-    | "1" => IntInf.fromInt 1
-    | "2" => IntInf.fromInt 2
-    | "+" => binop IntInf.+
-    | "-" => binop IntInf.-
-    | "*" => binop IntInf.*
-    | "divf" => binop IntInf.div
-    | "modf" => binop IntInf.mod
-    | "ite" => let val (a,b,c) = triple_of_list argl in 
-                 if eval_pred fed a input
-                 then eval_term fed b input
-                 else eval_term fed c input
-               end
-    | "x" => fst input
-    | "y" => snd input
-    | s => 
-      case dfindo oper fed of
-        NONE => raise ERR "eval_term" ("operator not found: " ^ s)
-      | SOME f => (
-                  case argl of
-                    [] => f (IntInf.fromInt 0, IntInf.fromInt 0)
-                  | [a] => f (eval_term fed a input, IntInf.fromInt 0)
-                  | [a,b] =>  f (eval_term fed a input, eval_term fed b input)
-                  | _ => raise ERR "eval_term" "arity"
-                  )
-  end
-
-and eval_pred fed tm input =
-  if is_conj tm then
-    let val (a,b) = dest_conj tm in
-      eval_pred fed a input andalso eval_pred fed b input
-    end
-  else if is_neg tm then not (eval_pred fed (dest_neg tm) input)
-  else if is_imp tm then 
-    let val (a,b) = dest_imp tm in
-      not (eval_pred fed a input) orelse eval_pred fed b input
-    end
-  else if is_eq tm then
-    let val (a,b) = dest_eq tm in
-      eval_term fed a input = eval_term fed b input
-    end
-  else if string_of_var (fst (strip_comb tm)) = "<=" then
-    let val (a,b) = pair_of_list (snd (strip_comb tm)) in
-      eval_term fed a input <= eval_term fed b input
-    end
-  else raise ERR "eval_pred" "not a predicate"
-
-
-val inputl = 
-  let 
-    val l1 = List.tabulate (10,IntInf.fromInt)
-    val l1b = List.tabulate (19,fn x => IntInf.fromInt (x-9))
-  in
-    cartesian_product l1 l1b
-  end;
-
-fun add_cache f = 
-  let 
-    val d = ref (dempty (cpl_compare IntInf.compare IntInf.compare)) 
-    fun newf input = case dfindo input (!d) of
-      NONE => 
-        let val (r,b) = (f input,true) 
-          handle 
-              Div => (IntInf.fromInt 0,false)
-            | ProgTimeout => (IntInf.fromInt 1,false)
-            | Overflow => (IntInf.fromInt 1,false)
-            | Empty => (IntInf.fromInt 1,false)
-        in
-          d := dadd input (r,b) (!d); 
-          if b then r else
-          if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
-        end      
-     | SOME (r,b) => 
-       if b then r else
-       if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
-  in
-    newf
-  end
-
-fun create_fed pp =
-  let
-    val fpl = get_recfpl_ws (progpair_to_progxpair_shared pp)
-    val fed = dnew Term.compare 
-      (map_snd (add_cache o exec_memo.mk_exec_twov) fpl)
-  in
-    fed
-  end
-  
-fun true_pred fed pred =
-  let
-    fun f x = 
-      (
-      abstimer := 0;
-        ( 
-        eval_pred fed pred x handle
-          Div => false
-        | ProgTimeout => true
-        | Overflow => true
-        | Empty => true
-        )
-      )
-  in
-    all f inputl
-  end
 
 (* -------------------------------------------------------------------------
    Induction axiom
@@ -780,10 +1030,9 @@ fun random_inductl pp =
     *)
     val _ = nonesting := true
     val il2 = search_smt recfl smtgentim
-    val il3 = mk_fast_set Term.compare il2 (* il1 @ il2 *)
-    val _ = print_endline (its (length il3) ^ " merged predicates")
+    val il3 = mk_fast_set Term.compare il2
   in
-    filter_eval (pp,il3)
+    il3 (* filter_eval (pp,il3) *)
   end
 
 fun ppil_to_string (pp,il) = 
@@ -1066,7 +1315,8 @@ fun gen_prove_string s =
     val pp = stringtag_to_pp pps
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
-    val il = random_inductl pp
+    val tml = kolmo_pp pp 20000
+    val il = gen_pp pp tml
   in
     z3_prove_ppil_aux (jobn,(pp,il))
   end
@@ -1102,8 +1352,6 @@ val sl = writel (selfdir ^ "/smt_inference")
    Removing equivalent predicates (not used)
    ------------------------------------------------------------------------- *)
 
-fun term_compare_size (t1,t2) = cpl_compare Int.compare Term.compare
-  ((term_size t1,t1), (term_size t2, t2));
 
 fun equiv_template_one a b =
   list_mk_forall ([xvar,yvar], mk_eq (a,b))
@@ -1143,54 +1391,21 @@ load "search_term";
 open aiLib kernel smt_hol smt_progx search_term;
 val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
 val (a,pp) = random_elem appl;
-val l1 = random_inductl pp; 
-val l1conj = filter (not o null o (find_terms is_conj)) l1;
-val l1imp = filter (not o null o (find_terms is_imp_only)) l1;
-val l1neg= filter (not o null o (find_terms is_neg)) l1;
-val l1nest = filter (not o contain_nested) l1;
-length l1; length l1nest; length l1neg; length l1imp; length l1conj;
-random_elem l1;
-
-fun chad_like0 tm = 
-  is_conj tm andalso 
-  let val (a,b) = dest_conj tm in 
-    is_eq a andalso is_eq b
-  end;
-
-fun chad_like tm = 
-  is_conj tm andalso 
-  let val (a,b) = dest_conj tm in 
-    is_eq a andalso is_eq b andalso 
-    is_comb (fst (dest_eq a)) andalso
-    is_comb (fst (dest_eq b)) andalso
-    is_comb (snd (dest_eq a)) andalso
-    is_comb (snd (dest_eq b))
-  end;
-
-val l1chad = filter chad_like l1; length l1chad;
-val l1chad0 = filter chad_like0 l1; length l1chad0;
-
-
-load "search_term";
-search_term.gen_prove_init "smt7";
 
 load "search_term"; load "smlRedirect";
-smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt12")
-  search_term.gen_prove_init "smt12";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt13")
+  search_term.gen_prove_init "smt13";
+
 
 (* todo: merge all the examples from all the experiments *)
 load "search_term"; 
 open aiLib kernel smt_hol smt_progx search_term;
-
-
 val expdir = selfdir ^ "/exp";
 val l1 = map string_to_ppsisl (readl (expdir ^ "/smt5/current"));
 val l2 = map string_to_ppsisl (readl (expdir ^ "/smt6/current"));
 val l3 = map string_to_ppsisl (readl (expdir ^ "/smt7/current"));
 val l4 = map string_to_ppsisl (readl (expdir ^ "/smt11/current"));
-
 val l5 = merge_simple l4 (merge l3 (merge l2 l1));
-
 fun f dir l = 
   let
     val _ = mkDir_err dir
