@@ -72,7 +72,7 @@ fun is_nested tm =
   
 fun contain_nested tm = (not o null o (find_terms is_nested)) tm;
 
-fun acceptable tm = true (* contain_x tm andalso contain_rec tm *)
+fun acceptable tm = contain_x tm andalso contain_rec tm
 
 fun term_compare_size (t1,t2) = cpl_compare Int.compare Term.compare
   ((term_size t1,t1), (term_size t2, t2));
@@ -415,7 +415,9 @@ fun gen_pp pp tml =
     (* conj *)
     val alltlsw = map_assoc all_recvar_sw alltl
     fun is_conjable ((t1,l1),(t2,l2)) = 
-      if exists (fn x => tmem x l2) l1 then SOME (mk_conj (t1,t2)) else NONE;
+      if exists (fn x => tmem x l2) l1
+      then SOME (mk_conj (t1,t2)) 
+      else NONE;
     val (conjlfull,t) = add_time 
       (List.mapPartial is_conjable) (all_pairs alltlsw)
     val conjl = random_subset 1000 conjlfull
@@ -462,7 +464,8 @@ fun gen_pp pp tml =
       rts_round 2 t ^ " seconds")
     val disjl = map mk_imp_from_disj disjlsep
   in
-    mk_fast_set Term.compare (alltl @ conjl @ equivtl @ disjl)
+    filter acceptable 
+    (mk_fast_set Term.compare (alltl @ conjl @ equivtl @ disjl))
   end  
  
 
@@ -1442,7 +1445,24 @@ fun f dir l =
   
 f (selfdir ^ "/smt_rl0") l5;
 
-
+ncore 64
+search_memory 10000
+train_memory 10000
+dim_glob 128
+ntarget 200
+rtim 600.0
+short_timeincr 100000
+long_timeincr 100000
+memo_flag true
+smt_flag true
+nooeisdata_flag true
+smtgentim 100.0
+smtgentemp 1.0
+z3try 100
+z3tim 2000
+z3lem 32
+maxint_flag true
+maxintsize 256
 *)
 
 
