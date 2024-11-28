@@ -388,16 +388,28 @@ fun mk_imp_from_disj (a,b) =
     mk_imp (a',b)
   end 
 
+fun first_n_truepred fed n acc tml = 
+  if n <= 0 then rev acc else
+  case tml of
+    [] => rev acc
+  | tm :: m => if true_pred fed tm 
+               then first_n_truepred fed (n-1) (tm :: acc) m
+               else first_n_truepred fed n acc m 
+  
+
 fun gen_pp pp tml =
   let
     val fed = create_fed pp
     (* true *)
     val (eqtlfull,t) = add_time (gen_true_eq fed) tml
     val eqtl = random_subset 250 eqtlfull
-    val _ = print_endline ("equalities in " ^ rts_round 2 t)
-    val noteqtl = gen_true fed (mk_neg o gen_eq) tml 250;
-    val leqtl = gen_true fed  gen_leq tml 250;
-    val notleqtl = gen_true fed (mk_neg o gen_leq)  tml 250;
+    val _ = print_endline ("eqt in " ^ rts_round 2 t ^ " seconds")
+    val (noteqtl,t) = add_time (gen_true fed (mk_neg o gen_eq) tml) 250
+    val _ = print_endline ("noteqt in " ^ rts_round 2 t ^ " seconds")
+    val (leqtl,t) = add_time (gen_true fed  gen_leq tml) 250;
+    val _ = print_endline ("leqt in " ^ rts_round 2 t ^ " seconds")
+    val (notleqtl,t) = add_time (gen_true fed (mk_neg o gen_leq) tml) 250
+    val _ = print_endline ("notleqt in " ^ rts_round 2 t ^ " seconds")
     val alltl = eqtl @ noteqtl @ leqtl @ noteqtl
     val _ = print_endline "true"
     (* conj *)
@@ -408,27 +420,34 @@ fun gen_pp pp tml =
       (List.mapPartial is_conjable) (all_pairs alltlsw)
     val conjl = random_subset 1000 conjlfull
     val _ = print_endline (its (length conjl) ^ " conjunctions in " ^
-      rts_round 2 t)
+      rts_round 2 t ^ " seconds")
     (* undecided *)
-    val equl = gen_partial fed gen_eq tml 250;
-    val notequl = gen_partial fed (mk_neg o gen_eq) tml 250;
-    val lequl = gen_partial fed gen_leq tml 250;
-    val notlequl = gen_partial fed (mk_neg o gen_leq) tml 250;
+    val (equl,t) = add_time (gen_partial fed gen_eq tml) 250;
+    val _ = print_endline ("equ in " ^ rts_round 2 t ^ " seconds")
+    val (notequl,t) = add_time (gen_partial fed (mk_neg o gen_eq) tml) 250;
+    val _ = print_endline ("notequ in " ^ rts_round 2 t ^ " seconds")
+    val (lequl,t) = add_time (gen_partial fed gen_leq tml) 250;
+    val _ = print_endline ("lequ in " ^ rts_round 2 t ^ " seconds")
+    val (notlequl,t) = add_time (gen_partial fed (mk_neg o gen_leq) tml) 250;
+    val _ = print_endline ("notlequ in " ^ rts_round 2 t ^ " seconds")
     val allul = equl @ notequl @ lequl @ notequl;
     val _ = print_endline "undecided"
     (* equiv *)
     fun mk_equiv (a,b) = mk_conj (mk_imp (a,b),mk_imp (b,a));
     val equivl = map mk_equiv (all_pairs allul);
-    val (equivtl,t) = add_time (filter (true_pred fed)) equivl;
+    val (equivtl,t) = add_time (first_n_truepred fed 1000 []) (shuffle equivl);
     val _ = print_endline (its (length equivtl) ^ " equivalences in " ^
-      rts_round 2 t)
-    val equivtl' = random_subset 1000 equivtl
+      rts_round 2 t ^ " seconds")
     (* truish *)
     val seqtml = List.mapPartial (fingerprint fed) tml;
-    val eqsl = gen_truish_eq seqtml 250
-    val noteqsl = gen_truish fed (mk_neg o gen_eq) tml 250;
-    val leqsl = gen_truish fed  gen_leq tml 250;
-    val notleqsl = gen_truish fed (mk_neg o gen_leq)  tml 250;
+    val (eqsl,t) = add_time (gen_truish_eq seqtml) 250
+    val _ = print_endline ("eqs in " ^ rts_round 2 t ^ " seconds")
+    val (noteqsl,t) = add_time (gen_truish fed (mk_neg o gen_eq) tml) 250;
+    val _ = print_endline ("noteqs in " ^ rts_round 2 t ^ " seconds")
+    val (leqsl,t) = add_time (gen_truish fed gen_leq tml) 250;
+    val _ = print_endline ("leqs in " ^ rts_round 2 t ^ " seconds")
+    val (notleqsl,t) = add_time (gen_truish fed (mk_neg o gen_leq) tml) 250
+    val _ = print_endline ("notleqs in " ^ rts_round 2 t ^ " seconds")
     val allsl = eqsl @ leqsl @ notleqsl @ noteqsl;
     val _ = print_endline "truish"
     (* combine truish and undecided *)
@@ -437,12 +456,13 @@ fun gen_pp pp tml =
     (* disj *)
     val allslbl = List.mapPartial (fingerprintb fed) allsl
     val alluslbl = List.mapPartial (fingerprintb fed) allusl
-    val (disjl,t) = add_time (List.mapPartial (complement_ex alluslbl)) allslbl
-    val _ = print_endline (its (length disjl) ^ " implications in " ^
-      rts_round 2 t)
-    val disjl' = map mk_imp_from_disj disjl
+    val (disjlsep,t) = 
+      add_time (List.mapPartial (complement_ex alluslbl)) allslbl
+    val _ = print_endline (its (length disjlsep) ^ " implications in " ^
+      rts_round 2 t ^ " seconds")
+    val disjl = map mk_imp_from_disj disjlsep
   in
-    mk_fast_set Term.compare (alltl @ conjl @ equivtl' @ disjl')
+    mk_fast_set Term.compare (alltl @ conjl @ equivtl @ disjl)
   end  
  
 
