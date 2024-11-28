@@ -392,7 +392,9 @@ fun gen_pp pp tml =
   let
     val fed = create_fed pp
     (* true *)
-    val eqtl = random_subset 250 (gen_true_eq fed tml);
+    val (eqtlfull,t) = add_time (gen_true_eq fed) tml
+    val eqtl = random_subset 250 eqtlfull
+    val _ = print_endline ("equalities in " ^ rts_round 2 t)
     val noteqtl = gen_true fed (mk_neg o gen_eq) tml 250;
     val leqtl = gen_true fed  gen_leq tml 250;
     val notleqtl = gen_true fed (mk_neg o gen_leq)  tml 250;
@@ -402,8 +404,9 @@ fun gen_pp pp tml =
     val alltlsw = map_assoc all_recvar_sw alltl
     fun is_conjable ((t1,l1),(t2,l2)) = 
       if exists (fn x => tmem x l2) l1 then SOME (mk_conj (t1,t2)) else NONE;
-    val (conjl,t) = add_time (random_subset 1000) 
-      (List.mapPartial is_conjable (all_pairs alltlsw))
+    val (conjlfull,t) = add_time 
+      (List.mapPartial is_conjable) (all_pairs alltlsw)
+    val conjl = random_subset 1000 conjlfull
     val _ = print_endline (its (length conjl) ^ " conjunctions in " ^
       rts_round 2 t)
     (* undecided *)
