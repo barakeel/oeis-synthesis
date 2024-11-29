@@ -129,8 +129,7 @@ fun app_all_unop depth unaryl =
     app (fn x => app (unf x) (g (depth - 1))) unaryl
   end
 
-fun list_prod l = 
-  case l of 
+fun list_prod l = case l of 
     [] => 1 
   | n :: m => n * list_prod m
 
@@ -138,9 +137,13 @@ fun app_all_binop depth binaryl =
   let
     val partl1 = numpart 2 (depth - 1)
     fun g i = dfind i (!seld) handle NotFound => []
-    val ll = map g l
-    val _ = if list_prod (map length ll) >= 20000 then raise Break else ()
-    fun get_data l = map pair_of_list (cartesian_productl ll)
+    fun get_data l = 
+      let 
+        val ll = map g l
+        val _ = if list_prod (map length ll) >= 20000 then raise Break else ()
+      in
+        map pair_of_list (cartesian_productl ll)
+      end
     val partl2 = map get_data partl1
     fun f part = app (fn x => app (binf x) part) binaryl
   in
@@ -151,9 +154,13 @@ fun app_all_ternop depth ternaryl =
   let
     val partl1 = numpart 3 (depth - 1)
     fun g i = dfind i (!seld) handle NotFound => []
-    val ll = map g l
-    val _ = if list_prod (map length ll) >= 20000 then raise Break else ()
-    fun get_data l = map triple_of_list (cartesian_productl ll)
+    fun get_data l = 
+      let 
+        val ll = map g l
+        val _ = if list_prod (map length ll) >= 20000 then raise Break else ()
+      in
+        map triple_of_list (cartesian_productl ll)
+      end
     val partl2 = map get_data partl1
     fun f part = app (fn x => app (ternf x) part) ternaryl
   in
