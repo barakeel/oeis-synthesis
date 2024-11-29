@@ -174,18 +174,16 @@ fun app_all_ternop depth ternaryl =
 fun next_limit (unaryl,binaryl,ternaryl) limit depth =
   let
     val _ = mem_glob := []
+    val b = ref false
     val _ = (app_all_unop depth unaryl;
              app_all_binop depth binaryl;
              app_all_ternop depth ternaryl)
-            handle Break => ()
+            handle Break => (b := true)
     val _ = print_endline (its (dlength (!seld)) ^ " " ^ 
       its (length (!mem_glob)) ^ " " ^ its (elength (!qd))) 
   in
-    if !total >= limit orelse depth >= 20
-    then 
-      let val r = map snd (List.concat (map snd (dlist (!seld)))) in
-        r @ (map snd (random_subset (limit - (length r)) (!mem_glob)))
-      end
+    if !total >= limit orelse !b orelse depth >= 20
+    then map snd (List.concat (map snd (dlist (!seld))))
     else (seld := dadd depth (!mem_glob) (!seld); 
           next_limit (unaryl,binaryl,ternaryl) limit (depth + 1))
   end  
