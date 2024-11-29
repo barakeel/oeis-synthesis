@@ -81,6 +81,26 @@ fun term_compare_size (t1,t2) = cpl_compare Int.compare Term.compare
    Evaluating predicates
    ------------------------------------------------------------------------- *)
 
+local open IntInf in
+  val aonem = fromInt (~1)
+  val azero = fromInt 0
+  val aone = fromInt 1
+  val atwo = fromInt 2
+  fun aincr x = x + aone
+  fun adecr x = x - aone
+  val maxint = fromInt (valOf (Int.maxInt))
+  val minint = fromInt (valOf (Int.minInt))
+  fun large_int x = x > maxint orelse x < minint
+  fun arb_pow a b = if b <= azero then aone else a * arb_pow a (b-aone)
+  fun pow2 b = arb_pow atwo (fromInt b)
+  val maxarb = arb_pow (fromInt 10) (fromInt maxintsize)
+  val minarb = ~maxarb
+  val large_arb = 
+    if !maxint_flag 
+    then (fn x => x > maxarb orelse x < minarb)
+    else (fn x => false)
+end
+
 val inputl = 
   let 
     val l1 = List.tabulate (10,IntInf.fromInt)
@@ -95,8 +115,11 @@ fun eval_term fed tm input =
     val _ = if !abstimer > !timelimit then raise ProgTimeout else ()
     val (oper,argl) = strip_comb tm
     fun binop f = 
-      let val (a,b) = pair_of_list argl in
-        f (eval_term fed a input, eval_term fed b input)
+      let 
+        val (a,b) = pair_of_list argl 
+        val r = f (eval_term fed a input, eval_term fed b input)
+      in
+        if large_arb r then raise ProgTimeout else r
       end   
   in
     case string_of_var oper of
@@ -118,13 +141,18 @@ fun eval_term fed tm input =
     | s => 
       case dfindo oper fed of
         NONE => raise ERR "eval_term" ("operator not found: " ^ s)
-      | SOME f => (
-                  case argl of
-                    [] => f (IntInf.fromInt 0, IntInf.fromInt 0)
-                  | [a] => f (eval_term fed a input, IntInf.fromInt 0)
-                  | [a,b] =>  f (eval_term fed a input, eval_term fed b input)
-                  | _ => raise ERR "eval_term" "arity"
-                  )
+      | SOME f => 
+        let val r = 
+          (
+          case argl of
+            [] => f (IntInf.fromInt 0, IntInf.fromInt 0)
+          | [a] => f (eval_term fed a input, IntInf.fromInt 0)
+          | [a,b] =>  f (eval_term fed a input, eval_term fed b input)
+          | _ => raise ERR "eval_term" "arity"
+          )
+        in
+          if large_arb r then raise ProgTimeout else r
+        end
   end
 
 and eval_pred fed tm input =
@@ -152,7 +180,7 @@ fun add_cache f =
     val d = ref (dempty (cpl_compare IntInf.compare IntInf.compare)) 
     fun newf input = 
       let val _ = 
-        if dlength (!d) > 100000 
+        if dlength (!d) > 20000 
         then d := dempty (cpl_compare IntInf.compare IntInf.compare)
         else ()
       in
@@ -1426,8 +1454,8 @@ val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
 val (a,pp) = random_elem appl;
 
 load "search_term"; load "smlRedirect";
-smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt13")
-  search_term.gen_prove_init "smt13";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt14")
+  search_term.gen_prove_init "smt14";
 
 
 (* todo: merge all the examples from all the experiments *)
@@ -1439,6 +1467,7 @@ val l2 = map string_to_ppsisl (readl (expdir ^ "/smt6/current"));
 val l3 = map string_to_ppsisl (readl (expdir ^ "/smt7/current"));
 val l4 = map string_to_ppsisl (readl (expdir ^ "/smt11/current"));
 val l5 = merge_simple l4 (merge l3 (merge l2 l1));
+
 fun f dir l = 
   let
     val _ = mkDir_err dir
