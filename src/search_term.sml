@@ -150,22 +150,29 @@ and eval_pred fed tm input =
 fun add_cache f = 
   let 
     val d = ref (dempty (cpl_compare IntInf.compare IntInf.compare)) 
-    fun newf input = case dfindo input (!d) of
-      NONE => 
-        let val (r,b) = (f input,true) 
-          handle 
-              Div => (IntInf.fromInt 0,false)
-            | ProgTimeout => (IntInf.fromInt 1,false)
-            | Overflow => (IntInf.fromInt 1,false)
-            | Empty => (IntInf.fromInt 1,false)
-        in
-          d := dadd input (r,b) (!d); 
-          if b then r else
-          if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
-        end      
-     | SOME (r,b) => 
-       if b then r else
-       if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
+    fun newf input = 
+      let val _ = 
+        if dlength (!d) > 100000 
+        then d := dempty (cpl_compare IntInf.compare IntInf.compare)
+        else ()
+      in
+        case dfindo input (!d) of
+        NONE => 
+          let val (r,b) = (f input,true) 
+            handle 
+                Div => (IntInf.fromInt 0,false)
+              | ProgTimeout => (IntInf.fromInt 1,false)
+              | Overflow => (IntInf.fromInt 1,false)
+              | Empty => (IntInf.fromInt 1,false)
+          in
+            d := dadd input (r,b) (!d); 
+            if b then r else
+            if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
+          end      
+       | SOME (r,b) => 
+         if b then r else
+         if r = IntInf.fromInt 0 then raise Div else raise ProgTimeout
+     end
   in
     newf
   end

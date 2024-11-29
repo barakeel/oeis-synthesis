@@ -50,6 +50,8 @@ fun numpart k n = number_partition k n handle HOL_ERR _ => [];
 val qd = ref (eempty (list_compare Int.compare))
 val seld = ref (dempty Int.compare)
 val mem_glob = ref []
+val total = ref 0 
+exception Break
 
 (* -------------------------------------------------------------------------
    Computing and saving results
@@ -71,7 +73,11 @@ fun is_nested tm =
 fun store_seqtm (seq,(tm:term)) =
   if is_nested tm then () else
   if emem seq (!qd) then () else
-  (mem_glob := (seq,tm) :: !mem_glob; qd := eadd seq (!qd))
+  (
+  mem_glob := (seq,tm) :: !mem_glob; 
+  qd := eadd seq (!qd);
+  incr total; if !total >= 20000 then raise Break else ()
+  )
 
 fun unf (oper, exec: int -> int -> int) (seq,tm) =
   let 
@@ -148,39 +154,14 @@ fun app_all_ternop depth ternaryl =
 (* -------------------------------------------------------------------------
    Bottom-up search
    ------------------------------------------------------------------------- *)
-  
-fun next (unaryl,binaryl,ternaryl) depth =
-  let
-    val _ = mem_glob := []
-    val _ = app_all_unop depth unaryl
-    val _ = app_all_binop depth binaryl
-    val _ = app_all_ternop depth ternaryl
-    val _ = seld := dadd depth (!mem_glob) (!seld)
-    
-    val _ = print_endline (its (dlength (!seld)) ^ " " ^ 
-      its (length (!mem_glob)) ^ " " ^ its (elength (!qd))) 
-  in
-    mem_glob := []
-  end;
- 
-fun kolmo (nullaryl,unaryl,binaryl,ternaryl) depth =
-  (
-  init nullaryl;  
-  app (next (unaryl,binaryl,ternaryl)) 
-    (List.tabulate (depth - 1, fn x => x + 2));
-  map snd (List.concat (map snd (dlist (!seld))))
-  ) 
-  
-  
-val total = ref 0
 
 fun next_limit (unaryl,binaryl,ternaryl) limit depth =
   let
     val _ = mem_glob := []
-    val _ = app_all_unop depth unaryl
-    val _ = app_all_binop depth binaryl
-    val _ = app_all_ternop depth ternaryl
-    val _ = total := !total + length (!mem_glob)
+    val _ = (app_all_unop depth unaryl;
+             app_all_binop depth binaryl;
+             app_all_ternop depth ternaryl)
+            handle Break => ()
     val _ = print_endline (its (dlength (!seld)) ^ " " ^ 
       its (length (!mem_glob)) ^ " " ^ its (elength (!qd))) 
   in

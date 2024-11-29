@@ -19,14 +19,13 @@ val configd =
     dnew String.compare (List.mapPartial f sl)
   end
 
-
 fun bflag s = ref (string_to_bool (dfind s configd) handle NotFound => false)
 fun bflag_true s = 
   ref (string_to_bool (dfind s configd) handle NotFound => true)
 fun iflag s i = ref (string_to_int (dfind s configd) handle NotFound => i) 
 fun iflagnoref s i = string_to_int (dfind s configd) handle NotFound => i
 fun rflagnoref s i = valOf (Real.fromString (dfind s configd)) 
-  handle NotFound => i
+                     handle NotFound => i
 
 (* main_experiment flags *)
 val seq_flag = bflag "seq_flag"
