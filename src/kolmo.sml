@@ -76,7 +76,7 @@ fun store_seqtm (seq,(tm:term)) =
   (
   mem_glob := (seq,tm) :: !mem_glob; 
   qd := eadd seq (!qd);
-  incr total; if !total >= 20000 then raise Break else ()
+  incr total
   )
 
 fun unf (oper, exec: int -> int -> int) (seq,tm) =

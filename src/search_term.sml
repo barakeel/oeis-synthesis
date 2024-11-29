@@ -1454,8 +1454,8 @@ val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
 val (a,pp) = random_elem appl;
 
 load "search_term"; load "smlRedirect";
-smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt14")
-  search_term.gen_prove_init "smt14";
+smlRedirect.hide_in_file (kernel.selfdir ^ "/aaa_smt15")
+  search_term.gen_prove_init "smt15";
 
 
 (* todo: merge all the examples from all the experiments *)
