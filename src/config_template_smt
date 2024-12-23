@@ -12,3 +12,5 @@ nooeisdata_flag true
 z3try 10
 z3tim 200
 z3lem 32
+maxint_flag true
+maxintsize 512
