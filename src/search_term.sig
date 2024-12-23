@@ -71,4 +71,8 @@ sig
   (* filter predicates of the same equivalence classes *)
   val z3quotient : string -> string -> term list -> term list
   
+  (* re-proving with given induction instances *)
+  val z3_reprove_ppil : string -> string
+  val z3_reprove_para : string -> unit
+  
 end
