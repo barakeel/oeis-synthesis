@@ -1189,6 +1189,17 @@ fun write_ppils_pb file ppils =
     write_induct_pb file decl inductl
   end
   
+fun write_ppils_pbl expname =   
+  let 
+    val dir = selfdir ^ "/exp/" ^ expname
+    val pbdir = dir ^ "/pb"
+    val sl = readl (dir ^ "/current")
+    val _ = mkDir_err pbdir
+    fun f i s = write_ppils_pb (pbdir ^ "/" ^ its i) s
+  in
+    appi f sl
+  end
+  
 (* -------------------------------------------------------------------------
    Proof output
    ------------------------------------------------------------------------- *)
@@ -1481,24 +1492,6 @@ fun f dir l =
   
 f (selfdir ^ "/smt_rl0") l5;
 
-ncore 64
-search_memory 10000
-train_memory 10000
-dim_glob 128
-ntarget 200
-rtim 600.0
-short_timeincr 100000
-long_timeincr 100000
-memo_flag true
-smt_flag true
-nooeisdata_flag true
-smtgentim 100.0
-smtgentemp 1.0
-z3try 100
-z3tim 2000
-z3lem 32
-maxint_flag true
-maxintsize 256
 *)
 
 

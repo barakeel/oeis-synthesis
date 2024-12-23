@@ -9,8 +9,6 @@ long_timeincr 100000
 memo_flag true
 smt_flag true
 nooeisdata_flag true
-smtgentim 100.0
-smtgentemp 0.1
 z3try 10
 z3tim 2000
 z3lem 32
