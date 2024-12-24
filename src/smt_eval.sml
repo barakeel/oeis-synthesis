@@ -1,7 +1,8 @@
 structure smt_eval :> smt_eval =
 struct
 
-open aiLib dir kernel sexp progx
+open HolKernel aiLib dir kernel sexp progx
+
 val ERR = mk_HOL_ERR "smt_eval"
 type prog = kernel.prog
 type progx = progx.progx
