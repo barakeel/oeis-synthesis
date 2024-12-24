@@ -1,7 +1,7 @@
 structure smt_eval :> smt_eval =
 struct
 
-open aiLib dir kernel sexp progx smt_hol smt_progx
+open aiLib dir kernel sexp progx
 val ERR = mk_HOL_ERR "smt_eval"
 type prog = kernel.prog
 type progx = progx.progx
@@ -45,69 +45,52 @@ local open IntInf in
     else (fn x => false)
 end
 
-
-val inputl1 = List.tabulate (20,IntInf.fromInt) 
-val inputl1_0 = map (fn x => (x,IntInf.fromInt 0)) inputl1;
-
-val inputl2 = 
+val inputl = 
   let 
     val l1 = List.tabulate (10,IntInf.fromInt)
-    fun cmp ((a,b),(c,d)) = case IntInf.compare (a+b,c+d) of
-        EQUAL => list_compare IntInf.compare ([a,b],[c,d])
-      | x => x
-    val l2 = dict_sort cmp (cartesian_product l1 l1)
+    val l1b = List.tabulate (15,fn x => IntInf.fromInt (x-5))
   in
-    l2
-  end;
-  
-val inputl2neg = 
-  let 
-    val l1 = List.tabulate (10,IntInf.fromInt)
-    val l2 = List.tabulate (9, fn x => IntInf.fromInt ((~1) - x))
-    fun cmp ((a,b),(c,d)) = case IntInf.compare (a+b,c+d) of
-        EQUAL => list_compare IntInf.compare ([a,b],[c,d])
-      | x => x
-    val l2 = dict_sort cmp (cartesian_product l1 l2)
-  in
-    l2
-  end;  
+    cartesian_product l1 l1b
+  end
 
-fun fenum f xltop =
-  let
-    fun init () = (abstimer := 0; timelimit := 100000)
-    fun loop acc xl = 
-      (
-      init ();
-      if null xl orelse f (hd xl) > maxarb
-      then SOME (rev acc)
-      else loop (f (hd xl) :: acc) (tl xl)
-      )
-  in
-    loop [] xltop handle
-      Div => NONE
-    | ProgTimeout => NONE
-    | Overflow => NONE
-  end;
- 
-val fingerprint_cmp = list_compare IntInf.compare
- 
+fun fingerprint_one f x = 
+  (
+  abstimer := 0; 
+  (
+  SOME (f x) handle
+    Div => NONE
+  | ProgTimeout => NONE
+  | Overflow => NONE
+  | Empty => NONE
+  )
+  )
+
 fun fingerprint_px px = 
   let 
     val p = progx_to_prog px
     val f = exec_memo.mk_exec_twov p
   in
-    fenum f inputl2
+    map (fingerprint_one f) inputl
   end
 
-fun fingerprint_pxl pxl = 
-  let 
-    fun f px = case fingerprint_px px of 
-        NONE => NONE 
-      | SOME seq => SOME (px,seq)
-  in
-    List.mapPartial f pxl
-  end
+fun match_fingerprint_aux (ao,bo) = case (ao,bo) of
+    (NONE,_) => true
+  | (_,NONE) => true
+  | (SOME a, SOME b) => a = b
 
+fun match_fingerprint (fp1,fp2) =
+  all match_fingerprint_aux (combine (fp1,fp2))
+  handle HOL_ERR _ => raise ERR "match_fingerprint" ""
+
+fun fingerprint_loop (px as Insx (_,pxl)) =
+  map fingerprint_px (px :: pxl) 
+
+fun match_loop ((px1,fpl1),(px2,fpl2)) =
+  all match_fingerprint (combine (fpl1,fpl2))
+  handle HOL_ERR _ => raise ERR "match_loop" ""
+  
+
+(*
 (* --------------------------------------------------------------------------
    Finger print a program
    -------------------------------------------------------------------------- *)
@@ -176,6 +159,7 @@ fun subprog_eq_list appl3 =
   in
     appl7
   end
+*) 
  
 (*
 load "smt_eval"; load "search_term";
