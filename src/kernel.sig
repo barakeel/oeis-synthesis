@@ -72,6 +72,8 @@ sig
   val arcagi_flag : bool ref
   val smt_flag : bool ref
   val nooeisdata_flag : bool ref
+  val imp_flag : bool ref
+  val imp_filter : bool ref
   
   (* flags not read from config *)
   val expname : string ref
