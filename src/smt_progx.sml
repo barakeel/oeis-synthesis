@@ -1,7 +1,7 @@
 structure smt_progx :> smt_progx =
 struct
 
-open HolKernel Abbrev boolLib aiLib dir kernel sexp progx smt_hol
+open HolKernel Abbrev boolLib aiLib dir kernel sexp progx smt_hol smt_eval
 val ERR = mk_HOL_ERR "smt_progx"
 
 type finfo = string * int * bool
