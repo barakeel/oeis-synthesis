@@ -125,7 +125,8 @@ fun create_decl pptop =
   let 
     val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
     val eql = eq_loop pp @ eq_compr pp @ eq_loop2_1 pp @ eq_loop2_2 pp
-    val impl = eq_loop_imp pp @  eq_compr_imp pp @ eq_loop2_imp pp
+    val impl = if !noimp_flag then [] else 
+      (eq_loop_imp pp @  eq_compr_imp pp @ eq_loop2_imp pp)
     val pxsmall = name_progx ("small",progx_to_progxx px1)
     val pxfast = name_progx ("fast",progx_to_progxx px2)
     val pxxl = mk_fast_set progx_compare_size 

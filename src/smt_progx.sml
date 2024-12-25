@@ -354,7 +354,15 @@ fun eq_loop (px1,px2) =
 fun eq_loop_imp (px1,px2) =
   let 
     val pxl = mk_fast_set progx_compare (all_subloop px1 @ all_subloop px2)   
-    val hhl = all_pairs (map hoarg_loop pxl)
+    val hhl = 
+      if not (!imp_filter) then all_pairs (map hoarg_loop pxl) else
+      let 
+        val pfl = map_assoc fingerprint_loop pxl
+        val pfpfl = filter match_loop (all_pairs pfl)
+        fun f ((px1,_),(px2,_)) = (hoarg_loop px1, hoarg_loop px2)
+      in
+        map f pfpfl
+      end
     fun g ((px1,s1),(px2,s2)) =
       let
         val vl = [xvar,yvar] 
@@ -391,7 +399,15 @@ fun eq_compr (px1,px2) =
 fun eq_compr_imp (px1,px2) =
   let 
     val pxl = mk_fast_set progx_compare (all_subcompr px1 @ all_subcompr px2)   
-    val hhl = all_pairs (map hoarg_compr pxl)
+    val hhl = 
+      if not (!imp_filter) then all_pairs (map hoarg_compr pxl) else
+      let
+        val pfl = map_assoc fingerprint_loop pxl
+        val pfpfl = filter match_loop (all_pairs pfl)
+        fun f ((px1,_),(px2,_)) = (hoarg_compr px1, hoarg_compr px2)
+      in
+        map f pfpfl
+      end
     fun g ((px1,s1),(px2,s2)) =
       let
         val vl = [xvar,yvar] 
@@ -439,7 +455,15 @@ fun eq_loop2_2 (px1,px2) =
 fun eq_loop2_imp (px1,px2) =
   let 
     val pxl = mk_fast_set progx_compare (all_subloop2 px1 @ all_subloop2 px2)   
-    val hhl = all_pairs (map hoarg_loop2 pxl)
+    val hhl = 
+      if not (!imp_filter) then all_pairs (map hoarg_loop2 pxl) else
+      let
+        val pfl = map_assoc fingerprint_loop pxl
+        val pfpfl = filter match_loop (all_pairs pfl)
+        fun f ((px1,_),(px2,_)) = (hoarg_loop2 px1, hoarg_loop2 px2)
+      in
+        map f pfpfl
+      end
     fun g (((px1,qx1),s1),((px2,qx2),s2)) =
       let
         val vl = [xvar,yvar,zvar] 
