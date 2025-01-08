@@ -912,7 +912,7 @@ fun simp_forall_once tm =
 fun simp_forall_once tm = 
    let val (vl,body) = strip_forall tm in
      if contain_z body then tm else 
-     list_mk_forall (filter (fn x => not (is_zvar x) vl),body)
+     list_mk_forall (filter (not o is_zvar) vl, body)
    end
    
 fun simp_forall tm = 
