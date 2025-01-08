@@ -21,6 +21,9 @@ inductl_cmp (l1,l2);
 1) test if the new code works 
    (trying to reprove the new current file)
    extract gpt examples from the current file
+   
+sh reprove.sh   
+   
 2) make the subz_flag effective 
    (at creating variants)
 3) make a flag for more careful comparisons of induction predicate list
@@ -1644,12 +1647,20 @@ fun process_proofl dir l2 =
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
     val ldiff = merge_diff lold l5
-    val lmerge = (if !subz_flag then map subz else I)
-      (if softmerge_flag then merge_soft lold l5 else merge lold l5)
+    val lmerge = (if softmerge_flag then merge_soft lold l5 else merge lold l5)
     val _ = logl lold "previous"
     val _ = logl ldiff "diff"
     val _ = logl lmerge "current" 
-    fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
+    fun tonmt (key,sl) = 
+      if not (!subz_flag) then map (fn x => key ^ ">" ^ x) sl else
+      let 
+        val pp = stringtag_to_pp key
+        val tml = stringl_to_inductl pp sl
+        val (_,newtml) = subz (pp,tml)
+        val newsl = inductl_to_stringl pp newtml
+      in
+        map (fn x => key ^ ">" ^ x) newsl
+      end
     val l7 = List.concat (map tonmt lmerge)
     val _ = logl l7 "examples"
   in
