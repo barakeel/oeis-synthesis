@@ -933,7 +933,7 @@ fun induct_cj cj =
     val xcj = list_mk_abs ([xvar,yvar,zvar],cj)
     val sub = [{redex = pvar, residue = xcj}]
   in
-    simp_forall (beta_reduce (subst sub induct_axiom))
+    (* simp_forall *) (beta_reduce (subst sub induct_axiom))
   end
 
 fun get_subtml pp =
