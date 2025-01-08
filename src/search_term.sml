@@ -41,6 +41,12 @@ fun contain_y tm =
   let val (oper,argl) = strip_comb tm in
     is_yvar oper orelse exists contain_y argl
   end;
+ 
+fun is_zvar x = term_eq x zvar;  
+fun contain_z tm = 
+  let val (oper,argl) = strip_comb tm in
+    is_zvar oper orelse exists contain_z argl
+  end;  
 
 fun sub_y_z_one tm = 
   if contain_y tm 
@@ -892,6 +898,7 @@ val var1 = mk_varn("1",0);
 val xvari = auto_comb ("+",[xvar,var1]);
 val pvar = mk_var ("P", ``:'a -> 'a -> 'a -> bool``)
 
+(* 
 fun simp_forall_once tm = 
   let 
     val (vl,body) = strip_forall tm 
@@ -900,7 +907,14 @@ fun simp_forall_once tm =
   in
     list_mk_forall (vl',body)
   end
-  
+*)
+(* remove z if it does not appear *)
+fun simp_forall_once tm = 
+   let val (vl,body) = strip_forall tm in
+     if contain_z body then tm else 
+     list_mk_forall (filter (fn x => not (is_zvar x) vl),body)
+   end
+   
 fun simp_forall tm = 
   if is_forall tm then simp_forall_once tm
   else if is_conj tm then
@@ -933,7 +947,7 @@ fun induct_cj cj =
     val xcj = list_mk_abs ([xvar,yvar,zvar],cj)
     val sub = [{redex = pvar, residue = xcj}]
   in
-    (* simp_forall *) (beta_reduce (subst sub induct_axiom))
+    simp_forall (beta_reduce (subst sub induct_axiom))
   end
 
 fun get_subtml pp =
