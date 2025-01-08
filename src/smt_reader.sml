@@ -121,6 +121,18 @@ val footer = ["(assert (exists ((c Int)) (and (>= c 0) "^
               "(not (= (small c) (fast c))))))", 
               "(check-sat)"]     
   
+fun create_decl_only pptop =   
+  let 
+    val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
+    val pxsmall = progx_to_progxx px1
+    val pxfast = progx_to_progxx px2
+    val pxxl = mk_fast_set progx_compare_size 
+        (all_subnamed pxsmall @ all_subnamed pxfast)
+    val decl = add_sdecl (List.concat (map pxx_to_hol pxxl))
+  in
+    decl
+  end
+    
 fun create_decl pptop = 
   let 
     val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
@@ -135,6 +147,9 @@ fun create_decl pptop =
   in
     decl @ eql @ impl
   end
+  
+
+  
 
 fun write_induct_pb file decl inductl =
   write_hol_smt file header (decl @ inductl) footer

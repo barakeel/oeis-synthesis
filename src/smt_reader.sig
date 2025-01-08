@@ -18,6 +18,7 @@ sig
   val check_no_change : string -> unit
   
   (* write a SMT problem with optional induction instances *)
+  val create_decl_only : prog * prog -> term list
   val create_decl : prog * prog -> term list
   val write_induct_pb : string -> term list -> term list -> unit
 

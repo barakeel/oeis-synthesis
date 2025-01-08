@@ -134,6 +134,7 @@ val nooeisdata_flag = bflag "nooeisdata_flag"
 val smt_flag = bflag "smt_flag"
 val noimp_flag = bflag "noimp_flag"
 val imp_filter = bflag "imp_filter"
+val subz_flag = bflag "subz_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

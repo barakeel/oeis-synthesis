@@ -190,25 +190,28 @@ fun varl_of_progx px =
   
 fun namea_of_px (px as (Insx ((_, vo),_))) = (valOf vo, arity_of_progx px);
 
+fun get_index s = string_to_int (tl_string s)
+
+fun compare_indices (s1,s2) = Int.compare (get_index s1,get_index s2);
+
+fun compare_fnames (s1,s2) = Int.compare 
+  (Char.ord (hd_string s1), Char.ord (hd_string s2));
+
+fun mk_svar tm = mk_varn ("s" ^ tl_string (string_of_var tm), arity_of tm)
+
 fun get_recfl (px1,px2) = 
-  let 
-    fun mycmp (s1,s2) = Int.compare 
-      (string_to_int (tl_string s1),string_to_int (tl_string s2));
-    val sl = mk_fast_set (cpl_compare String.compare Int.compare) 
-      (map namea_of_px ((all_subnamed px1) @ (all_subnamed px2)))
+  let val sl = mk_fast_set (fst_compare compare_indices) 
+    (map namea_of_px ((all_subnamed px1) @ (all_subnamed px2)))
   in
-    map mk_varn (dict_sort (cpl_compare mycmp Int.compare) sl)
+    map mk_varn sl
   end; 
 
 fun namep_of_px (px as (Insx ((_, vo),_))) = 
   ((valOf vo, arity_of_progx px), progx_to_prog px);
 
 fun get_recfpl (px1,px2) =
-  let 
-    fun mycmp (s1,s2) = Int.compare 
-      (string_to_int (tl_string s1), string_to_int (tl_string s2))
-    val l = mk_fast_set (fst_compare (fst_compare mycmp))
-      (map namep_of_px ((all_subnamed px1) @ (all_subnamed px2)))   
+  let val l = mk_fast_set (fst_compare (fst_compare compare_indices))
+    (map namep_of_px ((all_subnamed px1) @ (all_subnamed px2)))   
   in
     map_fst mk_varn l
   end;  
@@ -217,7 +220,7 @@ fun get_recfpl (px1,px2) =
    Adding SMT definition for loop2_snd
    -------------------------------------------------------------------------- *)
 
-fun mk_svar tm = mk_varn ("s" ^ tl_string (string_of_var tm), arity_of tm)
+
  
 fun add_s tm = 
   if hd_string (string_of_var tm) = #"w" 

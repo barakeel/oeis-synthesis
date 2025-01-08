@@ -16,6 +16,7 @@ sig
   val pxx_to_hol : progx -> term list
   val arity_of_progx : progx -> int
   val get_recfl : progx * progx -> term list
+  val get_recfpl : progx * progx -> (term * prog) list
   val auto_comb : string * term list -> term
   
   (* definition for loop2_snd *)

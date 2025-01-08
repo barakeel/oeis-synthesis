@@ -18,6 +18,8 @@ sig
   val nonesting : bool ref
   val contain_nested : term -> bool
   (* val subtml_glob : term list ref *)
+  (* extra examples *)
+  val subz : (prog * prog) * term list -> (prog * prog) * term list
   
   (* z3 calls *)
   val z3_prove : string -> string -> int -> term list -> term list -> bool
@@ -25,9 +27,21 @@ sig
   (* parse *)
   val pp_to_stringtag : prog * prog -> string
   val stringtag_to_pp : string -> prog * prog
+  val ppil_to_string : (prog * prog) * term list -> string
+  val ignore_errors : bool ref
   val parse_ppil : string -> (prog * prog) * term list
   val string_to_ppsisl : string -> ppsisl
   val ppsisl_to_string : ppsisl -> string
+  val inductl_cmp : ((prog * prog) * term list) list *
+                    ((prog * prog) * term list) list -> order
+  val read_inductl :  string -> ((prog * prog) * term list) list
+  val write_inductl : string -> ((prog * prog) * term list) list -> unit
+  
+  (* intermediate representation *)
+  datatype nmt = Upper of int | Lower of int | Subf of int * int
+  val nmt_compare : nmt * nmt -> order
+  val nmt_to_string : nmt -> string
+  datatype nmttree = Insn of (nmt * nmttree list)
   
   (* evaluate terms and predicates *)
   val create_fed :  prog * prog -> 
@@ -51,7 +65,6 @@ sig
   val gen_pp : prog * prog -> term list -> term list
   val random_inductl : prog * prog -> term list
   val random_inductl_string : string -> string
-  val ppil_to_string : (prog * prog) * term list -> string
   val write_ppils_pb : string -> string -> unit
   val write_ppils_pbl : string -> unit
   val z3_prove_inductl : string -> string -> prog * prog -> term list -> string

@@ -74,6 +74,7 @@ sig
   val nooeisdata_flag : bool ref
   val noimp_flag : bool ref
   val imp_filter : bool ref
+  val subz_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

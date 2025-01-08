@@ -7,6 +7,94 @@ val ERR = mk_HOL_ERR "searchnew"
 type ppsisl = string * string list
 exception Parse;
 
+(*
+load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
+
+debug_flag := false;
+ignore_errors := false;
+val l = read_inductl "tmt66_3b4";
+val l1 = map subz l;
+write_inductl "tmt66_3b4_subz" l1;
+val l2 = read_inductl "tmt66_3b4_subz";
+inductl_cmp (l1,l2);
+
+1) test if the new code works 
+   (trying to reprove the new current file)
+   extract gpt examples from the current file
+2) make the subz_flag effective 
+   (at creating variants)
+3) make a flag for more careful comparisons of induction predicate list
+
+*)
+
+(* -------------------------------------------------------------------------
+   Add one variant replacing the y variable by the z variable
+   ------------------------------------------------------------------------- *)
+
+val zvar = ``z:'a``;
+val yvar = ``y:'a``;
+fun is_yvar x = term_eq x yvar;
+fun contain_y tm = 
+  let val (oper,argl) = strip_comb tm in
+    is_yvar oper orelse exists contain_y argl
+  end;
+
+fun sub_y_z_one tm = 
+  if contain_y tm 
+  then [tm, subst [{redex = yvar, residue = zvar}] tm]
+  else [tm]
+
+fun sub_y_z tml = List.concat (map sub_y_z_one tml)
+  
+(* -------------------------------------------------------------------------
+   Add two variants randomly expanding definitions
+   ------------------------------------------------------------------------- *)
+
+fun beta_reduce x = (rhs o concl o REDEPTH_CONV BETA_CONV) x 
+  handle UNCHANGED => x;
+
+fun random_expand d tm =
+  let val vl = filter (fn x => dmem x d) (free_vars tm) in
+    if null vl then NONE else
+    let 
+      val v = random_elem vl
+      val sub = dfind v d
+    in
+      SOME (beta_reduce (subst sub tm))
+    end
+  end;
+
+fun random_expand_twice d tm = case (random_expand d tm) of 
+    NONE => NONE
+  | SOME newtm => random_expand d newtm
+
+fun expand_def_one d tm = 
+  let
+    val tm1o = random_expand d tm
+    val tm2o = random_expand_twice d tm
+  in
+    tm :: List.mapPartial I [tm1o,tm2o]
+  end
+ 
+fun eq_to_sub tm = 
+  let 
+    val (a,b) = dest_eq (snd (strip_forall tm))
+    val (oper,argl) = strip_comb a
+  in
+    [{redex = oper, residue = list_mk_abs (argl,b)}]
+  end;
+
+fun expand_def pp tml = 
+  let 
+    val decl = create_decl_only pp 
+    val subl = map eq_to_sub decl
+    val d = dnew Term.compare (map swap (map_assoc (#redex o hd) subl));
+  in
+    List.concat (map (expand_def_one d) tml)
+  end
+  
+fun subz (pp,tml) = (pp, expand_def pp (sub_y_z tml))
+
 (* -------------------------------------------------------------------------
    Global parameters from config file
    ------------------------------------------------------------------------- *)
@@ -35,7 +123,10 @@ fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
    ------------------------------------------------------------------------- *)
 
 fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
-  handle HOL_ERR _ => raise Parse
+  handle HOL_ERR _ => (print_endline 
+   (term_to_string oper ^ " : " ^ String.concatWith " | " 
+    (map term_to_string argl)) 
+; raise Parse)
 
 fun list_mk_comb_err2 (oper,argl) = list_mk_comb (oper,argl)
   handle HOL_ERR _ => raise ERR "list_mk_comb_err2" 
@@ -518,8 +609,8 @@ val inductl = gen_pp pp tml;
 
 (* -------------------------------------------------------------------------
    Operator to produce SMT formulas
-   A B C D E F G H I            J    K L M     N     O P  Q   R       S  
-   0 1 2 + - * / % if then else loop x y compr loop2 = <= and implies not
+   A B C D E F G H I            J    K L M     N     O P  Q   R       S   T
+   0 1 2 + - * / % if then else loop x y compr loop2 = <= and implies not z
    ------------------------------------------------------------------------- *)
 
 fun fake_var s = mk_var (s,``:num -> num``)
@@ -538,7 +629,9 @@ val smt_operl_pred =
 
 val smt_operl_logic = [``$/\``,``$==>``,``$~``];
 
-val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic
+val extra_var = [mk_var ("z",alpha)]
+
+val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic @ extra_var
 
 val smt_operd = enew Term.compare smt_operl
 
@@ -794,30 +887,50 @@ val zvar = mk_var ("z",alpha)
 val var0 = mk_varn("0",0);
 val var1 = mk_varn("1",0);
 val xvari = auto_comb ("+",[xvar,var1]);
-val pvar = mk_var ("P", ``:'a -> 'a -> bool``)
+val pvar = mk_var ("P", ``:'a -> 'a -> 'a -> bool``)
+
+fun simp_forall_once tm = 
+  let 
+    val (vl,body) = strip_forall tm 
+    val vlin = free_vars body
+    val vl' = filter (fn x => tmem x vlin) vl 
+  in
+    list_mk_forall (vl',body)
+  end
+  
+fun simp_forall tm = 
+  if is_forall tm then simp_forall_once tm
+  else if is_conj tm then
+    let val (a,b) = dest_conj tm in mk_conj (simp_forall a, simp_forall b) end
+  else if is_neg tm then mk_neg (simp_forall (dest_neg tm))
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in mk_imp (simp_forall a, simp_forall b) end
+  else raise ERR "simp_forall" ""
+
 
 val induct_axiom =
   let 
-    fun fP x y = list_mk_comb_err (pvar,[x,y])
-    val base_tm = mk_forall (yvar, fP var0 yvar)
-    val imp_tm = list_mk_forall ([xvar,yvar],
-      mk_imp (fP xvar yvar, fP xvari yvar))
+    fun fP x y z = list_mk_comb_err (pvar,[x,y,z])
+    val base_tm = list_mk_forall ([yvar,zvar], fP var0 yvar zvar)
+    val imp_tm = list_mk_forall ([xvar,yvar,zvar],
+      mk_imp (fP xvar yvar zvar, fP xvari yvar zvar))
     val leq = mk_var ("<=",``:'a -> 'a -> bool``)
     val cond = list_mk_comb_err (leq,[var0,xvar])
-    val concl_tm = list_mk_forall ([xvar,yvar],
-      mk_imp (cond, fP xvar yvar))  
+    val concl_tm = list_mk_forall ([xvar,yvar,zvar],
+      mk_imp (cond, fP xvar yvar zvar))  
   in
     mk_imp (mk_conj (base_tm,imp_tm), concl_tm)
   end
 
-fun beta_reduce x = (rhs o concl o REDEPTH_CONV BETA_CONV) x;
+fun beta_reduce x = (rhs o concl o REDEPTH_CONV BETA_CONV) x 
+  handle UNCHANGED => x;
 
 fun induct_cj cj =
   let 
-    val xcj = list_mk_abs ([xvar,yvar],cj)
+    val xcj = list_mk_abs ([xvar,yvar,zvar],cj)
     val sub = [{redex = pvar, residue = xcj}]
   in
-    beta_reduce (subst sub induct_axiom)
+    simp_forall (beta_reduce (subst sub induct_axiom))
   end
 
 fun get_subtml pp =
@@ -830,48 +943,12 @@ fun get_subtml pp =
     subtml
   end
 
+
 (* -------------------------------------------------------------------------
-   Translation from induction predicates to NMT
-   up to 20 loops are allowed
+   Fuzzify macros so that every lowercase letter is used
    ------------------------------------------------------------------------- *)
 
-
-
-val smtn_glob = length smt_operl
 val macron_glob = 20
-
-(* conversion to programs *)
-fun induct_to_prog d tm = 
-  let 
-    val (oper,argl) = strip_comb tm 
-    val opern = dfind oper d 
-      handle NotFound => raise ERR "induct_to_prog" (term_to_string oper)
-  in
-    if opern = 8 (* ite *)
-    then
-      let 
-        val (a,b,c) = triple_of_list argl 
-        val a1 = fst (pair_of_list (snd (strip_comb a)))
-      in
-        Ins (opern, map (induct_to_prog d) [a1,b,c])
-      end
-    else Ins (opern, map (induct_to_prog d) argl)
-  end;
-
-fun unfuzzify_macro mn id = id mod mn
-
-fun prog_to_induct v (Ins (opern,pl)) =
-  let val oper = Vector.sub (v,opern) in 
-    if opern = 8 
-    then 
-      let val (a,b,c) = triple_of_list (map (prog_to_induct v) pl) in
-        ite_template (a,b,c)
-      end
-    else list_mk_comb_err (oper, map (prog_to_induct v) pl)
-  end
-
-(* programs to strings *)
-fun uppercase id = Char.toString (Char.chr (65 + id));
 
 fun fuzzify_macro_aux mn id = 
   let 
@@ -888,81 +965,246 @@ fun fuzzify_macro_aux mn id =
   in
     random_elem idl
   end
-       
-fun fuzzify_macro mn id = 
-  if random_real () > 0.1 then id else fuzzify_macro_aux mn id;        
-
-fun lowercase mn id = Char.toString (Char.chr (97 + 
-  fuzzify_macro mn (id - smtn_glob)));
-
-fun id_to_string mn id = 
-  if id < smtn_glob then uppercase id else lowercase mn id;
-
-
-
-fun string_to_id mn s =
-  let val n = Char.ord (valOf (Char.fromString s)) in 
-    if n < 97 then 
-      if mem (n - 65) [9,12,13] then raise Parse else n - 65
-    else (smtn_glob + unfuzzify_macro mn (n - 97))
-  end;
-
-fun idl_to_string mn idl = String.concatWith " " (map (id_to_string mn) idl);
-fun string_to_idl mn s = 
-  let val idsl = String.tokens Char.isSpace s in
-    map (string_to_id mn) idsl
-  end;
  
-fun prog_to_idl (Ins (i,pl)) = i :: List.concat (map prog_to_idl pl);
-fun idl_to_progl v idl = case idl of
+fun fuzzify_macro mn id = 
+  if random_real () > 0.1 then id else fuzzify_macro_aux mn id;   
+ 
+fun unfuzzify_macro mn id = id mod mn
+
+(* -------------------------------------------------------------------------
+   Conversion from term to tree (special case for if then else)
+   ------------------------------------------------------------------------- *)
+
+datatype nmt = Upper of int | Lower of int | Subf of int * int
+
+fun nmt_compare (atop,btop) = case (atop,btop) of
+    (Upper a, Upper b) => Int.compare (a,b)
+  | (Upper _, _ ) => LESS
+  | (_ , Upper _) => GREATER
+  | (Lower a, Lower b) => Int.compare (a,b)
+  | (Lower _, _) => LESS
+  | (_, Lower _) => GREATER
+  | (Subf a, Subf b) => cpl_compare Int.compare Int.compare (a,b)
+
+fun uppercase id = Char.toString (Char.chr (65 + id));
+fun lowercase id = Char.toString (Char.chr (97 + id));
+fun digit id = Char.toString (Char.chr (48 + id));
+
+fun nmt_to_string x = case x of
+    Upper a => uppercase a 
+  | Lower a => lowercase a
+  | Subf (a,b) => lowercase a ^ digit b
+   
+datatype nmttree = Insn of (nmt * nmttree list)
+
+fun induct_to_prog d tm = 
+  let 
+    val (oper,argl) = strip_comb tm 
+    val opern = dfind oper d 
+      handle NotFound => raise ERR "induct_to_prog" (term_to_string oper)
+  in
+    if opern = Upper 8 (* ite *)
+    then
+      let 
+        val (a,b,c) = triple_of_list argl 
+        val a1 = fst (pair_of_list (snd (strip_comb a)))
+      in
+        Insn (opern, map (induct_to_prog d) [a1,b,c])
+      end
+    else Insn (opern, map (induct_to_prog d) argl)
+  end
+
+fun prog_to_induct d (Insn (opern,pl)) =
+  if opern = Upper 8 then 
+    let val (a,b,c) = triple_of_list (map (prog_to_induct d) pl) in
+      ite_template (a,b,c)
+    end
+  else
+    let val oper = dfind opern d
+      handle NotFound => raise ERR "prog_to_induct" (nmt_to_string opern)
+    in 
+      list_mk_comb_err (oper, map (prog_to_induct d) pl)
+    end
+
+(* -------------------------------------------------------------------------
+   Conversion from tree to leaf list
+   ------------------------------------------------------------------------- *)
+
+fun prog_to_idl (Insn (i,pl)) = i :: List.concat (map prog_to_idl pl)
+
+fun idl_to_progl d idl = case idl of
     [] => []
   | id :: m => 
     let
-      val pl = idl_to_progl v m
-      val arity = arity_of (Vector.sub (v,id))
+      val pl = idl_to_progl d m
+      val oper = dfind id d
+        handle NotFound => raise ERR "idl_to_prog" (nmt_to_string id)
+      val arity = arity_of oper
       val (pl1,pl2) = part_n arity pl
     in
-      if length pl1 <> arity then raise Parse else Ins (id,pl1) :: pl2
+      if length pl1 <> arity 
+      then 
+      (print_endline (term_to_string oper ^ " " ^  
+                      nmt_to_string id ^ " " ^ its arity
+                      ^ " " ^ its (length pl));                
+       raise Parse) 
+      else Insn (id,pl1) :: pl2
     end
     
-(* alltogether *)
-fun induct_to_string d tm = 
-  let val mn = dlength d - smtn_glob in
-    (idl_to_string mn o prog_to_idl o induct_to_prog d) tm
+
+(* -------------------------------------------------------------------------
+   Conversion from leaf list to string list
+   ------------------------------------------------------------------------- *)
+
+fun lowercasef mn id = Char.toString (Char.chr (97 + fuzzify_macro mn id));
+
+fun is_digit n = n < 65
+fun is_upper n = n >= 65 andalso n < 97
+fun is_lower n = n >= 97
+
+fun mk_lower mn n = Lower (unfuzzify_macro mn (n - 97))
+fun mk_upper n = Upper (n - 65)
+fun mk_sub mn (n1,n2) = Subf (unfuzzify_macro mn (n1 - 97), n2 - 48)
+
+fun id_to_string mn id = case id of
+    Upper k => uppercase k
+  | Lower k => lowercasef mn k
+  | Subf (k1,k2) => lowercasef mn k1 ^ " " ^ digit k2
+
+fun idl_to_string mn idl = String.concatWith " " (map (id_to_string mn) idl)
+
+fun bad_id n = mem (n - 65) [9,12,13]
+
+fun string_to_idl mn s = 
+  let 
+    val nl = map (fn x => Char.ord (valOf (Char.fromString x)))
+      (String.tokens Char.isSpace s)
+    val _ = if exists bad_id nl then raise Parse else ()
+    fun regroup_id l = case l of 
+        [] => []
+      | [n] => 
+        if is_digit n then raise ERR "string_to_idl" "digit"
+        else if is_upper n then [mk_upper n]
+        else if is_lower n then [mk_lower mn n]
+        else raise ERR "string_to_idl" "unexpected"
+      | n1 :: n2 :: m => 
+        if is_digit n1 then raise ERR "string_to_idl" "digit"
+        else if is_upper n1 then mk_upper n1 :: regroup_id (n2 :: m) 
+        else if is_lower n1 then 
+          if is_digit n2 then mk_sub mn (n1,n2) :: regroup_id m
+          else mk_lower mn n1 :: regroup_id (n2 :: m) 
+        else raise ERR "string_to_idl" "unexpected"
+  in
+    regroup_id nl
   end
 
-fun string_to_induct v s = 
-  let 
-    fun hd_err x = hd x handle Empty => raise Parse 
-    val mn = Vector.length v - smtn_glob
-  in 
-    (prog_to_induct v o (hd_err o idl_to_progl v) o (string_to_idl mn)) s
+(* -------------------------------------------------------------------------
+   Create conversion dictionaries
+   ------------------------------------------------------------------------- *)
+
+fun get_index tm = string_to_int (tl_string (string_of_var tm))
+
+fun compare_indices (tm1,tm2) = Int.compare (get_index tm1,get_index tm2);
+
+fun compare_fnames (tm1,tm2) = Int.compare 
+  (Char.ord (hd_string (string_of_var tm1)), 
+   Char.ord (hd_string (string_of_var tm2)))
+   
+fun is_s tm = hd_string (string_of_var tm) = #"s"   
+   
+fun extract_s (x,tml) = 
+  let val (l1,l2) = partition is_s tml in
+    if null l1 then [(x,tml)] else [(x,l2),(singleton_of_list l1,[])]
   end
   
-fun inductl_to_stringl pp tml = 
+fun get_recfl_sub tml = 
   let
-    val recfl = get_recfl_ws (progpair_to_progxpair_shared pp)
-    val d = dnew Term.compare (number_snd 0 (smt_operl @ recfl))
+    val l1 = map (fn x => (get_index x,x)) tml
+    val l2 = map snd (dlist (dregroup Int.compare l1))
+    val l3 = map (dict_sort compare_fnames) l2
+    val l4 = map (fn l => (last l,butlast l)) l3
+    val l5 = List.concat (map extract_s l4)
   in
-    map (induct_to_string d) tml
+    l5
+  end;   
+
+fun assoc_ftm_id pp = 
+  let
+    fun h (tm,i) = (tm, Upper i)
+    val upperl = map h (number_snd 0 smt_operl)
+    fun decl_to_oper tm = 
+      let 
+        val (a,b) = dest_eq (snd (strip_forall tm))
+        val (oper,argl) = strip_comb a
+      in
+        oper
+      end
+    val tml10 = create_decl_only pp
+    val _ = if !debug_flag
+            then app (print_endline o term_to_string) tml10
+            else ()
+    val tml0 = mk_fast_set Term.compare (map decl_to_oper tml10)
+    val tml1 = get_recfl_sub tml0
+    val tml2 = number_snd 0 tml1
+    val mn = length tml2
+    fun g i (tm,j) = (tm, Subf (i,j))
+    fun f ((tm,tml),i) = (tm, Lower i) :: map (g i) (number_snd 0 tml)
+    val tml3 = List.concat (map f tml2)
+  in
+    (mn, upperl @ tml3)
+  end
+
+(* -------------------------------------------------------------------------
+   Conversion (all-in-one)
+   ------------------------------------------------------------------------- *)
+   
+fun induct_to_string mn d tm = 
+  (idl_to_string mn o prog_to_idl o induct_to_prog d) tm
+
+fun string_to_induct mn d s = 
+  let 
+    fun hd_err x = hd x handle Empty => raise Parse 
+    val idl = string_to_idl mn s
+    val _ = 
+      if !debug_flag 
+      then print_endline (String.concatWith " " (map nmt_to_string idl))
+      else ()
+    val prog = hd_err (idl_to_progl d idl) 
+    val tm = prog_to_induct d prog
+  in 
+    tm 
+  end
+  
+  
+fun inductl_to_stringl pp tml = 
+  let 
+    val (mn,l) = assoc_ftm_id pp
+    val d = dnew Term.compare l 
+  in
+    map (induct_to_string mn d) tml
   end
 
 fun stringl_to_inductl pp sl =
-  let
-    val ppx = progpair_to_progxpair_shared pp
-    val recfl = get_recfl_ws ppx
-    val v = Vector.fromList (smt_operl @ recfl)
+  let 
+    val (mn,l) = assoc_ftm_id pp
+    val _ = if not (!debug_flag) then () else 
+      let 
+        val _ = print_endline "dictionary"
+        fun f (tm,id) = term_to_string tm ^ " @ " ^ nmt_to_string id 
+      in
+        print_endline (String.concatWith " | " (map f l))
+      end
+    val d = dnew nmt_compare (map swap l) 
   in
-    map (string_to_induct v) sl
+    map (string_to_induct mn d) sl
   end
   
 fun stringl_to_inductl_option pp sl =
   let
-    val ppx = progpair_to_progxpair_shared pp
-    val recfl = get_recfl_ws ppx
-    val v = Vector.fromList (smt_operl @ recfl)
+    val (mn,l) = assoc_ftm_id pp
+    val d = dnew nmt_compare (map swap l)
     fun f s = 
-      let val r = string_to_induct v s in 
+      let val r = string_to_induct mn d s in 
         if type_of r = bool then SOME r else NONE 
       end 
       handle Parse => NONE
@@ -1097,9 +1339,11 @@ fun random_inductl pp =
   end
 
 fun ppil_to_string (pp,il) = 
-  if null il then raise ERR "ppil_to_string" "empty" else
   pp_to_stringtag pp ^ ">" ^ 
-  String.concatWith "|" (inductl_to_stringl pp il)
+  (if null il then "empty" else
+   (String.concatWith "|" (inductl_to_stringl pp il)))
+
+fun write_inductl file l = writel file (map ppil_to_string l)
 
 fun random_inductl_string pps =
   let 
@@ -1113,13 +1357,17 @@ fun random_inductl_string pps =
    Proof: parsing
    ------------------------------------------------------------------------- *)
 
+val ignore_errors = ref true
+
 fun parse_ppil ppils =
   let 
     val (s1,s2) = split_pair #">" ppils
     val pp = stringtag_to_pp s1 
     val sl = if s2 = "empty" then [] else String.tokens (fn x => x = #"|") s2
     val _ = print_endline (its (length sl) ^ " induction predicates")
-    val il = stringl_to_inductl_option pp sl
+    val il = if !ignore_errors 
+             then stringl_to_inductl_option pp sl
+             else stringl_to_inductl pp sl
     val _ = print_endline (its (length sl - length il) ^ " parse errors")
   in
     (pp,il)
@@ -1129,6 +1377,13 @@ fun parse_ippil ippils =
   let val (jobns,ppils) = split_pair #":" ippils in
     (jobns, parse_ppil ppils)
   end
+
+
+val inductl_cmp = list_compare
+  (cpl_compare (cpl_compare prog_compare prog_compare) 
+  (list_compare Term.compare))
+  
+fun read_inductl file = map parse_ppil (readl file)
 
 fun write_ppils_pb file ppils = 
   let
@@ -1388,11 +1643,12 @@ fun process_proofl dir l2 =
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
-    val lmerge = if softmerge_flag then merge_soft lold l5 else merge lold l5
     val ldiff = merge_diff lold l5
+    val lmerge = (if !subz_flag then map subz else I)
+      (if softmerge_flag then merge_soft lold l5 else merge lold l5)
     val _ = logl lold "previous"
     val _ = logl ldiff "diff"
-    val _ = logl lmerge "current"
+    val _ = logl lmerge "current" 
     fun tonmt (key,sl) = map (fn x => key ^ ">" ^ x) sl
     val l7 = List.concat (map tonmt lmerge)
     val _ = logl l7 "examples"
@@ -1485,7 +1741,6 @@ val sl = writel (selfdir ^ "/smt_inference")
    Removing equivalent predicates (not used)
    ------------------------------------------------------------------------- *)
 
-
 fun equiv_template_one a b =
   list_mk_forall ([xvar,yvar], mk_eq (a,b))
 
@@ -1540,7 +1795,7 @@ val l3 = map string_to_ppsisl (readl (expdir ^ "/smt7/current"));
 val l4 = map string_to_ppsisl (readl (expdir ^ "/smt11/current"));
 val l5 = merge_simple l4 (merge l3 (merge l2 l1));
 
-fun f dir l = 
+fun f dir l =
   let
     val _ = mkDir_err dir
     fun g (key,sl) = map (fn x => key ^ ">" ^ x) sl
