@@ -180,7 +180,7 @@ fun get_decl_md tml =
 fun get_assertl tml = map (sexp_to_string o hol_to_smt) tml
 
 fun write_hol_smt file header tml footer = 
-  writel file (header @ get_decl tml @ get_assertl tml @ footer)
+  writel file (header @ get_decl_md tml @ get_assertl tml @ footer)
 
 (* --------------------------------------------------------------------------
    Writing a SMT file from HOL terms: useful instances
