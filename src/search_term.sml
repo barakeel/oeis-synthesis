@@ -9,25 +9,9 @@ exception Parse;
 
 (*
 load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
-
-debug_flag := false;
 ignore_errors := false;
-val l = read_inductl "tmt66_3b4";
-val l1 = map subz l;
-write_inductl "tmt66_3b4_subz" l1;
-val l2 = read_inductl "tmt66_3b4_subz";
-inductl_cmp (l1,l2);
-
-1) test if the new code works 
-   (trying to reprove the new current file)
-   extract gpt examples from the current file
-   
-sh reprove.sh   
-   
-2) make the subz_flag effective 
-   (at creating variants)
-3) make a flag for more careful comparisons of induction predicate list
-
+val l = read_inductl "exp/tmt66_3b4/current_org";
+write_inductl "exp/tmt66_3b4/current" (map subz l);
 *)
 
 (* -------------------------------------------------------------------------
@@ -898,7 +882,7 @@ val var1 = mk_varn("1",0);
 val xvari = auto_comb ("+",[xvar,var1]);
 val pvar = mk_var ("P", ``:'a -> 'a -> 'a -> bool``)
 
-(* 
+(* remove variables that do not appear
 fun simp_forall_once tm = 
   let 
     val (vl,body) = strip_forall tm 
@@ -908,6 +892,7 @@ fun simp_forall_once tm =
     list_mk_forall (vl',body)
   end
 *)
+
 (* remove z if it does not appear *)
 fun simp_forall_once tm = 
    let val (vl,body) = strip_forall tm in
@@ -1548,7 +1533,7 @@ fun z3_prove_ppil s =
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
     val _ = print_endline (its (length il1) ^ " predicates")
-    val il2 = filter_eval (pp,il1)
+    val il2 = if !subz_flag then il1 else filter_eval (pp,il1)
   in
     z3_prove_ppil_aux (i,(pp,il2))
   end
