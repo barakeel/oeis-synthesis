@@ -59,6 +59,7 @@ val prnnsum_limit = iflagnoref "prnnsum_limit" 10000
 val prnnwidth = iflagnoref "prnnwidth" 5000
 val prnntim = iflagnoref "prnntim" 100000
 
+
 (* search flags *)
 val locsearch_flag = bflag "locsearch_flag"
 val halfnoise_flag = bflag "halfnoise_flag"
@@ -135,6 +136,7 @@ val smt_flag = bflag "smt_flag"
 val noimp_flag = bflag "noimp_flag"
 val imp_filter = bflag "imp_filter"
 val subz_flag = bflag "subz_flag"
+val disable_eval = bflag "disable_eval"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

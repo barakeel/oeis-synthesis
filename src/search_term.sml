@@ -1533,7 +1533,7 @@ fun z3_prove_ppil s =
     val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
                            human.humanf (snd pp))
     val _ = print_endline (its (length il1) ^ " predicates")
-    val il2 = if !subz_flag then il1 else filter_eval (pp,il1)
+    val il2 = if !disable_eval then il1 else filter_eval (pp,il1)
   in
     z3_prove_ppil_aux (i,(pp,il2))
   end
