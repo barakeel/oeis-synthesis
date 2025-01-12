@@ -77,6 +77,7 @@ sig
   val subz_flag : bool ref
   val disable_eval : bool ref
   val disable_minimize : bool ref
+  val disable_shuffle : bool ref
   
   (* flags not read from config *)
   val expname : string ref

@@ -1499,7 +1499,9 @@ fun z3_prove_inductl filein fileout pp inductl =
     fun loop n = 
       if n <= 0 then (print_endline "unknown"; "unknown") else 
       let 
-        val sel = random_subset z3lem inductl
+        val sel = if !disable_shuffle 
+                  then first_n z3lem inductl
+                  else random_subset z3lem inductl
         val (b,t1) = add_time (z3_prove filein fileout z3tim decl) sel
       in 
         if b 
