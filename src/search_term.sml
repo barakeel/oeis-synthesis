@@ -1502,10 +1502,16 @@ fun z3_prove_inductl filein fileout pp inductl =
         val sel = random_subset z3lem inductl
         val (b,t1) = add_time (z3_prove filein fileout z3tim decl) sel
       in 
-        if b then (print_endline 
+        if b 
+        then (print_endline 
           ("proof found after " ^ its (z3try - n + 1) ^ " tries in " ^
            rts_round 2 t1 ^ " seconds")
-          ; minimize_wrap sel) else loop (n-1)
+          ; 
+          if !disable_minimize 
+          then String.concatWith "|" ("unsat" :: inductl_to_stringl pp sel)
+          else minimize_wrap sel
+          ) 
+        else loop (n-1)
       end
     val (r,t) = add_time loop z3try
     val _ =  print_endline ("total proving time (includes minimization): " ^ 

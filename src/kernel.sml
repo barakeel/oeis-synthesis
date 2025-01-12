@@ -137,6 +137,7 @@ val noimp_flag = bflag "noimp_flag"
 val imp_filter = bflag "imp_filter"
 val subz_flag = bflag "subz_flag"
 val disable_eval = bflag "disable_eval"
+val disable_minimize = bflag "disable_minimize"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
