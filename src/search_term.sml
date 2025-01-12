@@ -1429,8 +1429,9 @@ fun z3_reprove_inductl filein fileout pp inductl =
 
 fun z3_reprove_ppil_aux (i,(pp,il)) =
   let
-    val filein = selfdir ^ "/z3_" ^ i ^ "_in.smt2"
-    val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
+    val pbdir = selfdir ^ "/oeis1"
+    val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
+    val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
     val r = z3_reprove_inductl filein fileout pp il
   in
     r
@@ -1452,11 +1453,12 @@ fun tag_job l = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l)
 fun z3_reprove_para expname = 
   if expname = "" then raise ERR "z3_reprove_para" "empty expname" else
   let
+    val pbdir = selfdir ^ "/oeis1"
     val expdir = selfdir ^ "/exp"
     val dir = expdir ^ "/" ^ expname
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
-    val _ = app mkDir_err [expdir,dir]
+    val _ = app mkDir_err [expdir,pbdir,dir]
     val l1 = readl (dir ^ "/current")
     val _ = logl l1 "targets"
     val (l2,t) = add_time 
@@ -1519,8 +1521,9 @@ fun good_pp pp =
 
 fun z3_prove_ppil_aux (i,(pp,il)) =
   let
-    val filein = selfdir ^ "/z3_" ^ i ^ "_in.smt2"
-    val fileout = selfdir ^ "/z3_" ^ i ^ "_out"
+    val pbdir = dir ^ "/oeis1"
+    val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
+    val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
     val r = z3_prove_inductl filein fileout pp il
   in
     pp_to_stringtag pp ^ ">" ^ r
@@ -1673,11 +1676,12 @@ fun process_proofl dir l2 =
 fun z3_prove_para expname = 
   if expname = "" then raise ERR "z3_prove_para" "empty expname" else
   let
+    val pbdir = selfdir ^ "/oeis1"
     val expdir = selfdir ^ "/exp"
     val dir = expdir ^ "/" ^ expname
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
-    val _ = app mkDir_err [expdir,dir]
+    val _ = app mkDir_err [pbdir,expdir,dir]
     val l1 = readl (dir ^ "/input")
     val _ = logl l1 "targets"
     val (l2,t) = add_time 
