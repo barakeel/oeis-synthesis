@@ -1459,7 +1459,7 @@ fun z3_reprove_para expname =
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
     val _ = app mkDir_err [expdir,pbdir,dir]
-    val l1 = readl (dir ^ "/current")
+    val l1 = readl (dir ^ "/input")
     val _ = logl l1 "targets"
     val (l2,t) = add_time 
       (parmap_sl ncore "search_term.z3_reprove_ppil") (tag_job l1)
