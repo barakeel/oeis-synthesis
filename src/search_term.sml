@@ -1521,7 +1521,7 @@ fun good_pp pp =
 
 fun z3_prove_ppil_aux (i,(pp,il)) =
   let
-    val pbdir = dir ^ "/oeis1"
+    val pbdir = selfdir ^ "/oeis1"
     val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
     val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
     val r = z3_prove_inductl filein fileout pp il
