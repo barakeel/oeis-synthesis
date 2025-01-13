@@ -1350,7 +1350,7 @@ fun write_inductl file l = writel file (map ppil_to_string l)
 fun random_inductl_string pps =
   let 
     val pp = stringtag_to_pp pps 
-    val il = random_inductl pp 
+    val il = random_inductl pp
   in
     ppil_to_string (pp,il)
   end
@@ -1405,69 +1405,6 @@ fun write_ppils_pbl expname =
     fun f i s = write_ppils_pb (pbdir ^ "/" ^ its i) s
   in
     appi f sl
-  end
-
-(* -------------------------------------------------------------------------
-   Re-proving
-   ------------------------------------------------------------------------- *)
-
-fun z3_reprove_inductl filein fileout pp inductl = 
-  let
-    val _ = print_endline "declare functions"
-    val decl = create_decl pp
-    val _ = print_endline (its (length decl) ^ " declarations")
-    val _ = print_endline (its (length inductl) ^ " induction instances")
-    val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
-    val (b,t) = add_time (z3_prove filein fileout z3tim decl) inductl
-    val _ = 
-      if b 
-      then print_endline ("unsat in " ^ rts_round 2 t ^ " seconds")
-      else print_endline ("unknown in " ^ rts_round 2 t ^ " seconds")
-  in
-    if b then "unsat" else "unknown"
-  end
-
-fun z3_reprove_ppil_aux (i,(pp,il)) =
-  let
-    val pbdir = selfdir ^ "/oeis1"
-    val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
-    val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
-    val r = z3_reprove_inductl filein fileout pp il
-  in
-    r
-  end
-
-fun z3_reprove_ppil s = 
-  let 
-    val (i,(pp,il1)) = parse_ippil s
-    val _ = print_endline (pp_to_stringtag pp)
-    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
-                           human.humanf (snd pp))
-    val _ = print_endline (its (length il1) ^ " predicates")
-  in
-    z3_reprove_ppil_aux (i,(pp,il1))
-  end
-
-fun tag_job l = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l)  
-
-fun z3_reprove_para expname = 
-  if expname = "" then raise ERR "z3_reprove_para" "empty expname" else
-  let
-    val pbdir = selfdir ^ "/oeis1"
-    val expdir = selfdir ^ "/exp"
-    val dir = expdir ^ "/" ^ expname
-    fun log s = append_endline (dir ^ "/log") s
-    fun logl l s = log (its (length l) ^ " " ^ s)
-    val _ = app mkDir_err [expdir,pbdir,dir]
-    val l1 = readl (dir ^ "/input")
-    val _ = logl l1 "targets"
-    val (l2,t) = add_time 
-      (parmap_sl ncore "search_term.z3_reprove_ppil") (tag_job l1)
-    val _ = log ("reprove time: " ^ rts_round 2 t)
-    val n = length (filter (fn x => x = "unsat") l2)
-    val _ = log ("success rate: " ^ its n ^ " out of " ^ its (length l1))
-  in 
-    ()
   end
 
 (* -------------------------------------------------------------------------
@@ -1681,6 +1618,8 @@ fun process_proofl dir l2 =
     writel (dir ^ "/current_human") (map human_out lmerge)
   end
   
+fun tag_job l = map (fn (i,x) => its i ^ ":" ^ x) (number_fst 0 l)
+
 fun z3_prove_para expname = 
   if expname = "" then raise ERR "z3_prove_para" "empty expname" else
   let
