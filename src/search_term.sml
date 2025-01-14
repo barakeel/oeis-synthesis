@@ -1297,9 +1297,7 @@ fun z3_prove filein fileout t decl inductltop =
     val _ = OS.Process.system cmd
     val _ = if not (!mydebug) then () else print_endline cmd
     val r = read_status fileout
-    val _ = if not (!mydebug) 
-            then app remove_file [filein,fileout]
-            else ()     
+    val _ = app remove_file [filein,fileout] 
   in 
     r
   end
