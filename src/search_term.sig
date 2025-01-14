@@ -22,7 +22,8 @@ sig
   val subz : (prog * prog) * term list -> (prog * prog) * term list
   
   (* z3 calls *)
-  val z3_prove : string -> string -> int -> term list -> term list -> bool
+  val z3_prove : string -> string -> int -> term list -> term list -> 
+                 (bool * int)
   
   (* parse *)
   val pp_to_stringtag : prog * prog -> string
@@ -80,9 +81,6 @@ sig
   val gen_init : string -> unit
   val gen_prove_string : string -> string
   val gen_prove_init : string -> unit
-  
-  (* filter predicates of the same equivalence classes *)
-  val z3quotient : string -> string -> term list -> term list
   
 
   

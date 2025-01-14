@@ -12,8 +12,20 @@ load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
 ignore_errors := false;
 val l = read_inductl "exp/tmt66_3b4/current_org";
 write_inductl "exp/tmt66_3b4/current" (map subz l);
+
+val (pp,tml) = random_elem l;
+disable_shuffle := true;
+disable_minimize := true;
+z3_prove_inductl "aaa_test_in.smt2" "aaa_test_out" pp tml;
 *)
 
+fun compare_string_size (s1,s2) = cpl_compare
+  Int.compare String.compare ((String.size s1,s1), (String.size s2,s2))
+
+fun compare_lemmal (lemmal1,lemmal2) =
+  compare_string_size 
+    (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
+    
 (* -------------------------------------------------------------------------
    Add one variant replacing the y variable by the z variable
    ------------------------------------------------------------------------- *)
@@ -1176,10 +1188,7 @@ fun string_to_induct mn d s =
   in 
     tm 
   end
-  
-  
-  
-  
+
 fun inductl_to_stringl pp tml = 
   let 
     val (mn,l) = assoc_ftm_id pp
@@ -1220,15 +1229,27 @@ fun stringl_to_inductl_option pp sl =
    Running Z3 with induction predicates
    ------------------------------------------------------------------------- *)
 
+val maxint = valOf (Int.maxInt)
+
 fun read_status file =
-  if not (exists_file file) orelse null (readl file) 
-  then "unknown"
-  else String.concatWith " " (String.tokens Char.isSpace (hd (readl file)));
-  
+  if not (exists_file file) then (false,maxint) else 
+  let 
+    val sl = readl file
+    val status = String.concatWith " " (String.tokens Char.isSpace (hd sl))
+    val tim = string_to_int (hd (tl sl)) 
+            handle Empty => maxint | HOL_ERR _ => maxint
+  in
+    (status = "unsat",tim)
+  end
+
 val z3_bin = selfdir ^ "/z3"
 
+val awk_cmd = 
+ "awk '/^unsat|sat|unknown/ {print $0} /instructions:u/ " ^ 
+ "{gsub(\",\", \"\", $1); print $1}'"
+
 fun z3_cmd t1s t2s filein fileout = String.concatWith " "
-  ["timeout",t1s,z3_bin,t2s,filein,">",fileout]
+  ["timeout",t1s,z3_bin,t2s,filein,"2>&1","|",awk_cmd,">",fileout]
 
 fun z3_prove filein fileout t decl inductltop =
   let 
@@ -1236,11 +1257,10 @@ fun z3_prove filein fileout t decl inductltop =
     val cmd = z3_cmd (its (t div 1000 + 1)) ("-t:" ^ its t) filein fileout
     val _ = write_induct_pb filein decl inductl
     val _ = OS.Process.system cmd
-    val _ = OS.Process.sleep (Time.fromReal 0.1)
-    val s = read_status fileout
+    val r = read_status fileout
     val _ = app remove_file [filein,fileout]
   in 
-    s = "unsat"
+    r
   end
 
 (* -------------------------------------------------------------------------
@@ -1413,6 +1433,34 @@ fun write_ppils_pbl expname =
    Proof: calling z3
    ------------------------------------------------------------------------- *)
 
+fun minimize_size test (pb,tim) acc sel = case sel of 
+    [] => (pb,tim)
+  | a :: m =>
+    let 
+      val newpb = acc @ m
+      val (b,newtim) = test newpb 
+    in
+      if not b 
+      then minimize_size test (pb,tim) (acc @ [a]) m 
+      else minimize_size test (newpb,newtim) acc m
+    end
+   
+fun minimize_time test (pb,tim) acc sel = case sel of 
+    [] => (pb,tim)
+  | a :: m =>
+    let 
+      val newpb = acc @ m
+      val (b,newtim) = test newpb 
+    in
+      if not b orelse newtim >= tim
+      then minimize_time test (pb,tim) (acc @ [a]) m 
+      else minimize_time test (newpb,newtim) acc m
+    end    
+    
+fun minimize_wrap f (pb,tim) = 
+  if !disable_minimize then (pb,tim) else f (pb,tim) [] pb
+
+
 fun z3_prove_inductl filein fileout pp inductl = 
   let
     val _ = print_endline "declare functions"
@@ -1422,43 +1470,31 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline (its z3try ^ " tries")
     val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
     val _ = print_endline (its z3lem ^ " sampled lemmas")
-    fun provable t sel = 
-      z3_prove filein fileout t decl sel
-    fun minimize acc sel = case sel of 
-        [] => (print_endline (its (length acc) ^ " minimized lemmas");
-               String.concatWith "|" ("unsat" :: inductl_to_stringl pp acc))
-      | a :: m =>
-        if not (provable z3tim (acc @ m))
-        then minimize (acc @ [a]) m
-        else minimize acc m
-    fun minimize_wrap sel = 
-      let val (r,t) = add_time (minimize []) sel in
-        print_endline ("minimization time: " ^ rts_round 2 t ^ " seconds"); r
-      end
-    fun loop n = 
-      if n <= 0 then (print_endline "unknown"; "unknown") else 
-      let 
-        val sel = if !disable_shuffle 
-                  then first_n z3lem inductl
-                  else random_subset z3lem inductl
-        val (b,t1) = add_time (z3_prove filein fileout z3tim decl) sel
+    val besttim = ref maxint
+    fun prove sel = z3_prove filein fileout z3tim decl sel
+    fun rand_test () =
+      let val sel = 
+        if !disable_shuffle
+        then first_n z3lem inductl
+        else random_subset z3lem inductl
+        val (b,tim) = z3_prove filein fileout z3tim decl sel
       in
-        if b 
-        then (print_endline 
-          ("proof found after " ^ its (z3try - n + 1) ^ " tries in " ^
-           rts_round 2 t1 ^ " seconds")
-          ; 
-          if !disable_minimize 
-          then String.concatWith "|" ("unsat" :: inductl_to_stringl pp sel)
-          else minimize_wrap sel
-          ) 
-        else loop (n-1)
+        (b,(sel,tim))
       end
-    val (r,t) = add_time loop z3try
-    val _ =  print_endline ("total proving time (includes minimization): " ^ 
-      rts_round 2 t)
+    val (rl,t) = add_time (map rand_test) (List.tabulate (z3try,fn _ => ()))
+    val _ = print_endline ("proving time: " ^ rts_round 2 t)
+    val rlproven = map snd (filter fst rl)
+    val _ = print_endline ("number_of_proofs: " ^ its (length rlproven))
   in
-    r
+    if null rlproven then "unknown" else
+    let
+      val rlmini1 = map (minimize_wrap (minimize_size prove)) rlproven
+      val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
+      val rlmini3 = dict_sort (fst_compare compare_lemmal) rlmini2
+      val lemmal = fst (hd rlmini3)
+    in
+      String.concatWith "|" ("unsat" :: lemmal)
+    end
   end
 
 fun good_pp pp = 
@@ -1493,12 +1529,7 @@ fun z3_prove_ppil s =
    Proof output
    ------------------------------------------------------------------------- *)
 
-fun compare_string_size (s1,s2) = cpl_compare
-  Int.compare String.compare ((String.size s1,s1), (String.size s2,s2))
 
-fun compare_lemmal (lemmal1,lemmal2) =
-  compare_string_size 
-    (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
 
 fun get_status_ppsisl s = 
   let 
@@ -1699,43 +1730,6 @@ val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
 val sl = writel (selfdir ^ "/smt_inference") 
   (map pp_to_stringtag (map snd appl));
 *)
-
-(* -------------------------------------------------------------------------
-   Removing equivalent predicates (not used)
-   ------------------------------------------------------------------------- *)
-
-fun equiv_template_one a b =
-  list_mk_forall ([xvar,yvar], mk_eq (a,b))
-
-fun equiv_template a predl =
-  mk_neg (list_mk_disj (map (equiv_template_one a) predl))
-
-fun z3_prove_tml filein fileout t tml =
-  let
-    val cmd = z3_cmd "1" ("-t:" ^ its t) filein fileout
-    val _ = write_smt filein tml
-    val _ = OS.Process.system cmd
-    val s = read_status fileout
-    val _ = app remove_file [filein,fileout]
-  in 
-    s = "unsat"
-  end
-
-fun z3quotient filein fileout inductl =
-  let 
-    val predl = ref []
-    fun loop cand = case cand of 
-       [] => !predl
-     | a :: m => 
-       if null (!predl) then (predl := a :: !predl; loop m) else
-       let val tm = equiv_template a (!predl) in
-         if z3_prove_tml filein fileout 20 [tm]
-         then loop m
-         else (predl := a :: !predl; loop m)
-       end
-  in
-    loop (dict_sort term_compare_size inductl)
-  end
 
 (*
 load "search_term"; 
