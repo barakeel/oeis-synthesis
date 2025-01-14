@@ -1696,22 +1696,24 @@ fun get_newsol lold l =
     filter (fn (x,_) => not (emem x setold)) l
   end
 
+fun unique l = mk_fast_set String.compare (map fst l) 
+
 fun process_proofl dir l2 = 
   let
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
-
-    val l5 = distrib (List.mapPartial get_pbstim l2)
-    val _ = logl l5 "unsat"
-    val l5' = filter (fn (pps,(leml,tim)) => not (null leml)) l5
-    val _ = logl l5' "unsat with at least one lemma"
+    val l4 = List.mapPartial get_pbstim l2
+    val l5 = distrib l4
+    val _ = logl l4 "unsat"
+    val l5' = filter (fn (pps,(leml,tim)) => (null leml)) l5
+    val _ = logl (unique l5') "unsat with no lemmas"
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
     val ldiff = get_newsol lold l5
     val lmerge_temp = merge (lold @ l5)
-    val _ = logl lold "previous"
-    val _ = logl ldiff "diff"
+    val _ = logl (unique lold) "previous"
+    val _ = logl (unique ldiff) "diff"
     val _ = logl lmerge_temp "current"
     val lmerge = distrib lmerge_temp
     val _ = logl lmerge "split"
