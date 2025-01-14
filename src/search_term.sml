@@ -1269,14 +1269,18 @@ fun read_status file =
   let 
     val sl = readl file
     val status = String.concatWith " " (String.tokens Char.isSpace (hd sl))
-    val tim = string_to_int (hd (tl sl)) 
-            handle Empty => (print_endline "time: empty"; maxint)
-                 | HOL_ERR _ => (print_endline "time: not an integer"; maxint)
   in
-    (status = "unsat",tim)
-  end
-
-val z3_bin = selfdir ^ "/z3"
+    if status <> "unsat" then (false,maxint) else
+    let 
+      val tim = string_to_int (hd (tl sl)) 
+      handle Empty => (print_endline "time: empty"; maxint)
+           | HOL_ERR _ => (print_endline "time: not an integer"; maxint)
+    in
+      (true,tim)
+    end
+ end
+ 
+val z3_bin = "perf stat -e instructions:u " ^ (selfdir ^ "/z3")
 
 val awk_cmd = 
  "awk '/^unsat|sat|unknown/ {print $0} /instructions:u/ " ^ 
