@@ -1572,6 +1572,8 @@ fun z3_prove_inductl filein fileout pp inductl =
       val rlmini3 = find_bestl lessfl_glob rlmini2
       val _ = print_endline ("best solutions: " ^ its (length rlmini3))
       val _ = app print_r rlmini3
+      val _ = print_endline ("best solutions abstract time: " ^ 
+        String.concatWith " " (map (its o snd) rlmini3))
       fun f (leml,tim) = String.concatWith "|" (its tim :: leml)
     in
       String.concatWith "$" ("unsat" :: map f rlmini3)
