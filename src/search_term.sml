@@ -1489,7 +1489,9 @@ fun z3_prove_inductl filein fileout pp inductl =
   in
     if null rlproven then "unknown" else
     let
-      val rlmini1 = map (minimize_wrap (minimize_size prove)) rlproven
+      val (rlmini1,t) = add_time (map (minimize_wrap (minimize_size prove))) 
+        rlproven
+      val _ = print_endline ("minimization time: " ^ rts_round 2 t)
       val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
       val rlmini3 = dict_sort (fst_compare compare_lemmal) rlmini2
       val lemmal = fst (hd rlmini3)
