@@ -139,6 +139,7 @@ val subz_flag = bflag "subz_flag"
 val disable_eval = bflag "disable_eval"
 val disable_minimize = bflag "disable_minimize"
 val disable_shuffle = bflag "disable_shuffle"
+val mydebug = bflag "mydebug"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

@@ -54,9 +54,7 @@ fun find_bestl lessfl candl =
     newbestl2
   end
 
-val lessfl_glob = 
-  if !sol2_flag then [is_smaller,is_faster]
-  else [is_smaller]  
+val lessfl_glob = if !sol2_flag then [is_smaller,is_faster] else [is_smaller]  
   
 (* -------------------------------------------------------------------------
    Add one variant replacing the y variable by the z variable
@@ -82,7 +80,7 @@ fun sub_y_z_one tm =
   else [tm]
 
 fun sub_y_z tml = List.concat (map sub_y_z_one tml)
-  
+
 (* -------------------------------------------------------------------------
    Add two variants randomly expanding definitions
    ------------------------------------------------------------------------- *)
@@ -158,14 +156,17 @@ fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
    Term functions
    ------------------------------------------------------------------------- *)
 
-fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
-  handle HOL_ERR _ => (print_endline 
+(*
+(print_endline 
    (term_to_string oper ^ " : " ^ String.concatWith " | " 
     (map term_to_string argl)) 
-; raise Parse)
+*)
+
+fun list_mk_comb_err (oper,argl) = list_mk_comb (oper,argl)
+  handle HOL_ERR _ => raise Parse
 
 fun list_mk_comb_err2 (oper,argl) = list_mk_comb (oper,argl)
-  handle HOL_ERR _ => raise ERR "list_mk_comb_err2" 
+  handle HOL_ERR _ => raise ERR "list_mk_comb_err2"
 (term_to_string oper ^ ": " ^ String.concatWith " " (map term_to_string argl))
 
 fun mk_varn (n,k) = mk_var (n, rpt_fun_type (k+1) alpha) 
@@ -1508,6 +1509,11 @@ fun minimize_time test (pb,tim) acc sel = case sel of
 fun minimize_wrap f (pb,tim) = 
   if !disable_minimize then (pb,tim) else f (pb,tim) [] pb
 
+fun print_r (sl,tim) = 
+  if not (!mydebug) then () else
+  let val s = String.concatWith "|" sl in
+    print_endline (its (String.size s) ^ " " ^ its tim ^ " " ^ s)
+  end
 
 fun z3_prove_inductl filein fileout pp inductl = 
   let
@@ -1541,15 +1547,20 @@ fun z3_prove_inductl filein fileout pp inductl =
         let 
           val (rlmini_size,t1) = 
             add_time (map (minimize_wrap (minimize_size prove))) rlproven
+          val _ = print_endline ("mini small: " ^ rts_round 2 t1)
           val (rlmini_time,t2) =   
             add_time (map (minimize_wrap (minimize_time prove))) rlproven
+          val _ = print_endline ("mini fast: " ^ rts_round 2 t2)
         in
           (rlmini_size @ rlmini_time,t1+t2)
         end
         else add_time (map (minimize_wrap (minimize_time prove))) rlproven 
       val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
       val _ = print_endline ("minimization time: " ^ rts_round 2 t)
+      val _ = app print_r rlmini2
       val rlmini3 = find_bestl lessfl_glob rlmini2
+      val _ = print_endline ("best solutions: " ^ its (length (rlmini3)))
+      val _ = app print_r rlmini3
       fun f (leml,tim) = String.concatWith "|" (its tim :: leml)
     in
       String.concatWith "$" ("unsat" :: map f rlmini3)
