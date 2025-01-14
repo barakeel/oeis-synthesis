@@ -4,7 +4,7 @@ struct
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader kolmo
 val ERR = mk_HOL_ERR "search_term"
 
-type ppsisl = string * string list
+type ppsisl = string * (string list * int)
 exception Parse;
 
 (*
@@ -110,7 +110,6 @@ val smtgentim = (valOf o Real.fromString)
 val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
 val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
 val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
-val softmerge_flag = string_to_bool (dfind "softmerge_flag" configd) handle NotFound => false
 val smtgentemp = (valOf o Real.fromString)
   (dfind "smtgentemp" configd) handle NotFound => 1.0
 
@@ -1370,6 +1369,13 @@ fun ppil_to_string (pp,il) =
 
 fun write_inductl file l = writel file (map ppil_to_string l)
 
+fun tppil_to_string (pp,(il,t)) = 
+  its t ^ ":" ^ pp_to_stringtag pp ^ ">" ^ 
+  (if null il then "empty" else
+   (String.concatWith "|" (inductl_to_stringl pp il)))
+
+fun write_tinductl file l = writel file (map tppil_to_string l)
+
 fun random_inductl_string pps =
   let 
     val pp = stringtag_to_pp pps 
@@ -1402,6 +1408,14 @@ fun parse_ippil ippils =
   let val (jobns,ppils) = split_pair #":" ippils in
     (jobns, parse_ppil ppils)
   end
+  
+fun parse_tppil ippils =
+  let 
+    val (s,ppils) = split_pair #":" ippils 
+    val (pp,il) = parse_ppil ppils
+  in
+    (pp,(il,string_to_int s))
+  end  
 
 
 val inductl_cmp = list_compare
@@ -1409,6 +1423,7 @@ val inductl_cmp = list_compare
   (list_compare Term.compare))
   
 fun read_inductl file = map parse_ppil (readl file)
+fun read_tinductl file = map parse_tppil (readl file)
 
 fun write_ppils_pb file ppils = 
   let
@@ -1494,9 +1509,9 @@ fun z3_prove_inductl filein fileout pp inductl =
       val _ = print_endline ("minimization time: " ^ rts_round 2 t)
       val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
       val rlmini3 = dict_sort (fst_compare compare_lemmal) rlmini2
-      val lemmal = fst (hd rlmini3)
+      val (lemmal,tim) = hd rlmini3
     in
-      String.concatWith "|" ("unsat" :: lemmal)
+      String.concatWith "|" ("unsat" :: its tim :: lemmal)
     end
   end
 
@@ -1532,59 +1547,82 @@ fun z3_prove_ppil s =
    Proof output
    ------------------------------------------------------------------------- *)
 
-
-
-fun get_status_ppsisl s = 
+(* read from z3 calls *)
+fun get_pbstim s = 
   let 
-    val (s0,s1) = split_pair #">" s
+    val (pps,s1) = split_pair #">" s
     val sl2 = String.tokens (fn x => x = #"|") s1
-    val _ = if null sl2 then raise ERR "get_status_ppsisl" "" else ()  
+    val _ = if null sl2 then raise ERR "get_pbstim" "sl2" else ()  
   in
-    (s0,(hd sl2,tl sl2))
-  end;
-  
+    if hd sl2 <> "unsat" then NONE else
+    let 
+      val sl3 = tl sl2
+      val _ = if null sl3 then raise ERR "get_pbstim" "sl3" else ()
+      val tim = string_to_int (hd sl3)
+      val indsl = tl sl3
+    in
+      SOME (pps,(indsl,tim))
+    end
+  end
+
 fun string_to_ppsisl s = 
   let 
-    val (s0,s1) = split_pair #">" s
-    val sl2 = 
-      if s1 = "empty" 
-      then [] 
-      else String.tokens (fn x => x = #"|") s1
+    val (ss0,ss1) = if mem #":" (explode s)
+                    then split_pair #":" s
+                    else (its maxint, s)
+    val (s0,s1) = split_pair #">" ss1
+    val sl2 = if s1 = "empty" then [] else String.tokens (fn x => x = #"|") s1
   in
-    (s0,sl2)
+    (s0,(sl2,string_to_int ss0)) 
   end
   
-fun ppsisl_to_string (s,sl) = 
-  s ^ ">" ^ (if null sl then "empty" else String.concatWith "|" sl)
+fun ppsisl_to_string (s,(sl,tim)) = 
+  its tim ^ ":" ^ s ^ ">" ^ 
+  (if null sl then "empty" else String.concatWith "|" sl)
 
 (* -------------------------------------------------------------------------
    Merging
    ------------------------------------------------------------------------- *)
 
-fun merge l1 l2 =
+fun find_min_loop cmpf a m = case m of
+    [] => a
+  | a' :: m' => find_min_loop cmpf (if cmpf a' a then a' else a)  m'
+
+fun find_min cmpf l = case l of 
+    [] => raise ERR "find_min" ""
+  | a :: m => find_min_loop cmpf a m
+
+fun update_solcmp lessfl d k v = 
+  let 
+    val newbestl1 = map (fn x => find_min x v) lessfl
+    val newbestl2 = mk_fast_set (fst_compare compare_lemmal) newbestl1
+  in
+    d := dadd k newbestl2 (!d)
+  end
+
+fun is_smaller (leml1,tim1) (leml2,tim2) =
+  compare_lemmal (leml1,leml2) = LESS
+
+fun is_faster (leml1,tim1) (leml2,tim2) = case Int.compare (tim1,tim2) of
+    LESS => true
+  | GREATER => false
+  | EQUAL => compare_lemmal (leml1,leml2) = LESS
+
+val update_smallest = update_solcmp [is_smaller]
+val update_sol2 = update_solcmp [is_smaller, is_faster]
+val update_f = if !sol2_flag then update_sol2 else update_smallest
+
+fun merge l =
   let
     val d = ref (dempty String.compare)
-    fun f (k,v) = case dfindo k (!d) of
-       NONE => d := dadd k v (!d)
-     | SOME oldv => if compare_lemmal (v,oldv) = LESS 
-                    then d := dadd k v (!d) else ()
-    val _ = app f (l1 @ l2) 
+    fun f (k,(v,tim)) = case dfindo k (!d) of
+       NONE => d := dadd k [(v,tim)] (!d)
+     | SOME l => update_f d k ((v,tim) :: l)
+    val _ = app f l
   in
     dlist (!d)
   end
-  
-fun merge_diff l1 l2 =
-  let val setold = enew String.compare (map fst l1) in
-    filter (fn (x,_) => not (emem x setold)) l2
-  end
-    
-fun merge_simple l1 l2 = l1 @ (merge_diff l1 l2)
 
-fun merge_soft l1 l2 = 
-  let val cmp = cpl_compare String.compare (list_compare String.compare) in
-    mk_fast_set cmp (l1 @ l2)
-  end
-  
 (* -------------------------------------------------------------------------
    Proof: main functions
    ------------------------------------------------------------------------- *)
@@ -1604,37 +1642,41 @@ fun tts tm =
          map tts argl) ^ ")"
   end 
 
-fun human_out (s,sl) = 
+fun human_out (s,(sl,tim)) = 
   let 
     val pp = stringtag_to_pp s
     val (px1,px2) = progpair_to_progxpair_shared pp
     val tml = stringl_to_inductl pp sl
   in
+    its tim ^ " : " ^ 
     progx_to_string px1 ^ " = " ^ progx_to_string px2 ^ "\n" ^ 
     String.concatWith " | " (map tts tml)
   end
 
+fun get_newsol lold l =
+  let val setold = enew String.compare (map fst lold) in
+    filter (fn (x,_) => not (emem x setold)) l
+  end
 
- 
 fun process_proofl dir l2 = 
   let
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
-    fun is_unsat (a,(b,c)) = b = "unsat"
-    fun remove_status (a,(b,c)) = (a,c)
-    val l5 = map remove_status (filter is_unsat (map get_status_ppsisl l2))
+
+    val l5 = List.mapPartial get_pbstim l2
     val _ = logl l5 "unsat"
-    val _ = logl (filter (fn (a,c) => not (null c)) l5) 
-      "unsat with at least one lemma"
+    val l5' = filter (fn (pps,(pbs,tim)) => not (null pbs)) l5
+    val _ = logl l5' "unsat with at least one lemma"
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
-    val ldiff = merge_diff lold l5
-    val lmerge = (if softmerge_flag then merge_soft lold l5 else merge lold l5)
+    val ldiff = get_newsol lold l5
+    val lmerge_temp = merge (lold @ l5)
     val _ = logl lold "previous"
     val _ = logl ldiff "diff"
-    val _ = logl lmerge "current" 
-    fun tonmt (key,sl) = 
+    val _ = logl lmerge_temp "current"
+    val lmerge = distrib lmerge_temp
+    fun tonmt (key,(sl,tim)) = 
       if not (!subz_flag) then map (fn x => key ^ ">" ^ x) sl else
       let 
         val pp = stringtag_to_pp key

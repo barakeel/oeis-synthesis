@@ -78,7 +78,6 @@ sig
   val disable_eval : bool ref
   val disable_minimize : bool ref
   val disable_shuffle : bool ref
-  val indset_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

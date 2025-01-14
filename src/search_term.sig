@@ -5,7 +5,7 @@ sig
   
   type prog = kernel.prog
   type seq = kernel.seq
-  type ppsisl = string * string list
+  type ppsisl = string * (string list * int)
   
   datatype searchlimit = Visits of int | Seconds of real * real
   val search : term list -> searchlimit -> term list
@@ -37,6 +37,8 @@ sig
                     ((prog * prog) * term list) list -> order
   val read_inductl :  string -> ((prog * prog) * term list) list
   val write_inductl : string -> ((prog * prog) * term list) list -> unit
+  val read_tinductl :  string -> ((prog * prog) * (term list * int)) list
+  val write_tinductl : string -> ((prog * prog) * (term list * int)) list -> unit
   
   (* intermediate representation *)
   datatype nmt = Upper of int | Lower of int | Subf of int * int
@@ -53,15 +55,9 @@ sig
     -> term -> (IntInf.int * IntInf.int) -> bool
   val true_pred : (term, IntInf.int * IntInf.int -> IntInf.int) Redblackmap.dict  
     -> term -> bool
-
-  
-  (* merging different solutions *)
-  val merge : ppsisl list -> ppsisl list -> ppsisl list
-  val merge_diff : ppsisl list -> ppsisl list -> ppsisl list
-  val merge_simple : ppsisl list -> ppsisl list -> ppsisl list
-  val human_out : ppsisl -> string
   
   (* induction axiom *)
+  val human_out : ppsisl -> string
   val induct_cj : term -> term
   val gen_pp : prog * prog -> term list -> term list
   val random_inductl : prog * prog -> term list
