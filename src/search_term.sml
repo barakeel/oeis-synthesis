@@ -1676,6 +1676,7 @@ fun process_proofl dir l2 =
     val _ = logl ldiff "diff"
     val _ = logl lmerge_temp "current"
     val lmerge = distrib lmerge_temp
+    val _ = logl lmerge "split"
     fun tonmt (key,(sl,tim)) = 
       if not (!subz_flag) then map (fn x => key ^ ">" ^ x) sl else
       let 
