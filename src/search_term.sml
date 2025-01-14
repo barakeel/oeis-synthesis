@@ -1517,7 +1517,7 @@ fun print_r (sl,tim) =
   end
   
 fun print_s (tml,tim) = 
-  if not (!mydebug) then () else its tim
+  if not (!mydebug) then () else print_endline (its tim)
 
 fun z3_prove_inductl filein fileout pp inductl = 
   let
