@@ -1044,6 +1044,13 @@ fun prog_to_induct d (Insn (opern,pl)) =
    Conversion from tree to leaf list
    ------------------------------------------------------------------------- *)
 
+(* debug message
+(print_endline (term_to_string oper ^ " " ^  
+                nmt_to_string id ^ " " ^ its arity
+                ^ " " ^ its (length pl));                
+       
+*)
+
 fun prog_to_idl (Insn (i,pl)) = i :: List.concat (map prog_to_idl pl)
 
 fun idl_to_progl d idl = case idl of
@@ -1055,12 +1062,7 @@ fun idl_to_progl d idl = case idl of
       val arity = arity_of oper
       val (pl1,pl2) = part_n arity pl
     in
-      if length pl1 <> arity 
-      then 
-      (print_endline (term_to_string oper ^ " " ^  
-                      nmt_to_string id ^ " " ^ its arity
-                      ^ " " ^ its (length pl));                
-       raise Parse) 
+      if length pl1 <> arity then raise Parse
       else Insn (id,pl1) :: pl2
     end
     
