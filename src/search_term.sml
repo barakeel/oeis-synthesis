@@ -1178,6 +1178,8 @@ fun string_to_induct mn d s =
   end
   
   
+  
+  
 fun inductl_to_stringl pp tml = 
   let 
     val (mn,l) = assoc_ftm_id pp
@@ -1440,7 +1442,7 @@ fun z3_prove_inductl filein fileout pp inductl =
                   then first_n z3lem inductl
                   else random_subset z3lem inductl
         val (b,t1) = add_time (z3_prove filein fileout z3tim decl) sel
-      in 
+      in
         if b 
         then (print_endline 
           ("proof found after " ^ its (z3try - n + 1) ^ " tries in " ^
