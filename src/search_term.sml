@@ -2,7 +2,7 @@ structure search_term :> search_term =
 struct
 
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader kolmo
-val ERR = mk_HOL_ERR "searchnew"
+val ERR = mk_HOL_ERR "search_term"
 
 type ppsisl = string * string list
 exception Parse;
@@ -1051,8 +1051,7 @@ fun idl_to_progl d idl = case idl of
   | id :: m => 
     let
       val pl = idl_to_progl d m
-      val oper = dfind id d
-        handle NotFound => raise ERR "idl_to_prog" (nmt_to_string id)
+      val oper = dfind id d handle NotFound => raise Parse
       val arity = arity_of oper
       val (pl1,pl2) = part_n arity pl
     in
@@ -1097,12 +1096,12 @@ fun string_to_idl mn s =
     fun regroup_id l = case l of 
         [] => []
       | [n] => 
-        if is_digit n then raise ERR "string_to_idl" "digit"
+        if is_digit n then []
         else if is_upper n then [mk_upper n]
         else if is_lower n then [mk_lower mn n]
         else raise ERR "string_to_idl" "unexpected"
       | n1 :: n2 :: m => 
-        if is_digit n1 then raise ERR "string_to_idl" "digit"
+        if is_digit n1 then regroup_id (n2 :: m)
         else if is_upper n1 then mk_upper n1 :: regroup_id (n2 :: m) 
         else if is_lower n1 then 
           if is_digit n2 then mk_sub mn (n1,n2) :: regroup_id m
