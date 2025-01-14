@@ -1270,7 +1270,8 @@ fun read_status file =
     val sl = readl file
     val status = String.concatWith " " (String.tokens Char.isSpace (hd sl))
     val tim = string_to_int (hd (tl sl)) 
-            handle Empty => maxint | HOL_ERR _ => maxint
+            handle Empty => (print_endline "time: empty"; maxint)
+                 | HOL_ERR _ => (print_endline "time: not an integer"; maxint)
   in
     (status = "unsat",tim)
   end
@@ -1514,6 +1515,9 @@ fun print_r (sl,tim) =
   let val s = String.concatWith "|" sl in
     print_endline (its (String.size s) ^ " " ^ its tim ^ " " ^ s)
   end
+  
+fun print_s (tml,tim) = 
+  if not (!mydebug) then () else its tim
 
 fun z3_prove_inductl filein fileout pp inductl = 
   let
@@ -1524,7 +1528,6 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline (its z3try ^ " tries")
     val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
     val _ = print_endline (its z3lem ^ " sampled lemmas")
-    val besttim = ref maxint
     fun prove sel = z3_prove filein fileout z3tim decl sel
     fun rand_test () =
       let val sel = 
@@ -1539,6 +1542,7 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline ("proving time: " ^ rts_round 2 t)
     val rlproven = map snd (filter fst rl)
     val _ = print_endline ("number_of_proofs: " ^ its (length rlproven))
+    val _ = app print_s rlproven
   in
     if null rlproven then "unknown" else
     let
@@ -1559,7 +1563,7 @@ fun z3_prove_inductl filein fileout pp inductl =
       val _ = print_endline ("minimization time: " ^ rts_round 2 t)
       val _ = app print_r rlmini2
       val rlmini3 = find_bestl lessfl_glob rlmini2
-      val _ = print_endline ("best solutions: " ^ its (length (rlmini3)))
+      val _ = print_endline ("best solutions: " ^ its (length rlmini3))
       val _ = app print_r rlmini3
       fun f (leml,tim) = String.concatWith "|" (its tim :: leml)
     in
