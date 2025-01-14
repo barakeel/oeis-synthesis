@@ -1291,8 +1291,11 @@ fun z3_prove filein fileout t decl inductltop =
     val cmd = z3_cmd (its (t div 1000 + 1)) ("-t:" ^ its t) filein fileout
     val _ = write_induct_pb filein decl inductl
     val _ = OS.Process.system cmd
+    val _ = if not (!mydebug) then () else print_endline cmd
     val r = read_status fileout
-    val _ = app remove_file [filein,fileout]
+    val _ = if not (!mydebug) 
+            then app remove_file [filein,fileout]
+            else ()     
   in 
     r
   end
