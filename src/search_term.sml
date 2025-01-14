@@ -19,6 +19,10 @@ disable_minimize := true;
 z3_prove_inductl "aaa_test_in.smt2" "aaa_test_out" pp tml;
 *)
 
+(* -------------------------------------------------------------------------
+   Compare lemmas as strings
+   ------------------------------------------------------------------------- *)
+  
 fun compare_string_size (s1,s2) = cpl_compare
   Int.compare String.compare ((String.size s1,s1), (String.size s2,s2))
 
@@ -26,6 +30,34 @@ fun compare_lemmal (lemmal1,lemmal2) =
   compare_string_size 
     (String.concatWith "|" lemmal1, String.concatWith "|" lemmal2)
     
+fun find_min_loop cmpf a m = case m of
+    [] => a
+  | a' :: m' => find_min_loop cmpf (if cmpf a' a then a' else a)  m'
+
+fun find_min cmpf l = case l of 
+    [] => raise ERR "find_min" ""
+  | a :: m => find_min_loop cmpf a m
+
+fun is_smaller (leml1,tim1) (leml2,tim2) =
+  compare_lemmal (leml1,leml2) = LESS
+
+fun is_faster (leml1,tim1) (leml2,tim2) = case Int.compare (tim1,tim2) of
+    LESS => true
+  | GREATER => false
+  | EQUAL => compare_lemmal (leml1,leml2) = LESS
+
+fun find_bestl lessfl candl =
+  let 
+    val newbestl1 = map (fn x => find_min x candl) lessfl
+    val newbestl2 = mk_fast_set (fst_compare compare_lemmal) newbestl1
+  in
+    newbestl2
+  end
+
+val lessfl_glob = 
+  if !sol2_flag then [is_smaller,is_faster]
+  else [is_smaller]  
+  
 (* -------------------------------------------------------------------------
    Add one variant replacing the y variable by the z variable
    ------------------------------------------------------------------------- *)
@@ -1468,7 +1500,7 @@ fun minimize_time test (pb,tim) acc sel = case sel of
       val newpb = acc @ m
       val (b,newtim) = test newpb 
     in
-      if not b orelse newtim >= tim
+      if not b orelse newtim > tim
       then minimize_time test (pb,tim) (acc @ [a]) m 
       else minimize_time test (newpb,newtim) acc m
     end    
@@ -1504,16 +1536,26 @@ fun z3_prove_inductl filein fileout pp inductl =
   in
     if null rlproven then "unknown" else
     let
-      val (rlmini1,t) = add_time (map (minimize_wrap (minimize_size prove))) 
-        rlproven
-      val _ = print_endline ("minimization time: " ^ rts_round 2 t)
+      val (rlmini1,t) = 
+        if !sol2_flag then 
+        let 
+          val (rlmini_size,t1) = 
+            add_time (map (minimize_wrap (minimize_size prove))) rlproven
+          val (rlmini_time,t2) =   
+            add_time (map (minimize_wrap (minimize_time prove))) rlproven
+        in
+          (rlmini_size @ rlmini_time,t1+t2)
+        end
+        else add_time (map (minimize_wrap (minimize_time prove))) rlproven 
       val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
-      val rlmini3 = dict_sort (fst_compare compare_lemmal) rlmini2
-      val (lemmal,tim) = hd rlmini3
+      val _ = print_endline ("minimization time: " ^ rts_round 2 t)
+      val rlmini3 = find_bestl lessfl_glob rlmini2
+      fun f (leml,tim) = String.concatWith "|" (its tim :: leml)
     in
-      String.concatWith "|" ("unsat" :: its tim :: lemmal)
+      String.concatWith "$" ("unsat" :: map f rlmini3)
     end
   end
+  
 
 fun good_pp pp = 
   let val recfl = get_recfl_ws (progpair_to_progxpair_shared pp) in
@@ -1548,21 +1590,22 @@ fun z3_prove_ppil s =
    ------------------------------------------------------------------------- *)
 
 (* read from z3 calls *)
-fun get_pbstim s = 
-  let 
-    val (pps,s1) = split_pair #">" s
-    val sl2 = String.tokens (fn x => x = #"|") s1
-    val _ = if null sl2 then raise ERR "get_pbstim" "sl2" else ()  
+fun get_pbstim_one s =
+  let
+    val sl = String.tokens (fn x => x = #"|") s
+    val _ = if null sl then raise ERR "get_pbstim_one" "" else ()
   in
-    if hd sl2 <> "unsat" then NONE else
-    let 
-      val sl3 = tl sl2
-      val _ = if null sl3 then raise ERR "get_pbstim" "sl3" else ()
-      val tim = string_to_int (hd sl3)
-      val indsl = tl sl3
-    in
-      SOME (pps,(indsl,tim))
-    end
+    (tl sl, string_to_int (hd sl))
+  end
+  
+fun get_pbstim stop = 
+  let 
+    val (pps,s) = split_pair #">" stop
+    val sl = String.tokens (fn x => x = #"$") s
+    val _ = if null sl then raise ERR "get_pbstim" "" else ()  
+  in
+    if hd sl <> "unsat" then NONE else
+    SOME (pps, map get_pbstim_one (tl sl))
   end
 
 fun string_to_ppsisl s = 
@@ -1584,40 +1627,15 @@ fun ppsisl_to_string (s,(sl,tim)) =
    Merging
    ------------------------------------------------------------------------- *)
 
-fun find_min_loop cmpf a m = case m of
-    [] => a
-  | a' :: m' => find_min_loop cmpf (if cmpf a' a then a' else a)  m'
-
-fun find_min cmpf l = case l of 
-    [] => raise ERR "find_min" ""
-  | a :: m => find_min_loop cmpf a m
-
-fun update_solcmp lessfl d k v = 
-  let 
-    val newbestl1 = map (fn x => find_min x v) lessfl
-    val newbestl2 = mk_fast_set (fst_compare compare_lemmal) newbestl1
-  in
-    d := dadd k newbestl2 (!d)
-  end
-
-fun is_smaller (leml1,tim1) (leml2,tim2) =
-  compare_lemmal (leml1,leml2) = LESS
-
-fun is_faster (leml1,tim1) (leml2,tim2) = case Int.compare (tim1,tim2) of
-    LESS => true
-  | GREATER => false
-  | EQUAL => compare_lemmal (leml1,leml2) = LESS
-
-val update_smallest = update_solcmp [is_smaller]
-val update_sol2 = update_solcmp [is_smaller, is_faster]
-val update_f = if !sol2_flag then update_sol2 else update_smallest
+fun update_solcmp lessfl d k candl = 
+  d := dadd k (find_bestl lessfl candl) (!d)
 
 fun merge l =
   let
     val d = ref (dempty String.compare)
     fun f (k,(v,tim)) = case dfindo k (!d) of
        NONE => d := dadd k [(v,tim)] (!d)
-     | SOME l => update_f d k ((v,tim) :: l)
+     | SOME l => update_solcmp lessfl_glob d k ((v,tim) :: l)
     val _ = app f l
   in
     dlist (!d)
@@ -1663,9 +1681,9 @@ fun process_proofl dir l2 =
     fun log s = append_endline (dir ^ "/log") s
     fun logl l s = log (its (length l) ^ " " ^ s)
 
-    val l5 = List.mapPartial get_pbstim l2
+    val l5 = distrib (List.mapPartial get_pbstim l2)
     val _ = logl l5 "unsat"
-    val l5' = filter (fn (pps,(pbs,tim)) => not (null pbs)) l5
+    val l5' = filter (fn (pps,(leml,tim)) => not (null leml)) l5
     val _ = logl l5' "unsat with at least one lemma"
     val lold = if not (exists_file (dir ^ "/previous"))
                then []
