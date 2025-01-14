@@ -1265,20 +1265,22 @@ fun stringl_to_inductl_option pp sl =
 val maxint = valOf (Int.maxInt)
 
 fun read_status file =
-  if not (exists_file file) then (false,maxint) else 
-  let 
-    val sl = readl file
-    val status = String.concatWith " " (String.tokens Char.isSpace (hd sl))
-  in
-    if status <> "unsat" then (false,maxint) else
-    let 
-      val tim = string_to_int (hd (tl sl)) 
-      handle Empty => (print_endline "time: empty"; maxint)
-           | HOL_ERR _ => (print_endline "time: not an integer"; maxint)
+  if not (exists_file file) then (false,maxint) else
+  let val sl = readl file in
+    if null sl then (false,maxint) else
+    let
+      val status = String.concatWith " " (String.tokens Char.isSpace (hd sl))
     in
-      (true,tim)
+      if status <> "unsat" then (false,maxint) else
+      let 
+        val tim = string_to_int (hd (tl sl)) 
+          handle Empty => (print_endline "time: empty"; maxint)
+             | HOL_ERR _ => (print_endline "time: not an integer"; maxint)
+      in
+        (true,tim)
+      end
     end
- end
+  end
  
 val z3_bin = "perf stat -e instructions:u " ^ (selfdir ^ "/z3")
 
