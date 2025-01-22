@@ -128,7 +128,6 @@ val veggy_flag = bflag "veggy_flag"
 val hanabi_flag = bflag "hanabi_flag"
 val hanabi_short = bflag "hanabi_short"
 val arcagi_flag = bflag "arcagi_flag"
-
 val nooeisdata_flag = bflag "nooeisdata_flag"
 
 (* smt flag *)
@@ -140,6 +139,7 @@ val disable_eval = bflag "disable_eval"
 val disable_minimize = bflag "disable_minimize"
 val disable_shuffle = bflag "disable_shuffle"
 val mydebug = bflag "mydebug"
+val fo_flag = bflag "fo_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
@@ -210,6 +210,10 @@ fun first_diff cmp l1 l2 = case (l1,l2) of
   | (a1 :: m1, a2 :: m2) => if cmp (a1,a2) = EQUAL 
                             then first_diff cmp m1 m2
                             else SOME (a1,a2);
+
+fun compare_term_size (tm1,tm2) = 
+  cpl_compare Int.compare Term.compare 
+    ((term_size tm1,tm1),(term_size tm2, tm2))
 
 (* -------------------------------------------------------------------------
    Sequences

@@ -79,6 +79,7 @@ sig
   val disable_minimize : bool ref
   val disable_shuffle : bool ref
   val mydebug : bool ref
+  val fo_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref
@@ -112,6 +113,7 @@ sig
   val length_geq : 'a list -> int -> bool
   val length_eq : 'a list -> int -> bool
   val first_diff : ('a * 'a -> order) -> 'a list -> 'a list -> ('a * 'a) option
+  val compare_term_size : term * term -> order
   
   (* sequences *)
   type seq = IntInf.int list

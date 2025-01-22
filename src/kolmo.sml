@@ -210,8 +210,16 @@ val smtv = Vector.fromList (
      ("+",2),("-",2),("*",2),("divf",2),("modf",2),
    ("ite",3)] @ 
    [NONE] @
-   map (SOME o (fn x => mk_var (x, alpha))) ["x","y"] @ 
+   (
+   if !fo_flag 
+   then [NONE,NONE]
+   else map (SOME o (fn x => mk_var (x, alpha))) ["x","y"]
+   ) 
+   @ 
    [NONE,NONE]);
+
+
+val extra_nullaryl_glob = ref []
 
 fun kolmo_pp pp limit =
   let 
@@ -219,7 +227,8 @@ fun kolmo_pp pp limit =
     val idl = collect_id_pp pp;
     val keep = List.mapPartial (fn x => Vector.sub (smtv,x)) idl;
     fun mk_f oper = let fun f i x = random_int (~5,9) in (oper,f) end
-    val nullaryf = map mk_f (filter (fn x => arity_of x = 0) recfl)
+    val nullaryf = map mk_f 
+      ((!extra_nullaryl_glob) @ (filter (fn x => arity_of x = 0) recfl))
     val unaryf = map mk_f (filter (fn x => arity_of x = 1) recfl)
     val binaryf = map mk_f (filter (fn x => arity_of x = 2) recfl)
     val ternaryf = map mk_f (filter (fn x => arity_of x = 3) recfl)
@@ -230,8 +239,12 @@ fun kolmo_pp pp limit =
   in
     kolmo_limit (nullaryl,unaryl,binaryl,ternaryl) limit
   end
+
+fun kolmo_pp_exact pp n = first_n n
+  (dict_sort compare_term_size (kolmo_pp pp (10 * n)))
     
 end
+
 
 (*
 load "kolmo";

@@ -7,16 +7,35 @@ val ERR = mk_HOL_ERR "search_term"
 type ppsisl = string * (string list * int)
 exception Parse;
 
+(* -------------------------------------------------------------------------
+   Global parameters from config file
+   ------------------------------------------------------------------------- *)
+
+val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
+val smtgentim = (valOf o Real.fromString)
+  (dfind "smtgentim" configd) handle NotFound => 5.0
+val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
+val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
+val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
+val smtgentemp = (valOf o Real.fromString)
+  (dfind "smtgentemp" configd) handle NotFound => 1.0
+
+val nonesting = ref false
+
 (*
 load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
 ignore_errors := false;
-val l = read_inductl "exp/tmt66_3b4/current_org";
-write_inductl "exp/tmt66_3b4/current" (map subz l);
+val l = read_inductl "tmt66_3b4";
+val l4 = filter (fn x => length (snd x) >= 4) l; length l4;
+val (pp,tml) = random_elem l4;
+val defl = create_decl_only2 pp;
+val depl = dep_sub pp;
 
-val (pp,tml) = random_elem l;
-disable_shuffle := true;
-disable_minimize := true;
-z3_prove_inductl "aaa_test_in.smt2" "aaa_test_out" pp tml;
+
+
+entry points may also be inductive formulas.
+
+
 *)
 
 (* -------------------------------------------------------------------------
@@ -55,20 +74,27 @@ fun find_bestl lessfl candl =
   end
 
 val lessfl_glob = if !sol2_flag then [is_smaller,is_faster] else [is_smaller]  
-  
+ 
 (* -------------------------------------------------------------------------
    Add one variant replacing the y variable by the z variable
    ------------------------------------------------------------------------- *)
 
+val xvar = ``x:'a``;
 val zvar = ``z:'a``;
 val yvar = ``y:'a``;
+
+fun is_xvar x = term_eq x xvar;
 fun is_yvar x = term_eq x yvar;
+fun is_zvar x = term_eq x zvar; 
+
+fun contain_x tm = 
+  let val (oper,argl) = strip_comb tm in
+    is_xvar oper orelse exists contain_x argl
+  end;
 fun contain_y tm = 
   let val (oper,argl) = strip_comb tm in
     is_yvar oper orelse exists contain_y argl
   end;
- 
-fun is_zvar x = term_eq x zvar;  
 fun contain_z tm = 
   let val (oper,argl) = strip_comb tm in
     is_zvar oper orelse exists contain_z argl
@@ -80,6 +106,8 @@ fun sub_y_z_one tm =
   else [tm]
 
 fun sub_y_z tml = List.concat (map sub_y_z_one tml)
+
+
 
 (* -------------------------------------------------------------------------
    Add two variants randomly expanding definitions
@@ -119,7 +147,7 @@ fun eq_to_sub tm =
     [{redex = oper, residue = list_mk_abs (argl,b)}]
   end;
 
-fun expand_def pp tml = 
+fun expand_def pp tml =
   let 
     val decl = create_decl_only pp 
     val subl = map eq_to_sub decl
@@ -131,19 +159,127 @@ fun expand_def pp tml =
 fun subz (pp,tml) = (pp, expand_def pp (sub_y_z tml))
 
 (* -------------------------------------------------------------------------
-   Global parameters from config file
+   Substitution dependencies
    ------------------------------------------------------------------------- *)
 
-val ncore = string_to_int (dfind "ncore" configd) handle NotFound => 2
-val smtgentim = (valOf o Real.fromString)
-  (dfind "smtgentim" configd) handle NotFound => 5.0
-val z3lem = string_to_int (dfind "z3lem" configd) handle NotFound => 32
-val z3tim = string_to_int (dfind "z3tim" configd) handle NotFound => 2
-val z3try = string_to_int (dfind "z3try" configd) handle NotFound => 10
-val smtgentemp = (valOf o Real.fromString)
-  (dfind "smtgentemp" configd) handle NotFound => 1.0
+fun oper_of_def def =
+  let val (a,b) = dest_eq (snd (strip_forall def)) in
+    fst (strip_comb a)
+  end
+  
+fun lhs_of_def def =
+  let val (a,b) = dest_eq (snd (strip_forall def)) in 
+    a
+  end  
+  
+fun oper_of tm = fst (strip_comb tm)
 
-val nonesting = ref false
+fun is_helperdef def =
+  let 
+    val (a,b) = dest_eq (snd (strip_forall def)) 
+    val oper = fst (strip_comb a)
+  in
+    not (null (find_terms (fn x => term_eq oper x) b)) 
+  end;
+
+fun is_topdef def = 
+  mem (string_of_var (oper_of_def def)) ["small","fast"];
+
+fun find_terms_fo_aux rl test tm =
+  let 
+    val _ = if test tm then rl := tm :: !rl else ()
+    val (oper,argl) = strip_comb tm
+  in
+    app (find_terms_fo_aux rl test) argl
+  end;
+
+fun find_terms_fo test tm = 
+  let val rl = ref [] in
+    find_terms_fo_aux rl test tm; mk_fast_set Term.compare (!rl)
+  end;
+
+fun dep_def operd def =
+  let 
+    val body = (snd o dest_eq o snd o strip_forall) def 
+    fun test x = 
+      let val (oper,argl) = strip_comb x in emem oper operd end
+  in
+    find_terms_fo test body
+  end;
+
+fun has_recoper tm = 
+  let val v = oper_of tm in
+    is_var v andalso mem (hd_string (string_of_var v)) [#"t",#"u",#"v"]
+  end;
+  
+fun dep_help operd def = filter (not o has_recoper) (dep_def operd def);
+
+fun subst_of_tm tm = 
+  let 
+    val (oper,argl) = strip_comb tm 
+    val sub = (
+      case argl of
+        [a1] => [{redex = xvar, residue = a1}]
+      | [a1,a2] => [{redex = xvar, residue = a1}, {redex = yvar, residue = a2}]
+      | [a1,a2,a3] =>
+        [{redex = xvar, residue = a1}, 
+         {redex = yvar, residue = a2},
+         {redex = zvar, residue = a3}]
+      | _ => raise ERR "subst_of_tm" ""
+      )
+  in
+    sub
+  end;
+
+fun has_arg_def def = 
+  (not o null o snd o strip_comb o fst o dest_eq o snd o strip_forall) def
+
+fun expand d tm =
+  let 
+    val (oper,argl) = strip_comb tm 
+    val sub = subst_of_tm tm
+    val tml = dfind oper d
+  in 
+    map (subst sub) tml
+  end
+
+fun rpt_expand d acc tml = case tml of 
+    [] => mk_fast_set Term.compare acc
+  | tm :: m =>   
+    let val newtml = expand d tm @ m in
+      rpt_expand d (tm :: acc) newtml
+    end;
+
+fun dep_sub pp = 
+  let
+    val def = filter has_arg_def (create_decl_only2 pp)
+    val d = enew Term.compare (map oper_of_def def)
+    val (helpdef,tempdef) = partition is_helperdef def
+    val (topdef,fodef) = partition is_topdef tempdef
+    val depl1 = map_assoc (dep_def d) topdef
+    val depl2 = map_assoc (dep_def d) fodef
+    val depl3 = map_assoc (dep_help d) helpdef
+    val depl = map_fst oper_of_def (depl1 @ depl2 @ depl3)
+    val entryl = map_fst oper_of_def (depl1 @ depl3)
+    val depd = dnew Term.compare depl
+  in
+    map_snd (rpt_expand depd []) entryl
+  end
+
+val xyz = [xvar,yvar,zvar]
+
+fun mk_sub l = map (fn (a,b) => {redex = a, residue = b}) l;
+
+fun sub_xyz_once nvar (argl: term list) = 
+  mk_sub (combine (first_n nvar xyz,argl));
+
+fun sub_xyz nvar groundl n =
+  let 
+    val ll1 = List.tabulate (nvar, fn _ => random_subset n groundl)
+    val ll2 = list_combine ll1
+  in
+    map (sub_xyz_once nvar) ll2
+  end
 
 (* -------------------------------------------------------------------------
    Parsing functions
@@ -175,9 +311,6 @@ val var0 = mk_varn("0",0);
 
 fun ite_template (t1,t2,t3) =
   auto_comb ("ite", [auto_comb ("<=", [t1,var0]),t2,t3]);
-  
-val xvar = ``x:'a``;
-fun is_xvar x = term_eq x xvar;
 
 fun contain_x tm = 
   let val (oper,argl) = strip_comb tm in
@@ -204,6 +337,7 @@ fun acceptable tm = contain_x tm andalso contain_rec tm
 
 fun term_compare_size (t1,t2) = cpl_compare Int.compare Term.compare
   ((term_size t1,t1), (term_size t2, t2));
+
 
 (* -------------------------------------------------------------------------
    Evaluating predicates
@@ -631,19 +765,6 @@ fun gen_pp pp tml =
     (mk_fast_set Term.compare (alltl @ conjl @ equivtl @ disjl))
   end  
  
-
-(*
-load "kolmo";
-open aiLib kernel smt_hol progx smt_progx kolmo;
-val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
-val (a,pp) = random_elem appl;
-val tml = kolmo_pp pp 6;
-load "search_term"; open search_term;
-val inductl = gen_pp pp tml;
-
-*)
-
-
 (* -------------------------------------------------------------------------
    Operator to produce SMT formulas
    A B C D E F G H I            J    K L M     N     O P  Q   R       S   T
@@ -910,7 +1031,49 @@ fun forallxy tm =
 
 fun search_smt fl t = search (smt_operl @ fl) (Seconds (0.0,t))
 
+(* -------------------------------------------------------------------------
+   Remove unnecessary quantifiers
+   ------------------------------------------------------------------------- *)
 
+fun simp_forall_once_all tm = 
+  let 
+    val (vl,body) = strip_forall tm 
+    val vlin = free_vars body
+    val vl' = filter (fn x => tmem x vlin) vl 
+  in
+    list_mk_forall (vl',body)
+  end
+
+fun simp_forall_once_z tm = 
+   let val (vl,body) = strip_forall tm in
+     if contain_z body then tm else 
+     list_mk_forall (filter (not o is_zvar) vl, body)
+   end
+   
+val simp_forall_once = 
+  if !fo_flag 
+  then simp_forall_once_all   
+  else simp_forall_once_z
+   
+fun simp_forall tm = 
+  if is_forall tm then simp_forall_once tm
+  else if is_conj tm then
+    let val (a,b) = dest_conj tm in mk_conj (simp_forall a, simp_forall b) end
+  else if is_neg tm then mk_neg (simp_forall (dest_neg tm))
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in mk_imp (simp_forall a, simp_forall b) end
+  else tm
+
+fun rm_forall_once tm = snd (strip_forall tm)
+
+fun rm_forall tm = 
+  if is_forall tm then rm_forall_once tm
+  else if is_conj tm then
+    let val (a,b) = dest_conj tm in mk_conj (rm_forall a, rm_forall b) end
+  else if is_neg tm then mk_neg (rm_forall (dest_neg tm))
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in mk_imp (rm_forall a, rm_forall b) end
+  else tm;
 
 (* -------------------------------------------------------------------------
    Induction axiom
@@ -925,34 +1088,6 @@ val var0 = mk_varn("0",0);
 val var1 = mk_varn("1",0);
 val xvari = auto_comb ("+",[xvar,var1]);
 val pvar = mk_var ("P", ``:'a -> 'a -> 'a -> bool``)
-
-(* remove variables that do not appear
-fun simp_forall_once tm = 
-  let 
-    val (vl,body) = strip_forall tm 
-    val vlin = free_vars body
-    val vl' = filter (fn x => tmem x vlin) vl 
-  in
-    list_mk_forall (vl',body)
-  end
-*)
-
-(* remove z if it does not appear *)
-fun simp_forall_once tm = 
-   let val (vl,body) = strip_forall tm in
-     if contain_z body then tm else 
-     list_mk_forall (filter (not o is_zvar) vl, body)
-   end
-   
-fun simp_forall tm = 
-  if is_forall tm then simp_forall_once tm
-  else if is_conj tm then
-    let val (a,b) = dest_conj tm in mk_conj (simp_forall a, simp_forall b) end
-  else if is_neg tm then mk_neg (simp_forall (dest_neg tm))
-  else if is_imp tm then 
-    let val (a,b) = dest_imp tm in mk_imp (simp_forall a, simp_forall b) end
-  else raise ERR "simp_forall" ""
-
 
 val induct_axiom =
   let 
@@ -989,6 +1124,63 @@ fun get_subtml pp =
     subtml
   end
 
+(* -------------------------------------------------------------------------
+   Skolemization
+   ------------------------------------------------------------------------- *)
+
+val sk0 = ``sk0: 'a``;
+val skx = ``skx: 'a``;
+val sky = ``sky: 'a``;
+val skz = ``skz: 'a``;
+val sksub = [{redex = xvar, residue = skx}, 
+           {redex = yvar, residue = sky},
+           {redex = zvar, residue = skz}];
+
+fun is_sk tm = is_var tm andalso String.isPrefix "sk" (string_of_var tm);
+
+fun skolem_of_induct tm =
+  let
+    val ax = induct_cj tm
+    val (ante,w) = dest_imp ax;
+    val antesk = subst sksub (rm_forall ante)
+    
+  in
+    mk_imp (antesk,w)
+  end;
+  
+fun skl_of_skolem tm = mk_fast_set Term.compare (find_terms is_sk tm)  
+
+(* -------------------------------------------------------------------------
+   Instantiation
+   ------------------------------------------------------------------------- *) 
+  
+fun ground_sk0 pp n =
+  let 
+    val _ = extra_nullaryl_glob := [sk0]
+    val r = kolmo_pp_exact pp n
+    val _ = extra_nullaryl_glob := []
+  in
+    r
+  end 
+  
+fun inst_xyz_once tm (i1,i2,i3) = 
+  let
+    val sub = [{redex = xvar, residue = i1},
+               {redex = yvar, residue = i2},
+               {redex = zvar, residue = i3}]
+  in
+    subst sub (rm_forall tm)
+  end;  
+
+fun inst_xyz groundl tm n =
+  let 
+    val l1 = random_subset n groundl
+    val l2 = random_subset n groundl
+    val l3 = random_subset n groundl
+    val l = map triple_of_list (list_combine [l1,l2,l3])
+  in
+    map (inst_xyz_once tm) l
+  end;
 
 (* -------------------------------------------------------------------------
    Fuzzify macros so that every lowercase letter is used
@@ -1012,8 +1204,12 @@ fun fuzzify_macro_aux mn id =
     random_elem idl
   end
  
+val fuzzify_flag = ref false
+ 
 fun fuzzify_macro mn id = 
-  if random_real () > 0.1 then id else fuzzify_macro_aux mn id;   
+  if not (!fuzzify_flag) orelse random_real () > 0.1 
+  then id 
+  else fuzzify_macro_aux mn id;   
  
 fun unfuzzify_macro mn id = id mod mn
 
@@ -1102,6 +1298,7 @@ fun idl_to_progl d idl = case idl of
 (* -------------------------------------------------------------------------
    Conversion from leaf list to string list
    ------------------------------------------------------------------------- *)
+
 
 fun lowercasef mn id = Char.toString (Char.chr (97 + fuzzify_macro mn id));
 
@@ -1229,6 +1426,8 @@ fun inductl_to_stringl pp tml =
   in
     map (induct_to_string mn d) tml
   end
+  
+  
 
 fun stringl_to_inductl pp sl =
   let 
@@ -1722,12 +1921,13 @@ fun process_proofl dir l2 =
     val lmerge = distrib lmerge_temp
     val _ = logl lmerge "split"
     fun tonmt (key,(sl,tim)) = 
-      if not (!subz_flag) then map (fn x => key ^ ">" ^ x) sl else
       let 
         val pp = stringtag_to_pp key
         val tml = stringl_to_inductl pp sl
-        val (_,newtml) = subz (pp,tml)
+        val newtml = if not (!subz_flag) then tml else snd (subz (pp,tml))
+        val _ = fuzzify_flag := true
         val newsl = inductl_to_stringl pp newtml
+        val _ = fuzzify_flag := false
       in
         map (fn x => key ^ ">" ^ x) newsl
       end

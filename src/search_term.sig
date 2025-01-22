@@ -17,6 +17,26 @@ sig
   val is_recvar : term -> bool
   val nonesting : bool ref
   val contain_nested : term -> bool
+  val rm_forall : term -> term
+  val xvar : term 
+  val yvar : term
+  val zvar : term
+  val is_xvar : term -> bool
+  val is_yvar : term -> bool
+  val is_zvar : term -> bool
+  (* works only for first-order terms *)
+  val contain_x : term -> bool
+  val contain_y : term -> bool
+  val contain_z : term -> bool
+  
+  (* skolemization and instantiation *)
+  val skolem_of_induct : term -> term
+  val skl_of_skolem : term -> term list
+  val ground_sk0 : prog * prog -> int -> term list
+  val dep_sub : prog * prog -> (term * term list) list
+  val subst_of_tm : term -> (term,term) subst
+  val sub_xyz : int -> term list -> int -> (term,term) subst list
+  
   (* val subtml_glob : term list ref *)
   (* extra examples *)
   val subz : (prog * prog) * term list -> (prog * prog) * term list

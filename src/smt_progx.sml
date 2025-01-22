@@ -131,6 +131,20 @@ fun write_anumprogpairs file appl =
   in
     writel file l
   end
+
+fun write_anumprogpairs_new file appl = 
+  let
+    fun f (s,pp) = 
+      let val (px1,px2) = progpair_to_progxpair_shared pp in
+        OS.Path.base s ^ " : " ^
+        progx_to_string px1 ^ " = " ^ progx_to_string px2
+      end
+    fun mycmp (s1,s2) = 
+      Int.compare (string_to_int (tl_string s1), string_to_int (tl_string s2))
+    val l = map f (dict_sort (fst_compare mycmp) appl)
+  in
+    writel file l
+  end
   
 fun read_anumprogpairs file = 
   let 
@@ -145,15 +159,14 @@ fun read_anumprogpairs file =
   
 (*
 load "smt_progx"; open aiLib kernel smt_progx;
+val appl = read_anumprogpairs "smt_benchmark_progpairs";
+write_anumprogpairs_new "smt_benchmark_progpairs_new" appl;
+*)
+
+(*
 val filel = listDir (selfdir ^ "/smt");
 val appl = map_assoc read_smt_progpair filel;
 write_anumprogpairs "smt_benchmark_progpairs" appl;
-val newappl = read_anumprogpairs "smt_benchmark_progpairs";
-
- fun mycmp (s1,s2) = 
-      Int.compare (string_to_int (tl_string s1), string_to_int (tl_string s2));
-map snd (dict_sort (fst_compare mycmp) appl) = map snd newappl;
-
 *)  
 
 (* --------------------------------------------------------------------------

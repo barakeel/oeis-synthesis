@@ -39,6 +39,7 @@ sig
   
   (* writing/reading program pair for each OEIS sequence *)
   val write_anumprogpairs : string -> (string * (prog * prog)) list -> unit
+  val write_anumprogpairs_new : string -> (string * (prog * prog)) list -> unit
   val read_anumprogpairs : string -> (string * (prog * prog)) list
   
 end

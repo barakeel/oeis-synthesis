@@ -132,7 +132,21 @@ fun create_decl_only pptop =
   in
     decl
   end
-    
+   
+  
+fun create_decl_only2 pptop =   
+  let 
+    val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
+    val pxsmall = name_progx ("small",progx_to_progxx px1)
+    val pxfast = name_progx ("fast",progx_to_progxx px2)
+    val pxxl = mk_fast_set progx_compare_size 
+        (all_subnamed pxsmall @ all_subnamed pxfast)
+    val decl = add_sdecl (List.concat (map pxx_to_hol pxxl))
+  in
+    decl
+  end   
+   
+   
 fun create_decl pptop = 
   let 
     val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
