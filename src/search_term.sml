@@ -7,6 +7,46 @@ val ERR = mk_HOL_ERR "search_term"
 type ppsisl = string * (string list * int)
 exception Parse;
 
+(*
+load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
+val l = read_inductl "tmt66_3b4";
+val l4 = filter (fn x => length (snd x) >= 4) l; length l4;
+val (pp,tml) = random_elem l4;
+
+val instn = 10;
+val instancel = all_instances instn (pp,tml);
+val formulal = ground_formula instancel instn (pp,tml);
+
+open smt_hol;
+write_smt "aaa_test.smt2" (formulal @ [cj_glob]);
+
+
+(* 
+generate with at most one two skolem type 1000
+*)
+
+
+
+(* 
+can produce instance instances of definitions and 
+instance instances of
+first-order instances of the second-order induction axiom 
+*)  
+  
+  
+
+1) create the ground formulas
+   instantiating all entry points and 
+   regroup the instantiations to avoid duplicates
+   random instantiations different for each entry points
+   slightly different for inductions because they can't inherit
+   
+2) add more skolems, name the skolems for each induction sk_0 etc
+3) 
+
+*)
+
+
 (* -------------------------------------------------------------------------
    Global parameters from config file
    ------------------------------------------------------------------------- *)
@@ -22,21 +62,6 @@ val smtgentemp = (valOf o Real.fromString)
 
 val nonesting = ref false
 
-(*
-load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
-ignore_errors := false;
-val l = read_inductl "tmt66_3b4";
-val l4 = filter (fn x => length (snd x) >= 4) l; length l4;
-val (pp,tml) = random_elem l4;
-val defl = create_decl_only2 pp;
-val depl = dep_sub pp;
-
-
-
-entry points may also be inductive formulas.
-
-
-*)
 
 (* -------------------------------------------------------------------------
    Compare lemmas as strings
@@ -80,8 +105,8 @@ val lessfl_glob = if !sol2_flag then [is_smaller,is_faster] else [is_smaller]
    ------------------------------------------------------------------------- *)
 
 val xvar = ``x:'a``;
-val zvar = ``z:'a``;
 val yvar = ``y:'a``;
+val zvar = ``z:'a``;
 
 fun is_xvar x = term_eq x xvar;
 fun is_yvar x = term_eq x yvar;
@@ -91,10 +116,12 @@ fun contain_x tm =
   let val (oper,argl) = strip_comb tm in
     is_xvar oper orelse exists contain_x argl
   end;
+
 fun contain_y tm = 
   let val (oper,argl) = strip_comb tm in
     is_yvar oper orelse exists contain_y argl
   end;
+
 fun contain_z tm = 
   let val (oper,argl) = strip_comb tm in
     is_zvar oper orelse exists contain_z argl
@@ -106,8 +133,6 @@ fun sub_y_z_one tm =
   else [tm]
 
 fun sub_y_z tml = List.concat (map sub_y_z_one tml)
-
-
 
 (* -------------------------------------------------------------------------
    Add two variants randomly expanding definitions
@@ -206,6 +231,14 @@ fun dep_def operd def =
   in
     find_terms_fo test body
   end;
+  
+fun dep_ind operd ind =
+  let
+    fun test x = 
+      let val (oper,argl) = strip_comb x in emem oper operd end
+  in
+    find_terms_fo test ind
+  end; 
 
 fun has_recoper tm = 
   let val v = oper_of tm in
@@ -250,7 +283,7 @@ fun rpt_expand d acc tml = case tml of
       rpt_expand d (tm :: acc) newtml
     end;
 
-fun dep_sub pp = 
+fun dep_sub (pp,indl) = 
   let
     val def = filter has_arg_def (create_decl_only2 pp)
     val d = enew Term.compare (map oper_of_def def)
@@ -259,9 +292,11 @@ fun dep_sub pp =
     val depl1 = map_assoc (dep_def d) topdef
     val depl2 = map_assoc (dep_def d) fodef
     val depl3 = map_assoc (dep_help d) helpdef
+    val depl4 = map_assoc (dep_ind d) indl
     val depl = map_fst oper_of_def (depl1 @ depl2 @ depl3)
-    val entryl = map_fst oper_of_def (depl1 @ depl3)
+    val entryl = map_fst lhs_of_def (depl1 @ depl3) @ depl4
     val depd = dnew Term.compare depl
+    
   in
     map_snd (rpt_expand depd []) entryl
   end
@@ -273,9 +308,9 @@ fun mk_sub l = map (fn (a,b) => {redex = a, residue = b}) l;
 fun sub_xyz_once nvar (argl: term list) = 
   mk_sub (combine (first_n nvar xyz,argl));
 
-fun sub_xyz nvar groundl n =
+fun sub_xyz nvar instancel n =
   let 
-    val ll1 = List.tabulate (nvar, fn _ => random_subset n groundl)
+    val ll1 = List.tabulate (nvar, fn _ => random_subset n instancel)
     val ll2 = list_combine ll1
   in
     map (sub_xyz_once nvar) ll2
@@ -1138,14 +1173,17 @@ val sksub = [{redex = xvar, residue = skx},
 
 fun is_sk tm = is_var tm andalso String.isPrefix "sk" (string_of_var tm);
 
-fun skolem_of_induct tm =
+fun ante_of_induct n tm =
   let
     val ax = induct_cj tm
-    val (ante,w) = dest_imp ax;
-    val antesk = subst sksub (rm_forall ante)
-    
+    val sknx = mk_var ("sk" ^ its n ^ "x", alpha)
+    val skny = mk_var ("sk" ^ its n ^ "y", alpha)
+    val sknz = mk_var ("sk" ^ its n ^ "z", alpha)
+    val sksub = [{redex = xvar, residue = sknx}, 
+                 {redex = yvar, residue = skny},
+                 {redex = zvar, residue = sknz}]
   in
-    mk_imp (antesk,w)
+    subst sksub (rm_forall (fst (dest_imp ax)))
   end;
   
 fun skl_of_skolem tm = mk_fast_set Term.compare (find_terms is_sk tm)  
@@ -1153,34 +1191,122 @@ fun skl_of_skolem tm = mk_fast_set Term.compare (find_terms is_sk tm)
 (* -------------------------------------------------------------------------
    Instantiation
    ------------------------------------------------------------------------- *) 
-  
-fun ground_sk0 pp n =
+ 
+fun arity_of_entry tm = 
+  if contain_z tm then 3 else
+  if contain_y tm then 2 else
+  if contain_x tm then 1 else 0;
+ 
+fun instance_skl skl pp n =
   let 
-    val _ = extra_nullaryl_glob := [sk0]
-    val r = kolmo_pp_exact pp n
+    val _ = extra_nullaryl_glob := skl
+    val r = kolmo_pp pp n
     val _ = extra_nullaryl_glob := []
   in
     r
   end 
-  
-fun inst_xyz_once tm (i1,i2,i3) = 
-  let
-    val sub = [{redex = xvar, residue = i1},
-               {redex = yvar, residue = i2},
-               {redex = zvar, residue = i3}]
-  in
-    subst sub (rm_forall tm)
-  end;  
 
-fun inst_xyz groundl tm n =
-  let 
-    val l1 = random_subset n groundl
-    val l2 = random_subset n groundl
-    val l3 = random_subset n groundl
-    val l = map triple_of_list (list_combine [l1,l2,l3])
+fun create_instancel instn pp (tm,indn) =
+  let
+    val varn = arity_of_entry tm
+    val skx = mk_var ("sk" ^ its indn ^ "x",alpha);
+    val sky = mk_var ("sk" ^ its indn ^ "y",alpha);
+    val skz = mk_var ("sk" ^ its indn ^ "z",alpha);
+    val skxyz = [skx,sky,skz]
   in
-    map (inst_xyz_once tm) l
+    instance_skl (first_n varn skxyz) pp instn
+  end
+
+fun all_instances instn (pp,indl) = 
+  let
+    val indnl = number_snd 0 indl;
+    val instancel0 = instance_skl [sk0] pp instn 
+    val instancell = map (create_instancel instn pp) indnl
+  in
+    mk_fast_set Term.compare (instancel0 @ List.concat instancell)
   end;
+
+(* -------------------------------------------------------------------------
+   Ground formulas
+   ------------------------------------------------------------------------- *)
+
+fun subst_entry instancel (entry,tml) n = 
+  let
+    val arity = arity_of_entry entry
+    val subl = sub_xyz arity instancel n
+    fun f subl tm = map (fn x => subst x tm) subl
+  in
+    (f subl entry, map (f subl) tml)
+  end;
+
+fun oper_of_def def =
+  let val (a,b) = dest_eq (snd (strip_forall def)) in
+    fst (strip_comb a)
+  end
+
+fun mk_sub l = map (fn (a,b) => {redex = a, residue = b}) l;
+
+fun sub_xyz_once2 (argl: term list) = 
+  mk_sub (combine (first_n (length argl) xyz,argl));
+
+fun gdef_of_tsub d tm = 
+  let 
+    val (oper,argl) = strip_comb tm
+    val eq = dfind oper d
+    val sub = sub_xyz_once2 argl
+  in
+    subst sub eq
+  end;
+
+fun ante_of_induct n tm =
+  let
+    val ax = induct_cj tm
+    val sknx = mk_var ("sk" ^ its n ^ "x", alpha)
+    val skny = mk_var ("sk" ^ its n ^ "y", alpha)
+    val sknz = mk_var ("sk" ^ its n ^ "z", alpha)
+    val sksub = [{redex = xvar, residue = sknx}, 
+                 {redex = yvar, residue = skny},
+                 {redex = zvar, residue = sknz}]
+  in
+    subst sksub (rm_forall (fst (dest_imp ax)))
+  end;
+
+fun gindl_of_indsub ((tm,tml),n) =
+  let val ante = ante_of_induct n tm in
+    map (fn x => mk_imp (ante,x)) tml
+  end;
+  
+fun ground_formula instancel instn (pp,tml) =
+  let
+    val depl = dep_sub (pp,tml)
+    val (depl1,depl2) = partition (fn x => type_of (fst x) = bool) depl;
+    val r1 = map_assoc (fn x => subst_entry instancel x instn) depl1;  
+    val indsub = map (fn ((a,b),(c,d)) => (a,c)) r1;
+    val inddepi = map (fn ((a,b),(c,d)) => d) r1;
+    val inddepi1 = List.concat (map List.concat inddepi);
+    val r2 = map (fn x => subst_entry instancel x instn) depl2;  
+    val r21 = List.concat (map List.concat (map (fn (a,b) => a :: b) r2));
+    val tmsubl = mk_fast_set Term.compare (inddepi1 @ r21);
+    val defl = create_decl_only2 pp;
+    val defl1 = (map (fn x => (oper_of_def x,snd (strip_forall x))) defl);
+    val defl2 = filter (fn x => arity_of (fst x) >= 1) defl1;
+    val defd = dnew Term.compare defl2;
+    val gdefl = map (gdef_of_tsub defd) tmsubl;
+    val gindl = List.concat (map gindl_of_indsub (number_snd 0 indsub))
+  in
+    gdefl @ gindl
+  end
+
+(* conjecture *)
+val sk0 = mk_var ("sk0",alpha);
+val leqoper = mk_var ("<=",``:'a -> 'a -> bool``);
+fun mk_leq (a,b) = list_mk_comb (leqoper, [a,b]); 
+val smallv = mk_var ("small",``:'a -> 'a``);
+val fastv = mk_var ("fast",``:'a -> 'a``);
+
+val cj_glob = mk_conj (mk_leq (mk_var ("0",alpha),sk0), 
+  mk_neg (mk_eq (mk_comb (smallv,sk0), mk_comb (fastv,sk0))));
+
 
 (* -------------------------------------------------------------------------
    Fuzzify macros so that every lowercase letter is used
@@ -1665,8 +1791,10 @@ val inductl_cmp = list_compare
 fun read_inductl file = map parse_ppil (readl file)
 fun read_tinductl file = map parse_tppil (readl file)
 
-fun write_ppils_pb file ppils = 
+fun write_ppils_pb file s = 
   let
+    val ppils = if mem #":" (explode s)
+                then snd (split_pair #":" s) else s
     val (pp,il) = parse_ppil ppils
     val decl = create_decl pp
     val inductl = map induct_cj il

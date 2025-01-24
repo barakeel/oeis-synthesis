@@ -80,6 +80,7 @@ sig
   val disable_shuffle : bool ref
   val mydebug : bool ref
   val fo_flag : bool ref
+  val skolemize_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref
@@ -230,7 +231,8 @@ sig
   type hanabi = (int * prog) * IntInf.int
   val write_hanabil : string -> hanabi list -> unit
   val read_hanabil : string -> hanabi list
-
+  
+  
   (* arcagi experiment *)
   type arcagi = int * prog * bool * int
   val write_arcagil : string -> arcagi list -> unit

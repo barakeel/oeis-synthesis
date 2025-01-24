@@ -119,7 +119,7 @@ fun retranslate dir file =
 val header = ["(set-logic UFNIA)"]
 val footer = ["(assert (exists ((c Int)) (and (>= c 0) "^ 
               "(not (= (small c) (fast c))))))", 
-              "(check-sat)"]     
+              "(check-sat)"] 
   
 fun create_decl_only pptop =   
   let 
@@ -145,7 +145,44 @@ fun create_decl_only2 pptop =
   in
     decl
   end   
+ 
+val xvar = mk_var ("x",alpha)
+val yvar = mk_var ("y",alpha)
+val zvar = mk_var ("z",alpha) 
+ 
+fun rm_forall_once tm = snd (strip_forall tm)
+
+fun rm_forall tm = 
+  if is_forall tm then rm_forall_once tm
+  else if is_conj tm then
+    let val (a,b) = dest_conj tm in mk_conj (rm_forall a, rm_forall b) end
+  else if is_neg tm then mk_neg (rm_forall (dest_neg tm))
+  else if is_imp tm then 
+    let val (a,b) = dest_imp tm in mk_imp (rm_forall a, rm_forall b) end
+  else tm;
    
+fun skolemize tml =
+  if not (!skolemize_flag) then tml else
+  let
+    val n = ref 0
+    fun f tm = 
+      if not (is_imp_only tm) then tm else
+      let 
+        val sknx = mk_var ("sk" ^ its (!n) ^ "x", alpha)
+        val skny = mk_var ("sk" ^ its (!n) ^ "y", alpha)
+        val sknz = mk_var ("sk" ^ its (!n) ^ "z", alpha)
+        val sub = [{redex = xvar, residue = sknx}, 
+                   {redex = yvar, residue = skny},
+                   {redex = zvar, residue = sknz}]
+        val (a,b) = dest_imp_only tm
+        val newa = subst sub (rm_forall a)
+        val _ = incr n 
+      in
+        mk_imp (newa,b)
+      end
+  in
+    map f tml
+  end;   
    
 fun create_decl pptop = 
   let 
@@ -162,11 +199,9 @@ fun create_decl pptop =
     decl @ eql @ impl
   end
   
-
   
-
 fun write_induct_pb file decl inductl =
-  write_hol_smt file header (decl @ inductl) footer
+  write_hol_smt file header (skolemize (decl @ inductl)) footer
 
   
   

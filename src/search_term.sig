@@ -30,12 +30,18 @@ sig
   val contain_z : term -> bool
   
   (* skolemization and instantiation *)
-  val skolem_of_induct : term -> term
-  val skl_of_skolem : term -> term list
-  val ground_sk0 : prog * prog -> int -> term list
-  val dep_sub : prog * prog -> (term * term list) list
+  val arity_of_entry : term -> int
+  val instance_skl : term list -> prog * prog -> int -> term list
+  val all_instances : int -> (prog * prog) * term list -> term list
+  
+  val dep_sub : (prog * prog) * term list -> (term * term list) list
   val subst_of_tm : term -> (term,term) subst
   val sub_xyz : int -> term list -> int -> (term,term) subst list
+  
+  (* ground formulas *)
+  val ground_formula : 
+    term list -> int -> (prog * prog) * term list -> term list
+  val cj_glob : term
   
   (* val subtml_glob : term list ref *)
   (* extra examples *)
