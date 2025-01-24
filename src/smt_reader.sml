@@ -117,9 +117,22 @@ fun retranslate dir file =
    -------------------------------------------------------------------------- *)
 
 val header = ["(set-logic UFNIA)"]
-val footer = ["(assert (exists ((c Int)) (and (>= c 0) "^ 
+val footer = if !skolemize_flag then ["(check-sat)"] else
+             ["(assert (exists ((c Int)) (and (>= c 0) "^ 
               "(not (= (small c) (fast c))))))", 
               "(check-sat)"] 
+
+
+(* conjecture *)
+val sk0 = mk_var ("skcj",alpha);
+val leqoper = mk_var ("<=",``:'a -> 'a -> bool``);
+fun mk_leq (a,b) = list_mk_comb (leqoper, [a,b]); 
+val smallv = mk_var ("small",``:'a -> 'a``);
+val fastv = mk_var ("fast",``:'a -> 'a``);
+
+val cj_glob = mk_conj (mk_leq (mk_var ("0",alpha),sk0), 
+  mk_neg (mk_eq (mk_comb (smallv,sk0), mk_comb (fastv,sk0))));
+
   
 fun create_decl_only pptop =   
   let 
@@ -181,7 +194,7 @@ fun skolemize tml =
         mk_imp (newa,b)
       end
   in
-    map f tml
+    map f tml @ [cj_glob]
   end;   
    
 fun create_decl pptop = 

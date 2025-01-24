@@ -21,9 +21,7 @@ open smt_hol;
 write_smt "aaa_test.smt2" (formulal @ [cj_glob]);
 
 
-(* 
-generate with at most one two skolem type 1000
-*)
+(* generate with at most one two skolem type 1000 *)
 
 
 
@@ -1794,7 +1792,8 @@ fun read_tinductl file = map parse_tppil (readl file)
 fun write_ppils_pb file s = 
   let
     val ppils = if mem #":" (explode s)
-                then snd (split_pair #":" s) else s
+                then snd (split_pair #":" s) 
+                else s
     val (pp,il) = parse_ppil ppils
     val decl = create_decl pp
     val inductl = map induct_cj il
