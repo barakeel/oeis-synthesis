@@ -1161,7 +1161,6 @@ fun get_subtml pp =
    Skolemization
    ------------------------------------------------------------------------- *)
 
-val sk0 = ``sk0: 'a``;
 val skx = ``skx: 'a``;
 val sky = ``sky: 'a``;
 val skz = ``skz: 'a``;
@@ -1189,6 +1188,8 @@ fun skl_of_skolem tm = mk_fast_set Term.compare (find_terms is_sk tm)
 (* -------------------------------------------------------------------------
    Instantiation
    ------------------------------------------------------------------------- *) 
+ 
+val sk0 = mk_var ("skcj",alpha);
  
 fun arity_of_entry tm = 
   if contain_z tm then 3 else
@@ -1296,7 +1297,6 @@ fun ground_formula instancel instn (pp,tml) =
   end
 
 (* conjecture *)
-val sk0 = mk_var ("sk0",alpha);
 val leqoper = mk_var ("<=",``:'a -> 'a -> bool``);
 fun mk_leq (a,b) = list_mk_comb (leqoper, [a,b]); 
 val smallv = mk_var ("small",``:'a -> 'a``);
