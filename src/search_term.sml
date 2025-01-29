@@ -2,48 +2,17 @@ structure search_term :> search_term =
 struct
 
 open HolKernel boolLib aiLib kernel progx smt_hol smt_progx smt_reader kolmo
+sexp
 val ERR = mk_HOL_ERR "search_term"
 
 type ppsisl = string * (string list * int)
 exception Parse;
 
 (*
-load "search_term"; open kernel aiLib progx smt_progx smt_reader search_term;
-val l = read_inductl "tmt66_3b4";
-val l4 = filter (fn x => length (snd x) >= 4) l; length l4;
-val (pp,tml) = random_elem l4;
-
-val instn = 10;
-val instancel = all_instances instn (pp,tml);
-val formulal = ground_formula instancel instn (pp,tml);
-
-open smt_hol;
-write_smt "aaa_test.smt2" (formulal @ [cj_glob]);
-
-
-(* generate with at most one two skolem type 1000 *)
-
-
-
-(* 
-can produce instance instances of definitions and 
-instance instances of
-first-order instances of the second-order induction axiom 
-*)  
-  
-  
-
-1) create the ground formulas
-   instantiating all entry points and 
-   regroup the instantiations to avoid duplicates
-   random instantiations different for each entry points
-   slightly different for inductions because they can't inherit
-   
-2) add more skolems, name the skolems for each induction sk_0 etc
-3) 
+load "search_term"; 
+open kernel aiLib sexp progx smt_progx smt_reader search_term;
 
 *)
-
 
 (* -------------------------------------------------------------------------
    Global parameters from config file
@@ -148,7 +117,7 @@ fun random_expand d tm =
     in
       SOME (beta_reduce (subst sub tm))
     end
-  end;
+  end
 
 fun random_expand_twice d tm = case (random_expand d tm) of 
     NONE => NONE
@@ -821,6 +790,7 @@ val smt_operl_pred =
 val smt_operl_logic = [``$/\``,``$==>``,``$~``];
 
 val extra_var = [mk_var ("z",alpha)]
+(* maybe add standard div and mod in extra var *)
 
 val smt_operl = smt_operl_term @ smt_operl_pred @ smt_operl_logic @ extra_var
 
@@ -1542,7 +1512,7 @@ fun string_to_induct mn d s =
   in 
     tm 
   end
-
+  
 fun inductl_to_stringl pp tml = 
   let 
     val (mn,l) = assoc_ftm_id pp
@@ -1550,8 +1520,6 @@ fun inductl_to_stringl pp tml =
   in
     map (induct_to_string mn d) tml
   end
-  
-  
 
 fun stringl_to_inductl pp sl =
   let 
@@ -1575,6 +1543,39 @@ fun stringl_to_inductl_option pp sl =
     fun f s = 
       let val r = string_to_induct mn d s in 
         if type_of r = bool then SOME r else NONE 
+      end 
+      handle Parse => NONE
+  in
+    List.mapPartial f sl
+  end  
+
+(* -------------------------------------------------------------------------
+   Conversion (oneline)
+   ------------------------------------------------------------------------- *)
+
+fun string_to_inductll_one mn d s = 
+  let 
+    fun hd_err x = hd x handle Empty => raise Parse 
+    val idl = string_to_idl mn s
+    val _ = 
+      if !debug_flag 
+      then print_endline (String.concatWith " " (map nmt_to_string idl))
+      else ()
+    val progl = idl_to_progl d idl
+  in 
+    map (prog_to_induct d) progl
+  end  
+
+fun stringl_to_inductll_option pp sl =
+  let
+    val (mn,l) = assoc_ftm_id pp
+    val d = dnew nmt_compare (map swap l)
+    fun f s = 
+      let 
+        val r = string_to_inductll_one mn d s 
+        fun test x = type_of x = bool
+      in 
+        if all test r then SOME r else NONE 
       end 
       handle Parse => NONE
   in
@@ -1772,7 +1773,7 @@ fun parse_ippil ippils =
   let val (jobns,ppils) = split_pair #":" ippils in
     (jobns, parse_ppil ppils)
   end
-  
+
 fun parse_tppil ippils =
   let 
     val (s,ppils) = split_pair #":" ippils 
@@ -1811,6 +1812,27 @@ fun write_ppils_pbl expname =
   in
     appi f sl
   end
+
+(* -------------------------------------------------------------------------
+   Proof: parsing oneline
+   ------------------------------------------------------------------------- *)
+
+fun parse_ppill ppills =
+  let 
+    val (s1,s2) = split_pair #">" ppills
+    val pp = stringtag_to_pp s1 
+    val sl = if s2 = "empty" then [] else String.tokens (fn x => x = #"|") s2
+    val _ = print_endline (its (length sl) ^ " induction predicates")
+    val ill = stringl_to_inductll_option pp sl
+    val _ = print_endline (its (length sl - length ill) ^ " parse errors")
+  in
+    (pp,ill)
+  end  
+  
+fun parse_ippill s = 
+  let val (jobns,ppils) = split_pair #":" s in
+    (jobns, parse_ppill ppils)
+  end 
 
 (* -------------------------------------------------------------------------
    Proof: calling z3
@@ -1905,24 +1927,95 @@ fun z3_prove_inductl filein fileout pp inductl =
       String.concatWith "$" ("unsat" :: map f rlmini3)
     end
   end
-  
 
-fun good_pp pp = 
-  let val recfl = get_recfl_ws (progpair_to_progxpair_shared pp) in
-    length recfl <= 20
-  end
 
 fun z3_prove_ppil_aux (i,(pp,il)) =
   let
     val pbdir = selfdir ^ "/oeis1"
     val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
     val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
-    val r = z3_prove_inductl filein fileout pp il
+    val r =  z3_prove_inductl filein fileout pp il
   in
     pp_to_stringtag pp ^ ">" ^ r
   end
 
+(* -------------------------------------------------------------------------
+   Proof in one line
+   ------------------------------------------------------------------------- *)
+
+fun z3_prove_inductll filein fileout pp inductll = 
+  let
+    val _ = print_endline "mode: oneline"
+    val _ = print_endline "declare functions"
+    val decl = create_decl pp
+    val _ = print_endline (its (length decl) ^ " declarations")
+    val _ = print_endline (its (length inductll) ^ " induction instances")
+    val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
+    fun prove sel = z3_prove filein fileout z3tim decl sel
+    fun test sel =
+      let val (b,tim) = z3_prove filein fileout z3tim decl sel in
+        (b,(sel,tim))
+      end
+    val (rl,t) = add_time (map test) inductll
+    val _ = print_endline ("proving time: " ^ rts_round 2 t)
+    val rlproven = map snd (filter fst rl)
+    val _ = print_endline ("number_of_proofs: " ^ its (length rlproven))
+    val _ = app print_s rlproven
+  in
+    if null rlproven then "unknown" else
+    let
+      val (rlmini1,t) = 
+        if !sol2_flag then 
+        let 
+          val (rlmini_size,t1) = 
+            add_time (map (minimize_wrap (minimize_size prove))) rlproven
+          val _ = print_endline ("mini small: " ^ rts_round 2 t1)
+          val (rlmini_time,t2) =   
+            add_time (map (minimize_wrap (minimize_time prove))) rlproven
+          val _ = print_endline ("mini fast: " ^ rts_round 2 t2)
+        in
+          (rlmini_size @ rlmini_time,t1+t2)
+        end
+        else add_time (map (minimize_wrap (minimize_time prove))) rlproven 
+      val rlmini2 = map_fst (inductl_to_stringl pp) rlmini1
+      val _ = print_endline ("minimization time: " ^ rts_round 2 t)
+      val _ = app print_r rlmini2
+      val rlmini3 = find_bestl lessfl_glob rlmini2
+      val _ = print_endline ("best solutions: " ^ its (length rlmini3))
+      val _ = app print_r rlmini3
+      val _ = print_endline ("best solutions abstract time: " ^ 
+        String.concatWith " " (map (its o snd) rlmini3))
+      fun f (leml,tim) = String.concatWith "|" (its tim :: leml)
+    in
+      String.concatWith "$" ("unsat" :: map f rlmini3)
+    end
+  end
+
+
+fun z3_prove_ppill_aux (i,(pp,ill)) =
+  let
+    val pbdir = selfdir ^ "/oeis1"
+    val filein = pbdir ^ "/z3_" ^ i ^ "_in.smt2"
+    val fileout = pbdir ^ "/z3_" ^ i ^ "_out"
+    val r =  z3_prove_inductll filein fileout pp ill
+  in
+    pp_to_stringtag pp ^ ">" ^ r
+  end
+
+fun z3_prove_ppill s = 
+  let 
+    val (i,(pp,ill1)) = parse_ippill s
+    val _ = print_endline (pp_to_stringtag pp)
+    val _ = print_endline (human.humanf (fst pp) ^ " = " ^ 
+                           human.humanf (snd pp))
+    val _ = print_endline (its (length ill1) ^ " lists of predicates")
+  in
+    z3_prove_ppill_aux (i,(pp,ill1))
+  end
+
+
 fun z3_prove_ppil s = 
+  if !oneline_flag then z3_prove_ppill s else
   let 
     val (i,(pp,il1)) = parse_ippil s
     val _ = print_endline (pp_to_stringtag pp)
@@ -1933,7 +2026,6 @@ fun z3_prove_ppil s =
   in
     z3_prove_ppil_aux (i,(pp,il2))
   end
-
 
 (* -------------------------------------------------------------------------
    Proof output
@@ -2056,7 +2148,9 @@ fun process_proofl dir l2 =
         val newsl = inductl_to_stringl pp newtml
         val _ = fuzzify_flag := false
       in
-        map (fn x => key ^ ">" ^ x) newsl
+        if !oneline_flag 
+        then [key ^ ">" ^ String.concatWith " " newsl]
+        else map (fn x => key ^ ">" ^ x) newsl
       end
     val l7 = List.concat (map tonmt lmerge)
     val _ = logl l7 "examples"
@@ -2108,6 +2202,11 @@ fun gen_init expname =
    Initial generation of predicates
    ------------------------------------------------------------------------- *)
 
+fun good_pp pp = 
+  let val recfl = get_recfl_ws (progpair_to_progxpair_shared pp) in
+    length recfl <= 20
+  end
+
 fun gen_prove_string s =
   let
     val _ = print_endline s
@@ -2134,6 +2233,100 @@ fun gen_prove_init expname =
     val _ = log ("gen_prove time: " ^ rts t) 
   in
     process_proofl dir sl2
+  end
+
+
+(* -------------------------------------------------------------------------
+   Create first-order instantiations
+   ------------------------------------------------------------------------- *)
+
+fun is_function tm = is_var tm andalso 
+  let val s = string_of_var tm in 
+    if s = "ite" then false
+    else if mem s ["small","fast"] then true
+    else if 
+      mem (hd_string s) 
+      [#"f",#"g",#"h",#"i",#"j",#"s",#"t",#"u",#"v",#"w"]
+    then true
+    else false
+  end;
+
+fun function_set x = mk_fast_set String.compare 
+  (map string_of_var (find_terms is_function x));
+
+fun parse_inst s = 
+  let
+    val (a,b) = split_string " " s;
+    val (c,d) = split_string " " b;
+    val syml = mk_fast_set String.compare (String.tokens (fn x => x = #":") c);
+    val (e,f) = split_string ":" d;
+  in
+    (syml, string_to_sexp f)
+  end;
+
+fun parse_bind sexp = case sexp of 
+  Sexp (Atom "bind" :: m) => m
+  | _ => raise ERR "parse_bind" "";
+
+
+
+val var0 = mk_var ("0",alpha);
+val var2 = mk_var ("2",alpha);
+fun add_int (a,b) = 
+  list_mk_comb (mk_var ("+", rpt_fun_type 3 alpha),[a,b])
+fun mult_int (a,b) = 
+  list_mk_comb (mk_var ("*", rpt_fun_type 3 alpha),[a,b]);
+
+fun expr_of_int i =
+  if i <= 2 then mk_var (its i,alpha) else
+    add_int (expr_of_int (i mod 2), 
+      mult_int (expr_of_int 2, expr_of_int (i div 2)))
+   ;
+
+fun bind_to_term sexp = case sexp of 
+    Atom s => 
+    if Char.isDigit (hd_string s) 
+    then expr_of_int (string_to_int s)
+    else mk_var (s,alpha)
+  | Sexp [Atom "-", se] =>  
+    list_mk_comb (mk_var ("-", rpt_fun_type 3 alpha),[var0, bind_to_term se])
+  | Sexp (Atom s :: m) => 
+    list_mk_comb (mk_var (s, rpt_fun_type (length m + 1) alpha),
+      map bind_to_term m)
+  | _ => raise ERR "bind_to_term" "";
+
+fun one_instantiation ((pp,tml),i) =
+  if not (exists_file (selfdir ^ "/zout6/" ^ its i)) then NONE else
+  let
+    val sl = readl (selfdir ^ "/zout6/" ^ its i)
+    val pb1 = skpb_of_pp (pp,map induct_cj tml);
+    val pb2 = map rm_forall pb1;
+    val pb3 = map_assoc function_set pb2
+    val pbd = dnew (list_compare String.compare) (map swap pb3);
+    val instl1 = map parse_inst sl
+    val instl2 = map_snd parse_bind instl1
+    val instl3 = map_fst (fn x => dfindo x pbd) instl2;
+    val i1 = ref 0
+    val i2 = ref 0
+    val instl4 = List.mapPartial (fn (a,b) => 
+      if isSome a then (incr i1; SOME (valOf a,b)) else 
+        (incr i2; NONE)) instl3
+    val _ = print_endline (its (!i1) ^ " out of " ^ its (!i1 + !i2))
+    val instl5  = map_snd (map bind_to_term) instl4
+    
+  in
+    SOME ((pp,tml),instl5)
+  end   
+
+fun all_instantiation () =
+  let
+    val pbl = read_inductl (selfdir ^ "/cvc5pb")
+    val pbil = number_snd 0 pbl
+    val _ = print_endline ("problems: " ^ its (length pbl))
+    val r = List.mapPartial one_instantiation pbil
+    val _ = print_endline ("problems with file: " ^ its (length r))
+  in
+    r
   end
 
 (* -------------------------------------------------------------------------

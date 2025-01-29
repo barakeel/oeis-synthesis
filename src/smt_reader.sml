@@ -173,9 +173,9 @@ fun rm_forall tm =
   else if is_imp tm then 
     let val (a,b) = dest_imp tm in mk_imp (rm_forall a, rm_forall b) end
   else tm;
+ 
    
 fun skolemize tml =
-  if not (!skolemize_flag) then tml else
   let
     val n = ref 0
     fun f tm = 
@@ -213,9 +213,19 @@ fun create_decl pptop =
   end
   
   
+fun skpb_of_pp (pp,tml) =  
+  let val decl = create_decl pp in
+    skolemize (decl @ tml)
+  end;
+  
 fun write_induct_pb file decl inductl =
-  write_hol_smt file header (skolemize (decl @ inductl)) footer
-
+  let val tml = 
+    if not (!skolemize_flag) 
+    then (decl @ inductl)
+    else skolemize (decl @ inductl)
+  in
+    write_hol_smt file header tml footer
+  end
   
   
 end (* struct *)

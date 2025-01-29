@@ -141,6 +141,7 @@ val disable_shuffle = bflag "disable_shuffle"
 val mydebug = bflag "mydebug"
 val fo_flag = bflag "fo_flag"
 val skolemize_flag = bflag "skolemize_flag"
+val oneline_flag = bflag "oneline_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"

@@ -104,6 +104,9 @@ sig
   val gen_prove_string : string -> string
   val gen_prove_init : string -> unit
   
-
+  (* z3 instantiation *)
+  val all_instantiation :  
+    unit -> (((prog * prog) * term list) * (term * term list) list) list
+  
   
 end

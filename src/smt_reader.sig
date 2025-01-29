@@ -22,6 +22,6 @@ sig
   val create_decl_only : prog * prog -> term list
   val create_decl : prog * prog -> term list
   val write_induct_pb : string -> term list -> term list -> unit
-
+  val skpb_of_pp : (prog * prog) * term list -> term list
   
 end
