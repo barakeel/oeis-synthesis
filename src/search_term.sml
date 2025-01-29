@@ -1991,7 +1991,6 @@ fun z3_prove_inductll filein fileout pp inductll =
     end
   end
 
-
 fun z3_prove_ppill_aux (i,(pp,ill)) =
   let
     val pbdir = selfdir ^ "/oeis1"
@@ -2196,6 +2195,28 @@ fun gen_init expname =
     val _ = log ("generating time: " ^ rts t) 
   in
     writel (dir ^ "/input") sl2
+  end
+
+(* -------------------------------------------------------------------------
+   Generation of initial oneline from a current file
+   ------------------------------------------------------------------------- *)
+
+fun init_oneline_one (pp,tml) =
+  let
+    val key = pp_to_stringtag pp
+    val _ = fuzzify_flag := true
+    val sl = inductl_to_stringl pp tml
+    val _ = fuzzify_flag := false
+  in
+    key ^ ">" ^ String.concatWith " " sl
+  end
+  
+fun init_oneline expname =
+  let 
+    val dir = selfdir ^ "/exp/" ^ expname
+    val pbl = read_inductl (dir ^ "/current") 
+  in
+    writel (dir ^ "/output") (map init_oneline_one pbl)
   end
 
 (* -------------------------------------------------------------------------

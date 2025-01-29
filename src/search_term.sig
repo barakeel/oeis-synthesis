@@ -108,5 +108,7 @@ sig
   val all_instantiation :  
     unit -> (((prog * prog) * term list) * (term * term list) list) list
   
+  (* oneline *)
+  val init_oneline : string -> unit
   
 end
