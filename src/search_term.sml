@@ -1951,9 +1951,15 @@ fun z3_prove_inductll filein fileout pp inductll =
     val _ = print_endline (its (length decl) ^ " declarations")
     val _ = print_endline (its (length inductll) ^ " induction instances")
     val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
-    fun prove sel = z3_prove filein fileout z3tim decl sel
+    val prove_cache = ref (dempty (list_compare Term.compare))   
+    fun prove sel = 
+      case dfindo sel (!prove_cache) of
+        NONE => let val r = z3_prove filein fileout z3tim decl sel in
+                  prove_cache := dadd sel r (!prove_cache); r
+                end
+      | SOME r => r
     fun test sel =
-      let val (b,tim) = z3_prove filein fileout z3tim decl sel in
+      let val (b,tim) = prove sel in
         (b,(sel,tim))
       end
     val (rl,t) = add_time (map test) inductll
