@@ -1883,13 +1883,20 @@ fun z3_prove_inductl filein fileout pp inductl =
     val _ = print_endline (its z3try ^ " tries")
     val _ = print_endline ("z3 timeout: " ^ its z3tim ^ " milliseconds")
     val _ = print_endline (its z3lem ^ " sampled lemmas")
-    fun prove sel = z3_prove filein fileout z3tim decl sel
+    val prove_cache = ref (dempty (list_compare Term.compare))   
+    fun prove sel = 
+      case dfindo sel (!prove_cache) of
+        NONE => let val r = z3_prove filein fileout z3tim decl sel in
+                  prove_cache := dadd sel r (!prove_cache); r
+                end
+      | SOME r => r
     fun rand_test () =
-      let val sel = 
-        if !disable_shuffle
-        then first_n z3lem inductl
-        else random_subset z3lem inductl
-        val (b,tim) = z3_prove filein fileout z3tim decl sel
+      let 
+        val sel = 
+          if !disable_shuffle
+          then first_n z3lem inductl
+          else random_subset z3lem inductl
+        val (b,tim) = prove sel
       in
         (b,(sel,tim))
       end
