@@ -93,6 +93,7 @@ sig
   val z3_prove_inductl : string -> string -> prog * prog -> term list -> string
   val z3_prove_ppil : string -> string
   val z3_prove_para : string -> unit
+  val write_pbl_org : string -> unit
   
   (* conversion of inductions predicates between term and NMT representations *)
   val inductl_to_stringl : prog * prog -> term list -> string list

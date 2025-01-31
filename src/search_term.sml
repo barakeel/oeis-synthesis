@@ -1813,6 +1813,25 @@ fun write_ppils_pbl expname =
     appi f sl
   end
 
+fun write_pb_pp dir (name,pp) =
+  let 
+    val file = dir ^ "/" ^ name ^ ".smt2"
+    val decl = create_decl pp
+  in
+    write_induct_pb file decl []
+  end
+
+fun write_pbl_org expname =
+  let
+    val appl = read_anumprogpairs "smt_benchmark_progpairs_sem"
+    val expdir = selfdir ^ "/exp"
+    val dir = expdir ^ "/" ^ expname
+    val pbdir = dir ^ "/pb"
+    val _ = app mkDir_err [expdir,dir,pbdir] 
+  in
+    app (write_pb_pp pbdir) appl
+  end
+
 (* -------------------------------------------------------------------------
    Proof: parsing oneline
    ------------------------------------------------------------------------- *)
