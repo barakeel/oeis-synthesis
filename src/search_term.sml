@@ -11,7 +11,6 @@ exception Parse;
 (*
 load "search_term"; 
 open kernel aiLib sexp progx smt_progx smt_reader search_term;
-
 *)
 
 (* -------------------------------------------------------------------------
@@ -101,6 +100,8 @@ fun sub_y_z_one tm =
 
 fun sub_y_z tml = List.concat (map sub_y_z_one tml)
 
+fun sub_y_z_two tm = subst [{redex = yvar, residue = zvar}] tm
+
 (* -------------------------------------------------------------------------
    Add two variants randomly expanding definitions
    ------------------------------------------------------------------------- *)
@@ -118,10 +119,20 @@ fun random_expand d tm =
       SOME (beta_reduce (subst sub tm))
     end
   end
-
+  
+val changed = ref false
+  
+fun random_expand_oneline d tm = case random_expand d tm of
+    NONE => tm
+  | SOME tm' => (changed := true; tm')
+  
 fun random_expand_twice d tm = case (random_expand d tm) of 
     NONE => NONE
   | SOME newtm => random_expand d newtm
+
+fun random_expand_twice_oneline d tm = case random_expand_twice d tm of
+    NONE => tm
+  | SOME tm' => (changed := true; tm')
 
 fun expand_def_one d tm = 
   let
@@ -150,6 +161,24 @@ fun expand_def pp tml =
   
 fun subz (pp,tml) = (pp, expand_def pp (sub_y_z tml))
 
+fun subz_oneline (pp,tml) =
+  let 
+    val decl = create_decl_only pp 
+    val subl = map eq_to_sub decl
+    val d = dnew Term.compare (map swap (map_assoc (#redex o hd) subl))
+    val ex1 = 
+      if exists contain_y tml 
+      then [(pp, map sub_y_z_two tml)] 
+      else []
+    val _ = changed := false
+    val tml2 = map (random_expand_oneline d) tml
+    val ex2 = if !changed then [(pp,tml2)] else []
+    val tml3 = map (random_expand_twice_oneline d) tml
+    val ex3 = if !changed then [(pp,tml3)] else []
+  in
+    [(pp,tml)] @ ex1 @ ex2 @ ex3
+  end
+    
 (* -------------------------------------------------------------------------
    Substitution dependencies
    ------------------------------------------------------------------------- *)
@@ -2170,20 +2199,32 @@ fun process_proofl dir l2 =
     val _ = logl lmerge_temp "current"
     val lmerge = distrib lmerge_temp
     val _ = logl lmerge "split"
-    fun tonmt (key,(sl,tim)) = 
+    fun convert (key,(sl,tim)) =
       let 
         val pp = stringtag_to_pp key
         val tml = stringl_to_inductl pp sl
-        val newtml = if not (!subz_flag) then tml else snd (subz (pp,tml))
+      in
+        (pp,tml)
+      end
+    fun tonmt (pp,tml) = 
+      let 
+        val key = pp_to_stringtag pp
+        val newtml = if !subz_flag andalso (not (!oneline_flag)) 
+                     then snd (subz (pp,tml))
+                     else tml 
         val _ = fuzzify_flag := true
         val newsl = inductl_to_stringl pp newtml
         val _ = fuzzify_flag := false
       in
-        if !oneline_flag 
+        if !oneline_flag
         then [key ^ ">" ^ String.concatWith " " newsl]
         else map (fn x => key ^ ">" ^ x) newsl
       end
-    val l7 = List.concat (map tonmt lmerge)
+    val lmerge_oneline = 
+      if !oneline_flag andalso !subz_flag
+      then List.concat (map (subz_oneline o convert) lmerge)
+      else map convert lmerge
+    val l7 = List.concat (map tonmt lmerge_oneline)
     val _ = logl l7 "examples"
   in
     writel (dir ^ "/output") l7;
