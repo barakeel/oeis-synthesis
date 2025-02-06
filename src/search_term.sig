@@ -84,6 +84,7 @@ sig
   
   (* induction axiom *)
   val human_out : ppsisl -> string
+  val induct_axiom : term
   val induct_cj : term -> term
   val gen_pp : prog * prog -> term list -> term list
   val random_inductl : prog * prog -> term list
