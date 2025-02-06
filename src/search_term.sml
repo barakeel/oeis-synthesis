@@ -1125,10 +1125,11 @@ val induct_axiom =
   let 
     fun fP x y z = list_mk_comb_err (pvar,[x,y,z])
     val base_tm = list_mk_forall ([yvar,zvar], fP var0 yvar zvar)
-    val imp_tm = list_mk_forall ([xvar,yvar,zvar],
-      mk_imp (fP xvar yvar zvar, fP xvari yvar zvar))
+    
     val leq = mk_var ("<=",``:'a -> 'a -> bool``)
     val cond = list_mk_comb_err (leq,[var0,xvar])
+    val imp_tm = list_mk_forall ([xvar,yvar,zvar],
+      mk_imp (cond, mk_imp (fP xvar yvar zvar, fP xvari yvar zvar)))
     val concl_tm = list_mk_forall ([xvar,yvar,zvar],
       mk_imp (cond, fP xvar yvar zvar))  
   in
