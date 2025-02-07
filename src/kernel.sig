@@ -82,6 +82,7 @@ sig
   val fo_flag : bool ref
   val skolemize_flag : bool ref
   val oneline_flag : bool ref
+  val altaxiom_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

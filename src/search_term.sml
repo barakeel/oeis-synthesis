@@ -1128,8 +1128,12 @@ val induct_axiom =
     
     val leq = mk_var ("<=",``:'a -> 'a -> bool``)
     val cond = list_mk_comb_err (leq,[var0,xvar])
-    val imp_tm = list_mk_forall ([xvar,yvar,zvar],
-      mk_imp (cond, mk_imp (fP xvar yvar zvar, fP xvari yvar zvar)))
+    val imp_tm = 
+      if !altaxiom_flag 
+      then list_mk_forall ([xvar,yvar,zvar],
+        mk_imp (cond, mk_imp (fP xvar yvar zvar, fP xvari yvar zvar)))
+      else list_mk_forall ([xvar,yvar,zvar],
+        mk_imp (fP xvar yvar zvar, fP xvari yvar zvar))
     val concl_tm = list_mk_forall ([xvar,yvar,zvar],
       mk_imp (cond, fP xvar yvar zvar))  
   in

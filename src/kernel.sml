@@ -142,6 +142,7 @@ val mydebug = bflag "mydebug"
 val fo_flag = bflag "fo_flag"
 val skolemize_flag = bflag "skolemize_flag"
 val oneline_flag = bflag "oneline_flag"
+val altaxiom_flag = bflag "altaxiom_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
