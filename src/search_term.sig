@@ -63,8 +63,16 @@ sig
                     ((prog * prog) * term list) list -> order
   val read_inductl :  string -> ((prog * prog) * term list) list
   val write_inductl : string -> ((prog * prog) * term list) list -> unit
-  val read_tinductl :  string -> ((prog * prog) * (term list * int)) list
-  val write_tinductl : string -> ((prog * prog) * (term list * int)) list -> unit
+  val read_tinductl :  
+    string -> ((prog * prog) * (term list * int)) list
+  val write_tinductl : 
+    string -> ((prog * prog) * (term list * int)) list -> unit
+  val sols_to_sol : ppsisl -> ((prog * prog) * (term list * int))
+  val sol_to_sols : ((prog * prog) * (term list * int)) -> ppsisl
+  val merge_sols : ppsisl list ->
+    (string * (string list * int) list) list
+  val merge_sol : ((prog * prog) * (term list * int)) list -> 
+    ((prog * prog) * (term list * int)) list
   
   (* intermediate representation *)
   datatype nmt = Upper of int | Lower of int | Subf of int * int

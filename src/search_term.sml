@@ -1160,6 +1160,76 @@ fun get_subtml pp =
     subtml
   end
 
+(*
+load "search_term"; open aiLib sexp smt_hol search_term;
+val xvar = ``x:'a``;
+val smallv = mk_var ("small",``:'a -> 'a``);
+val fastv = mk_var ("fast",``:'a -> 'a``);
+fun var_int n = mk_var (its n, alpha);
+fun add_int (a,b) = 
+  list_mk_comb (mk_var ("+", rpt_fun_type 3 alpha),[a,b]);
+fun mult_int (a,b) = 
+  list_mk_comb (mk_var ("*", rpt_fun_type 3 alpha),[a,b]);
+
+val leq = mk_var ("<=",``:'a -> 'a -> bool``)
+
+val cond = list_mk_comb (leq,[var_int 0,xvar]);
+
+val tm0 = mk_eq (mk_comb (smallv,xvar),mk_comb (fastv,xvar));
+fun eq_of n = 
+  if n = 0 then tm0 else
+  let val xa = add_int (xvar,var_int n) in
+    mk_eq (mk_comb (smallv,xa),mk_comb (fastv,xa))
+  end;
+
+fun meq_of n = list_mk_conj (List.tabulate (n+1,eq_of));
+
+val tm1 = meq_of 1;
+val ind1 = induct_cj (mk_imp (cond,tm1));
+
+fun create_s n =
+  let
+    val ind = induct_cj (mk_imp (cond, meq_of n))
+    val s = sexp_to_string (hol_to_smt ind)
+  in
+    its n ^ ": " ^ s
+  end;
+
+val tm2x = 
+  let 
+    val t2x = mult_int (var_int 2, xvar)
+    val t2x1 = add_int (t2x, var_int 1)
+  in 
+    mk_conj 
+     (mk_eq (mk_comb (smallv,t2x),mk_comb (fastv,t2x)),
+      mk_eq (mk_comb (smallv,t2x1),mk_comb (fastv,t2x1)))
+  end;
+  
+(* strong induction *) 
+
+
+ mk_eq (mk_comb (smallv,xvar),mk_comb (fastv,xvar));
+         
+val ind2x = induct_cj (mk_imp (cond,tm2x));
+
+val sl = List.tabulate (9, create_s);
+val s = "2x" ^ ": " ^ sexp_to_string (hol_to_smt ind2x);
+
+val sl' = sl @ [s];
+
+writel "chad_trick" sl;
+
+val tmz = mk_eq (mk_comb (smallv,zvar),mk_comb (fastv,zvar));
+fun mk_leq (a,b) = list_mk_comb (leq,[a,b]);
+val tmstrong = mk_forall (zvar,
+   list_mk_imp ([mk_leq (var_int 0,zvar),mk_leq (zvar,xvar)],tmz));
+      
+val indstrong = induct_cj (mk_imp (cond,tmstrong));  
+val strongs = sexp_to_string (hol_to_smt indstrong);
+writel "chad_strong" [strongs];
+*)  
+
+
 (* -------------------------------------------------------------------------
    Skolemization
    ------------------------------------------------------------------------- *)
@@ -2130,13 +2200,33 @@ fun ppsisl_to_string (s,(sl,tim)) =
   (if null sl then "empty" else String.concatWith "|" sl)
 
 (* -------------------------------------------------------------------------
+   Conversion
+   ------------------------------------------------------------------------- *)
+
+fun sol_to_sols (pp,(tml,i)) =
+  let 
+    val s = pp_to_stringtag pp
+    val sl = inductl_to_stringl pp tml
+  in
+    (s,(sl,i))
+  end
+  
+fun sols_to_sol (s,(sl,i)) = 
+  let
+    val pp = stringtag_to_pp s
+    val tml = stringl_to_inductl pp sl
+  in
+    (pp,(tml,i))
+  end
+  
+(* -------------------------------------------------------------------------
    Merging
    ------------------------------------------------------------------------- *)
 
 fun update_solcmp lessfl d k candl = 
   d := dadd k (find_bestl lessfl candl) (!d)
 
-fun merge l =
+fun merge_sols l =
   let
     val d = ref (dempty String.compare)
     fun f (k,(v,tim)) = case dfindo k (!d) of
@@ -2146,6 +2236,9 @@ fun merge l =
   in
     dlist (!d)
   end
+
+fun merge_sol l = map sols_to_sol 
+  (distrib (merge_sols (map sol_to_sols l)))
 
 (* -------------------------------------------------------------------------
    Proof: main functions
@@ -2197,7 +2290,7 @@ fun process_proofl dir l2 =
                then []
                else map string_to_ppsisl (readl (dir ^ "/previous"))
     val ldiff = get_newsol lold l5
-    val lmerge_temp = merge (lold @ l5)
+    val lmerge_temp = merge_sols (lold @ l5)
     val _ = logl (unique lold) "previous"
     val _ = logl (unique ldiff) "diff"
     val _ = logl lmerge_temp "current"
