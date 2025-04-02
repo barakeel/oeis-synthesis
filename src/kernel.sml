@@ -142,6 +142,7 @@ val mydebug = bflag "mydebug"
 val fo_flag = bflag "fo_flag"
 val skolemize_flag = bflag "skolemize_flag"
 val cnf_flag = bflag "cnf_flag"
+val split_conj_flag = bflag "split_conj_flag"
 val oneline_flag = bflag "oneline_flag"
 val altaxiom_flag = bflag "altaxiom_flag"
 

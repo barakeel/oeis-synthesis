@@ -173,17 +173,41 @@ fun rm_forall tm =
   else if is_imp tm then 
     let val (a,b) = dest_imp tm in mk_imp (rm_forall a, rm_forall b) end
   else tm;
- 
+
+
+fun smart_forall vl tm = 
+  let 
+    val vl1 = free_vars_lr tm 
+    val vl2 = filter (fn x => tmem x vl1) vl 
+  in
+    list_mk_forall (vl2,tm)
+  end
+
+fun split_conj tm = 
+  let 
+    val (vl,body) = strip_forall tm
+    val tml = strip_conj body
+  in
+    map (smart_forall vl) tml
+  end
+  
+val myconv = normalForms.PURE_NNF_CONV THENC normalForms.PRENEX_CONV THENC 
+ normalForms.PURE_CNF_CONV  
    
 fun skolemize tml =
   let
     val n = ref 0
     fun g tm = 
       if !cnf_flag 
-      then (rhs o concl o normalForms.CNF_CONV) tm handle UNCHANGED => tm
-      else tm
+      then 
+        let val tm' = 
+          (rhs o concl o myconv) tm handle UNCHANGED => tm
+        in
+          if !split_conj_flag then split_conj tm' else [tm']
+        end
+      else [tm]
     fun f tm = 
-      if not (is_imp_only tm) then tm else
+      if not (is_imp_only tm) then [tm] else
       let 
         val sknx = mk_var ("sk" ^ its (!n) ^ "x", alpha)
         val skny = mk_var ("sk" ^ its (!n) ^ "y", alpha)
@@ -198,7 +222,7 @@ fun skolemize tml =
         g (mk_imp (newa,b))
       end
   in
-    map f tml @ [cj_glob]
+    List.concat (map f tml) @ [cj_glob]
   end;   
    
 fun create_decl pptop = 

@@ -82,6 +82,7 @@ sig
   val fo_flag : bool ref
   val skolemize_flag : bool ref
   val cnf_flag : bool ref
+  val split_conj_flag : bool ref
   val oneline_flag : bool ref
   val altaxiom_flag : bool ref
   val matchback_flag : bool ref
