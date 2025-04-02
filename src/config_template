@@ -10,3 +10,4 @@ short_timeincr 100000
 long_timeincr 100000
 rtim_init 7200.0
 init_timeincr 100000
+maxint_flag true

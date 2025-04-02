@@ -81,8 +81,10 @@ sig
   val mydebug : bool ref
   val fo_flag : bool ref
   val skolemize_flag : bool ref
+  val cnf_flag : bool ref
   val oneline_flag : bool ref
   val altaxiom_flag : bool ref
+  val matchback_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref
@@ -183,6 +185,8 @@ sig
   val incr_timer : unit -> unit
   val init_timer : unit -> unit
   val catch_perror: ('a -> 'b) -> 'a -> (unit -> 'b) -> 'b 
+  val eval_option : ('a -> 'b) -> 'a -> 'b option
+  val map_total : ('a -> 'b option) -> 'a list -> 'b list option
   
   (* gpt *)
   val gpt_of_seq : seq -> string  

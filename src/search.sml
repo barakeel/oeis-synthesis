@@ -35,7 +35,8 @@ fun add_noise prepol =
    Available moves
    ------------------------------------------------------------------------- *)
 
-val movelg = List.tabulate (Vector.length operv, I)
+val movel_default = List.tabulate (Vector.length operv, I)
+val movel_glob = ref movel_default
 
 fun available_move boarde move =
   let 
@@ -45,7 +46,7 @@ fun available_move boarde move =
     length l1 = arity 
   end
   
-fun available_movel boarde = filter (available_move boarde) movelg
+fun available_movel boarde = filter (available_move boarde) (!movel_glob)
 
 (* -------------------------------------------------------------------------
    Apply a move
@@ -93,7 +94,8 @@ fun apply_move (move,exec) boarde =
 val node_counter = ref 0
 val prog_counter = ref 0
 
-fun collect_child boarde move =
+
+fun collect_child boarde move =  
   let 
     val _ = incr node_counter
     val arity = arity_of_oper move
@@ -110,13 +112,10 @@ fun collect_child boarde move =
 
 fun collect_children nnvalue boarde = case boarde of
     [(p,exec,a,b)] =>
-    let 
-      val _ = (incr prog_counter; checkonline nnvalue (p,exec))
-      val newboarde = boarde
-    in
-      (newboarde, List.mapPartial (collect_child newboarde) movelg)
+    let val _ = (incr prog_counter; checkonline nnvalue (p,exec)) in
+      (boarde, List.mapPartial (collect_child boarde) (!movel_glob))
     end  
-  | _ => (boarde, List.mapPartial (collect_child boarde) movelg)
+  | _ => (boarde, List.mapPartial (collect_child boarde) (!movel_glob))
 
 (* -------------------------------------------------------------------------
    Distributing visits in advance according to policy part of MCTS formula

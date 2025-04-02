@@ -8,7 +8,7 @@ sig
   val mk_exec : prog -> exec
   val mk_exec_onev : prog -> (IntInf.int -> IntInf.int)
   val mk_exec_twov : prog -> (IntInf.int * IntInf.int -> IntInf.int)
-  
+    
   (* match oeis *)
   val coverf_oeis : exec -> (int * int) list
   
@@ -36,5 +36,8 @@ sig
   val bcheckspec : (unit, int * prog list, string) smlParallel.extspec
   val parallel_bcheck : int -> string -> unit
   
+  (* matcher functions *)
+  val backv_default : IntInf.int vector
+  val backv_glob : IntInf.int vector ref
 
 end

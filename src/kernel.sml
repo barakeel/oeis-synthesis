@@ -141,12 +141,16 @@ val disable_shuffle = bflag "disable_shuffle"
 val mydebug = bflag "mydebug"
 val fo_flag = bflag "fo_flag"
 val skolemize_flag = bflag "skolemize_flag"
+val cnf_flag = bflag "cnf_flag"
 val oneline_flag = bflag "oneline_flag"
 val altaxiom_flag = bflag "altaxiom_flag"
 
 (* flags originally in rl.sml *)
 val expname = ref "test"
 val ngen_glob = ref 0
+
+(* match flags *)
+val matchback_flag = bflag "matchback_flag"
 
 (* -------------------------------------------------------------------------
    Dictionaries shortcuts
@@ -334,7 +338,8 @@ val arcagi_operl = org_operl @ [("push",2),("pop",1)] @
    ("common_height",0), 
    ("common_width",0)]
   
-   
+val matchback_operl = org_operl @ [("push",2),("pop",1),("back",1)]
+
 val hanabi_operl = map (fn (a,b,c) => (a,b)) hanabi_operle   
 val hanabi_hoargl = map (fn (a,b,c) => c) hanabi_operle
 
@@ -373,12 +378,13 @@ val extra_operl =
   else if !run_flag 
     then ("run",1) :: List.tabulate (10, fn i => ("runz" ^ its i, 1)) @ 
       [("runz-",1)]
-  else if !seq_flag then [("seq",1)] 
+  else if !seq_flag then [("seq",1)]
   else []
 
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
-  if !arcagi_flag then arcagi_operl 
+  if !matchback_flag then matchback_operl
+  else if !arcagi_flag then arcagi_operl 
   else if !hanabi_flag then hanabi_operl
   else if !ramsey_flag then ramsey_operl 
   else if !rams_flag then 
@@ -457,7 +463,9 @@ val extra_ho_ariv =
 
 val ho_ariv = Vector.fromList 
   (
-  if !arcagi_flag
+  if !matchback_flag then 
+    List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ [0,0,0]
+  else if !arcagi_flag
     then List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 
          List.tabulate (10,fn _ => 0)
   else if !hanabi_flag 
@@ -555,7 +563,17 @@ fun catch_perror f x g =
      | Div => g () 
      | ProgTimeout => g () 
      | Overflow => g ())
-   
+  
+fun eval_option f x = 
+  let fun g y = (init_timer (); SOME (f y)) in
+    catch_perror g x (fn () => NONE)
+  end;
+
+fun map_total_aux f acc l = case l of [] => SOME (rev acc) | a :: m =>
+  (case f a of NONE => NONE | SOME b => map_total_aux f (b :: acc) m)
+ 
+fun map_total f l = map_total_aux f [] l
+ 
 (* -------------------------------------------------------------------------
    NMT interface
    ------------------------------------------------------------------------- *)

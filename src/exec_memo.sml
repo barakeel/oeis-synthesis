@@ -131,6 +131,10 @@ fun mk_nullf opf fl = case fl of
    [] => (fn x => checktimer (opf x))
   | _ => raise ERR "mk_nullf" ""
 
+fun mk_unf opf fl = case fl of
+   [f1] => (fn x => checktimer (opf (f1 x)))
+  | _ => raise ERR "mk_unf" ""
+
 fun mk_binfadd costn opf fl = case fl of
    [f1,f2] => (fn x => 
      let 
@@ -150,7 +154,6 @@ fun mk_binfmult costn opf fl = case fl of
        checktimermult costn x1 x2 y
      end)
   | _ => raise ERR "mk_binfmult" ""
-
 
 fun mk_binf opf fl = case fl of
    [f1,f2] => (fn x => checktimer (opf (f1 x, f2 x)))
@@ -372,6 +375,24 @@ fun compr_f fl = case fl of
   | _ => raise ERR "compr_f" ""
 
 (* -------------------------------------------------------------------------
+   Back function when matching
+   ------------------------------------------------------------------------- *)
+
+val backl_default = map IntInf.fromInt
+  [~57, 19, ~58, 100, ~46, 0, 39, 82, 89, 1, 81, ~83, 49, 94, 59, 55]
+val backv_default = Vector.fromList backl_default
+
+val backv_glob = ref (Vector.tabulate (1,fn _ => azero))
+
+fun back_f_aux al = 
+  let val a = hd al in
+    if a < azero then [azero] 
+    else if a >= IntInf.fromInt (Vector.length (!backv_glob)) then raise Div
+    else [Vector.sub (!backv_glob, IntInf.toInt a)]
+  end
+val back_f = mk_unf back_f_aux
+
+(* -------------------------------------------------------------------------
    arcagi primitives
    ------------------------------------------------------------------------- *)
 
@@ -445,6 +466,8 @@ val execv =
     then Vector.fromList (org_execl @ [push_f, pop_f] @ smt_extra)
   else if !arcagi_flag 
     then Vector.fromList (org_execl @ [push_f, pop_f] @ arcagi_extra)
+  else if !matchback_flag
+    then Vector.fromList (org_execl @ [push_f, pop_f, back_f])
   else Vector.fromList (org_execl @ [push_f, pop_f])
 
 (* -------------------------------------------------------------------------

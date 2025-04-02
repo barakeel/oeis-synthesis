@@ -57,6 +57,13 @@ sig
   val compare_arcagi : (prog * bool * int) * (prog * bool * int) -> order
   val merge_arcagi : kernel.arcagi list -> string option -> kernel.arcagi list
 
+  (* matchback experiment *)
+  val checkinit_matchback : unit -> unit
+  val checkonline_matchback : prog -> unit
+  val checkfinal_matchback : unit -> (kernel.seq * prog) list
+
+
+
   (* standard checking *)
   val check_wind : (int, (int * prog) list) dict ref ->
     prog * (int * int) list -> unit

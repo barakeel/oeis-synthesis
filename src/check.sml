@@ -470,6 +470,35 @@ fun checkf_prnn2 p =
     app f anumtl
   end  
 
+
+
+  
+val l16 = List.tabulate (16,IntInf.fromInt);
+
+fun fingerprint f = map_total (eval_option f) l16;
+
+val matchbackd = ref (dempty (list_compare IntInf.compare))
+
+fun checkinit_matchback () =
+  matchbackd := dempty (list_compare IntInf.compare)
+
+fun checkonline_matchback p = 
+  if depend_on_y p then () else
+  let 
+    val f = exec_memo.mk_exec_onev p
+    val lo = fingerprint f
+  in
+    case lo of NONE => () | SOME l =>
+    (
+    case dfindo l (!matchbackd) of
+      NONE => matchbackd := dadd l p (!matchbackd) 
+    | SOME pold => if prog_compare_size (pold,p) = LESS then () else
+                   matchbackd := dadd l p (!matchbackd)
+    )
+  end
+  
+fun checkfinal_matchback () = dlist (!matchbackd)
+
 fun checkonline_smt p = ()
 
 fun checkonline nnvalue (p,exec) = 
@@ -484,6 +513,7 @@ fun checkonline nnvalue (p,exec) =
   else if !wrat_flag then checkf_wrat p 
   else if !intl_flag then checkf_intl nnvalue p
   else if !prnn_flag then checkf_prnn nnvalue p
+  else if !matchback_flag then checkonline_matchback p
   else checkf nnvalue (p,exec)
 
 fun checkfinal () = dlist (!wind)

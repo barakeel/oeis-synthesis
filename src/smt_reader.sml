@@ -178,6 +178,10 @@ fun rm_forall tm =
 fun skolemize tml =
   let
     val n = ref 0
+    fun g tm = 
+      if !cnf_flag 
+      then (rhs o concl o normalForms.CNF_CONV) tm handle UNCHANGED => tm
+      else tm
     fun f tm = 
       if not (is_imp_only tm) then tm else
       let 
@@ -191,7 +195,7 @@ fun skolemize tml =
         val newa = subst sub (rm_forall a)
         val _ = incr n 
       in
-        mk_imp (newa,b)
+        g (mk_imp (newa,b))
       end
   in
     map f tml @ [cj_glob]
@@ -220,7 +224,7 @@ fun skpb_of_pp (pp,tml) =
   
 fun write_induct_pb file decl inductl =
   let val tml = 
-    if not (!skolemize_flag) 
+    if not (!skolemize_flag) andalso not (!cnf_flag) 
     then (decl @ inductl)
     else skolemize (decl @ inductl)
   in

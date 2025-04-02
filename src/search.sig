@@ -6,6 +6,8 @@ sig
  
   (* search *)
   val randsearch_flag : bool ref
+  val movel_default : int list
+  val movel_glob : (int list) ref
   val search : (int * real) -> unit
   val search_board : (int * real) -> prog list -> unit
   val beamsearch : unit -> (int * (int * prog) list) list
@@ -16,7 +18,6 @@ sig
   val infer_pgenl : string -> int -> real -> prog list
   val mimicspec : ((int * prog) list, prog list, real list) smlParallel.extspec
   val compete_pgenl : string * int -> (int * prog) list -> prog list -> prog list
-
   
 end
 
