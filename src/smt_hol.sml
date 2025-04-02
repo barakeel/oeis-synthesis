@@ -93,7 +93,9 @@ fun hol_to_smt_vty v = Sexp [Atom (string_of_var v), Atom "Int"]
 fun hol_to_smt_vl vl = Sexp (map hol_to_smt_vty vl)
     
 fun hol_to_smt_aux tm = 
-  if is_forall tm then   
+  if term_eq tm T then Atom "true"
+  else if term_eq tm F then Atom "false"
+  else if is_forall tm then   
     let val (vl,body) = strip_forall tm in
       Sexp [Atom "forall", hol_to_smt_vl vl, hol_to_smt_aux body]
     end
