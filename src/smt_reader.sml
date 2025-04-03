@@ -78,8 +78,8 @@ fun retranslate dir file =
       then progpair_to_progxpair_shared (progxpair_to_progpair (px1,px2))
       else (px1,px2)
     val eql = if !eq_flag 
-              then eq_loop (px1',px2') @ eq_compr (px1',px2') 
-                (* @ eq_loop2_1 (px1',px2') @ eq_loop2_2 (px1',px2') *)
+              then eq_loop (px1',px2') @ eq_compr (px1',px2') @ 
+                   eq_loop2_1 (px1',px2') @ eq_loop2_2 (px1',px2')
               else []
     val impl = if !imp_flag
                then eq_loop_imp (px1',px2') @ eq_compr_imp (px1',px2') @ 
@@ -227,7 +227,7 @@ fun skolemize tml =
 fun create_decl pptop = 
   let 
     val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
-    val eql = eq_loop pp @ eq_compr pp (* @ eq_loop2_1 pp @ eq_loop2_2 pp *)
+    val eql = eq_loop pp @ eq_compr pp @ eq_loop2_1 pp @ eq_loop2_2 pp
     val impl = if !noimp_flag then [] else 
       (eq_loop_imp pp @  eq_compr_imp pp @ eq_loop2_imp pp)
     val pxsmall = name_progx ("small",progx_to_progxx px1)

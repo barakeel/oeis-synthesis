@@ -34,8 +34,6 @@ sig
   (* collecting higher-order arguments *)
   val hoarg_loop : progx -> (progx * string)
   val hoarg_compr : progx -> (progx * string)
-  val hoarg_loop2_1 : progx -> (progx * string)
-  val hoarg_loop2_2 : progx -> (progx * string)
   val hoarg_loop2 : progx -> ((progx * progx) * string)
   
   

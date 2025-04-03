@@ -442,12 +442,12 @@ fun eq_compr_imp (px1,px2) =
     map g hhl
   end  
 
-(*
 fun eq_loop2_1 (px1,px2) =
   let 
     val (pxl1,pxl2) = (all_subloop2 px1, all_subloop2 px2) 
     val pxl3 = pxl1 @ pxl2  
-    val d = dappendl (map hoarg_loop2_1 pxl3) (dempty progx_compare)
+    val d = dappendl (map hoarg_loop2 pxl3) (dempty 
+      (cpl_compare progx_compare progx_compare))
     val vl = [xvar,yvar,zvar]
     fun g (s1,s2) = list_mk_forall (vl, 
       mk_eq (auto_comb ("u" ^ s1, vl), auto_comb ("u" ^ s2, vl)))
@@ -460,7 +460,8 @@ fun eq_loop2_2 (px1,px2) =
   let 
     val (pxl1,pxl2) = (all_subloop2 px1, all_subloop2 px2) 
     val pxl3 = pxl1 @ pxl2  
-    val d = dappendl (map hoarg_loop2_2 pxl3) (dempty progx_compare)
+    val d = dappendl (map hoarg_loop2 pxl3) (dempty 
+      (cpl_compare progx_compare progx_compare))
     val vl = [xvar,yvar,zvar]
     fun g (s1,s2) = list_mk_forall (vl, 
       mk_eq (auto_comb ("v" ^ s1, vl), auto_comb ("v" ^ s2, vl)))
@@ -468,7 +469,6 @@ fun eq_loop2_2 (px1,px2) =
   in
     List.concat (map f (dlist d))
   end
-*)
 
 fun eq_loop2_imp (px1,px2) =
   let 

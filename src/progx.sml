@@ -211,14 +211,6 @@ fun hoarg_compr px = case px of
     Insx ((12,SOME vs),[p1,p2]) => (p1, tl_string vs)
   | _ => raise ERR "not a compr" ""
 
-fun hoarg_loop2_1 px = case px of
-    Insx ((13,SOME ws),[p1,p2,p3,p4,p5]) => (p1, tl_string ws)
-  | _ => raise ERR "not a loop2" ""
-
-fun hoarg_loop2_2 px = case px of
-    Insx ((13,SOME ws),[p1,p2,p3,p4,p5]) => (p2, tl_string ws)
-  | _ => raise ERR "not a loop2" ""
-
 fun hoarg_loop2 px = case px of
     Insx ((13,SOME ws),[p1,p2,p3,p4,p5]) => ((p1,p2), tl_string ws)
   | _ => raise ERR "not a loop2" ""  

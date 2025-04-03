@@ -29,10 +29,9 @@ sig
   val eq_loop_imp : progx * progx -> term list
   val eq_compr : progx * progx -> term list
   val eq_compr_imp : progx * progx -> term list
-  (* were buggy
   val eq_loop2_1 : progx * progx -> term list
   val eq_loop2_2 : progx * progx -> term list
-  *)
+
   val eq_loop2_imp : progx * progx -> term list
 
   (* inferring pairs of programs from SMT file *)
