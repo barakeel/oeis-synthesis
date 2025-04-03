@@ -442,6 +442,7 @@ fun eq_compr_imp (px1,px2) =
     map g hhl
   end  
 
+(*
 fun eq_loop2_1 (px1,px2) =
   let 
     val (pxl1,pxl2) = (all_subloop2 px1, all_subloop2 px2) 
@@ -467,6 +468,7 @@ fun eq_loop2_2 (px1,px2) =
   in
     List.concat (map f (dlist d))
   end
+*)
 
 fun eq_loop2_imp (px1,px2) =
   let 
