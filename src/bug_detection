@@ -1,0 +1,37 @@
+load "smt_progx"; open aiLib kernel progx smt_progx; 
+load "search_term"; open search_term;
+
+val appl = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem");
+val ppl = map snd appl;
+
+fun is_bad_pair ((p1,p2),(q1,q2)) =
+  let 
+    val b1 = progx_compare (p1,q1) = EQUAL
+    val b2 = progx_compare (p2,q2) = EQUAL
+  in
+    (b1 andalso not b2) orelse (not b1 andalso b2)
+  end;
+
+fun is_bad_pb pptop =
+  let
+    val (pp as (px1,px2)) = progpair_to_progxpair_shared pptop
+    val (pxl1,pxl2) = (all_subloop2 px1, all_subloop2 px2) 
+    val pxl3 = pxl1 @ pxl2
+    val hhl = all_pairs (map (fst o hoarg_loop2) pxl3)
+  in
+    exists is_bad_pair hhl
+  end;
+  
+val (applbad,applgood) = partition (is_bad_pb o snd) appl;
+length applbad; length applgood;
+
+(*
+val it = 2192: int
+val it = 14005: int
+*)
+
+write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem_bad") applbad;
+write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem_good") applgood;
+
+writel (selfdir ^ "/smt_benchsem_nmt_bad") (map (pp_to_stringtag o snd) applbad);
+writel (selfdir ^ "/smt_benchsem_nmt_good") (map (pp_to_stringtag o snd) applgood);

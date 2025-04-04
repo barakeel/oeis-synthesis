@@ -1926,7 +1926,7 @@ fun write_pb_pp dir (name,pp) =
 
 fun write_pbl_org expname =
   let
-    val appl = read_anumprogpairs "smt_benchmark_progpairs_sem"
+    val appl = read_anumprogpairs "smt_benchmark_progpairs_sem_good"
     val expdir = selfdir ^ "/exp"
     val dir = expdir ^ "/" ^ expname
     val pbdir = dir ^ "/pb"
