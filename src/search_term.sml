@@ -1924,9 +1924,9 @@ fun write_pb_pp dir (name,pp) =
     write_induct_pb file decl []
   end
 
-fun write_pbl_org expname =
+fun write_pbl_org expname file =
   let
-    val appl = read_anumprogpairs "smt_benchmark_progpairs_sem_good"
+    val appl = read_anumprogpairs file
     val expdir = selfdir ^ "/exp"
     val dir = expdir ^ "/" ^ expname
     val pbdir = dir ^ "/pb"

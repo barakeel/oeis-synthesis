@@ -12,6 +12,9 @@ cd src
 sh install_smt.sh
 ```
 
+## Problems
+`sh genpborg.sh smt_benchmark_progpairs_sem` produces versions of the problems with extra axioms for trivial inductions.
+
 ## Starting the self-learning process
 This system can train an external machine learner to provide induction schema instances to the SMT solver (Z3), enabling it to prove equalities between program pairs. Initial data is provided for starting this process.
 

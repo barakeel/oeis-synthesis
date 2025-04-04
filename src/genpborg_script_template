@@ -1,2 +1,2 @@
 load "search_term";
-search_term.write_pbl_org "expname_template";
+search_term.write_pbl_org "expname_template" "file_template";
