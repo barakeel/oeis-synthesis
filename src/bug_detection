@@ -35,3 +35,27 @@ write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem_good") applgood;
 
 writel (selfdir ^ "/smt_benchsem_nmt_bad") (map (pp_to_stringtag o snd) applbad);
 writel (selfdir ^ "/smt_benchsem_nmt_good") (map (pp_to_stringtag o snd) applgood);
+
+
+load "search_term"; open aiLib kernel progx smt_progx search_term;
+val resdir = selfdir ^ "/cade_results";
+val statdir = resdir ^ "/human_predicates";
+
+val badl = map fst 
+  (read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem_bad"));
+val goodl = map fst 
+  (read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sem_good"));
+    
+writel "benchsem_badanum" badl;
+writel "benchsem_goodanum" goodl;
+
+val filel = map (fn x => statdir ^ "/" ^ x) (listDir statdir);
+
+fun f file =
+  let val sl = list_diff (map OS.Path.base (readl file)) badl in
+    writel (file ^ "_fixed") sl
+  end;
+  
+app f filel;  
+  
+

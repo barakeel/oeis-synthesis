@@ -182,6 +182,8 @@ fun human vn prog =
 *)
 val preambule = readl (selfdir ^ "/intl_preambule")
    
+val nofor_flag = ref false   
+ 
 fun human_python ntop ptop =
   let
     val p = zeroy ptop
@@ -205,7 +207,7 @@ fun human_python ntop ptop =
         val test = 
           "for x in range(" ^ its ntop ^ "):\n  " ^ prints 
         val ps' = String.concatWith "\n" (preamb @ !ctxt @ [head] @ 
-          (if !fs_flag then [] else [test]))
+          (if !fs_flag orelse !nofor_flag then [] else [test]))
       in ps' end
       else
       let
@@ -219,7 +221,7 @@ fun human_python ntop ptop =
         val test = 
           "for x in range(" ^ its ntop ^ "):\n  " ^ prints 
         val ps' = String.concatWith "\n" (preamb @ !ctxt @ 
-          (if !fs_flag then [] else [test]))
+          (if !fs_flag orelse !nofor_flag then [] else [test]))
       in ps' end
     val _ = ctxt := []
   in

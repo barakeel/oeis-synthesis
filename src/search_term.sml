@@ -1890,14 +1890,16 @@ val inductl_cmp = list_compare
   (cpl_compare (cpl_compare prog_compare prog_compare) 
   (list_compare Term.compare))
   
-fun read_inductl file = map parse_ppil (readl file)
+fun ignore_time s = if mem #":" (explode s)
+                    then snd (split_pair #":" s) 
+                    else s
+  
+fun read_inductl file = map (parse_ppil o ignore_time) (readl file)
 fun read_tinductl file = map parse_tppil (readl file)
 
 fun write_ppils_pb file s = 
   let
-    val ppils = if mem #":" (explode s)
-                then snd (split_pair #":" s) 
-                else s
+    val ppils = ignore_time s
     val (pp,il) = parse_ppil ppils
     val decl = create_decl pp
     val inductl = map induct_cj il
