@@ -40,6 +40,7 @@ val pareto_number = iflagnoref "pareto_number" 0
 val optimal_flag = bflag "optimal_flag"
 val optimalonly_flag = bflag "optimalonly_flag"
 val optimal_coeff = rflagnoref "optimal_coeff" 0.5
+val yenum_flag = bflag "yenum_flag"
 
 (* language flags *)
 val z_flag = bflag "z_flag"
@@ -279,6 +280,7 @@ fun all_subcompr (Ins (id,pl)) =
 
 (* -------------------------------------------------------------------------
    Instructions:
+   0 1 2 3 4 5 6 7 8    9  10 11 12    13    14   15
    A B C D E F G H I    J    K L M     N     O    P
    0 1 2 + - * / % cond loop x y compr loop2 push pop
    ------------------------------------------------------------------------- *)

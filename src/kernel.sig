@@ -86,6 +86,7 @@ sig
   val oneline_flag : bool ref
   val altaxiom_flag : bool ref
   val matchback_flag : bool ref
+  val yenum_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

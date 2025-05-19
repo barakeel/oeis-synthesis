@@ -11,6 +11,8 @@ sig
     
   (* match oeis *)
   val coverf_oeis : exec -> (int * int) list
+  val cover_yenum : prog -> (int * (int * int) list) list
+  val coverp_oeis : prog -> (int * int) list
   
   (* enumerate *)
   val penum_wtime : int -> prog -> int -> seq

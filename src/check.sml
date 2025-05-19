@@ -387,7 +387,7 @@ fun checkf_memo nnvalue p =
     end
   else
     let
-      val anumtl = exec_memo.coverf_oeis (exec_memo.mk_exec p)
+      val anumtl = exec_memo.coverp_oeis p
       fun f (anum,t) = update_wind wind (anum,[(t,p)])
     in
       app f anumtl

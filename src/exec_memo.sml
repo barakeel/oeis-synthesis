@@ -513,10 +513,57 @@ fun mk_exec_onev p =
 fun mk_exec_twov p = 
   let val exec = mk_exec p in (fn (x,y) => hd (exec ([x],[y]))) end
 
-fun coverf_oeis exec = 
+fun coverf_oeis exec =
   let fun g x = hd (exec ([x], [azero])) in 
     scover_oeis g 
   end
+
+(* -------------------------------------------------------------------------
+   Enumeration of y programs
+   ------------------------------------------------------------------------- *)
+
+val twop = Ins(2,[]);
+fun addp a b = Ins(3,[a,b]);
+fun mulp a b = Ins(5,[a,b]);
+
+fun program_of_number i = 
+  if i < 0 then raise ERR "program_of_number" "negative" 
+  else if i < 2 then Ins(i,[])
+  else addp (mulp twop (program_of_number (i div 2))) (Ins(i mod 2,[]))
+   
+fun subst_y p (Ins (id,pl)) =
+  if id = y_id then p else Ins(id, map (subst_y p) pl)
+
+fun cover_yenum p =
+  let 
+    val _ = init_timer ()
+    val r = ref []
+    fun loop n limit = 
+      if n > limit then () else
+      let 
+        val newp = subst_y (program_of_number n) p 
+        val exec = mk_exec newp
+        val atl = coverf_oeis exec
+      in
+        r := (n,atl) :: !r; loop (n+1) limit
+      end
+    fun f () = if depend_on_y p then loop 0 1000 else loop 0 0
+  in
+    catch_perror f () (fn () => ());
+    filter (not o null o snd) (rev (!r))
+  end;
+
+fun coverp_oeis p = 
+  if !yenum_flag then 
+    let 
+      val rl = cover_yenum p 
+      val anuml = mk_fast_set Int.compare (map fst (List.concat (map snd rl)))
+      val sc = length anuml
+    in 
+      map (fn x => (x,sc)) anuml
+    end
+  else
+    coverf_oeis (mk_exec p)
  
 (* -------------------------------------------------------------------------
    Verifiy cover
@@ -769,8 +816,30 @@ fun parallel_bcheck ncore expname =
     writel (dir ^ "/output") sl
   end
 
+ 
+(* -------------------------------------------------------------------------
+   List sequences covered by a program
+   ------------------------------------------------------------------------- *)
+
+(*
+
+   0 1 2 3 4 5 6 7 8    9  10 11 12    13    14   15
+   A B C D E F G H I    J    K L M     N     O    P
+   0 1 2 + - * / % cond loop x y compr loop2 push pop   
+*)
+(*  
+load "exec_memo";  open kernel aiLib exec_memo;
+load "human"; open human;
+val ERR = mk_HOL_ERR "test";
 
 
+  
+val yp = Ins(y_id,[]);  
+    
+val (rl,t) = add_time cover_yenum yp;    
+ 
+*)    
+    
 end (* struct *)
 
 
@@ -779,6 +848,9 @@ end (* struct *)
    ------------------------------------------------------------------------- *)
 
 (*
+
+
+
 PolyML.print_depth 10;
 load "human"; open human;
 load "exec_memo";  open kernel aiLib exec_memo;

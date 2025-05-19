@@ -194,8 +194,6 @@ load "arcagi"; open arcagi;
 load "game"; open game;
 load "search";
 PolyML.print_depth 1; val exl = read_trainex (); PolyML.print_depth 40;
- 
-
 
 val ex = random_elem exl;
 val (p,b,sc) = test ex 10.0;
