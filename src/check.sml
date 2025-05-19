@@ -205,7 +205,7 @@ fun is_smaller_kid kid (t1,p1) (t2,p2) =
 
 fun score_optimal (t,p) = 
   if t <= 0 
-  then Real.fromInt (t + p) 
+  then Real.fromInt (t + prog_size p) 
   else Math.pow (Real.fromInt t, optimal_coeff) * Real.fromInt (prog_size p)
 
 fun is_optimal (t1,p1) (t2,p2) = 
