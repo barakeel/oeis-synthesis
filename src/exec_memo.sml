@@ -539,7 +539,7 @@ fun cover_yenum p =
     val _ = init_timer ()
     val r = ref []
     fun loop n limit = 
-      if n > limit then () else
+      if n > limit orelse !abstimer > !timelimit then () else
       let 
         val newp = subst_y (program_of_number n) p 
         val exec = mk_exec newp
@@ -547,9 +547,8 @@ fun cover_yenum p =
       in
         r := (n,atl) :: !r; loop (n+1) limit
       end
-    fun f () = if depend_on_y p then loop 0 1000 else loop 0 0
   in
-    catch_perror f () (fn () => ());
+    if depend_on_y p then loop 0 1000 else loop 0 0;
     filter (not o null o snd) (rev (!r))
   end;
 
