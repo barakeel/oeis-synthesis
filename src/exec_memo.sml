@@ -561,8 +561,7 @@ fun coverp_oeis p =
     in 
       map (fn x => (x,~sc)) anuml
     end
-  else
-    coverf_oeis (mk_exec p)
+  else coverf_oeis (mk_exec p)
  
 (* -------------------------------------------------------------------------
    Verifiy cover

@@ -204,7 +204,9 @@ fun is_smaller_kid kid (t1,p1) (t2,p2) =
   prog_compare_size_kid kid (p1,p2) = LESS
 
 fun score_optimal (t,p) = 
-  Math.pow (Real.fromInt t, optimal_coeff) * Real.fromInt (prog_size p)
+  if t <= 0 
+  then Real.fromInt (t + p) 
+  else Math.pow (Real.fromInt t, optimal_coeff) * Real.fromInt (prog_size p)
 
 fun is_optimal (t1,p1) (t2,p2) = 
   cpl_compare Real.compare prog_compare_size 
@@ -367,7 +369,7 @@ fun clip_seq seq =
     map f seq
   end
 
-fun checkf_memo nnvalue p = 
+(*
   if !nooeis_flag then 
     let 
       val ivalue = Real.round (~nnvalue * 1000000000.0)
@@ -386,12 +388,15 @@ fun checkf_memo nnvalue p =
       )
     end
   else
-    let
-      val anumtl = exec_memo.coverp_oeis p
-      fun f (anum,t) = update_wind wind (anum,[(t,p)])
-    in
-      app f anumtl
-    end
+*)
+
+fun checkf_memo nnvalue p = 
+  let
+    val anumtl = exec_memo.coverp_oeis p
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end
 
 fun checkf_ctree p = 
   let
