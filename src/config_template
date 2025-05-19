@@ -4,6 +4,7 @@ train_memory 10000
 optimal_flag true
 memo_flag true
 dim_glob 128
+ntarget_init 50
 ntarget 200
 rtim 600.0
 short_timeincr 100000
