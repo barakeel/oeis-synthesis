@@ -559,7 +559,7 @@ fun coverp_oeis p =
       val anuml = mk_fast_set Int.compare (map fst (List.concat (map snd rl)))
       val sc = length anuml
     in 
-      map (fn x => (x,~sc)) anuml
+      map (fn x => (x, 1000 - sc)) anuml
     end
   else coverf_oeis (mk_exec p)
  

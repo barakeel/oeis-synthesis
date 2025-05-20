@@ -279,7 +279,7 @@ val update_solm = update_solcmp [is_smaller, is_faster,
 
 val update_f =
   if !nomerge_flag then update_nomerge
-  else if !pareto_flag then update_pareto
+  (* else if !pareto_flag then update_pareto *)
   else if !optimal_flag then update_optimal
   else if !optimalonly_flag then update_optimalonly
   else if !solm_flag then update_solm
@@ -692,7 +692,24 @@ fun merge_itsol_file d file =
   let val itsol = read_itprogl file in
     app (update_wind d) itsol
   end
-  
+
+(*
+fun f (anum,tpl) = 
+      if length tpl <= 2 then (anum,tpl) else
+      if pareto_number = 2 then (anum, [hd tpl,last tpl]) else
+        let 
+          val middle = butlast tpl
+          val newtpl = 
+            map hd (cut_n (pareto_number - 1) middle) @ [last tpl]
+        in
+          (anum,newtpl)
+        end
+        
+if !pareto_flag andalso pareto_number >= 2 
+      then map f (dlist (!d))     
+      else  
+*)
+
 fun merge_itsol_default dir = 
   let 
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
@@ -704,20 +721,8 @@ fun merge_itsol_default dir =
     val _ = if !reprocess_flag orelse 
                 not (exists_file oldsolfile) then ()
             else merge_itsol_file d oldsolfile
-    fun f (anum,tpl) = 
-      if length tpl <= 2 then (anum,tpl) else
-      if pareto_number = 2 then (anum, [hd tpl,last tpl]) else
-        let 
-          val middle = butlast tpl
-          val newtpl = 
-            map hd (cut_n (pareto_number - 1) middle) @ [last tpl]
-        in
-          (anum,newtpl)
-        end
   in
-    if !pareto_flag andalso pareto_number >= 2 
-      then map f (dlist (!d))
-      else dlist (!d)
+    dlist (!d)
   end
 
 
