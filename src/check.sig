@@ -23,7 +23,8 @@ sig
   val init_merge : unit -> unit
   val mergedir : string
   val mergen : int ref
-
+  val merge_itsol_default : string -> (anum * (int * prog) list) list
+  
   (* external parallelization *)
   val merge_itsol : (anum * (int * prog) list) list -> 
                     (anum * (int * prog) list) list

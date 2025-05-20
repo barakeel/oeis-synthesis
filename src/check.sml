@@ -725,6 +725,13 @@ fun merge_itsol_default dir =
     dlist (!d)
   end
 
+(*
+load "check"; open aiLib kernel check;
+val dir = selfdir ^ "/exp/yenum1";
+val newsol = merge_itsol_default dir;
+val _ = stats_dir dir oldsol newsol;
+
+*)
 
 (* -------------------------------------------------------------------------
    Parallel checking (two phases)
