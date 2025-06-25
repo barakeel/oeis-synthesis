@@ -1,16 +1,13 @@
 (* ========================================================================= *)
-(* DESCRIPTION   : Extended program datatype to store names for subloops     *)
+(* DESCRIPTION   : Inference rules based on substitutions                    *)
 (* ========================================================================= *)
 
 structure qsubst :> qsubst = struct
 
 open aiLib kernel;
 val ERR = mk_HOL_ERR "qsubst";
-
 type prog = kernel.prog
-
 (* load "qsubst"; open aiLib kernel qsubst; *)
-
 
 (* -------------------------------------------------------------------------
    Global array substitution (* todo: catch Subscript error *)
@@ -128,7 +125,7 @@ fun inst_match (p1,p2) p =
    Rewrite rule (with respect to sub_glob)
    ------------------------------------------------------------------------- *)
   
-val eqi = 20 (* todo changes to reflect the number for equality *)
+val eqi = 3 (* todo changes to reflect the number for equality *)
 fun is_eq (Ins(i,pl)) = i = eqi
 fun dest_eq (Ins(i,pl)) = pair_of_list pl 
  
