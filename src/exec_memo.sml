@@ -711,7 +711,7 @@ fun merge_seqpre () =
     val array_glob = Array.tabulate (1000, fn _ => []:string list)
     fun f s =
       let 
-        val (s1,_) = split_pair #"|" s
+        val (s1,_,_) = triple_of_list (String.tokens (fn x => x = #"|") s)
         val h = string_to_int s1 mod 1000
       in
         Array.update (array_glob, h, s :: Array.sub (array_glob,h))
@@ -755,22 +755,6 @@ val sl3 = dict_sort String.compare sl2;
 val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3;
 val sl5 = first_n 100 sl4; 
 parallel_exec 64 sl5;
-
-
-
-
-
-
-
-val (r,t) = add_time (map readl) filel;
-
-
-    
-length (Array.sub (array_glob,10));
-
-
-
-
 *)  
 
 (* -------------------------------------------------------------------------
