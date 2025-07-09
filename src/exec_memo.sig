@@ -23,7 +23,7 @@ sig
 
   (* parallel execution *)
   val execspec : (unit, prog list, seq list) smlParallel.extspec
-  val parallel_exec : bool -> int -> string -> unit
+  val parallel_exec : int -> string -> unit
   
   (* ramsey *)
   val n_glob : IntInf.int ref

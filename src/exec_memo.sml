@@ -637,7 +637,7 @@ fun verify_file tim file =
   end
 
 (* -------------------------------------------------------------------------
-   Parallel execution
+   Parallel execution: on reversed input
    ------------------------------------------------------------------------- *)
 
 val terms_glob = 20
@@ -670,7 +670,7 @@ val execspec : (unit, prog list, seq list) smlParallel.extspec =
   read_result = read_seql
   }
 
-fun parallel_exec revflag ncore expname =
+fun parallel_exec ncore expname =
   let
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
@@ -682,8 +682,7 @@ fun parallel_exec revflag ncore expname =
     val _ = smlExecScripts.buildheap_dir := dir
     val sl = readl (dir ^ "/input")
     val _ = log ("programs: " ^ its (length sl))
-    val pl = mapfilter (prog_of_gpt_err o 
-      (if revflag then implode o rev o explode else I)) sl
+    val pl = mapfilter prog_of_gpt_err sl
     val _ = log ("parsed: " ^ its (length pl))
     val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
     val pll = cut_n (10 * ncore) pl
@@ -709,6 +708,7 @@ fun frev s = (prog_of_gpt_err o implode o rev o explode) s;
 fun f s = prog_of_gpt_err s;
 val pl = map (fn s => (print "."; f s)) sl;
 
+f s;
 frev s;
 
 parallel_exec true 

@@ -633,8 +633,8 @@ fun removeSpaces s =
 fun tokenl_of_gpt_err s = 
   let 
     val s1 = snd (split_pair #":" s)
-    val s2 = removeSpaces s1
-    val sl = map Char.toString (explode s2) 
+    val s2 = removeSpaces s1 
+    val sl = map Char.toString (rev (explode s2))
   in  
     map id_of_gpt sl 
   end
