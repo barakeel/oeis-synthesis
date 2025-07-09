@@ -648,7 +648,7 @@ fun execspec_fun file =
     val log = print_endline
     val dir = selfdir ^ "/exp/seqhash"
     val progdir = dir ^ "/prog"
-    val seqdir = dir ^ "/seqpre"
+    val seqdir = dir ^ "/seq"
     val filename = OS.Path.file file
     val progfilegz = progdir ^ "/" ^ filename
     val progfile = OS.Path.base progfilegz
@@ -670,7 +670,7 @@ fun execspec_fun file =
           val ht = hm mod 1000
           val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
         in
-          append_endline (seqdir ^ "/" ^ its ht ^ "_" ^ filename) s
+          append_endline_lock (seqdir ^ "/" ^ its ht) s
         end
       end
   in

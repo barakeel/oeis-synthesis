@@ -123,6 +123,7 @@ sig
   val compare_term_size : term * term -> order
   val hashMod : int -> string -> int
   val split_pair : char -> string -> string * string
+  val append_endline_lock : string -> string -> unit
   
   (* sequences *)
   type seq = IntInf.int list

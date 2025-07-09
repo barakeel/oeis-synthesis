@@ -920,7 +920,40 @@ fun hash s = CharVector.foldl hashChar offset_basis s
 fun hashMod i s  =
   Word32.toInt (Word32.mod (hash s, Word32.fromInt i))
 
+(* -------------------------------------------------------------------------
+   Lock dir
+   ------------------------------------------------------------------------- *)
 
+(* Try to acquire lock by creating a directory *)
+fun acquire_lock lock_dir =
+  (OS.FileSys.mkDir lock_dir; true) handle OS.SysErr _ => false
+
+(* Spin until the lock is acquired *)
+fun wait_for_lock lock_dir =
+  if acquire_lock lock_dir then ()
+  else (OS.Process.sleep (Time.fromMilliseconds 1); wait_for_lock lock_dir)
+
+(* Release the lock by removing the directory *)
+fun release_lock lock_dir =
+  (OS.FileSys.rmDir lock_dir
+   handle Interrupt => raise Interrupt 
+       | _ => ())
+
+(* Safe append_endline using a lock directory *)
+fun append_endline_lock filepath line =
+  let
+    val lock_dir = filepath ^ ".lock"
+    fun write () =
+      let val out = TextIO.openAppend filepath in
+        TextIO.output (out, line ^ "\n");
+        TextIO.closeOut out
+      end
+  in
+    wait_for_lock lock_dir;
+    (write ()
+     handle e => (release_lock lock_dir; raise e));
+    release_lock lock_dir
+  end
 
 
 end (* struct *)
