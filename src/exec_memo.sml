@@ -650,13 +650,14 @@ fun execspec_fun file =
     val progdir = dir ^ "/prog"
     val seqdir = dir ^ "/seqpre"
     val filename = OS.Path.file file
-    val progfile = progdir ^ "/" ^ filename
-    val cmd1 = "cp " ^ file ^ " " ^ progfile
+    val progfilegz = progdir ^ "/" ^ filename
+    val progfile = OS.Path.base progfilegz
+    val cmd1 = "cp " ^ file ^ " " ^ progfilegz
     val _ = cmd_in_dir progdir cmd1
-    val cmd2 = "gunzip " ^ progfile
+    val cmd2 = "gunzip " ^ progfilegz
     val _ = cmd_in_dir progdir cmd2
     val (sl,t1) = add_time readl progfile
-    (* val _ = erase_file (OS.Path.base progfile) *)
+    (* val _ = erase_file progfile *)
     val _ = log ("programs: " ^ its (length sl))
     val (pl,t2) = add_time (mapfilter prog_of_gpt_err) sl
     val _ = log ("parsed: " ^ its (length pl)) 
@@ -725,11 +726,12 @@ load "exec_memo"; open aiLib kernel exec_memo;
 
 val inputdir = "/home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s";
 val sl1 = listDir inputdir; length sl1;
-val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1; length sl2
-val sl3 = map (fn x => inputdir ^ "/" ^ x) (dict_sort String.compare sl2);
-val sltest = first_n 100 sl1; 
+val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1; length sl2;
+val sl3 = dict_sort String.compare sl2;
+val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3;
+val sl5 = first_n 100 sl4; 
 
-parallel_exec 64 sltest;
+parallel_exec 64 sl5;
 *)  
 
 (* -------------------------------------------------------------------------
