@@ -680,13 +680,13 @@ fun parallel_exec ncore expname =
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
-    val sl = readl (dir ^ "/input")
+    val (sl,t1) = add_time readl (dir ^ "/input")
     val _ = log ("programs: " ^ its (length sl))
-    val pl = mapfilter prog_of_gpt_err sl
+    val (pl,t2) = add_time (mapfilter prog_of_gpt_err) sl
     val _ = log ("parsed: " ^ its (length pl))
     val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
     val pll = cut_n (ncore*2) pl
-    val (ill,t1) = add_time
+    val (ill,t3) = add_time
       (smlParallel.parmap_queue_extern ncore execspec ()) pll
     val il = List.concat ill
     val pseql = combine (pl,il)
@@ -701,10 +701,12 @@ fun parallel_exec ncore expname =
       in
         append_endline (dir ^ "/seq/" ^ its ht) s
       end
-    val (_,t2) = add_time (app g) pseql'
+    val (_,t4) = add_time (app g) pseql'
   in
-    log ("compute time: " ^ rts t1); 
-    log ("distrib time: " ^ rts t2)
+    log ("read time: " ^ rts_round 2 t1);
+    log ("parse time: " ^ rts_round 2 t2);
+    log ("compute time: " ^ rts_round 2 t3); 
+    log ("distrib time: " ^ rts_round 2 t4)
   end
 
 (*  
