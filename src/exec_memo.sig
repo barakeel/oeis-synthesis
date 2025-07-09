@@ -22,8 +22,8 @@ sig
   val verify_file : int -> string -> (int * kernel.prog) list
 
   (* parallel execution *)
-  val execspec : (unit, prog list, seq list) smlParallel.extspec
-  val parallel_exec : int -> string -> unit
+  val execspec : (unit, string, unit) smlParallel.extspec
+  val parallel_exec : int -> string list -> unit
   
   (* ramsey *)
   val n_glob : IntInf.int ref

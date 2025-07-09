@@ -643,15 +643,45 @@ fun verify_file tim file =
 val terms_glob = 20
 val timeout_glob = 100000
 
-fun execspec_fun pl =
-  let  
-    val i = ref 0;
-    fun f p = penum_wtime timeout_glob p terms_glob
+fun execspec_fun file =
+  let 
+    val log = print_endline
+    val dir = selfdir ^ "/exp/seqhash"
+    val progdir = dir ^ "/prog"
+    val seqdir = dir ^ "/seqpre"
+    val filename = OS.Path.file file
+    val cmd1 = "cp " ^ file ^ " " ^ filename
+    val _ = cmd_in_dir dir cmd1
+    val cmd2 = "gunzip" ^ " " ^ filename
+    val _ = cmd_in_dir dir cmd2
+    val (sl,t1) = add_time readl (progdir ^ "/" ^ filename)
+    val _ = log ("programs: " ^ its (length sl))
+    val (pl,t2) = add_time (mapfilter prog_of_gpt_err) sl
+    val _ = log ("parsed: " ^ its (length pl)) 
+    fun f p = 
+      let val seq = penum_wtime timeout_glob p terms_glob in
+        if length seq < 2 then () else 
+        let
+          val seqs = string_of_seq seq
+          val hm = hashMod 1000000 seqs
+          val ht = hm mod 1000
+          val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
+        in
+          append_endline (seqdir ^ "/" ^ its ht ^ "_" ^ filename) s
+        end
+      end
   in
-    map f pl
+    app f pl
   end
 
-val execspec : (unit, prog list, seq list) smlParallel.extspec =
+fun write_string file s = writel file [s]
+fun read_string file = hd (readl file)
+fun write_int file i = writel file [its i]
+fun read_int file = string_to_int (hd (readl file))
+fun write_unit file () = ()
+fun read_unit file = ()
+
+val execspec : (unit,string,unit) smlParallel.extspec =
   {
   self_dir = selfdir,
   self = "exec_memo.execspec",
@@ -661,58 +691,43 @@ val execspec : (unit, prog list, seq list) smlParallel.extspec =
     ["smlExecScripts.buildheap_dir := " ^ mlquote 
       (!smlExecScripts.buildheap_dir)] 
     ^ ")"),
-  function = let fun f () pl = execspec_fun pl in f end,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
-  write_arg = write_progl,
-  read_arg = read_progl,
-  write_result = write_seql,
-  read_result = read_seql
+  function = let fun f param pl = execspec_fun pl in f end,
+  write_param = write_unit,
+  read_param = read_unit,
+  write_arg = write_string,
+  read_arg = read_string,
+  write_result = write_unit,
+  read_result = read_unit
   }
 
-fun parallel_exec ncore expname =
+fun parallel_exec ncore filel =
   let
-    val dir = selfdir ^ "/exp/" ^ expname
+    val dir = selfdir ^ "/exp/seqhash"
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
     val _ = mkDir_err (dir ^ "/seq")
+    val _ = mkDir_err (dir ^ "/seqpre")
+    val _ = mkDir_err (dir ^ "/prog")
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
-    val (sl,t1) = add_time readl (dir ^ "/input")
-    val _ = log ("programs: " ^ its (length sl))
-    val (pl,t2) = add_time (mapfilter prog_of_gpt_err) sl
-    val _ = log ("parsed: " ^ its (length pl))
-    val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
-    val pll = cut_n (ncore*2) pl
-    val (ill,t3) = add_time
-      (smlParallel.parmap_queue_extern ncore execspec ()) pll
-    val il = List.concat ill
-    val pseql = combine (pl,il)
-    val pseql' = filter (fn x => length (snd x) >= 4) pseql
-    val _ = log ("seq4: " ^ its (length pseql'))
-    fun g (p,seq) = 
-      let 
-        val seqs = string_of_seq seq
-        val hm = hashMod 1000000 seqs
-        val ht = hm mod 1000
-        val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
-      in
-        append_endline (dir ^ "/seq/" ^ its ht) s
-      end
-    val (_,t4) = add_time (app g) pseql'
+    val (_,t) = add_time
+      (smlParallel.parmap_queue_extern ncore execspec ()) filel
   in
-    log ("read time: " ^ rts_round 2 t1);
-    log ("parse time: " ^ rts_round 2 t2);
-    log ("compute time: " ^ rts_round 2 t3); 
-    log ("distrib time: " ^ rts_round 2 t4)
+    log ("time: " ^ rts_round 2 t)
   end
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
 
-parallel_exec 64 "seqhash"; 
+val inputdir = "/home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s";
+val sl1 = listDir inputdir; length sl1;
+val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1; length sl2
+val sl3 = map (fn x => inputdir ^ "/" ^ x) (dict_sort String.compare sl2);
+val sltest = first_n 100 sl1; 
+
+parallel_exec 64 sltest;
 *)  
 
 (* -------------------------------------------------------------------------
