@@ -685,6 +685,7 @@ fun parallel_exec revflag ncore expname =
     val pl = mapfilter (prog_of_gpt_err o 
       (if revflag then implode o rev o explode else I)) sl
     val _ = log ("parsed: " ^ its (length pl))
+    val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
     val pll = cut_n (10 * ncore) pl
     val (ill,t) = add_time 
       (smlParallel.parmap_queue_extern ncore execspec ()) pll
@@ -702,11 +703,15 @@ fun parallel_exec revflag ncore expname =
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
-parallel_exec false 64 "seqhash";
+val sl = readl "exp/seqhash/input";
+val s = random_elem sl;
+fun frev s = (prog_of_gpt_err o implode o rev o explode) s;
+fun f s = prog_of_gpt_err s;
+val pl = map (fn s => (print "."; f s)) sl;
 
-cd exp/seqhash
-cp /home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s/exp699-knn-chk_cand.gz.p9.gz exp/seqhash
+frev s;
 
+parallel_exec true 
 *)  
 
 (* -------------------------------------------------------------------------
@@ -826,36 +831,6 @@ fun parallel_bcheck ncore expname =
     writel (dir ^ "/output") sl
   end
 
- 
-(* -------------------------------------------------------------------------
-   List sequences covered by a program
-   ------------------------------------------------------------------------- *)
-
-(*
-
-   0 1 2 3 4 5 6 7 8    9  10 11 12    13    14   15
-   A B C D E F G H I    J    K L M     N     O    P
-   0 1 2 + - * / % cond loop x y compr loop2 push pop   
-*)
-(*  
-load "exec_memo";  open kernel aiLib exec_memo;
-load "human"; open human;
-val ERR = mk_HOL_ERR "test";
-
-
-  
-val yp = Ins(y_id,[]);  
-    
-val (rl,t) = add_time cover_yenum yp;    
- 
-*)    
-   
-(*  
-load "exec_memo"; open aiLib kernel exec_memo;
-parallel_exec 60 "lmfdb3";
-*)   
-   
-    
 end (* struct *)
 
 

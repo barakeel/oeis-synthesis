@@ -423,6 +423,7 @@ val opersd = map swap
 val maxmove = Vector.length operv
 val operav = Vector.map arity_of operv
 fun arity_of_oper i = Vector.sub (operav,i)
+  handle Subscript => raise ERR "arity_of_oper" (its i)
 fun name_of_oper i = 
   if i >= Vector.length operv 
   then its i
@@ -620,7 +621,8 @@ fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
 (* do not raise an error if there are more than one program *)
 fun prog_of_tokenl_err tokenl = 
   let val progl = foldl (uncurry apply_move) [] tokenl in
-    case progl of [] => raise ERR "prog_of_tokenl" "empty"
+    case progl of 
+        [] => raise ERR "prog_of_tokenl" "empty"
       | p :: m => p
   end
 
@@ -630,10 +632,7 @@ fun removeSpaces s =
 
 fun tokenl_of_gpt_err s = 
   let 
-    val s1 = 
-      if mem #":" (explode s) 
-      then snd (split_pair #":" s)
-      else s
+    val s1 = snd (split_pair #":" s)
     val s2 = removeSpaces s1
     val sl = map Char.toString (explode s2) 
   in  
