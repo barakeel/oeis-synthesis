@@ -675,7 +675,7 @@ fun parallel_exec revflag ncore expname =
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
-    fun log s = append_endline (dir ^ "/log") s
+    fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = log expname
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
@@ -702,12 +702,11 @@ fun parallel_exec revflag ncore expname =
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
-parallel_exec 60 "lmfdb3";
-val expname = "seqhash";
-val dir = selfdir ^ "/exp/" ^ expname;
+parallel_exec false 64 "seqhash";
+
 cd exp/seqhash
-cp /home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s/exp699-knn-chk_cand.gz.p9.gz .
-parallel_exec 60 "lmfdb3";
+cp /home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s/exp699-knn-chk_cand.gz.p9.gz exp/seqhash
+
 *)  
 
 (* -------------------------------------------------------------------------
