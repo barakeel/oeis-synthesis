@@ -614,6 +614,15 @@ fun tokenl_of_gpt s =
 
 fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
 
+(* do not raise an error if there are more than one program *)
+fun prog_of_tokenl_err tokenl = 
+  let val progl = foldl (uncurry apply_move) [] tokenl in
+    case progl of [] => raise ERR "prog_of_tokenl" "empty"
+      | p :: m => p
+  end
+
+fun prog_of_gpt_err s = prog_of_tokenl_err (tokenl_of_gpt s)
+
 (* -------------------------------------------------------------------------
    Storing programs
    ------------------------------------------------------------------------- *)
@@ -870,12 +879,30 @@ fun parmap_sl ncore funname sl =
 
 fun test_fun s = (implode o rev o explode) s
 
-
 (*
 load "kernel"; open aiLib kernel;
 val sl = List.tabulate (1000, its);
 parmap_sl 2 "kernel.test_fun" sl; 
 *)
+
+(* -------------------------------------------------------------------------
+   FNV hash
+   ------------------------------------------------------------------------- *)
+
+val offset_basis = Word32.fromInt 2166136261
+val prime = Word32.fromInt 16777619
+
+fun hashChar (c,h) =
+  let val c32 = Word32.fromInt (Char.ord c) in
+    Word32.* (Word32.xorb (h, c32), prime)
+  end
+
+fun hash s = CharVector.foldl hashChar offset_basis s
+
+fun hashMod i s  =
+  Word32.toInt (Word32.mod (hash s, Word32.fromInt i))
+
+
 
 
 end (* struct *)

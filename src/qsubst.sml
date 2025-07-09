@@ -68,6 +68,15 @@ fun match (p1 as Ins(i1,pl1), p2 as Ins(i2,pl2)) =
     if i1 <> i2 orelse length pl1 <> length pl2 
     then false
     else all match (combine (pl1,pl2))
+ 
+fun with_match (p1,p2) f =
+  let 
+    val b = match (p1,p2)
+    val r = f b
+    val _ = clean_sub_glob ()
+  in
+    r
+  end 
   
 (* -------------------------------------------------------------------------
    Unification
@@ -76,7 +85,7 @@ fun match (p1 as Ins(i1,pl1), p2 as Ins(i2,pl2)) =
 fun occur_check v (Ins(i,pl)) = v = i orelse exists (occur_check v) pl;
 
 fun unifyl bindl = case bindl of
-    [] => SOME (!dirty)
+    [] => true
   | (p1',p2') :: m => 
     let val (p1 as Ins(i1,pl1), p2 as Ins(i2,pl2)) = 
       (subst_sub p1', subst_sub p2') 
@@ -85,42 +94,41 @@ fun unifyl bindl = case bindl of
         (true,true) => 
         (if i1 <> i2 then elim_var (i1,p2) else (); unifyl m)
       | (true,false) =>
-        if occur_check i1 p2 then NONE else (elim_var (i1,p2); unifyl m)
+        if occur_check i1 p2 then false else (elim_var (i1,p2); unifyl m)
       | (false,true) =>
-        if occur_check i2 p1 then NONE else (elim_var (i2,p1); unifyl m)
+        if occur_check i2 p1 then false else (elim_var (i2,p1); unifyl m)
       | (false,false) => 
-        if i1 <> i2 orelse length pl1 <> length pl2 
-        then NONE 
+        if i1 <> i2 orelse length pl1 <> length pl2 then false
         else unifyl (combine (pl1,pl2) @ m)
     end;
   
-fun unify p1 p2 = unifyl [(p1,p2)];
+fun unify (p1,p2) = unifyl [(p1,p2)];
+
+fun with_unify (p1,p2) f =
+  let
+    val b = unify (p1,p2)
+    val r = f b
+    val _ = clean_sub_glob ()
+  in
+    r
+  end 
 
 (* -------------------------------------------------------------------------
    Instantiation rule (with respect to sub_glob) 
    ------------------------------------------------------------------------- *)
 
-fun with_match (p1,p2) f =
-  let 
-    val b = match (p1,p2)
-    val r = f b
-    val _ = clean_sub_glob ()
-  in
-    r
-  end
-
-fun inst_match_aux (p as (Ins(i,pl))) =
+fun inst_aux (p as (Ins(i,pl))) =
   if is_var i then 
     case Array.sub (sub_glob, ~i) of
       NONE => p
     | SOME newp => newp
-  else Ins(i, map inst_match_aux pl)
+  else Ins(i, map inst_aux pl)
   
-fun inst_match (p1,p2) p =
-  let fun f b = if b then inst_match_aux p else p in
+fun inst_match (p1,p2,p) =
+  let fun f b = if b then inst_aux p else p in
     with_match (p1,p2) f
   end
-  
+
 (* -------------------------------------------------------------------------
    Rewrite rule (with respect to sub_glob)
    ------------------------------------------------------------------------- *)
@@ -157,8 +165,6 @@ fun mp_match_aux (p1,p2) p =
 
 fun mp_match (imp,p) =
   if not (is_imp imp) then p else mp_match_aux (dest_imp imp) p
-
-
 
 
 

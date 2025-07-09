@@ -121,6 +121,7 @@ sig
   val length_eq : 'a list -> int -> bool
   val first_diff : ('a * 'a -> order) -> 'a list -> 'a list -> ('a * 'a) option
   val compare_term_size : term * term -> order
+  val hashMod : int -> string -> int
   
   (* sequences *)
   type seq = IntInf.int list
@@ -197,6 +198,7 @@ sig
   val id_of_gpt : string -> id
   val tokenl_of_gpt : string -> int list
   val prog_of_gpt : string -> prog
+  val prog_of_gpt_err : string -> prog
   
   val tokenl_of_prog : prog -> int list
   val prog_of_tokenl : int list -> prog
