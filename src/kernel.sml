@@ -930,8 +930,7 @@ fun acquire_lock lock_dir =
 
 (* Spin until the lock is acquired *)
 fun wait_for_lock lock_dir =
-  if acquire_lock lock_dir then ()
-  else (OS.Process.sleep (Time.fromMilliseconds 1); wait_for_lock lock_dir)
+  if acquire_lock lock_dir then () else wait_for_lock lock_dir
 
 (* Release the lock by removing the directory *)
 fun release_lock lock_dir =
