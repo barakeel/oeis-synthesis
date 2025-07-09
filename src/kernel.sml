@@ -640,7 +640,7 @@ fun tokenl_of_gpt_err s =
     map id_of_gpt sl 
   end
 
-fun prog_of_gpt_err s = prog_of_tokenl_err (tokenl_of_gpt s)
+fun prog_of_gpt_err s = prog_of_tokenl_err (tokenl_of_gpt_err s)
 
 (* -------------------------------------------------------------------------
    Storing programs
