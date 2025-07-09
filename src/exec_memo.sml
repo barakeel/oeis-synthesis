@@ -686,7 +686,7 @@ fun parallel_exec ncore expname =
     val _ = log ("parsed: " ^ its (length pl))
     val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
     val pll = cut_n (ncore*2) pl
-    val (ill,t) = add_time
+    val (ill,t1) = add_time
       (smlParallel.parmap_queue_extern ncore execspec ()) pll
     val il = List.concat ill
     val pseql = combine (pl,il)
@@ -701,17 +701,14 @@ fun parallel_exec ncore expname =
       in
         append_endline (dir ^ "/seq/" ^ its ht) s
       end
+    val (_,t2) = add_time (app g) pseql'
   in
-    log ("time: " ^ rts t); 
-    app g pseql'
+    log ("compute time: " ^ rts t1); 
+    log ("distrib time: " ^ rts t2)
   end
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
-val sl = readl "exp/seqhash/input";
-val s = random_elem sl;
-fun f s = prog_of_gpt_err s;
-val pl = map (fn s => (print "."; f s)) sl;
 
 parallel_exec 64 "seqhash"; 
 *)  
