@@ -671,7 +671,7 @@ fun execspec_fun file =
           val ht = hm mod 1000
           val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
         in
-          append_endline (seqpredir ^ "/" ^ filename) s
+          append_endline (seqpredir ^ "/" ^ (OS.Path.base filename)) s
         end
       end
   in
@@ -704,6 +704,27 @@ val execspec : (unit,string,unit) smlParallel.extspec =
   read_result = read_unit
   }
 
+fun merge_seqpre () =
+  let
+    val dir = selfdir ^ "/exp/seqhash/seqpre"
+    val filel = map (fn x => dir ^ "/" ^ x) (listDir dir)
+    val array_glob = Array.tabulate (1000, fn _ => []:string list)
+    fun f s =
+      let 
+        val (s1,_) = split_pair #"|" s
+        val h = string_to_int s1 mod 1000
+      in
+        Array.update (array_glob, h, s :: Array.sub (array_glob,h))
+      end
+    fun g file = app f (readl file)
+    val _ = app g filel
+    fun seq_file i = selfdir ^ "/exp/seqhash/seq/" ^ its i;
+    val _ = List.tabulate (1000, 
+      fn i => appendl (seq_file i) (Array.sub (array_glob,i)))
+  in
+    clean_dir dir
+  end
+  
 fun parallel_exec ncore filel =
   let
     val dir = selfdir ^ "/exp/seqhash"
@@ -718,8 +739,10 @@ fun parallel_exec ncore filel =
     val _ = smlExecScripts.buildheap_dir := dir
     val (_,t) = add_time
       (smlParallel.parmap_queue_extern ncore execspec ()) filel
+    val _ = log ("compute time: " ^ rts_round 2 t)
+    val (_,t) = add_time merge_seqpre ()
   in
-    log ("time: " ^ rts_round 2 t)
+    log ("merge time: " ^ rts_round 2 t)
   end
 
 (*  
@@ -731,8 +754,23 @@ val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1; length sl2;
 val sl3 = dict_sort String.compare sl2;
 val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3;
 val sl5 = first_n 100 sl4; 
-
 parallel_exec 64 sl5;
+
+
+
+
+
+
+
+val (r,t) = add_time (map readl) filel;
+
+
+    
+length (Array.sub (array_glob,10));
+
+
+
+
 *)  
 
 (* -------------------------------------------------------------------------

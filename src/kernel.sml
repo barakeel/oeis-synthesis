@@ -618,12 +618,12 @@ fun tokenl_of_gpt s =
 
 fun prog_of_gpt s = prog_of_tokenl (tokenl_of_gpt s)
 
-(* do not raise an error if there are more than one program *)
 fun prog_of_tokenl_err tokenl = 
   let val progl = foldl (uncurry apply_move) [] tokenl in
     case progl of 
-        [] => raise ERR "prog_of_tokenl" "empty"
-      | p :: m => p
+      [] => raise ERR "prog_of_tokenl" "empty"
+    | [p] => p
+    | _ => raise ERR "prog_of_tokenl" "multiple programs"
   end
 
 (* for reading compressed exp files *)
@@ -954,5 +954,14 @@ fun append_endline_lock filepath line =
     release_lock lock_dir
   end
 
+(* -------------------------------------------------------------------------
+   Append list
+   ------------------------------------------------------------------------- *)
+
+fun appendl file sl =
+  let val oc = TextIO.openAppend file in
+    app (fn s => TextIO.output (oc, s ^ "\n")) sl;
+    TextIO.closeOut oc
+  end
 
 end (* struct *)

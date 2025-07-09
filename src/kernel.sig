@@ -124,6 +124,7 @@ sig
   val hashMod : int -> string -> int
   val split_pair : char -> string -> string * string
   val append_endline_lock : string -> string -> unit
+  val appendl : string -> string list -> unit
   
   (* sequences *)
   type seq = IntInf.int list
