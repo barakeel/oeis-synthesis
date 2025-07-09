@@ -675,8 +675,8 @@ fun parallel_exec ncore expname =
     val dir = selfdir ^ "/exp/" ^ expname
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
+    val _ = mkDir_err (dir ^ "/seq")
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
-    val _ = log expname
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
@@ -685,33 +685,35 @@ fun parallel_exec ncore expname =
     val pl = mapfilter prog_of_gpt_err sl
     val _ = log ("parsed: " ^ its (length pl))
     val _ = if null pl then raise ERR "parallel_exec" "could not parse" else ()
-    val pll = cut_n (10 * ncore) pl
-    val (ill,t) = add_time 
+    val pll = cut_n (ncore*2) pl
+    val (ill,t) = add_time
       (smlParallel.parmap_queue_extern ncore execspec ()) pll
     val il = List.concat ill
     val pseql = combine (pl,il)
     val pseql' = filter (fn x => length (snd x) >= 4) pseql
     val _ = log ("seq4: " ^ its (length pseql'))
-    fun g (p,seq) = its (hashMod 1000000 (string_of_seq seq)) ^ " | " ^ 
-      string_of_seq seq ^ " | " ^ gpt_of_prog p;
+    fun g (p,seq) = 
+      let 
+        val seqs = string_of_seq seq
+        val hm = hashMod 1000000 seqs
+        val ht = hm mod 1000
+        val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
+      in
+        append_endline (dir ^ "/seq/" ^ its ht) s
+      end
   in
-    log ("time: " ^ rts t);
-    writel (dir ^ "/output") (map g pseql');
-    log (expname ^ " :completed")
+    log ("time: " ^ rts t); 
+    app g pseql'
   end
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
 val sl = readl "exp/seqhash/input";
 val s = random_elem sl;
-fun frev s = (prog_of_gpt_err o implode o rev o explode) s;
 fun f s = prog_of_gpt_err s;
 val pl = map (fn s => (print "."; f s)) sl;
 
-f s;
-frev s;
-
-parallel_exec true 
+parallel_exec 64 "seqhash"; 
 *)  
 
 (* -------------------------------------------------------------------------
