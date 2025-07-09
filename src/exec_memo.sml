@@ -673,9 +673,10 @@ val execspec : (unit, prog list, seq list) smlParallel.extspec =
 fun parallel_exec revflag ncore expname =
   let
     val dir = selfdir ^ "/exp/" ^ expname
-    fun log s = append_endline (dir ^ "/log")
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
+    fun log s = append_endline (dir ^ "/log") s
+    val _ = log expname
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
@@ -695,11 +696,17 @@ fun parallel_exec revflag ncore expname =
       string_of_seq seq ^ " | " ^ gpt_of_prog p;
   in
     log ("time: " ^ rts t);
-    writel (dir ^ "/output") (map g pseql')
+    writel (dir ^ "/output") (map g pseql');
+    log (expname ^ " :completed")
   end
 
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
+parallel_exec 60 "lmfdb3";
+val expname = "seqhash";
+val dir = selfdir ^ "/exp/" ^ expname;
+cd exp/seqhash
+cp /home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s/exp699-knn-chk_cand.gz.p9.gz .
 parallel_exec 60 "lmfdb3";
 *)  
 

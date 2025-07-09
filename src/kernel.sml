@@ -224,6 +224,9 @@ fun compare_term_size (tm1,tm2) =
   cpl_compare Int.compare Term.compare 
     ((term_size tm1,tm1),(term_size tm2, tm2))
 
+fun split_pair c s = pair_of_list (String.tokens (fn x => x = c) s)
+  handle HOL_ERR _ => raise ERR "split_pair" (Char.toString c ^ ": " ^ s)
+
 (* -------------------------------------------------------------------------
    Sequences
    ------------------------------------------------------------------------- *)
@@ -619,6 +622,22 @@ fun prog_of_tokenl_err tokenl =
   let val progl = foldl (uncurry apply_move) [] tokenl in
     case progl of [] => raise ERR "prog_of_tokenl" "empty"
       | p :: m => p
+  end
+
+(* for reading compressed exp files *)
+fun removeSpaces s =
+  implode (List.filter (fn c => c <> #" ") (explode s))
+
+fun tokenl_of_gpt_err s = 
+  let 
+    val s1 = 
+      if mem #":" (explode s) 
+      then snd (split_pair #":" s)
+      else s
+    val s2 = removeSpaces s1
+    val sl = map Char.toString (explode s2) 
+  in  
+    map id_of_gpt sl 
   end
 
 fun prog_of_gpt_err s = prog_of_tokenl_err (tokenl_of_gpt s)

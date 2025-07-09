@@ -122,6 +122,7 @@ sig
   val first_diff : ('a * 'a -> order) -> 'a list -> 'a list -> ('a * 'a) option
   val compare_term_size : term * term -> order
   val hashMod : int -> string -> int
+  val split_pair : char -> string -> string * string
   
   (* sequences *)
   type seq = IntInf.int list
