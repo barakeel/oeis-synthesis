@@ -671,29 +671,30 @@ val execspec : (unit, prog list, seq list) smlParallel.extspec =
   }
 
 fun parallel_exec revflag ncore expname =
-  let  
+  let
     val dir = selfdir ^ "/exp/" ^ expname
+    fun log s = append_endline (dir ^ "/log")
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
       (string_to_int (dfind "search_memory" configd) handle NotFound => 12000) 
     val _ = smlExecScripts.buildheap_dir := dir
     val sl = readl (dir ^ "/input")
-    val _ = append_endline (dir ^ "/log") ("programs: " ^ its (length sl))
+    val _ = log ("programs: " ^ its (length sl))
     val pl = mapfilter (prog_of_gpt_err o 
       (if revflag then implode o rev o explode else I)) sl
-    val _ = append_endline (dir ^ "/log") ("parsed: " ^ its (length pl))
+    val _ = log ("parsed: " ^ its (length pl))
     val pll = cut_n (10 * ncore) pl
     val (ill,t) = add_time 
       (smlParallel.parmap_queue_extern ncore execspec ()) pll
     val il = List.concat ill
     val pseql = combine (pl,il)
     val pseql' = filter (fn x => length (snd x) >= 4) pseql
-    val _ = append_endline (dir ^ "/log") ("4terms: " ^ its (length pseql'))
+    val _ = log ("seq4: " ^ its (length pseql'))
     fun g (p,seq) = its (hashMod 1000000 (string_of_seq seq)) ^ " | " ^ 
       string_of_seq seq ^ " | " ^ gpt_of_prog p;
   in
-    writel (dir ^ "/log") ["time: " ^ rts t];
+    log ("time: " ^ rts t);
     writel (dir ^ "/output") (map g pseql')
   end
 
