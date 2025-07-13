@@ -664,18 +664,19 @@ fun execspec_fun file =
     val _ = log ("parsed: " ^ its (length pl)) 
     fun f p = 
       let val seq = penum_wtime timeout_glob p terms_glob in
-        if length seq < 2 then () else 
+        if length seq < 2 then NONE else 
         let
           val seqs = string_of_seq seq
           val hm = hashMod 1000000 seqs
           val ht = hm mod 1000
           val s = its hm ^ " | " ^ seqs ^ " | " ^ gpt_of_prog p
         in
-          append_endline (seqpredir ^ "/" ^ (OS.Path.base filename)) s
+          SOME s
         end
       end
   in
-    app f pl
+    appendl (seqpredir ^ "/" ^ (OS.Path.base filename))
+      (List.mapPartial f pl)
   end
 
 fun write_string file s = writel file [s]
@@ -748,13 +749,54 @@ fun parallel_exec ncore filel =
 (*  
 load "exec_memo"; open aiLib kernel exec_memo;
 
+fun init_dir inputdir =
+  let 
+    val sl1 = listDir inputdir
+    val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1
+    val sl3 = dict_sort String.compare sl2
+    val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3
+  in
+    sl4
+  end
+
+fun loop suffix remainingl = 
+  if null remainingl then () else
+  let 
+    val _ = print_endline (its (length remainingl) ^ " remaining files")
+    val (currentl,newremainingl) = part_n 1000 remainingl 
+    val _ = parallel_exec 64 currentl
+    val _ = appendl (selfdir ^ "/exp/seqhash/done_" ^ suffix) currentl
+  in
+    loop suffix newremainingl
+  end;
+
+
+
+(* fnv600s *)
 val inputdir = "/home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s";
-val sl1 = listDir inputdir; length sl1;
-val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1; length sl2;
-val sl3 = dict_sort String.compare sl2;
-val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3;
-val sl5 = first_n 100 sl4; 
-parallel_exec 64 sl5;
+val remainingl = init_dir inputdir;
+loop "fnv600s" remainingl;
+
+mv seq seq_fnv600s
+mkdir seq_fnv600s_gz
+ls seq_fnv600s | parallel -j 10 'sort -u seq_fnv600s/{} | gzip > seq_fnv600s_gz/{}.gz'
+
+(* fnv1 *)
+val dirname = List.nth (dirl,0); 
+val inputdir = dir ^ "/" ^ dirname;
+val remainingl = init_dir inputdir; length remainingl;
+loop dirname remainingl;
+
+mv seq seq_fnv1
+mkdir seq_fnv1_gz
+ls seq_fnv1 | parallel -j 10 'sort -u seq_fnv1/{} | gzip > seq_fnv1_gz/{}.gz'
+
+(* *)
+val dirname = List.nth (dirl,1);
+val inputdir = dir ^ "/" ^ dirname;
+val remainingl = init_dir inputdir; length remainingl;
+loop dirname remainingl;
+
 *)  
 
 (* -------------------------------------------------------------------------

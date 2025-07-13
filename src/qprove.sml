@@ -8,25 +8,36 @@ open aiLib kernel sexp qsubst
 val ERR = mk_HOL_ERR "qprove"
 
 type prog = kernel.prog
-type record = {intl : int list, terml: prog list, thml: prog list};
-type exec = record * record -> record
+
+type exec = object list * object list -> object list
 
 
+datatype object = Thm of (prog list * prog)| Term of prog | Int of int 
+
+(* fails if wrong types or if no effect in the initial brute force search *)
+
+(* -------------------------------------------------------------------------
+   Natural deduction rules
+   ------------------------------------------------------------------------- *)
 
 
-val empty_record = 
-  {intl = ([]: int list), 
-   terml = ([]: prog list),
-   thml = ([]: prog list)};
+instantiate (term1,term2) term:
+- (use the substitution obtain by unifying/matching term to instantiate)
+rewrite n (rewrite at the nth position that matches)
 
-fun update_intl newintl ({intl,terml,thml}:record) = 
-  ({intl = newintl,terml = terml, thml = thml}: record);
+(* *)
+resolve n thm1 thm2 (after the nth literal that unifies/matches)
+F is a sorted list with a pointer, merging the list.
+F |- A
+G |- [~A,B,C]
 
-fun update_terml newterml ({intl,terml,thml}:record) = 
-  ({intl = intl,terml = newterml, thml = thml}: record);
 
-fun update_thml newthml ({intl,terml,thml}:record) = 
-  ({intl = intl,terml = terml, thml = newthml}: record);
+F @ G |- [B,C]
+~A \/ B
+
+I will need a efficient clausifier: or could i just define the rules
+to get to clauses: skolemization, demorgan laws, etc.
+
 
 (* -------------------------------------------------------------------------
    Time limit wrapper
