@@ -675,8 +675,7 @@ fun execspec_fun file =
         end
       end
   in
-    appendl (seqpredir ^ "/" ^ (OS.Path.base filename))
-      (List.mapPartial f pl)
+    writel (seqpredir ^ "/" ^ (OS.Path.base filename)) (List.mapPartial f pl)
   end
 
 fun write_string file s = writel file [s]
