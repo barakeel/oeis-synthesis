@@ -20,7 +20,7 @@ datatype object = Thm of (prog list * prog)| Term of prog | Int of int
    Natural deduction rules
    ------------------------------------------------------------------------- *)
 
-
+(*
 instantiate (term1,term2) term:
 - (use the substitution obtain by unifying/matching term to instantiate)
 rewrite n (rewrite at the nth position that matches)
@@ -37,7 +37,7 @@ F @ G |- [B,C]
 
 I will need a efficient clausifier: or could i just define the rules
 to get to clauses: skolemization, demorgan laws, etc.
-
+*)
 
 (* -------------------------------------------------------------------------
    Time limit wrapper

@@ -722,7 +722,7 @@ fun merge_seqpre () =
     val _ = List.tabulate (1000, 
       fn i => appendl (seq_file i) (Array.sub (array_glob,i)))
   in
-    clean_dir dir
+    app remove_file filel
   end
   
 fun parallel_exec ncore filel =
@@ -731,7 +731,6 @@ fun parallel_exec ncore filel =
     val _ = mkDir_err (selfdir ^ "/exp")
     val _ = mkDir_err dir
     val _ = mkDir_err (dir ^ "/seq")
-    val _ = mkDir_err (dir ^ "/seqpre")
     val _ = mkDir_err (dir ^ "/prog")
     fun log s = (print_endline s; append_endline (dir ^ "/log") s)
     val _ = smlExecScripts.buildheap_options :=  "--maxheap " ^ its 
@@ -768,8 +767,9 @@ fun loop suffix remainingl =
   in
     loop suffix newremainingl
   end;
-
-
+  
+val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
+val dirl = listDir dir;
 
 (* fnv600s *)
 val inputdir = "/home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s";
@@ -790,11 +790,155 @@ mv seq seq_fnv1
 mkdir seq_fnv1_gz
 ls seq_fnv1 | parallel -j 10 'sort -u seq_fnv1/{} | gzip > seq_fnv1_gz/{}.gz'
 
-(* *)
+(* fnv500s *)
 val dirname = List.nth (dirl,1);
 val inputdir = dir ^ "/" ^ dirname;
 val remainingl = init_dir inputdir; length remainingl;
 loop dirname remainingl;
+
+mv seq seq_fnv500s
+mkdir seq_fnv500s_gz
+ls seq_fnv500s | parallel -j 10 'sort -u seq_fnv500s/{} | gzip > seq_fnv500s_gz/{}.gz'
+*)
+
+(*
+ln -s /dev/shm/thibault/sortpre sortpre
+ln -s /dev/shm/thibault/seqpre seqpre
+l
+load "exec_memo"; open aiLib kernel exec_memo;
+
+load "aiLib"; open aiLib;
+dict_sort (list_compare Int.compare) [[],[1,2],[0]];
+
+mkdir sort
+mkdir sortpre
+
+rm sortpre/0
+
+val expdir = selfdir ^ "/exp/seqhash";
+val sortdir = expdir ^ "/sort";
+val sortpredir = expdir ^ "/sortpre";
+val inputdir = expdir ^ "/seq_fnv600s_gz";
+val _ = app mkDir_err [expdir,sortdir,sortpredir];
+
+val sl = listDir inputdir;
+val file_gz = hd sl;
+
+
+val cmd = "gunzip -c " ^ inputdir ^ "/" ^ file_gz ^ " > " ^ 
+  sortpredir ^ "/" ^ OS.Path.base file_gz;
+val _ = cmd_in_dir expdir cmd;
+
+val sl = readl (sortpredir ^ "/" ^ OS.Path.base file_gz);
+length sl;
+
+fun parse_gz s = 
+  let 
+    val (s1,s2,s3) = triple_of_list (String.tokens (fn x => x = #"|") s) 
+    val seq = seq_of_string s2
+  in
+    (seq, string_of_seq seq ^ " :" ^ s3)
+  end;
+  
+val (l1,t) = add_time (map parse_gz) sl; 
+val (l2,t) = add_time (dict_sort (fst_compare seq_compare)) l1;
+
+fun split_sep_aux sep prevl l = case l of
+    [] => (rev prevl, l)
+  | (a,b) :: m => 
+    if seq_compare (sep,a) = GREATER
+    then split_sep_aux sep ((a,b) :: prevl) m
+    else (rev prevl, l)
+;
+(* files should no exceed 200,000 lines *)
+
+fun split_sep sep l = split_sep_aux sep [] l;
+  
+val ((l3,l4),t) = add_time (split_sep [0]) l2;
+  
+fun split_sepl sepl l = case sepl of
+    [] => [l]
+  | sep :: m =>
+    let val (l1,l2) = split_sep sep l in
+      l1 :: split_sepl m l2
+    end
+
+
+
+fun parse_old s = 
+  let 
+    val (s1,s2) = String.tokens (fn x => x = #":") s
+    val seq = seq_of_string s1
+  in
+    (seq, string_of_seq seq ^ " :" ^ s2)
+  end;
+
+fun remove_dupe_snd l = case l of
+    [] => []
+  | [a] => [a]
+  | (a1,a2) :: (b1,b2) :: m => 
+    if a2 = b2 then remove_dupe_snd ((b1,b2) :: m) 
+    else (a1,a2) :: remove_dupe_snd ((b1,b2) :: m)
+  ;
+fun string_of_seq_u il = String.concatWith "_" (map infts il);
+fun seq_of_string_u s = map stinf (String.tokens (fn x => x = #"_") s);
+
+fun sortfile l = sortdir ^ "/" ^ string_of_seq_u (fst (hd l));
+
+(* first batch accept everything towards neg infinitiy *)
+fun write_batch batch = writel (sortfile batch) (map snd batch);
+
+fun split_further l = 
+  let
+    val oldfile = readl (sortfile l)
+    val oldl = map parse_old oldfile
+    val _ = remove_file oldfile
+    val newl = dict_sort (fst_compare seq_compare) (oldl @ l)
+    val r = remove_dupe_snd newl
+    val batchl = mk_batch_full 1000000 r
+    val headerl = map (fn x => fst (hd x)) batchl
+  in
+    app write_batch batchl
+  end
+  
+
+10,000 buckets since each file is split into 10,000 buckets.
+e.g. basically replace the value with the range.
+
+to compute the bucket take 100 files at random
+and read them into memory, 
+compute the percentile for each file.
+so 999 separators at 
+
+
+val newsep = 
+  
+    
+    
+  
+ 
+If a file exceed 200,000 lines split into files of at most 100,000 lines
+
+
+
+
+mk_sameorder_set String.compare 
+  
+1) sort the files 
+2) decompose it into existing batches
+3) split batches if necessary (and remove duplicates)
+
+
+OS.Path.base 
+val sl = readl (sortpredir ^ "/" ^ OS.Path.base file_gz);
+smallest file is always named "_" (empty list)
+otherfiles are named "_" followed by their smallest sequence.
+
+info: list all the files followed by their sizes.
+initially 0:0
+
+1) sort the list
+2) decompose the
 
 *)  
 
