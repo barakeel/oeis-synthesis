@@ -637,7 +637,7 @@ fun verify_file tim file =
   end
 
 (* -------------------------------------------------------------------------
-   Parallel execution: on reversed input
+   Parallel execution (on reversed input?)
    ------------------------------------------------------------------------- *)
 
 val terms_glob = 20
@@ -704,6 +704,22 @@ val execspec : (unit,string,unit) smlParallel.extspec =
   read_result = read_unit
   }
 
+fun bare_readl_app f path =
+  let
+    val file = TextIO.openIn path
+    fun loop file = case TextIO.inputLine file of
+        SOME line => (f line; loop file)
+      | NONE => ()
+  in
+    loop file; TextIO.closeIn file
+  end;
+
+fun bare_appendl file sl =
+  let val oc = TextIO.openAppend file in
+    app (fn s => TextIO.output (oc,s)) sl;
+    TextIO.closeOut oc
+  end
+
 fun merge_seqpre () =
   let
     val dir = selfdir ^ "/exp/seqhash/seqpre"
@@ -716,11 +732,10 @@ fun merge_seqpre () =
       in
         Array.update (array_glob, h, s :: Array.sub (array_glob,h))
       end
-    fun g file = app f (readl file)
-    val _ = app g filel
+    val _ = app (bare_readl_app f) filel
     fun seq_file i = selfdir ^ "/exp/seqhash/seq/" ^ its i;
     val _ = List.tabulate (1000, 
-      fn i => appendl (seq_file i) (Array.sub (array_glob,i)))
+      fn i => bare_appendl (seq_file i) (Array.sub (array_glob,i)))
   in
     app remove_file filel
   end
@@ -744,7 +759,14 @@ fun parallel_exec ncore filel =
     log ("merge time: " ^ rts_round 2 t)
   end
 
-(*  
+(* -------------------------------------------------------------------------
+   Producing sequences and hashing them
+   ------------------------------------------------------------------------- *)
+
+(*
+ln -s /dev/shm/thibault/sortpre sortpre
+ln -s /dev/shm/thibault/seqpre seqpre
+  
 load "exec_memo"; open aiLib kernel exec_memo;
 
 fun init_dir inputdir =
@@ -799,146 +821,194 @@ loop dirname remainingl;
 mv seq seq_fnv500s
 mkdir seq_fnv500s_gz
 ls seq_fnv500s | parallel -j 10 'sort -u seq_fnv500s/{} | gzip > seq_fnv500s_gz/{}.gz'
+
+(* fnv2 *) 
+val dirname = List.nth (dirl,2);
+val inputdir = dir ^ "/" ^ dirname;
+val remainingl = init_dir inputdir; length remainingl; (* 276000 *)
+loop dirname remainingl;
+
+mv seq seq_fnv2
+mkdir seq_fnv2_gz
+ls seq_fnv2 | parallel -j 10 'sort -u seq_fnv2/{} | gzip > seq_fnv2_gz/{}.gz'
 *)
 
+(* -------------------------------------------------------------------------
+   Sorting sequences by their prefix
+   ------------------------------------------------------------------------- *)
+
 (*
-ln -s /dev/shm/thibault/sortpre sortpre
-ln -s /dev/shm/thibault/seqpre seqpre
-l
 load "exec_memo"; open aiLib kernel exec_memo;
 
-load "aiLib"; open aiLib;
-dict_sort (list_compare Int.compare) [[],[1,2],[0]];
-
-mkdir sort
-mkdir sortpre
-
-rm sortpre/0
-
+val ERR = mk_HOL_ERR "test";
 val expdir = selfdir ^ "/exp/seqhash";
 val sortdir = expdir ^ "/sort";
 val sortpredir = expdir ^ "/sortpre";
-val inputdir = expdir ^ "/seq_fnv600s_gz";
-val _ = app mkDir_err [expdir,sortdir,sortpredir];
 
-val sl = listDir inputdir;
-val file_gz = hd sl;
+datatype tree = Node of tree vector | Leaf of (int list * int * string list);
+val init = Node (Vector.tabulate (11, fn i => Leaf ([i],0,[])));
 
+fun string_subo (s,i) = SOME (String.sub (s,i)) handle Subscript => NONE;
 
-val cmd = "gunzip -c " ^ inputdir ^ "/" ^ file_gz ^ " > " ^ 
-  sortpredir ^ "/" ^ OS.Path.base file_gz;
-val _ = cmd_in_dir expdir cmd;
+fun its_ i = if i = 10 then "_" else its i
+fun cti_ c = if c = #"_" then 10 else string_to_int (Char.toString c)
 
-val sl = readl (sortpredir ^ "/" ^ OS.Path.base file_gz);
-length sl;
+fun prefix_of_path path = String.concat (map its_ (rev path))
+fun path_of_prefix s = rev (map cti_ (explode s))
+fun name_path path = sortdir ^ "/" ^ prefix_of_path path;
 
-fun parse_gz s = 
-  let 
-    val (s1,s2,s3) = triple_of_list (String.tokens (fn x => x = #"|") s) 
-    val seq = seq_of_string s2
-  in
-    (seq, string_of_seq seq ^ " :" ^ s3)
+fun next_int (s,i) = case string_subo (s,i) of 
+    SOME c => if Char.isDigit c
+              then (string_to_int (Char.toString c), i+1)
+              else next_int (s,i+1)
+  | NONE => (10,i+1);
+
+fun next_int_n n (s,i) = 
+  if n <= 0 then fst (next_int (s,i)) else
+  let val (_,newi) = next_int (s,i) in
+    next_int_n (n-1) (s,newi)
   end;
   
-val (l1,t) = add_time (map parse_gz) sl; 
-val (l2,t) = add_time (dict_sort (fst_compare seq_compare)) l1;
+fun pos_int n s = next_int_n n (s,0);
 
-fun split_sep_aux sep prevl l = case l of
-    [] => (rev prevl, l)
-  | (a,b) :: m => 
-    if seq_compare (sep,a) = GREATER
-    then split_sep_aux sep ((a,b) :: prevl) m
-    else (rev prevl, l)
-;
-(* files should no exceed 200,000 lines *)
+fun split_leaf (path,entryl) =
+  let 
+    val oldsl = readl (name_path path)
+    val arr = Array.tabulate (11, fn _ => [])
+    fun update_arr n s = 
+      let val i = pos_int n s in
+        Array.update (arr, i, s :: Array.sub (arr,i))
+      end
+    val _ = app (update_arr (length path)) (oldsl @ entryl)
+    fun f (i,sl) = 
+      (
+      writel (name_path (i :: path)) sl;
+      Leaf (i :: path, length sl, [])
+      )
+    val r = Vector.mapi f (Array.vector arr)
+    val _ = remove_file (name_path path)
+  in
+    Node r
+  end;
 
-fun split_sep sep l = split_sep_aux sep [] l;
-  
-val ((l3,l4),t) = add_time (split_sep [0]) l2;
-  
-fun split_sepl sepl l = case sepl of
-    [] => [l]
-  | sep :: m =>
-    let val (l1,l2) = split_sep sep l in
-      l1 :: split_sepl m l2
+fun add_leaf_aux tree (s,i) = case tree of 
+    Leaf (a,b,c) => if b + 1 <= 500000 orelse hd a = 10 
+                    then Leaf (a, b+1, s :: c)
+                    else split_leaf (a,c)
+  | Node v => 
+    let 
+      val (pathe,newi) = next_int (s,i) 
+      val subtree = add_leaf_aux (Vector.sub (v,pathe)) (s,newi) 
+      val newv = Vector.update (v,pathe,subtree)
+    in
+      Node newv
+    end;
+
+fun add_leaf (s,tree) = add_leaf_aux tree (s,0);
+
+
+fun read_tree_aux d prefix =
+  if dmem prefix d 
+    then Leaf (path_of_prefix prefix, string_to_int (dfind prefix d), []) 
+  else if dmem (prefix ^ "_") d then 
+    let 
+      fun f i = read_tree_aux d (prefix ^ its_ i)
+      val v = Vector.tabulate (11,f)
+    in
+      Node v
     end
+  else raise ERR "read_tree_aux" prefix;
 
-
-
-fun parse_old s = 
+fun read_tree () =
   let 
-    val (s1,s2) = String.tokens (fn x => x = #":") s
-    val seq = seq_of_string s1
+    val sl0 = readl (sortdir ^ "/tree")
+    val sl1 = map (split_pair #" ") sl0
+    val d = dnew String.compare sl1
   in
-    (seq, string_of_seq seq ^ " :" ^ s2)
+    read_tree_aux d ""
+  end;
+  
+fun all_leafs_aux l tree = case tree of
+    Leaf x => l := x :: !l
+  | Node v => Vector.app (all_leafs_aux l) v;
+
+fun all_leafs tree = 
+  let val l = ref [] in all_leafs_aux l tree; rev (!l) end;
+
+fun write_tree tree = 
+  let fun f (path,size,_) = prefix_of_path path ^ " " ^ its size in
+    writel (sortdir ^ "/tree") (map f (all_leafs tree))
   end;
 
-fun remove_dupe_snd l = case l of
-    [] => []
-  | [a] => [a]
-  | (a1,a2) :: (b1,b2) :: m => 
-    if a2 = b2 then remove_dupe_snd ((b1,b2) :: m) 
-    else (a1,a2) :: remove_dupe_snd ((b1,b2) :: m)
-  ;
-fun string_of_seq_u il = String.concatWith "_" (map infts il);
-fun seq_of_string_u s = map stinf (String.tokens (fn x => x = #"_") s);
+fun dump_tree tree =
+  let 
+    fun f (path,_,sl) =
+      let val file = name_path path in
+        if not (exists_file file) then raise ERR "dump_tree" file 
+        else appendl file sl
+      end
+  in 
+    app f (all_leafs tree)
+  end;
 
-fun sortfile l = sortdir ^ "/" ^ string_of_seq_u (fst (hd l));
-
-(* first batch accept everything towards neg infinitiy *)
-fun write_batch batch = writel (sortfile batch) (map snd batch);
-
-fun split_further l = 
+fun bare_readl_foldl f statetop path =
   let
-    val oldfile = readl (sortfile l)
-    val oldl = map parse_old oldfile
-    val _ = remove_file oldfile
-    val newl = dict_sort (fst_compare seq_compare) (oldl @ l)
-    val r = remove_dupe_snd newl
-    val batchl = mk_batch_full 1000000 r
-    val headerl = map (fn x => fst (hd x)) batchl
+    val file = TextIO.openIn path
+    fun loop state file = case TextIO.inputLine file of
+        SOME line => loop (f state line) file
+      | NONE => state
+    val r = loop statetop file
   in
-    app write_batch batchl
-  end
-  
+    TextIO.closeIn file; r
+  end;
 
-10,000 buckets since each file is split into 10,000 buckets.
-e.g. basically replace the value with the range.
-
-to compute the bucket take 100 files at random
-and read them into memory, 
-compute the percentile for each file.
-so 999 separators at 
-
-
-val newsep = 
-  
-    
-    
-  
- 
-If a file exceed 200,000 lines split into files of at most 100,000 lines
+fun parse_gz s =
+  let 
+    fun rmt_spaces s = String.concatWith " " (String.tokens Char.isSpace s)
+    fun rm_spaces s = String.concat (String.tokens Char.isSpace s)
+    val (s1,s2,s3) = triple_of_list (String.tokens (fn x => x = #"|") s) 
+  in
+    rmt_spaces s2 ^ " : " ^ rm_spaces s3
+  end;
 
 
 
+fun insert_tree_gz inputdir file_gz =
+  let 
+    val logfile = sortdir ^ "/log"
+    fun log s = (append_endline logfile s; print_endline s);
+    val _ = log ("file: " ^ inputdir ^ "/" ^ file_gz)
+    val temp = sortpredir ^ "/" ^ OS.Path.base file_gz
+    val cmd = "gunzip -c " ^ inputdir ^ "/" ^ file_gz ^ " > " ^ temp
+    val (_,t) = add_time (cmd_in_dir expdir) cmd
+    val _ = log ("unzip: " ^ rts_round 2 t)
+    fun f treeloc s = add_leaf (parse_gz s, treeloc)
+    val tree = read_tree ()
+    val (newtree,t) = add_time (bare_readl_foldl f tree) temp
+    val _ = log ("read_parse_insert: " ^ rts_round 2 t)
+    val _ = remove_file temp
+    val (_,t) = add_time dump_tree newtree
+    val _ = log ("dump: " ^ rts_round 2 t)
+    val _ = write_tree newtree
+  in
+    print_endline ("leafs: " ^ its (length (all_leafs newtree)))
+  end;
 
-mk_sameorder_set String.compare 
-  
-1) sort the files 
-2) decompose it into existing batches
-3) split batches if necessary (and remove duplicates)
+fun init_sort () = 
+  (
+  mkDir_err sortdir;
+  app remove_file (map (fn x => sortdir ^ "/" ^ x) (listDir sortdir));
+  app erase_file (List.tabulate (11,(fn i => sortdir ^ "/" ^ its_ i)));
+  writel (sortdir ^ "/tree") (List.tabulate (11,fn i => its_ i ^ " 0"))
+  )
+  ;
+
+init_sort ();
+
+val inputdir = expdir ^ "/seq_fnv600s_gz";
+val (_,t) = add_time (app (insert_tree_gz inputdir)) (listDir inputdir);
 
 
-OS.Path.base 
-val sl = readl (sortpredir ^ "/" ^ OS.Path.base file_gz);
-smallest file is always named "_" (empty list)
-otherfiles are named "_" followed by their smallest sequence.
-
-info: list all the files followed by their sizes.
-initially 0:0
-
-1) sort the list
-2) decompose the
 
 *)  
 
