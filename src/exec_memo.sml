@@ -764,10 +764,18 @@ fun parallel_exec ncore filel =
    ------------------------------------------------------------------------- *)
 
 (*
-ln -s /dev/shm/thibault/sortpre sortpre
+mkdir /dev/shm/thibault/seqpre
 ln -s /dev/shm/thibault/seqpre seqpre
-  
+mkdir /dev/shm/thibault/prog
+ln -s /dev/shm/thibault/prog prog 
+mkdir /scratch/thibault/seq
+ln -s /scratch/thibault/seq seq
+
 load "exec_memo"; open aiLib kernel exec_memo;
+
+val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
+val dirl = listDir dir;
+
 
 fun init_dir inputdir =
   let 
@@ -777,25 +785,23 @@ fun init_dir inputdir =
     val sl4 = map (fn x => inputdir ^ "/" ^ x) sl3
   in
     sl4
-  end
+  end;
 
 fun loop suffix remainingl = 
   if null remainingl then () else
   let 
     val _ = print_endline (its (length remainingl) ^ " remaining files")
     val (currentl,newremainingl) = part_n 1000 remainingl 
-    val _ = parallel_exec 64 currentl
+    val _ = parallel_exec 40 currentl
     val _ = appendl (selfdir ^ "/exp/seqhash/done_" ^ suffix) currentl
   in
     loop suffix newremainingl
   end;
   
-val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
-val dirl = listDir dir;
 
 (* fnv600s *)
-val inputdir = "/home/mptp/nfs/oe2/bcksol-air03__fnv/fnv600s";
-val remainingl = init_dir inputdir;
+val inputdir = dir ^ "/fnv600s";
+val remainingl = init_dir inputdir; length remainingl; (* 140000 *)
 loop "fnv600s" remainingl;
 
 mv seq seq_fnv600s
@@ -831,6 +837,20 @@ loop dirname remainingl;
 mv seq seq_fnv2
 mkdir seq_fnv2_gz
 ls seq_fnv2 | parallel -j 10 'sort -u seq_fnv2/{} | gzip > seq_fnv2_gz/{}.gz'
+
+(* fnv *) 
+val dirname = List.nth (dirl,3);
+val inputdir = dir ^ "/" ^ dirname;
+val remainingl = init_dir inputdir; length remainingl; (* 224000 *)
+loop dirname remainingl;
+
+mv seq seq_fnv
+mkdir seq_fnv_gz
+ls seq_fnv | parallel -j 10 'sort -u seq_fnv/{} | gzip > seq_fnv_gz/{}.gz'
+
+(* *)
+
+
 *)
 
 (* -------------------------------------------------------------------------
@@ -838,6 +858,14 @@ ls seq_fnv2 | parallel -j 10 'sort -u seq_fnv2/{} | gzip > seq_fnv2_gz/{}.gz'
    ------------------------------------------------------------------------- *)
 
 (*
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
+
+mkdir /dev/shm/thibault/sortpre
+ln -s /dev/shm/thibault/sortpre sortpre
+
+rlwrap ../HOL/bin/hol --maxheap=200000
+
 load "exec_memo"; open aiLib kernel exec_memo;
 
 val ERR = mk_HOL_ERR "test";
@@ -970,8 +998,6 @@ fun parse_gz s =
   in
     rmt_spaces s2 ^ " : " ^ rm_spaces s3
   end;
-
-
 
 fun insert_tree_gz inputdir file_gz =
   let 

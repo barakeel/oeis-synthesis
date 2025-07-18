@@ -12,7 +12,7 @@ type prog = kernel.prog
 type exec = object list * object list -> object list
 
 
-datatype object = Thm of (prog list * prog)| Term of prog | Int of int 
+datatype object = Thm of prog | Term of prog | Int of int 
 
 (* fails if wrong types or if no effect in the initial brute force search *)
 
