@@ -42,4 +42,11 @@ sig
   val backv_default : IntInf.int vector
   val backv_glob : IntInf.int vector ref
 
+  (* computing sequences and their hashes *)
+  val seqhash_init : string -> string list
+  val seqhash_loop : int -> string -> string list -> unit
+  (* sorting sequence-program pairs by their sequences *)
+  val seqsort_init : unit -> unit
+  val seqsort_insert : string -> string -> unit
+
 end

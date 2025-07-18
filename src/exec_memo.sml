@@ -763,21 +763,7 @@ fun parallel_exec ncore filel =
    Producing sequences and hashing them
    ------------------------------------------------------------------------- *)
 
-(*
-mkdir /dev/shm/thibault/seqpre
-ln -s /dev/shm/thibault/seqpre seqpre
-mkdir /dev/shm/thibault/prog
-ln -s /dev/shm/thibault/prog prog 
-mkdir /scratch/thibault/seq
-ln -s /scratch/thibault/seq seq
-
-load "exec_memo"; open aiLib kernel exec_memo;
-
-val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
-val dirl = listDir dir;
-
-
-fun init_dir inputdir =
+fun seqhash_init inputdir =
   let 
     val sl1 = listDir inputdir
     val sl2 = filter (fn x => String.isSuffix ".gz" x) sl1
@@ -787,91 +773,47 @@ fun init_dir inputdir =
     sl4
   end;
 
-fun loop suffix remainingl = 
+fun seqhash_loop ncore suffix remainingl = 
   if null remainingl then () else
   let 
     val _ = print_endline (its (length remainingl) ^ " remaining files")
     val (currentl,newremainingl) = part_n 1000 remainingl 
-    val _ = parallel_exec 40 currentl
+    val _ = parallel_exec ncore currentl
     val _ = appendl (selfdir ^ "/exp/seqhash/done_" ^ suffix) currentl
   in
-    loop suffix newremainingl
+    seqhash_loop ncore suffix newremainingl
   end;
-  
 
-(* fnv600s *)
-val inputdir = dir ^ "/fnv600s";
-val remainingl = init_dir inputdir; length remainingl; (* 140000 *)
-loop "fnv600s" remainingl;
+(*
+mkdir /scratch/thibault/seqpre
+ln -s /scratch/thibault/seqpre seqpre
+mkdir /scratch/thibault/prog
+ln -s /scratch/thibault/prog prog 
+mkdir /scratch/thibault/seq
+ln -s /scratch/thibault/seq seq
 
-mv seq seq_fnv600s
-mkdir seq_fnv600s_gz
-ls seq_fnv600s | parallel -j 10 'sort -u seq_fnv600s/{} | gzip > seq_fnv600s_gz/{}.gz'
+load "exec_memo"; open aiLib kernel exec_memo;
 
-(* fnv1 *)
-val dirname = List.nth (dirl,0); 
-val inputdir = dir ^ "/" ^ dirname;
-val remainingl = init_dir inputdir; length remainingl;
-loop dirname remainingl;
-
-mv seq seq_fnv1
-mkdir seq_fnv1_gz
-ls seq_fnv1 | parallel -j 10 'sort -u seq_fnv1/{} | gzip > seq_fnv1_gz/{}.gz'
-
-(* fnv500s *)
-val dirname = List.nth (dirl,1);
-val inputdir = dir ^ "/" ^ dirname;
-val remainingl = init_dir inputdir; length remainingl;
-loop dirname remainingl;
-
-mv seq seq_fnv500s
-mkdir seq_fnv500s_gz
-ls seq_fnv500s | parallel -j 10 'sort -u seq_fnv500s/{} | gzip > seq_fnv500s_gz/{}.gz'
-
-(* fnv2 *) 
-val dirname = List.nth (dirl,2);
-val inputdir = dir ^ "/" ^ dirname;
-val remainingl = init_dir inputdir; length remainingl; (* 276000 *)
-loop dirname remainingl;
-
-mv seq seq_fnv2
-mkdir seq_fnv2_gz
-ls seq_fnv2 | parallel -j 10 'sort -u seq_fnv2/{} | gzip > seq_fnv2_gz/{}.gz'
+val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
+val dirl = listDir dir;
 
 (* fnv *) 
 val dirname = List.nth (dirl,3);
 val inputdir = dir ^ "/" ^ dirname;
 val remainingl = init_dir inputdir; length remainingl; (* 224000 *)
-loop dirname remainingl;
+seqhash_loop 40 dirname remainingl;
 
-mv seq seq_fnv
 mkdir seq_fnv_gz
-ls seq_fnv | parallel -j 10 'sort -u seq_fnv/{} | gzip > seq_fnv_gz/{}.gz'
-
-(* *)
-
+ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv_gz/{}.gz'
+(* remove files in seq *)
 
 *)
 
 (* -------------------------------------------------------------------------
-   Sorting sequences by their prefix
+   Sorting sequences by their prefix (fixed directory)
    ------------------------------------------------------------------------- *)
 
-(*
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
-
-mkdir /dev/shm/thibault/sortpre
-ln -s /dev/shm/thibault/sortpre sortpre
-
-rlwrap ../HOL/bin/hol --maxheap=200000
-
-load "exec_memo"; open aiLib kernel exec_memo;
-
-val ERR = mk_HOL_ERR "test";
-val expdir = selfdir ^ "/exp/seqhash";
-val sortdir = expdir ^ "/sort";
-val sortpredir = expdir ^ "/sortpre";
+val sortdir = selfdir ^ "/exp/seqhash/sort"
 
 datatype tree = Node of tree vector | Leaf of (int list * int * string list);
 val init = Node (Vector.tabulate (11, fn i => Leaf ([i],0,[])));
@@ -934,7 +876,6 @@ fun add_leaf_aux tree (s,i) = case tree of
 
 fun add_leaf (s,tree) = add_leaf_aux tree (s,0);
 
-
 fun read_tree_aux d prefix =
   if dmem prefix d 
     then Leaf (path_of_prefix prefix, string_to_int (dfind prefix d), []) 
@@ -947,9 +888,9 @@ fun read_tree_aux d prefix =
     end
   else raise ERR "read_tree_aux" prefix;
 
-fun read_tree () =
+fun read_tree file =
   let 
-    val sl0 = readl (sortdir ^ "/tree")
+    val sl0 = readl file
     val sl1 = map (split_pair #" ") sl0
     val d = dnew String.compare sl1
   in
@@ -963,9 +904,9 @@ fun all_leafs_aux l tree = case tree of
 fun all_leafs tree = 
   let val l = ref [] in all_leafs_aux l tree; rev (!l) end;
 
-fun write_tree tree = 
+fun write_tree file tree = 
   let fun f (path,size,_) = prefix_of_path path ^ " " ^ its size in
-    writel (sortdir ^ "/tree") (map f (all_leafs tree))
+    writel file (* () *) (map f (all_leafs tree))
   end;
 
 fun dump_tree tree =
@@ -999,9 +940,20 @@ fun parse_gz s =
     rmt_spaces s2 ^ " : " ^ rm_spaces s3
   end;
 
-fun insert_tree_gz inputdir file_gz =
+fun seqsort_init () = 
+  (
+  mkDir_err sortdir;
+  app remove_file (map (fn x => sortdir ^ "/" ^ x) (listDir sortdir));
+  app erase_file (List.tabulate (11,(fn i => sortdir ^ "/" ^ its_ i)));
+  writel (sortdir ^ "/tree") (List.tabulate (11,fn i => its_ i ^ " 0"))
+  )
+
+fun seqsort_insert inputdir file_gz =
   let 
-    val logfile = sortdir ^ "/log"
+    val expdir = selfdir ^ "/exp/seqhash"
+    val treefile = sortdir ^ "/tree"
+    val sortpredir = expdir ^ "/sortpre"
+    val logfile = sortdir ^ "/log" ^ "_" ^ OS.Path.file inputdir
     fun log s = (append_endline logfile s; print_endline s);
     val _ = log ("file: " ^ inputdir ^ "/" ^ file_gz)
     val temp = sortpredir ^ "/" ^ OS.Path.base file_gz
@@ -1009,33 +961,36 @@ fun insert_tree_gz inputdir file_gz =
     val (_,t) = add_time (cmd_in_dir expdir) cmd
     val _ = log ("unzip: " ^ rts_round 2 t)
     fun f treeloc s = add_leaf (parse_gz s, treeloc)
-    val tree = read_tree ()
+    val tree = read_tree treefile
     val (newtree,t) = add_time (bare_readl_foldl f tree) temp
     val _ = log ("read_parse_insert: " ^ rts_round 2 t)
     val _ = remove_file temp
     val (_,t) = add_time dump_tree newtree
     val _ = log ("dump: " ^ rts_round 2 t)
-    val _ = write_tree newtree
+    val _ = write_tree treefile newtree
   in
-    print_endline ("leafs: " ^ its (length (all_leafs newtree)))
+    log ("leafs: " ^ its (length (all_leafs newtree)))
   end;
 
-fun init_sort () = 
-  (
-  mkDir_err sortdir;
-  app remove_file (map (fn x => sortdir ^ "/" ^ x) (listDir sortdir));
-  app erase_file (List.tabulate (11,(fn i => sortdir ^ "/" ^ its_ i)));
-  writel (sortdir ^ "/tree") (List.tabulate (11,fn i => its_ i ^ " 0"))
-  )
-  ;
 
-init_sort ();
+(*
+tar -cf - sort | ssh 10.35.125.78 'tar -xf - -C /home/thibault/oeis-synthesis/src/exp/seqhash'
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
 
+mkdir /scratch/thibault
+mkdir /scratch/thibault/sortpre
+ln -s /scratch/thibault/sortpre sortpre
+
+rlwrap ../HOL/bin/hol --maxheap=200000
+
+load "exec_memo"; open aiLib kernel exec_memo;
+
+val ERR = mk_HOL_ERR "test";
+
+seqsort_init ();
 val inputdir = expdir ^ "/seq_fnv600s_gz";
 val (_,t) = add_time (app (insert_tree_gz inputdir)) (listDir inputdir);
-
-
-
 *)  
 
 (* -------------------------------------------------------------------------
