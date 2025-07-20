@@ -70,7 +70,6 @@ fun mk_quintf2 opf fl = case fl of
   | _ => raise ERR "mk_quintf2" ""
 
 
-
 (* -------------------------------------------------------------------------
    List
    ------------------------------------------------------------------------- *)
@@ -251,10 +250,15 @@ val inst_f = mk_ternf 1 (ternop_thm inst_match)
 val mp_f = mk_binf 1 (binop_thm mp_match)
 val rewrite_f = mk_binf 1 (binop_thm rewrite_match)
 
+(*
+fun loopf f test x = if test x then x else loopf f test (f x);
+*)
 
 (* -------------------------------------------------------------------------
    Create executable
    ------------------------------------------------------------------------- *)
+
+
 
 val namev = Vector.fromList (["x","y","inst","mp","rewrite"] @ 
   List.tabulate (length axiom_fl, fn i => "ax" ^ its i))
@@ -265,6 +269,9 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
   
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
+
+
+  
 
 (*
 fun induct tm1 tm2 f1 f2 = 

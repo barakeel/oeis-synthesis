@@ -797,15 +797,16 @@ load "exec_memo"; open aiLib kernel exec_memo;
 val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
 val dirl = listDir dir;
 
-(* fnv *) 
-val dirname = List.nth (dirl,3);
+(* fnv700s *) 
+val dirname = List.nth (dirl,4);
 val inputdir = dir ^ "/" ^ dirname;
-val remainingl = init_dir inputdir; length remainingl; (* 224000 *)
+val remainingl = seqhash_init inputdir; length remainingl; (* 224000 *)
 seqhash_loop 40 dirname remainingl;
 
-mkdir seq_fnv_gz
-ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv_gz/{}.gz'
-(* remove files in seq *)
+mkdir /scratch/thibault/seq_fnv700s_gz
+ln -s /scratch/thibault/seq_fnv700s_gz seq_fnv700s_gz
+ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv700s_gz/{}.gz'
+(* remove files in seq without removing the linked directory *)
 
 *)
 
@@ -814,6 +815,7 @@ ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv_gz/{}.gz'
    ------------------------------------------------------------------------- *)
 
 val sortdir = selfdir ^ "/exp/seqhash/sort"
+val nosplit_flag = true
 
 datatype tree = Node of tree vector | Leaf of (int list * int * string list);
 val init = Node (Vector.tabulate (11, fn i => Leaf ([i],0,[])));
@@ -862,9 +864,10 @@ fun split_leaf (path,entryl) =
   end;
 
 fun add_leaf_aux tree (s,i) = case tree of 
-    Leaf (a,b,c) => if b + 1 <= 500000 orelse hd a = 10 
-                    then Leaf (a, b+1, s :: c)
-                    else split_leaf (a,c)
+    Leaf (a,b,c) =>
+      if nosplit_flag orelse b + 1 <= 500000 orelse hd a = 10 
+      then Leaf (a, b+1, s :: c)
+      else split_leaf (a,c)
   | Node v => 
     let 
       val (pathe,newi) = next_int (s,i) 
@@ -878,7 +881,8 @@ fun add_leaf (s,tree) = add_leaf_aux tree (s,0);
 
 fun read_tree_aux d prefix =
   if dmem prefix d 
-    then Leaf (path_of_prefix prefix, string_to_int (dfind prefix d), []) 
+    then Leaf (path_of_prefix prefix, if nosplit_flag then 0 
+      else string_to_int (dfind prefix d), []) 
   else if dmem (prefix ^ "_") d then 
     let 
       fun f i = read_tree_aux d (prefix ^ its_ i)
@@ -906,7 +910,7 @@ fun all_leafs tree =
 
 fun write_tree file tree = 
   let fun f (path,size,_) = prefix_of_path path ^ " " ^ its size in
-    writel file (* () *) (map f (all_leafs tree))
+    writel file (map f (all_leafs tree))
   end;
 
 fun dump_tree tree =
@@ -914,11 +918,25 @@ fun dump_tree tree =
     fun f (path,_,sl) =
       let val file = name_path path in
         if not (exists_file file) then raise ERR "dump_tree" file 
-        else appendl file sl
+        else (if null sl then () else appendl file sl)
       end
   in 
     app f (all_leafs tree)
   end;
+  
+fun dump_tree_nosplit file_gz tree =
+  let 
+    fun f (path,_,sl) =
+      let 
+        val filename = OS.Path.dir file_gz ^ "_" ^ 
+          OS.Path.base (OS.Path.file file_gz)
+        val file = name_path path ^ "/" ^ filename 
+      in
+        if null sl then () else writel file sl
+      end
+  in 
+    app f (all_leafs tree)
+  end;  
 
 fun bare_readl_foldl f statetop path =
   let
@@ -942,41 +960,76 @@ fun parse_gz s =
 
 fun seqsort_init () = 
   (
-  mkDir_err sortdir;
   app remove_file (map (fn x => sortdir ^ "/" ^ x) (listDir sortdir));
   app erase_file (List.tabulate (11,(fn i => sortdir ^ "/" ^ its_ i)));
   writel (sortdir ^ "/tree") (List.tabulate (11,fn i => its_ i ^ " 0"))
   )
 
-fun seqsort_insert inputdir file_gz =
+fun seqsort_init_nosplit () = 
+  let
+    fun f (path,_,sl) = mkDir_err (name_path path) 
+    val tree = read_tree (selfdir ^ "/exp/seqhash/tree")
+  in 
+    app f (all_leafs tree)
+  end
+
+fun seqsort_insert file_gz =
   let 
+    val filename = OS.Path.dir file_gz ^ "_" ^ 
+      OS.Path.base (OS.Path.file file_gz)
     val expdir = selfdir ^ "/exp/seqhash"
-    val treefile = sortdir ^ "/tree"
-    val sortpredir = expdir ^ "/sortpre"
-    val logfile = sortdir ^ "/log" ^ "_" ^ OS.Path.file inputdir
-    fun log s = (append_endline logfile s; print_endline s);
-    val _ = log ("file: " ^ inputdir ^ "/" ^ file_gz)
-    val temp = sortpredir ^ "/" ^ OS.Path.base file_gz
-    val cmd = "gunzip -c " ^ inputdir ^ "/" ^ file_gz ^ " > " ^ temp
+    val treefile = 
+      if nosplit_flag then expdir ^ "/tree" else sortdir ^ "/tree" 
+    fun log s = print_endline s
+    val _ = log ("file: " ^ file_gz)
+    val temp = expdir ^ "/sortpre/" ^ filename
+    val cmd = "gunzip -c " ^ file_gz ^ " > " ^ temp
     val (_,t) = add_time (cmd_in_dir expdir) cmd
     val _ = log ("unzip: " ^ rts_round 2 t)
     fun f treeloc s = add_leaf (parse_gz s, treeloc)
     val tree = read_tree treefile
     val (newtree,t) = add_time (bare_readl_foldl f tree) temp
     val _ = log ("read_parse_insert: " ^ rts_round 2 t)
+    val _ = if nosplit_flag then () else write_tree treefile newtree
     val _ = remove_file temp
-    val (_,t) = add_time dump_tree newtree
+    val (_,t) = 
+      if nosplit_flag 
+      then add_time (dump_tree_nosplit file_gz) newtree
+      else add_time dump_tree newtree
     val _ = log ("dump: " ^ rts_round 2 t)
-    val _ = write_tree treefile newtree
   in
     log ("leafs: " ^ its (length (all_leafs newtree)))
   end;
+
+(*
+val sortspec : (unit,string,unit) smlParallel.extspec =
+  {
+  self_dir = selfdir,
+  self = "exec_memo.sortspec",
+  parallel_dir = selfdir ^ "/parallel_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote 
+      (!smlExecScripts.buildheap_dir)] 
+    ^ ")"),
+  function = let fun f param file = sortspec_fun file in f end,
+  write_param = write_unit,
+  read_param = read_unit,
+  write_arg = write_string,
+  read_arg = read_string,
+  write_result = write_unit,
+  read_result = read_unit
+  }
+*)
 
 
 (*
 tar -cf - sort | ssh 10.35.125.78 'tar -xf - -C /home/thibault/oeis-synthesis/src/exp/seqhash'
 scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
 scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
+
+
+
 
 mkdir /scratch/thibault
 mkdir /scratch/thibault/sortpre
@@ -986,11 +1039,14 @@ rlwrap ../HOL/bin/hol --maxheap=200000
 
 load "exec_memo"; open aiLib kernel exec_memo;
 
-val ERR = mk_HOL_ERR "test";
-
 seqsort_init ();
+
+val expdir = selfdir ^ "/exp/seqhash";
 val inputdir = expdir ^ "/seq_fnv600s_gz";
 val (_,t) = add_time (app (insert_tree_gz inputdir)) (listDir inputdir);
+
+val inputdir = expdir ^ "/seq_fnv1_gz";
+val (_,t) = add_time (app (seqsort_insert inputdir)) (listDir inputdir);
 *)  
 
 (* -------------------------------------------------------------------------
@@ -1118,9 +1174,6 @@ end (* struct *)
    ------------------------------------------------------------------------- *)
 
 (*
-
-
-
 PolyML.print_depth 10;
 load "human"; open human;
 load "exec_memo";  open kernel aiLib exec_memo;

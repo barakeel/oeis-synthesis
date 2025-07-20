@@ -47,6 +47,6 @@ sig
   val seqhash_loop : int -> string -> string list -> unit
   (* sorting sequence-program pairs by their sequences *)
   val seqsort_init : unit -> unit
-  val seqsort_insert : string -> string -> unit
+  val seqsort_insert : string -> unit
 
 end
