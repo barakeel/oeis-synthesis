@@ -950,6 +950,20 @@ fun sort_file file_gz =
     remove_file temp; clean (); file_gz
   end
 
+fun compress_dir expnamedir =
+  let
+    val (expname,dir) = split_pair #":" expnamedir 
+    val filel0 = listDir dir
+    val filel1 = filter (fn x => not (String.isSuffix ".gz" x)) filel0
+    val filel2 = map (fn x => (dir ^ "/" ^ x)) filel1
+    val outputfile = dir ^ "/" ^ expname ^ ".gz"
+    val cmd = "cat " ^ String.concatWith " " filel2 ^ 
+      " | gzip > " ^ outputfile;
+    val _ = cmd_in_dir dir cmd
+    val _ = app remove_file filel2
+  in
+    expnamedir
+  end
 
 (* create directories
 mkdir /scratch/thibault
@@ -957,8 +971,7 @@ mkdir /scratch/thibault/sortpre
 ln -s /scratch/thibault/sortpre sortpre
 mkdir /scratch/thibault/sort
 ln -s /scratch/thibault/sort sort
-load "exec_memo"; open kernel aiLib exec_memo;
-mk_all_dir (create_batch_fixed ());
+
 *)
 
 (* copy
@@ -968,24 +981,21 @@ scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv500s_gz seq_fnv500s_
 *)  
 
 (* sort
-00000 00000
-00000 00000
-0
-
 load "exec_memo"; open kernel aiLib exec_memo;
+mk_all_dir (create_batch_fixed ());
 val expdir = selfdir ^ "/exp/seqhash";
-val dir = expdir ^ "/seq_fnv1_gz";
+val dir = expdir ^ "/seq_fnv600s_gz";
 val filel = map (fn x => dir ^ "/" ^ x) (listDir dir);
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") filel;
 *)
 
 (* gzip
-parallel -j10 '
-  d={};
-  find "${d%/}" -maxdepth 1 -type f ! -name "*.gz" -exec cat {} + | gzip > "${d%/}/fnv600s.gz" &&
-  find "${d%/}" -maxdepth 1 -type f ! -name "*.gz" -delete
-' ::: */
-find . -name "*_gz" -delete
+load "exec_memo"; open kernel aiLib exec_memo;
+val sortdir = selfdir ^ "/exp/seqhash/sort";
+val dirl = listDir sortdir;
+val expname = "fnv600s";
+val expnamedirl = map (fn x => expname ^ ":" ^ x) dirl;
+val (rl,t) = add_time (parmap_sl 10 "exec_memo.compress_dir") expnamedirl;
 *)
 
 

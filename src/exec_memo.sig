@@ -50,6 +50,6 @@ sig
   val mk_all_dir : ((string * int) list * int) list -> unit
   val output_treebatch_fixed : unit -> unit
   val sort_file : string -> string
-  
+  val compress_dir : string -> string
   
 end
