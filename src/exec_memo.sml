@@ -952,7 +952,9 @@ fun sort_file file_gz =
 load "exec_memo"; open kernel aiLib exec_memo;
 mk_all_dir (create_batch_fixed ());
 
-val dir = selfdir ^ "/exp/seqhash/seq_fnv600s_gz";
+val expdir = selfdir ^ "/exp/seqhash";
+val _ = smlExecScripts.buildheap_dir := expdir;
+val dir = expdir ^ "/seq_fnv600s_gz";
 val filel = app (fn x => dir ^ "/" ^ x) (listDir dir);
 val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") sl;
