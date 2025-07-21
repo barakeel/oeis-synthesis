@@ -958,7 +958,9 @@ fun compress_dir expnamedir =
     val cmd = "cat " ^ String.concatWith " " filel1 ^ 
       " | gzip > " ^ outputfile;
     val _ = if null filel1 then () else cmd_in_dir dir cmd
-    val _ = app remove_file filel2
+    val _ = if exists_file (dir ^ "/" ^ outputfile)
+            then app remove_file filel2
+            else ()
   in
     expnamedir
   end
@@ -975,15 +977,11 @@ ln -s /scratch/thibault/sort sort
 (* copy
 "fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
 "fnv700s", "fnv501_539", "fnv457_516"
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv500s_gz seq_fnv500s_gz
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
 *)  
 
 (* sort
 load "exec_memo"; open kernel aiLib exec_memo;
-val batchl = create_batch_fixed ();
-val batchl' = map (fn (x,n) => (fst (hd x),n)) batchl;
-val batchl'' = filter (fn x => snd x = 0) batchl';
-
 mk_all_dir (create_batch_fixed ());
 val expdir = selfdir ^ "/exp/seqhash";
 val dir = expdir ^ "/seq_fnv600s_gz";
