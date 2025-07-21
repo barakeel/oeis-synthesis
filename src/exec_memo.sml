@@ -929,10 +929,8 @@ fun sort_file file_gz =
     val batchl = create_batch_fixed ()
     fun log s = print_endline s
     val _ = log ("file: " ^ file_gz)
-    val name = OS.Path.base (OS.Path.file file_gz) ^ "_" ^ 
-               OS.Path.file (OS.Path.dir file_gz);
-    fun f1 (x,_) = 
-      TextIO.openAppend (sortdir ^ "/" ^ fst (hd x) ^ "/" ^ name)
+    val name = OS.Path.base (OS.Path.file file_gz)
+    fun f1 (x,_) = TextIO.openAppend (sortdir ^ "/" ^ fst (hd x) ^ "/" ^ name)
     val ocl = map_assoc f1 batchl
     fun clean () = app (fn (_,oc) => TextIO.closeOut oc) ocl;
     fun f2 ((namel,_),oc) = 
@@ -956,10 +954,10 @@ fun compress_dir expnamedir =
     val filel0 = listDir dir
     val filel1 = filter (fn x => not (String.isSuffix ".gz" x)) filel0
     val filel2 = map (fn x => (dir ^ "/" ^ x)) filel1
-    val outputfile = dir ^ "/" ^ expname ^ ".gz"
-    val cmd = "cat " ^ String.concatWith " " filel2 ^ 
+    val outputfile = expname ^ ".gz"
+    val cmd = "cat " ^ String.concatWith " " filel1 ^ 
       " | gzip > " ^ outputfile;
-    val _ = cmd_in_dir dir cmd
+    val _ = if null filel1 then () else cmd_in_dir dir cmd
     val _ = app remove_file filel2
   in
     expnamedir
@@ -982,6 +980,10 @@ scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv500s_gz seq_fnv500s_
 
 (* sort
 load "exec_memo"; open kernel aiLib exec_memo;
+val batchl = create_batch_fixed ();
+val batchl' = map (fn (x,n) => (fst (hd x),n)) batchl;
+val batchl'' = filter (fn x => snd x = 0) batchl';
+
 mk_all_dir (create_batch_fixed ());
 val expdir = selfdir ^ "/exp/seqhash";
 val dir = expdir ^ "/seq_fnv600s_gz";
@@ -994,10 +996,10 @@ load "exec_memo"; open kernel aiLib exec_memo;
 val sortdir = selfdir ^ "/exp/seqhash/sort";
 val dirl = listDir sortdir;
 val expname = "fnv600s";
-val expnamedirl = map (fn x => expname ^ ":" ^ x) dirl;
+val expnamedirl = map (fn x => expname ^ ":" ^ sortdir ^ "/" ^ x) dirl;
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.compress_dir") expnamedirl;
-*)
 
+*)
 
 
 
