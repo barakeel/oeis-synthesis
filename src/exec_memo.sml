@@ -791,13 +791,16 @@ mkdir /scratch/thibault/prog
 ln -s /scratch/thibault/prog prog 
 mkdir /scratch/thibault/seq
 ln -s /scratch/thibault/seq seq
+*)
 
+(*
 load "exec_memo"; open aiLib kernel exec_memo;
 
 val dir = "/home/mptp/nfs/oe2/bcksol-air03__fnv";
 val dirl = listDir dir;
 
-(* fnv700s *) 
+"fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
+"fnv700s", "fnv501_539", "fnv457_516"
 val dirname = List.nth (dirl,4);
 val inputdir = dir ^ "/" ^ dirname;
 val remainingl = seqhash_init inputdir; length remainingl; (* 198000 *)
@@ -905,7 +908,7 @@ fun read_tree d = read_tree_aux d "";
 fun output_leaf_aux tree (s,i) = case tree of 
     Leaf (oc,counter) => 
       (
-      TextIO.output (oc,s ^ "\n"); 
+      TextIO.output (oc,s); 
       incr counter; 
       if !counter > 1000 then (TextIO.flushOut oc; counter := 0) else ()
       )
@@ -948,74 +951,47 @@ fun sort_file file_gz =
   end
 
 
-(*
-load "exec_memo"; open kernel aiLib exec_memo;
-mk_all_dir (create_batch_fixed ());
-
-val expdir = selfdir ^ "/exp/seqhash";
-val _ = smlExecScripts.buildheap_dir := expdir;
-val dir = expdir ^ "/seq_fnv600s_gz";
-val filel = app (fn x => dir ^ "/" ^ x) (listDir dir);
-val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
-val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") sl;
-
-*)
-
-
-(* -------------------------------------------------------------------------
-   Sorting sequences by their prefix (fixed directory)
-   ------------------------------------------------------------------------- *)
-
-
-(*
-val sortspec : (unit,string,unit) smlParallel.extspec =
-  {
-  self_dir = selfdir,
-  self = "exec_memo.sortspec",
-  parallel_dir = selfdir ^ "/parallel_search",
-  reflect_globals = (fn () => "(" ^
-    String.concatWith "; "
-    ["smlExecScripts.buildheap_dir := " ^ mlquote 
-      (!smlExecScripts.buildheap_dir)] 
-    ^ ")"),
-  function = let fun f param file = sortspec_fun file in f end,
-  write_param = write_unit,
-  read_param = read_unit,
-  write_arg = write_string,
-  read_arg = read_string,
-  write_result = write_unit,
-  read_result = read_unit
-  }
-*)
-
-
-(*
-tar -cf - sort | ssh 10.35.125.78 'tar -xf - -C /home/thibault/oeis-synthesis/src/exp/seqhash'
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
+(* create directories
 mkdir /scratch/thibault
 mkdir /scratch/thibault/sortpre
 ln -s /scratch/thibault/sortpre sortpre
 mkdir /scratch/thibault/sort
 ln -s /scratch/thibault/sort sort
+load "exec_memo"; open kernel aiLib exec_memo;
+mk_all_dir (create_batch_fixed ());
+*)
 
-
-load "kernel"; open aiLib kernel;
-val ERR = mk_HOL_ERR "test";  
-
-
-
-
-
-
-
-
-val inputdir = expdir ^ "/seq_fnv600s_gz";
-val (_,t) = add_time (app (insert_tree_gz inputdir)) (listDir inputdir);
-
-val inputdir = expdir ^ "/seq_fnv1_gz";
-val (_,t) = add_time (app (seqsort_insert inputdir)) (listDir inputdir);
+(* copy
+"fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
+"fnv700s", "fnv501_539", "fnv457_516"
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv500s_gz seq_fnv500s_gz
 *)  
+
+(* sort
+00000 00000
+00000 00000
+0
+
+load "exec_memo"; open kernel aiLib exec_memo;
+val expdir = selfdir ^ "/exp/seqhash";
+val dir = expdir ^ "/seq_fnv1_gz";
+val filel = map (fn x => dir ^ "/" ^ x) (listDir dir);
+val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") filel;
+*)
+
+(* gzip
+parallel -j10 '
+  d={};
+  find "${d%/}" -maxdepth 1 -type f ! -name "*.gz" -exec cat {} + | gzip > "${d%/}/fnv600s.gz" &&
+  find "${d%/}" -maxdepth 1 -type f ! -name "*.gz" -delete
+' ::: */
+find . -name "*_gz" -delete
+*)
+
+
+
+
+
 
 (* -------------------------------------------------------------------------
    Parallel checking with b-files
