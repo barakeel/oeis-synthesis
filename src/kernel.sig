@@ -125,6 +125,7 @@ sig
   val split_pair : char -> string -> string * string
   val append_endline_lock : string -> string -> unit
   val appendl : string -> string list -> unit
+  val bare_readl_app : (string -> unit) -> string -> unit
   
   (* sequences *)
   type seq = IntInf.int list

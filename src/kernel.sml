@@ -958,6 +958,16 @@ fun append_endline_lock filepath line =
    Append list
    ------------------------------------------------------------------------- *)
 
+fun bare_readl_app f path =
+  let
+    val file = TextIO.openIn path
+    fun loop file = case TextIO.inputLine file of
+        SOME line => (f line; loop file)
+      | NONE => ()
+  in
+    loop file; TextIO.closeIn file
+  end;
+
 fun appendl file sl =
   let val oc = TextIO.openAppend file in
     app (fn s => TextIO.output (oc, s ^ "\n")) sl;

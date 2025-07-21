@@ -46,7 +46,8 @@ sig
   val seqhash_init : string -> string list
   val seqhash_loop : int -> string -> string list -> unit
   (* sorting sequence-program pairs by their sequences *)
-  val seqsort_init : unit -> unit
-  val seqsort_insert : string -> unit
-
+  val create_batch_fixed : unit -> ((string * int) list * int) list
+  val output_treebatch_fixed : unit -> unit
+  val sort_file : string -> unit
+  
 end

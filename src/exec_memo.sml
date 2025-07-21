@@ -800,7 +800,7 @@ val dirl = listDir dir;
 (* fnv700s *) 
 val dirname = List.nth (dirl,4);
 val inputdir = dir ^ "/" ^ dirname;
-val remainingl = seqhash_init inputdir; length remainingl; (* 224000 *)
+val remainingl = seqhash_init inputdir; length remainingl; (* 198000 *)
 seqhash_loop 40 dirname remainingl;
 
 mkdir /scratch/thibault/seq_fnv700s_gz
@@ -814,75 +814,83 @@ ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv700s_gz/{}.gz'
    Sorting sequences by their prefix (fixed directory)
    ------------------------------------------------------------------------- *)
 
+val expdir = selfdir ^ "/exp/seqhash"
 val sortdir = selfdir ^ "/exp/seqhash/sort"
-val nosplit_flag = true
 
-datatype tree = Node of tree vector | Leaf of (int list * int * string list);
-val init = Node (Vector.tabulate (11, fn i => Leaf ([i],0,[])));
+(* batching *)
+fun create_batch_aux (lim1,lim2) skip (batch,acci) l = 
+  if acci > lim1 then ((rev batch,acci), rev skip, l) else
+  (
+  case l of 
+    [] => ((rev batch,acci), rev skip, l)
+  | a :: m =>     
+    if acci + snd a > lim2 
+    then create_batch_aux (lim1,lim2) (a :: skip) (batch,acci) m
+    else create_batch_aux (lim1,lim2) skip (a :: batch, acci + snd a) m
+  )
+  ;
+  
+fun create_batchl (lim1,lim2) l = case l of 
+    [] => [] 
+  | a :: m => 
+    let val (batch,skip,cont) = 
+      create_batch_aux (lim1,lim2) [] ([a],snd a) m
+    in
+      batch :: create_batchl (lim1,lim2) (skip @ cont)
+    end;   
 
+fun create_batch_fixed () = 
+  let 
+    val sl0 = readl (expdir ^ "/tree")
+    val sl1 = map (split_pair #" ") sl0
+    val sl2 = map_snd string_to_int sl1
+    val batchl = create_batchl (5000000,10000000) sl2
+    val _ = print_endline ("batch: " ^ its (length batchl))
+  in
+    batchl
+  end
+
+fun output_treebatch_fixed () =
+  let
+    val batchl = create_batch_fixed ()
+    fun f (l,_) = 
+       let val s = fst (hd l) in
+         map (fn s' => (s',s)) (map fst l)
+       end;
+    val batchsl = List.concat (map f batchl)
+    val sl = map (fn (a,b) => a ^ " " ^ b) batchsl
+  in
+    writel (expdir ^ "/treebatch") sl
+  end
+  
+
+
+(* character *) 
 fun string_subo (s,i) = SOME (String.sub (s,i)) handle Subscript => NONE;
-
 fun its_ i = if i = 10 then "_" else its i
 fun cti_ c = if c = #"_" then 10 else string_to_int (Char.toString c)
-
-fun prefix_of_path path = String.concat (map its_ (rev path))
-fun path_of_prefix s = rev (map cti_ (explode s))
-fun name_path path = sortdir ^ "/" ^ prefix_of_path path;
 
 fun next_int (s,i) = case string_subo (s,i) of 
     SOME c => if Char.isDigit c
               then (string_to_int (Char.toString c), i+1)
               else next_int (s,i+1)
-  | NONE => (10,i+1);
-
-fun next_int_n n (s,i) = 
-  if n <= 0 then fst (next_int (s,i)) else
-  let val (_,newi) = next_int (s,i) in
-    next_int_n (n-1) (s,newi)
-  end;
+  | NONE => (10,i+1);  
   
-fun pos_int n s = next_int_n n (s,0);
+fun after_char_aux ctop (s,i) = case string_subo (s,i) of 
+    SOME c => if c = ctop
+              then i+1
+              else after_char_aux ctop (s,i+1)
+  | NONE => raise ERR "after_char_aux" s;
 
-fun split_leaf (path,entryl) =
-  let 
-    val oldsl = readl (name_path path)
-    val arr = Array.tabulate (11, fn _ => [])
-    fun update_arr n s = 
-      let val i = pos_int n s in
-        Array.update (arr, i, s :: Array.sub (arr,i))
-      end
-    val _ = app (update_arr (length path)) (oldsl @ entryl)
-    fun f (i,sl) = 
-      (
-      writel (name_path (i :: path)) sl;
-      Leaf (i :: path, length sl, [])
-      )
-    val r = Vector.mapi f (Array.vector arr)
-    val _ = remove_file (name_path path)
-  in
-    Node r
-  end;
+fun after_char ctop s = after_char_aux ctop (s,0);
 
-fun add_leaf_aux tree (s,i) = case tree of 
-    Leaf (a,b,c) =>
-      if nosplit_flag orelse b + 1 <= 500000 orelse hd a = 10 
-      then Leaf (a, b+1, s :: c)
-      else split_leaf (a,c)
-  | Node v => 
-    let 
-      val (pathe,newi) = next_int (s,i) 
-      val subtree = add_leaf_aux (Vector.sub (v,pathe)) (s,newi) 
-      val newv = Vector.update (v,pathe,subtree)
-    in
-      Node newv
-    end;
 
-fun add_leaf (s,tree) = add_leaf_aux tree (s,0);
+(* tree *)
+datatype tree = Node of tree vector | Leaf of (TextIO.outstream * int ref);  
 
 fun read_tree_aux d prefix =
   if dmem prefix d 
-    then Leaf (path_of_prefix prefix, if nosplit_flag then 0 
-      else string_to_int (dfind prefix d), []) 
+    then Leaf (dfind prefix d)
   else if dmem (prefix ^ "_") d then 
     let 
       fun f i = read_tree_aux d (prefix ^ its_ i)
@@ -892,114 +900,65 @@ fun read_tree_aux d prefix =
     end
   else raise ERR "read_tree_aux" prefix;
 
-fun read_tree file =
-  let 
-    val sl0 = readl file
-    val sl1 = map (split_pair #" ") sl0
-    val d = dnew String.compare sl1
-  in
-    read_tree_aux d ""
-  end;
+fun read_tree d = read_tree_aux d "";
+
+fun output_leaf_aux tree (s,i) = case tree of 
+    Leaf (oc,counter) => 
+      (
+      TextIO.output (oc,s ^ "\n"); 
+      incr counter; 
+      if !counter > 1000 then (TextIO.flushOut oc; counter := 0) else ()
+      )
+  | Node v => 
+    let val (pathe,newi) = next_int (s,i) in
+      output_leaf_aux (Vector.sub (v,pathe)) (s,newi) 
+    end;
+
+fun output_leaf s tree = output_leaf_aux tree (s, after_char #"|" s);
   
-fun all_leafs_aux l tree = case tree of
-    Leaf x => l := x :: !l
-  | Node v => Vector.app (all_leafs_aux l) v;
 
-fun all_leafs tree = 
-  let val l = ref [] in all_leafs_aux l tree; rev (!l) end;
+(* sorting function *)
+fun mk_all_dir batchl = 
+  app (fn x => mkDir_err (sortdir ^ "/" ^ fst (hd x))) batchl
 
-fun write_tree file tree = 
-  let fun f (path,size,_) = prefix_of_path path ^ " " ^ its size in
-    writel file (map f (all_leafs tree))
-  end;
-
-fun dump_tree tree =
-  let 
-    fun f (path,_,sl) =
-      let val file = name_path path in
-        if not (exists_file file) then raise ERR "dump_tree" file 
-        else (if null sl then () else appendl file sl)
-      end
-  in 
-    app f (all_leafs tree)
-  end;
-  
-fun dump_tree_nosplit file_gz tree =
-  let 
-    fun f (path,_,sl) =
-      let 
-        val filename = OS.Path.dir file_gz ^ "_" ^ 
-          OS.Path.base (OS.Path.file file_gz)
-        val file = name_path path ^ "/" ^ filename 
-      in
-        if null sl then () else writel file sl
-      end
-  in 
-    app f (all_leafs tree)
-  end;  
-
-fun bare_readl_foldl f statetop path =
+fun sort_file file_gz =
   let
-    val file = TextIO.openIn path
-    fun loop state file = case TextIO.inputLine file of
-        SOME line => loop (f state line) file
-      | NONE => state
-    val r = loop statetop file
-  in
-    TextIO.closeIn file; r
-  end;
-
-fun parse_gz s =
-  let 
-    fun rmt_spaces s = String.concatWith " " (String.tokens Char.isSpace s)
-    fun rm_spaces s = String.concat (String.tokens Char.isSpace s)
-    val (s1,s2,s3) = triple_of_list (String.tokens (fn x => x = #"|") s) 
-  in
-    rmt_spaces s2 ^ " : " ^ rm_spaces s3
-  end;
-
-fun seqsort_init () = 
-  (
-  app remove_file (map (fn x => sortdir ^ "/" ^ x) (listDir sortdir));
-  app erase_file (List.tabulate (11,(fn i => sortdir ^ "/" ^ its_ i)));
-  writel (sortdir ^ "/tree") (List.tabulate (11,fn i => its_ i ^ " 0"))
-  )
-
-fun seqsort_init_nosplit () = 
-  let
-    fun f (path,_,sl) = mkDir_err (name_path path) 
-    val tree = read_tree (selfdir ^ "/exp/seqhash/tree")
-  in 
-    app f (all_leafs tree)
-  end
-
-fun seqsort_insert file_gz =
-  let 
-    val filename = OS.Path.dir file_gz ^ "_" ^ 
-      OS.Path.base (OS.Path.file file_gz)
-    val expdir = selfdir ^ "/exp/seqhash"
-    val treefile = 
-      if nosplit_flag then expdir ^ "/tree" else sortdir ^ "/tree" 
+    val batchl = create_batch_fixed ()
     fun log s = print_endline s
     val _ = log ("file: " ^ file_gz)
-    val temp = expdir ^ "/sortpre/" ^ filename
+    val name = OS.Path.base (OS.Path.file file_gz) ^ "_" ^ 
+               OS.Path.file (OS.Path.dir file_gz);
+    fun f1 (x,_) = 
+      TextIO.openAppend (sortdir ^ "/" ^ fst (hd x) ^ "/" ^ name)
+    val ocl = map_assoc f1 batchl
+    fun clean () = app (fn (_,oc) => TextIO.closeOut oc) ocl;
+    fun f2 ((namel,_),oc) = 
+      map (fn (name,_) => let val i = ref 0 in (name, (oc,i)) end) namel;
+    val dtop = dnew String.compare (List.concat (map f2 ocl))
+    val treetop = read_tree dtop
+    val temp = expdir ^ "/sortpre/" ^ name
     val cmd = "gunzip -c " ^ file_gz ^ " > " ^ temp
     val (_,t) = add_time (cmd_in_dir expdir) cmd
     val _ = log ("unzip: " ^ rts_round 2 t)
-    fun f treeloc s = add_leaf (parse_gz s, treeloc)
-    val tree = read_tree treefile
-    val (newtree,t) = add_time (bare_readl_foldl f tree) temp
-    val _ = log ("read_parse_insert: " ^ rts_round 2 t)
-    val _ = if nosplit_flag then () else write_tree treefile newtree
-    val _ = remove_file temp
-    val (_,t) = 
-      if nosplit_flag 
-      then add_time (dump_tree_nosplit file_gz) newtree
-      else add_time dump_tree newtree
-    val _ = log ("dump: " ^ rts_round 2 t)
+    fun f3 s = output_leaf s treetop;
+    val (_,t) = add_time (bare_readl_app f3) temp
+    val _ = log ("sort: " ^ rts_round 2 t)
   in
-    log ("leafs: " ^ its (length (all_leafs newtree)))
-  end;
+    remove_file temp; clean ()
+  end
+
+
+(*
+load "exec_memo"; open kernel aiLib exec_memo;
+val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
+
+*)
+
+
+(* -------------------------------------------------------------------------
+   Sorting sequences by their prefix (fixed directory)
+   ------------------------------------------------------------------------- *)
+
 
 (*
 val sortspec : (unit,string,unit) smlParallel.extspec =
@@ -1027,21 +986,23 @@ val sortspec : (unit,string,unit) smlParallel.extspec =
 tar -cf - sort | ssh 10.35.125.78 'tar -xf - -C /home/thibault/oeis-synthesis/src/exp/seqhash'
 scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv600s_gz seq_fnv600s_gz
 scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
-
-
-
-
 mkdir /scratch/thibault
 mkdir /scratch/thibault/sortpre
 ln -s /scratch/thibault/sortpre sortpre
+mkdir /scratch/thibault/sort
+ln -s /scratch/thibault/sort sort
 
-rlwrap ../HOL/bin/hol --maxheap=200000
 
-load "exec_memo"; open aiLib kernel exec_memo;
+load "kernel"; open aiLib kernel;
+val ERR = mk_HOL_ERR "test";  
 
-seqsort_init ();
 
-val expdir = selfdir ^ "/exp/seqhash";
+
+
+
+
+
+
 val inputdir = expdir ^ "/seq_fnv600s_gz";
 val (_,t) = add_time (app (insert_tree_gz inputdir)) (listDir inputdir);
 
