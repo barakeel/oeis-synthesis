@@ -919,7 +919,7 @@ fun output_leaf s tree = output_leaf_aux tree (s, after_char #"|" s);
 
 (* sorting function *)
 fun mk_all_dir batchl = 
-  app (fn x => mkDir_err (sortdir ^ "/" ^ fst (hd x))) batchl
+  app (fn (x,_) => mkDir_err (sortdir ^ "/" ^ fst (hd x))) batchl
 
 fun sort_file file_gz =
   let
@@ -950,8 +950,10 @@ fun sort_file file_gz =
 
 (*
 load "exec_memo"; open kernel aiLib exec_memo;
-val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
+mk_all_dir (create_batch_fixed ());
 
+val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
+sort_file file_gz;
 *)
 
 
