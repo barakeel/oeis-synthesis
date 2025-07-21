@@ -944,7 +944,7 @@ fun sort_file file_gz =
     val (_,t) = add_time (bare_readl_app f3) temp
     val _ = log ("sort: " ^ rts_round 2 t)
   in
-    remove_file temp; clean ()
+    remove_file temp; clean (); file_gz
   end
 
 
@@ -952,8 +952,11 @@ fun sort_file file_gz =
 load "exec_memo"; open kernel aiLib exec_memo;
 mk_all_dir (create_batch_fixed ());
 
+val dir = selfdir ^ "/exp/seqhash/seq_fnv600s_gz";
+val filel = app (fn x => dir ^ "/" ^ x) (listDir dir);
 val file_gz = selfdir ^ "/exp/seqhash/seq_fnv600s_gz/0.gz";
-sort_file file_gz;
+val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") sl;
+
 *)
 
 

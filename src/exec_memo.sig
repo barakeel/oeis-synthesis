@@ -49,6 +49,7 @@ sig
   val create_batch_fixed : unit -> ((string * int) list * int) list
   val mk_all_dir : ((string * int) list * int) list -> unit
   val output_treebatch_fixed : unit -> unit
-  val sort_file : string -> unit
+  val sort_file : string -> string
+  
   
 end
