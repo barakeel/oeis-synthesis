@@ -977,14 +977,14 @@ ln -s /scratch/thibault/sort sort
 (* copy
 "fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
 "fnv700s", "fnv501_539", "fnv457_516"
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv1_gz seq_fnv1_gz
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv_gz seq_fnv_gz
 *)  
 
 (* sort
 load "exec_memo"; open kernel aiLib exec_memo;
 mk_all_dir (create_batch_fixed ());
 val expdir = selfdir ^ "/exp/seqhash";
-val dir = expdir ^ "/seq_fnv600s_gz";
+val dir = expdir ^ "/seq_fnv500s_gz";
 val filel = map (fn x => dir ^ "/" ^ x) (listDir dir);
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") filel;
 *)
@@ -993,7 +993,7 @@ val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") filel;
 load "exec_memo"; open kernel aiLib exec_memo;
 val sortdir = selfdir ^ "/exp/seqhash/sort";
 val dirl = listDir sortdir;
-val expname = "fnv600s";
+val expname = "fnv500s";
 val expnamedirl = map (fn x => expname ^ ":" ^ sortdir ^ "/" ^ x) dirl;
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.compress_dir") expnamedirl;
 
