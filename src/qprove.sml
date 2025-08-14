@@ -11,8 +11,121 @@ type prog = kernel.prog
 
 type exec = object list * object list -> object list
 
+exception Invalid
+fun error () = raise Invalid
 
-datatype object = Thm of prog | Term of prog | Int of int 
+val conj_id = 0;
+val imp_id = 1;
+val equiv_id = 2;
+val not_id = 3;
+
+(* every basic operations must be timed *)
+
+
+fun is_var (Ins(id,pl)) = id < 0
+fun is_formula (Ins(id,pl)) = id < 5 andalso id >= 0
+(* prove vs prove by contradiction *)
+
+(* a single list for objects *)
+
+(*
+Int 
+Term
+Formula
+Thm
+push_term
+pop_term
+sample a bottom up size 40 program and test all subprograms.
+store common subprograms not to test them again.
+sample theorems too. 
+20^n programs size: 40
+*)
+
+(* -------------------------------------------------------------------------
+   Term constructor
+   ------------------------------------------------------------------------- *)
+
+fun mk_conj (p1,p2) =
+  if is_formula p1 andalso is_formula p2 then 
+  Ins(conj_id,[p1,p2]) else error ()
+fun mk_disj(p1,p2) = if is_formula p1 andalso is_formula p2 then 
+  Ins(disj_id,[p1,p2]) else error ()
+fun mk_imp(p1,p2) = if is_formula p1 andalso is_formula p2 then 
+  Ins(imp_id,[p1,p2]) else error ()
+fun mk_equiv(p1,p2) = if is_formula p1 andalso is_formula p2 then 
+  Ins(equiv_id,[p1,p2]) else error ()
+fun mk_not p = if is_formula p then Ins(not_id,[p])
+
+(* int list?, term list, formula list, theorem list *)
+(* single list and need to check the type *)
+(* errors are better than noops because then there is only one way to write things *)
+
+(* -------------------------------------------------------------------------
+   Tools
+   ------------------------------------------------------------------------- *)
+
+fun list_inter_order cmp l1 l2 = case (l1,l2) of
+    (_,[]) => l1
+  | ([],_) => l2
+  | (a1 :: m1, a2 :: m2) => 
+    (
+    case cmp a1 a2 of 
+    | LESS => a1 :: list_inter_order cmp m1 l2
+    | GREATER => a2 :: list_inter_order cmp l1 m2
+    | EQUAL => a1 :: list_inter_order cmp m1 m2
+    )
+
+
+fun eunion d1 d2 =
+  let 
+    val n1 = elength d1
+    val n2 = elength d2
+  in
+    if n2 = 0 then d1 else
+    if n1 = 0 then d2 else
+    if n2 <= n1 then eaddl (elist d2) d1
+    else eaddl (elist d1) d2
+  end;
+    
+(* referring terms by them selves e.g. DISCH term *)
+
+(* -------------------------------------------------------------------------
+   Natural deduction rules
+   ------------------------------------------------------------------------- *)
+
+(* conjunction *)
+fun conji_rule (ha,ta) (hb,tb) = (eunion ha hb, mk_conj ta tb) 
+
+fun conjl_rule (h,t) = case t of 
+    Ins (0,[t1,t2]) => (h,t1)
+  | _ => error ()
+
+fun conjr_rule (hyp,p) = case t of 
+    Ins (0,[t1,t2]) => (h,t2)
+  | _ => error ()
+
+(* implication *)
+fun impi_rule t (ha,ta) = 
+  if is_formula t 
+  then (erem t ha, mk_imp t ta)
+  else error ()
+  
+fun impe_rule (ha,ta) (hb,tb)= case ta of
+    Ins (1,[t1,t2]) => 
+    if prog_compare (t1,tb) = EQUAL 
+    then (eunion ha hb, t2) 
+    else error ()
+  | _ => error ()
+
+
+
+
+(* 
+context switching
+need to remember which variables can be generalized 
+i.e create new skolem constants on the fly.
+maybe remember which variables are in which
+*)
 
 (* fails if wrong types or if no effect in the initial brute force search *)
 

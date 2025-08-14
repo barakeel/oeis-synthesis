@@ -801,14 +801,15 @@ val dirl = listDir dir;
 
 "fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
 "fnv700s", "fnv501_539", "fnv457_516"
-val dirname = List.nth (dirl,4);
-val inputdir = dir ^ "/" ^ dirname;
-val remainingl = seqhash_init inputdir; length remainingl; (* 198000 *)
-seqhash_loop 40 dirname remainingl;
 
-mkdir /scratch/thibault/seq_fnv700s_gz
-ln -s /scratch/thibault/seq_fnv700s_gz seq_fnv700s_gz
-ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv700s_gz/{}.gz'
+val dirname = List.nth (dirl,7);
+val inputdir = dir ^ "/" ^ dirname;
+val remainingl = seqhash_init inputdir; length remainingl; (* 122000 *)
+seqhash_loop 50 dirname remainingl;
+
+mkdir /scratch/thibault/seq_fnv457_516_gz
+ln -s /scratch/thibault/seq_fnv457_516_gz seq_fnv457_516_gz
+ls seq | parallel -j 10 'sort -u seq/{} | gzip > seq_fnv457_516_gz/{}.gz'
 (* remove files in seq without removing the linked directory *)
 
 *)
@@ -977,26 +978,21 @@ ln -s /scratch/thibault/sort sort
 (* copy
 "fnv600s", "fnv1", "fnv500s", "fnv2", "fnv", 
 "fnv700s", "fnv501_539", "fnv457_516"
-scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv_gz seq_fnv_gz
+scp -r 10.35.125.79:~/oeis-synthesis/src/exp/seqhash/seq_fnv457_516_gz seq_fnv457_516_gz
 *)  
 
-(* sort
+(* sort and gzip
 load "exec_memo"; open kernel aiLib exec_memo;
 mk_all_dir (create_batch_fixed ());
 val expdir = selfdir ^ "/exp/seqhash";
-val dir = expdir ^ "/seq_fnv500s_gz";
+val dir = expdir ^ "/seq_fnv457_516_gz";
 val filel = map (fn x => dir ^ "/" ^ x) (listDir dir);
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.sort_file") filel;
-*)
-
-(* gzip
-load "exec_memo"; open kernel aiLib exec_memo;
 val sortdir = selfdir ^ "/exp/seqhash/sort";
 val dirl = listDir sortdir;
-val expname = "fnv500s";
+val expname = "fnv457_516";
 val expnamedirl = map (fn x => expname ^ ":" ^ sortdir ^ "/" ^ x) dirl;
 val (rl,t) = add_time (parmap_sl 10 "exec_memo.compress_dir") expnamedirl;
-
 *)
 
 

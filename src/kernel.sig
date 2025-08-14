@@ -87,6 +87,7 @@ sig
   val altaxiom_flag : bool ref
   val matchback_flag : bool ref
   val yenum_flag : bool ref
+  val pow_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

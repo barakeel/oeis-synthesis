@@ -389,7 +389,14 @@ fun clip_seq seq =
     end
   else
 *)
-
+fun checkf_pow p = 
+  let
+    val anumtl = bloom.scover_oeis (exec_pow.mk_exec p)
+    fun f (anum,t) = update_wind wind (anum,[(t,p)])
+  in
+    app f anumtl
+  end
+  
 fun checkf_memo nnvalue p = 
   let
     val anumtl = exec_memo.coverp_oeis p
@@ -475,9 +482,6 @@ fun checkf_prnn2 p =
     app f anumtl
   end  
 
-
-
-  
 val l16 = List.tabulate (16,IntInf.fromInt);
 
 fun fingerprint f = map_total (eval_option f) l16;
@@ -507,7 +511,8 @@ fun checkfinal_matchback () = dlist (!matchbackd)
 fun checkonline_smt p = ()
 
 fun checkonline nnvalue (p,exec) = 
-  if !smt_flag then checkonline_smt p
+  if !pow_flag then checkf_pow p
+  else if !smt_flag then checkonline_smt p
   else if !arcagi_flag then checkonline_arcagi p
   else if !ramsey_flag then checkonline_ramsey (p,exec)
   else if !hanabi_flag then checkonline_hanabi p
@@ -552,7 +557,8 @@ fun collect_candidate () =
   end
 
 fun checkf_all p =
-  if !memo_flag then checkf_memo 0.0 p
+  if !pow_flag then checkf_pow p
+  else if !memo_flag then checkf_memo 0.0 p
   else if !ctree_flag then checkf_ctree p
   else if !intl_flag then checkf_intl 0.0 p 
   else if !wrat_flag then checkf_wrat p
@@ -657,6 +663,7 @@ fun checkmll mll =
       (incr counter; 
        if !counter mod 10000 = 0 then print "." else ();
        init_slow_test (); 
+       if !pow_flag then checkf_pow p else
        if !memo_flag then checkf_memo 0.0 p else
        if !ctree_flag then checkf_ctree p else
        if !wrat_flag then checkf_wrat p else
