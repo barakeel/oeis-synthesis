@@ -102,7 +102,7 @@ fun pow (a,b) =
     else IntInf.pow (a,b')
   end
 
-val pow_f = mk_binf 10 pow
+val pow_f = mk_binf_pow pow
 
 (* -------------------------------------------------------------------------
    Execute a program

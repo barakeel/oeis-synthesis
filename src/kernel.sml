@@ -295,7 +295,7 @@ val org_operl = [("zero",0),("one",0),("two",0),
 
 val pow_operl = [("zero",0),("one",0),("two",0),
   ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
-  ("cond",3),("pow",3),("x",0),("ten",0)]
+  ("cond",3),("pow",2),("x",0),("ten",0)]
   
 val minimal_operl = 
   [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
