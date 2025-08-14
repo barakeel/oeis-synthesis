@@ -97,8 +97,9 @@ val maxintsize3 = 3 * maxintsize
 
 fun pow (a,b) = 
   let val b' = IntInf.toInt b in
-    if IntInf.log2 a * b' > maxintsize3
-    then raise ProgTimeout
+    if b = azero then aone else
+    if a = azero then azero else 
+    if IntInf.log2 (IntInf.abs a) * b' > maxintsize3 then raise ProgTimeout
     else IntInf.pow (a,b')
   end
 
