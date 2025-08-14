@@ -62,7 +62,7 @@ fun mk_binf costn opf fl =
    [f1,f2] => (fn x => checktimer costn (opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf" ""
 
-fun mk_binf_pow costn opf fl = 
+fun mk_binf_pow opf fl = 
   case fl of
    [f1,f2] => (fn x => checktimer_pow (opf (f1 x, f2 x)))
   | _ => raise ERR "mk_binf_pow" ""
