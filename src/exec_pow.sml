@@ -117,5 +117,72 @@ fun mk_exec_move id fl = Vector.sub (execv,id) fl
 fun mk_exec (p as (Ins (id,pl))) = 
   let val fl = map mk_exec pl in mk_exec_move id fl end
   
+(*
+load "kernel"; open aiLib kernel;
+load "bloom"; open bloom;
+val ERR = mk_HOL_ERR "test";
+
+
+
+fun sappl sl = "(" ^ String.concatWith " " sl ^ ")";
+fun sbin opers s1 s2 = sappl [opers,s1,s2];
+fun ster opers s1 s2 s3 = sappl [opers,s1,s2,s3];
+fun site s1 s2 s3 = ster "ite" (sbin "<=" s1 "0") s2 s3;
+
+fun smt prog = case prog of
+    Ins (0,[]) => "0" 
+  | Ins (1,[]) => "1" 
+  | Ins (2,[]) => "2" 
+  | Ins (3,[p1,p2]) => sbin "+" (smt p1) (smt p2)
+  | Ins (4,[p1,p2]) => sbin "-" (smt p1) (smt p2)
+  | Ins (5,[p1,p2]) => sbin "*" (smt p1) (smt p2)
+  | Ins (6,[p1,p2]) => sbin "div" (smt p1) (smt p2)
+  | Ins (7,[p1,p2]) => sbin "mod" (smt p1) (smt p2)
+  | Ins (8,[p1,p2,p3]) => site (smt p1) (smt p2) (smt p3)
+  | Ins (9,[p1,p2]) => sbin "pow" (smt p1) (smt p2)
+  | Ins (10,[]) => "c"
+  | Ins (11,[]) => "10"
+  | Ins (i,_) => raise ERR "smt" (its i)
+;
+
+fun export_smt_one dir ((p1,p2),anumltop) =
+  let 
+    val _ = if null anumltop then raise ERR "export_smt2_one" "" else ()
+    val anuml = dict_sort Int.compare anumltop
+    val anums = String.concatWith "-" (map (fn a => "A" ^ its a) anuml)
+    val file = dir ^ "/" ^ "A" ^ its (hd anuml) ^ ".smt2" 
+    val seq = valOf (Array.sub (bloom.oseq,hd anuml))
+    val header =  
+      [";; sequence(s): " ^ anums,
+       ";; terms: " ^ string_of_seq (first_n 20 seq),
+       "(set-logic NIA)"]
+    val footer =
+       ["(assert (exists ((c Int)) (and (>= c 0) " ^
+        "(not (= " ^ smt p1 ^ " " ^ smt p2 ^ ")))))", 
+        "(check-sat)"]
+  in
+    writel file (header @ footer)
+  end;
+
+fun export_smt dir file =
+  let 
+    val sol0 = read_itprogl file;
+    val sol1 = filter (fn x => length (snd x) = 2) sol0
+    val sol2 = map_snd pair_of_list sol1
+    val sol2' = map_snd (fn ((t1,p1),(t2,p2)) => 
+       if t1 < t2 then (p2,p1) else (p1,p2)) sol2
+    val sol3 = map swap sol2';
+    val sol4 = dlist (dregroup (cpl_compare prog_compare prog_compare) sol3);
+    val sol5 = filter 
+      (fn ((p1,p2),_) => contain_id 9 p1 orelse contain_id 9 p2) sol4;
+  in
+    mkDir_err dir;
+    app (export_smt_one dir) sol5
+  end;
+
+export_smt (selfdir ^ "/data_pow_24") "itsol24";
+*)
+
+
 
 end (* struct *)

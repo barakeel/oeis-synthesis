@@ -1,17 +1,15 @@
 signature qprove = sig
 
   type prog = kernel.prog
-  type record = {intl : int list, terml: prog list, thml: prog list};
-  type exec = record * record -> record
+  type branch = {have : prog Redblackset.set, pending : prog list}
   
-  val empty_record : record
+  val or : prog -> prog -> prog
+  val var : int -> prog
+  val neg : prog -> prog
+  val forall : prog -> prog -> prog
   
-  val execv : (exec list -> exec) vector
-  val mk_exec : prog -> exec
-  
-  val string_to_term : string -> prog
-  val term_to_string : prog -> string
-  
-  val init_conjecture : prog -> record
+  val dropf_glob : (branch -> bool) ref
+  val prove : prog list -> prog -> bool
+  val refute : prog list -> bool
   
 end

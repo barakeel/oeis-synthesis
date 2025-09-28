@@ -1,504 +1,398 @@
 (* ========================================================================= *)
-(* DESCRIPTION   : Extended program datatype to store names for subloops     *)
+(* DESCRIPTION   : Theorem prover                                            *)
 (* ========================================================================= *)
 
 structure qprove :> qprove = struct
 
-open aiLib kernel sexp qsubst
+open aiLib kernel
 val ERR = mk_HOL_ERR "qprove"
 
 type prog = kernel.prog
 
-type exec = object list * object list -> object list
-
-exception Invalid
-fun error () = raise Invalid
-
-val conj_id = 0;
-val imp_id = 1;
-val equiv_id = 2;
-val not_id = 3;
-
-(* every basic operations must be timed *)
-
-
-fun is_var (Ins(id,pl)) = id < 0
-fun is_formula (Ins(id,pl)) = id < 5 andalso id >= 0
-(* prove vs prove by contradiction *)
-
-(* a single list for objects *)
-
 (*
-Int 
-Term
-Formula
-Thm
-push_term
-pop_term
-sample a bottom up size 40 program and test all subprograms.
-store common subprograms not to test them again.
-sample theorems too. 
-20^n programs size: 40
+1) return type should be a list and the first element of the list
+that is an integer should be the result if > 0 then 1 else 0
+is multiplication by 0 and 1 allowed?
+
+2) train on the shortest/fastest programs.
 *)
 
-(* -------------------------------------------------------------------------
-   Term constructor
-   ------------------------------------------------------------------------- *)
+type state = prog list
+type exec = state * state -> state 
+exception Error
 
-fun mk_conj (p1,p2) =
-  if is_formula p1 andalso is_formula p2 then 
-  Ins(conj_id,[p1,p2]) else error ()
-fun mk_disj(p1,p2) = if is_formula p1 andalso is_formula p2 then 
-  Ins(disj_id,[p1,p2]) else error ()
-fun mk_imp(p1,p2) = if is_formula p1 andalso is_formula p2 then 
-  Ins(imp_id,[p1,p2]) else error ()
-fun mk_equiv(p1,p2) = if is_formula p1 andalso is_formula p2 then 
-  Ins(equiv_id,[p1,p2]) else error ()
-fun mk_not p = if is_formula p then Ins(not_id,[p])
-
-(* int list?, term list, formula list, theorem list *)
-(* single list and need to check the type *)
-(* errors are better than noops because then there is only one way to write things *)
 
 (* -------------------------------------------------------------------------
-   Tools
+   Timer
    ------------------------------------------------------------------------- *)
-
-fun list_inter_order cmp l1 l2 = case (l1,l2) of
-    (_,[]) => l1
-  | ([],_) => l2
-  | (a1 :: m1, a2 :: m2) => 
-    (
-    case cmp a1 a2 of 
-    | LESS => a1 :: list_inter_order cmp m1 l2
-    | GREATER => a2 :: list_inter_order cmp l1 m2
-    | EQUAL => a1 :: list_inter_order cmp m1 m2
-    )
-
-
-fun eunion d1 d2 =
-  let 
-    val n1 = elength d1
-    val n2 = elength d2
-  in
-    if n2 = 0 then d1 else
-    if n1 = 0 then d2 else
-    if n2 <= n1 then eaddl (elist d2) d1
-    else eaddl (elist d1) d2
-  end;
-    
-(* referring terms by them selves e.g. DISCH term *)
-
-(* -------------------------------------------------------------------------
-   Natural deduction rules
-   ------------------------------------------------------------------------- *)
-
-(* conjunction *)
-fun conji_rule (ha,ta) (hb,tb) = (eunion ha hb, mk_conj ta tb) 
-
-fun conjl_rule (h,t) = case t of 
-    Ins (0,[t1,t2]) => (h,t1)
-  | _ => error ()
-
-fun conjr_rule (hyp,p) = case t of 
-    Ins (0,[t1,t2]) => (h,t2)
-  | _ => error ()
-
-(* implication *)
-fun impi_rule t (ha,ta) = 
-  if is_formula t 
-  then (erem t ha, mk_imp t ta)
-  else error ()
-  
-fun impe_rule (ha,ta) (hb,tb)= case ta of
-    Ins (1,[t1,t2]) => 
-    if prog_compare (t1,tb) = EQUAL 
-    then (eunion ha hb, t2) 
-    else error ()
-  | _ => error ()
-
-
-
-
-(* 
-context switching
-need to remember which variables can be generalized 
-i.e create new skolem constants on the fly.
-maybe remember which variables are in which
-*)
-
-(* fails if wrong types or if no effect in the initial brute force search *)
-
-(* -------------------------------------------------------------------------
-   Natural deduction rules
-   ------------------------------------------------------------------------- *)
-
-(*
-instantiate (term1,term2) term:
-- (use the substitution obtain by unifying/matching term to instantiate)
-rewrite n (rewrite at the nth position that matches)
-
-(* *)
-resolve n thm1 thm2 (after the nth literal that unifies/matches)
-F is a sorted list with a pointer, merging the list.
-F |- A
-G |- [~A,B,C]
-
-
-F @ G |- [B,C]
-~A \/ B
-
-I will need a efficient clausifier: or could i just define the rules
-to get to clauses: skolemization, demorgan laws, etc.
-*)
-
-(* -------------------------------------------------------------------------
-   Time limit wrapper
-   ------------------------------------------------------------------------- *)
-
-fun checktimer n (y:record) = 
+   
+fun timed_after y = 
   (
-  abstimer := !abstimer + n; 
+  incr abstimer;    
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
 
-fun mk_nullf n opf fl = case fl of
-    [] => (fn x => checktimer n (opf (x: record * record)))
-  | _ => raise ERR "mk_nullf" ""
+fun timed_var opf = (fn x => timed_after (opf x))
 
-fun mk_unf n opf fl = case fl of
-    [f] => (fn x => checktimer n (opf (f x)))
-  | _ => raise ERR "mk_unf" ""
+fun timed_unary opf fl = case fl of
+    [f1] => (fn x => timed_after (opf (f1 x)))
+  | _ => raise ERR "timed_unary" ""
 
-fun mk_binf n opf fl = case fl of
-    [f1,f2] => (fn x => checktimer n (opf (f1 x,f2 x)))
-  | _ => raise ERR "mk_binf" ""
-
-fun mk_ternf n opf fl = case fl of
-   [f1,f2,f3] => (fn x => checktimer n (opf (f1 x, f2 x, f3 x)))
-  | _ => raise ERR "mk_ternf" ""
-
-fun mk_quintf2 opf fl = case fl of
-   [f1,f2,f3,f4,f5] => (fn x => checktimer 1 (opf (f1, f2, f3 x, f4 x, f5 x)))
-  | _ => raise ERR "mk_quintf2" ""
-
+fun timed_binary opf fl = case fl of
+    [f1,f2] => (fn x => timed_after (opf (f1 x) (f2 x)))
+  | _ => raise ERR "timed_binary" ""
 
 (* -------------------------------------------------------------------------
-   List
+   Two variables
    ------------------------------------------------------------------------- *)
 
-fun null_int (x:record) = update_intl [if null (#intl x) then 0 else 1] x
-fun null_term (x:record) = update_intl [if null (#terml x) then 0 else 1] x
-fun null_thm (x:record) = update_intl [if null (#thml x) then 0 else 1] x
+fun varx (x,y) = x
+fun vary (x,y) = y
 
-fun pop_int (x:record) = case #intl x of
-    a :: m => update_intl m x
-  | _ => x
-
-fun pop_term (x:record) = case #terml x of
-    a :: m => update_terml m x
-  | _ => x
-
-fun pop_thm (x:record) = case #thml x of
-    a :: m => update_thml m x
-  | _ => x
-
-fun push_int (x:record,y:record) = case (#intl x,#intl y) of
-    (a :: m, l) => update_intl (a :: l) y
-  | _ => y
-
-fun push_term (x:record,y:record) = case (#terml x, #terml y) of
-    (a :: m, l) => update_terml (a :: l) y
-  | _ => y
-
-fun push_thml (x:record,y:record) = case (#thml x, #thml y) of
-    (a :: m, l) => update_thml (a :: l) y
-  | _ => y
-
-fun pushl_thml (x:record,y:record) = update_thml (#thml x @ #thml y) y
+val timed_varx = timed_var varx
+val timed_vary = timed_var vary
 
 (* -------------------------------------------------------------------------
-   Variable
+   List operations
    ------------------------------------------------------------------------- *)
 
-val x_f = mk_nullf 1 (fn (x,y) => x)
-val y_f = mk_nullf 1 (fn (x,y) => y)
+fun list_hd a = case a of e :: m => [e] | _ => raise Error 
+fun list_tl a = case a of e :: m => m | _ => raise Error 
+fun list_push a b = case a of e :: m => e :: b | _ => raise Error
+
+val timed_hd = timed_unary list_hd
+val timed_tl = timed_unary list_tl
+val timed_push = timed_binary list_push
 
 (* -------------------------------------------------------------------------
-   Intl
+   Control flow
    ------------------------------------------------------------------------- *)
 
-fun constant_int operator (x:record,y:record) = 
-  update_intl [operator] empty_record;
+fun timed_cond fl = case fl of
+    [f1,f2,f3] => 
+    (fn x => timed_after (if null (f1 x) then f2 x else f3 x))
+  | _ => raise ERR "timed_cond" ""
+
+fun while_aux f g x y =
+  if null x then y else while_aux f g (f (x,y)) (g(x,y))
+
+fun timed_while fl = case fl of
+    [f1,f2,f3,f4] =>
+    (fn x => timed_after (while_aux f1 f2 (f3 x) (f4 x)))
+  | _ => raise ERR "timed_while" ""
   
-fun binop_int operator (x:record, y:record) = case (#intl x, #intl y) of
-    (a :: m, b :: _) => update_intl (operator (a,b) :: m) x
-  | _ => x
-
-val zero_f = mk_nullf 1 (constant_int 0)
-val one_f = mk_nullf 1 (constant_int 1)
-val two_f = mk_nullf 1 (constant_int 2)  
-val addi_f = mk_binf 1 (binop_int (op +))
-val diff_f = mk_binf 1 (binop_int (op -))
-val mult_f = mk_binf 1 (binop_int (op *));
-
-(* "arithmetic: 0,1,2,+,-,* (mod,div?)" *)
-
 (* -------------------------------------------------------------------------
-   Terml
+   Minimal syntax
    ------------------------------------------------------------------------- *)
 
-val constant_tml = ["0","s","+","=","not","or"];
-val var_tml = map_snd (fn x => ~x) (number_snd 1 ["x","y"]);
-val constvard = dnew String.compare (number_snd 0 constant_tml @ var_tml);
-fun id_of_constvar a = dfind a constvard 
-   handle NotFound => raise ERR "constvard" a
-fun swap_dict cmp d = dnew cmp (map swap (dlist d));
-val constvarid = swap_dict Int.compare constvard;
-fun constvar_of_id id = dfind id constvarid 
-  handle NotFound => raise ERR "constvarid" (its id)
+(* propositional *)
+val not_id = 0
+val or_id = 1
 
-fun constant_tm operator (x:record,y:record) = 
-  update_terml [operator] empty_record;
+(* first-order *)
+val forall_id = 2
 
-fun unop_tm operator (x:record) = case #terml x of
-    a :: m => update_terml (operator a :: m) x
-  | _ => x
+(* higher-order *)
+val app_id = 3
+val lambda_id = 4
 
-fun binop_tm operator (x:record,y:record) = case (#terml x, #terml y) of
-    (a :: m, b :: _) => update_terml (operator (a,b) :: m) x
-  | _ => x
+(* other constants/functions predicates: 5 and up *)
+fun var id = Ins (id,[])
+fun neg f = case f of
+    Ins (not_id,[g]) => g
+  | _     => Ins (not_id,[f])
+fun or a b = Ins (or_id,[a,b])
+fun forall v body = Ins (forall_id,[v,body])
+val fresh_var_id = ref (~1)
+fun fresh_var () = let val v = var (!fresh_var_id) in decr fresh_var_id; v end
 
-(* todo add type guards *)
-val zerotm_f = mk_nullf 1 (constant_tm (Ins (0,[])))
-fun mk_suc x = Ins (1,[x]);
-val suc_f = mk_unf 1 (unop_tm mk_suc);
-fun mk_add (x,y) = Ins(2,[x,y]);
-val additm_f = mk_binf 1 (binop_tm mk_add);
-fun mk_eq (x,y) = Ins(3,[x,y]);
-val eqtm_f = mk_binf 1 (binop_tm mk_eq);
-fun mk_not x = Ins(4,[x]);
-val not_f = mk_unf 1 (unop_tm mk_not);
+(* tests: term/thm -> bool(0/1) *)
+fun is_var (Ins(i,_)) = i < 0
+fun is_not (Ins(i,_)) = i = not_id
+fun is_or (Ins(i,_)) = i = or_id
+fun is_forall (Ins(i,_)) = i = forall_id
+fun equal_term (a,b) = prog_compare (a,b) = EQUAL
 
-(* -------------------------------------------------------------------------
-   Axioms
-   ------------------------------------------------------------------------- *)
+(* destructors *)
+fun dest_ins (Ins(id,l)) = (id,l) 
+fun get_id f = fst (dest_ins f) (* maybe not necessary *)
+fun get_arg f = snd (dest_ins f)
+
+(* others *)
+fun non_lit f =  case f of
+    Ins(1,_) => true
+  | Ins(0,[Ins(1,_)]) => true
+  | _ => false
   
-fun sexp_to_term sexp = case sexp of
-    Atom a => Ins (id_of_constvar a, []) 
-  | Sexp (Atom a :: m) => Ins (id_of_constvar a, map sexp_to_term m) 
-  | Sexp _ => raise ERR "sexp_to_term" "unexpected";
+fun all_varid_aux acc f = case f of
+    Ins(i,[]) => if i < 0 then acc := i :: !acc else ()
+  | Ins(_,l) => app (all_varid_aux acc) l
+  
+fun all_varid f = let val acc = ref [] in all_varid_aux acc f; !acc end
 
-val string_to_term = sexp_to_term o string_to_sexp;
+fun subst_aux (itop,f) ftop = case ftop of
+    Ins(i,[]) => if i = itop then f else ftop
+  | Ins(i,l) => Ins(i, map (subst_aux (itop,f)) l)
+  
+fun subst (v,f) ftop = subst_aux (get_id v,f) ftop 
 
-val axioml_aux =
-  [
-  "(not (= (s x) 0))",
-  "(or (not (= (s x) (s y))) (= x y))",
-  "(= (+ x 0) x)",
-  "(= (+ x (s y)) (s (+ x y)))"
-  ];
+(* -------------------------------------------------------------------------
+   Term operations
+   ------------------------------------------------------------------------- *)
 
-val axioml = map string_to_term axioml_aux;
+fun same_id x y = case (x,y) of
+    (Ins (i1,_) :: _, Ins (i2,_) :: _) => if i1 = i2 then x else []
+  | _ => raise Error
 
-fun term_to_sexp tm = case tm of
-    Ins (id,[]) => Atom (constvar_of_id id)
-  | Ins (id,tml) => Sexp (Atom (constvar_of_id id) :: map term_to_sexp tml);
+fun test_wrap test x = case x of 
+    t :: m => if test t then x else []
+  | _ => raise Error
+
+val timed_is_var = timed_unary (test_wrap is_var)
+val timed_is_not = timed_unary (test_wrap is_not)
+val timed_is_or = timed_unary (test_wrap is_or)
+val timed_same_id = timed_binary same_id
+
+(* -------------------------------------------------------------------------
+   Branch insertion: add a new fact to the branch
+   ------------------------------------------------------------------------- *)
+
+type branch = {have : prog Redblackset.set, pending : prog list}
+
+fun insert f (br as {have, pending}) =
+  if emem (neg f) have then NONE else
+  if emem f have then SOME br else
+    SOME {have = eadd f have, 
+          pending = if non_lit f then f :: pending else pending}
+
+fun insert_list fl br = case fl of 
+    [] => SOME br
+  | f :: m => 
+    (
+    case insert f br of 
+      NONE => NONE
+    | SOME br' => insert_list m br'
+    )
+
+(* -------------------------------------------------------------------------
+   Branch expansion
+   ------------------------------------------------------------------------- *)
+
+fun expand_or l br0 brm = 
+   let val newbrl = List.mapPartial (C insert br0) l in
+     newbrl @ brm
+   end
+
+fun expand_bro bro brm = case bro of
+    NONE => brm
+  | SOME br => (br :: brm)
+
+fun expand_and l br0 brm = expand_bro (insert_list (map neg l) br0) brm
+
+fun expand_exists (v,body) br0 brm = 
+  let val newf = neg (subst (v, fresh_var ()) body) in
+    expand_bro (insert newf br0) brm
+  end
+  
+fun expand_forall (v,body) instance br0 brm =
+  let val newf = subst (v,instance) body in
+    expand_bro (insert newf br0) brm
+  end
+
+fun expand_branch ({have, pending}: branch) (brm: branch list) = case pending of
+      [] => raise ERR "expand_branch" "empty pending"
+    | f :: fm =>
+      let val br0 = {have = have, pending = fm} in
+        case f of
+          Ins(1,l) => expand_or l br0 brm
+        | Ins(0,[Ins(1,l)]) => expand_and l br0 brm
+        | Ins(0,[Ins(2,[v,body])]) => expand_exists (v,body) br0 brm
+        | _ => raise ERR "expand_branch" "unexpected"
+      end
+      
+fun expand_branch_forall (br0: branch) instance brm = case #pending br0 of
+      [] => raise ERR "expand_branch_forall" "empty pending"
+    | f :: fm =>
+      (
+      case f of 
+        Ins(2,[v,body]) => expand_forall (v,body) instance br0 brm
+      | _ => raise ERR "expand_branch_forall" "not a forall"
+      )
+
+fun drop_pending ({have, pending}: branch) =
+  {have = have, pending = tl pending}
+
+(* -------------------------------------------------------------------------
+   Search
+   ------------------------------------------------------------------------- *)
+
+val dropf_glob = ref (fn (_ : branch) => false) 
+
+fun search br brm = 
+  if null (#pending br) then false else 
+  if (!dropf_glob) br then search (drop_pending br) brm else
+  (
+  case expand_branch br brm of
+      [] => true (* no branch: unsatisfiable *)
+    | newbr :: newbrm => search newbr newbrm (* at least one branch *)
+  )
+  
+fun prove (premises : prog list) (phi : prog) : bool =
+  let 
+    val start : branch = {have = eempty prog_compare, pending = []}
+    val initial_formulas = rev ((neg phi) :: premises)
+    val _ = fresh_var_id := list_imin (List.concat (map all_varid initial_formulas)) - 1
+  in
+    case insert_list initial_formulas start of
+      NONE => true
+    | SOME br => search br []
+  end
+
+fun refute premises =
+  let 
+    val start : branch = {have = eempty prog_compare, pending = []}
+    val _ = fresh_var_id := list_imin (List.concat (map all_varid premises)) - 1
+  in
+    case insert_list premises start of
+      NONE => true
+    | SOME br => search br []
+  end
+
+(* -------------------------------------------------------------------------
+   Programming primitives
+   ------------------------------------------------------------------------- *)
+
+val timedv = Vector.fromList 
+  [timed_hd, timed_tl, timed_push, 
+   timed_is_var, timed_is_not, timed_is_or, timed_same_id,
+   timed_cond, timed_while
+  ]
    
-val term_to_string = sexp_to_string o term_to_sexp;
 
 (* -------------------------------------------------------------------------
-   Thml
+   Example: Subsumption for R(3,3)
    ------------------------------------------------------------------------- *)
-
-exception ProofFound
-
-val eqid = 3
-val notid = 4
-val falseid = 5
-
-fun is_false (Ins(id,_)) = id = falseid
-fun is_eq (Ins(id,_)) = id = eqid
-fun is_not (Ins(id,_)) = id = notid
-fun dest_unary (Ins(id,pl)) = 
-  case pl of [p] => p 
-  | _ => raise ERR "dest_unary" ""
-fun dest_binary (Ins(id,pl)) = 
-  case pl of [p1,p2] => (p1,p2) 
-  | _ => raise ERR "dest_binary" ""
-
-fun is_neq tm = is_not tm andalso is_eq (dest_unary tm)
-
-(* probably this also should be counted: measure how much time
-   is taken by is_contradiction *)
-fun is_contradiction thm = 
-  is_false thm orelse 
-  (is_neq thm andalso prog_compare (dest_binary (dest_unary thm)) = EQUAL)
-
-fun update_thml_check newthml ({intl,terml,thml}:record) = 
-  if is_contradiction (hd newthml)
-  then raise ProofFound
-  else ({intl = intl,terml = terml, thml = newthml}: record);
-
-fun init_conjecture cj = update_thml_check [cj] empty_record;
-
-fun constant_thm operator (x:record,y:record) = 
-  update_thml [operator] empty_record;
-
-fun binop_thm operator (x:record,y:record) = case (#thml x, #thml y) of
-    (a :: m, b :: _) => update_thml_check (operator (a,b) :: m) x
-  | _ => x
-
-fun ternop_thm operator (x:record,y:record,z:record) = 
-  case (#thml x, #thml y, #thml z) of
-    (a :: m, b :: _, c :: _) => update_thml_check (operator (a,b,c) :: m) x
-  | _ => x
-
-
-(* todo make the conjecture an input *)
-val axiom_fl = map (fn x => mk_nullf 1 (constant_thm x)) axioml
-
-(* the cost should be baked in the rewrite tactic *)
-val inst_f = mk_ternf 1 (ternop_thm inst_match)
-val mp_f = mk_binf 1 (binop_thm mp_match)
-val rewrite_f = mk_binf 1 (binop_thm rewrite_match)
-
+   
 (*
-fun loopf f test x = if test x then x else loopf f test (f x);
-*)
-
-(* -------------------------------------------------------------------------
-   Create executable
-   ------------------------------------------------------------------------- *)
-
-
-
-val namev = Vector.fromList (["x","y","inst","mp","rewrite"] @ 
-  List.tabulate (length axiom_fl, fn i => "ax" ^ its i))
-val execv = Vector.fromList ([x_f,y_f,inst_f,mp_f,rewrite_f] @ axiom_fl)
-
-fun mk_exec_move id fl = Vector.sub (execv,id) fl 
-  handle Subscript => raise ERR "mk_exec_move" (its id)
-  
-fun mk_exec (p as (Ins (id,pl))) = 
-  let val fl = map mk_exec pl in mk_exec_move id fl end
-
-
-  
-
-(*
-fun induct tm1 tm2 f1 f2 = 
-  if not (mem (first_var tm1) (all_var tm2)) orelse 
-     not (is_inductive_proof (tm2,f1,f2))
-  then empty_record  
-  else update_thml (clausify_negation tm2) empty_record
-*)
-
-
-(* 
-in the brute force approach or even in any bottom-up search 
-don't reevaluate if the last operation is not a loop of a theorem producing
-function
-*)
-
-end (* struct *)
-
-(* eval "2+1" = "|- 2-1 = 1" *)
-
-(* 
-
-fun conj_intro (a,b) = ((asm1,asm2), mk_conj (a,b))  
-fun conj_elim a = 
-  if not a conjuction fails 
-  then 
-  else 
-  
-fun 
-  
-  (every subprograms must be runnable?°
-
-
-
-based type term list
-Maybe Make it a 
-elim intro
-disch "term" 
-undisch
-elim_forall
-intro_forall
-elim_exist
-intro_exist
-          
-
-
-Variable (2): x y 
-Control flow (7): 
-  if term_compare t1 t2 then t3 else t4
-  if is_term t1 then t2 else t3
-  if is_null x then t2 else t3 
-  traverse loop2 (size_of_term) 
-List (4): push pushl pop null
-val move hyp pointer. (disch)
-
-disch term undisch
-intro elim
-contrapos
-
-elim intro (top symbol)
-skolemize
-
-
-Terms (7): subst, construct, destruct, or, and, not, rotate
-Theorems (8):
-- inst_match, mp_match, rewrite_match
-- inst_unif, mp_unif, rewrite_unif
-- induction (first var in term in first term), splitting on term
-
-27 constructors.
-
-load "qprove"; open aiLib kernel sexp qsubst qprove;
+load "qprove"; open qprove; open kernel aiLib;
 val ERR = mk_HOL_ERR "test";
 
-val x_init = init_conjecture (string_to_term "(not (= (+ 0 0) 0))");
-val y_init = empty_record;
+(* have the neural network learn subsumption 
+   (maybe from the paper can a neural network learn entailment) 
+ *)
+ 
+term constructors: (make a proof to decide whether to drop? or something else)
 
-val prog = (Ins (4,[Ins(7,[]),Ins(0,[])]));
-val state = (mk_exec prog) (x_init, y_init);
+binary operation take two states and return another state.
 
-val (t1,t2) = (hd (#thml r1), hd (#thml r2));
-term_to_string t1;
-term_to_string t2;
+why can't + only one state (e.g. the two last states on the stack)?
+and return a new state.
 
-val t3 = rewrite_match (t1,t2);
-term_to_string t3;
+mp () ()
 
-mk_(a,b) = 
-
-4 loops:
-loop_int x++
-loop_term (traverse term)
-loop2 n x and y updates
-while y > 0, x and y updates.
+- either reach false or get to the theorem.
 
 
-val conjecture_f = constant_thm (!conjecture_glob)
+need access to have as a list and a set. 
+
+ 
+fun subsumes have f = case f of
+    Ins(0,[Ins(id,fl)]) => 
+    (if id < 0 then emem f have else exists (subsumes have) fl)
+  | Ins(id,fl) => 
+    (if id < 0 then emem f have else exists (subsumes have) fl)
+  
+fun f ({have,pending}: branch) = subsumes have (hd pending);
+dropf_glob := f;
+
+fun v x = var (~x);
+val taut1 = prove [] (or (v 1) (neg (v 1)));
+val taut2 = prove [] (or (neg (v 1)) (v 2));
+val taut3 = prove [] (neg (or (neg (v 1)) (neg (v 2))));
+
+fun subsets_of_size 0 _ = [[]]
+  | subsets_of_size _ [] = []
+  | subsets_of_size n (x::xs) =
+    let
+      val with_x = map (fn ys => x::ys) (subsets_of_size (n-1) xs)
+      val without_x = subsets_of_size n xs
+    in
+      with_x @ without_x
+    end
+
+val cliquel = subsets_of_size 3 (List.tabulate (6,I));
+
+fun clique_of_subset_f f (subset,color) =
+  let val edgel = all_pairs (dict_sort Int.compare subset) in
+    map (fn x => (f x, color)) edgel
+  end
+
+
+fun ramsey_clauses_f f size (bluen,redn) = 
+  let
+    val bluesubsetl = subsets_of_size bluen (List.tabulate (size,I))
+    val redsubsetl = subsets_of_size redn (List.tabulate (size,I))
+    val subsetl = map_assoc (fn _ => 1) bluesubsetl @
+                  map_assoc (fn _ => 2) redsubsetl
+  in
+    map (clique_of_subset_f f) subsetl
+  end
+  
+fun ramsey_clauses_bare size (bluen,redn) = 
+  ramsey_clauses_f I size (bluen,redn)
+ 
+fun edge_to_var (x,y) = 
+  if x < y then x + ((y * (y - 1)) div 2) else 
+  raise ERR "edge_to_var" (its x ^ "-" ^ its y);
+  
+fun ramsey_clauses size (bluen,redn) =
+  ramsey_clauses_f edge_to_var size (bluen,redn)
 
 
 
-val mk_execf = 
+fun list_or l = case l of [] => raise ERR "" "" | [a] => a | a :: m =>
+  or a (list_or m);
 
-~P(0) \/ (P(d) /\ ~ P(d+1)) 
-val (_,t) = add_time (PURE_ONCE_REWRITE_TAC [arithmeticTheory.ADD_COMM]) ([],``x=2+3``);
-load "qsubst"; open qsubst;
-val p1 = string_to_term "(= (+ x y) (+ y x))";
+fun var_of_lit (a,b) = (if b=1 then neg else I) (var ((~a) - 1));
+fun formula_of_clause clause = list_or (map var_of_lit clause);
 
-val p2 = string_to_term "(= x (+ (s (s 0)) (s (s (s 0)))))";
-fun f x = rewrite_match (p1,x);
-val (p3,t) = add_time (funpow 1000 f) p2;
-print_endline (term_to_string p3);
-
-goal is to have a random search working.
-
+val clauses = ramsey_clauses 6 (3,3);
+val formulal = map formula_of_clause clauses;
+val (b,t) = add_time refute formulal;
 *)
 
+(* -------------------------------------------------------------------------
+   Language
+   ------------------------------------------------------------------------- *)
 
+(* 
+primitives to decide whether to drop a clause or not: 
+- subsumption (A true formula appears as positive formula in the clause)
+- splitting on literals (only 2^15 maximum if do not speak on the same literal again)
+- unit propagation
+*)
+
+ (*
+ f state -> integer
+ split > 0, drop = 0, soft drop < 0
+ 
+ 1) (5/6) destructor constructor (should i be able to construct my own terms)
+    neg var or forall dest_ins_fst (dest_ins_snd (returns a list))
+ 
+ 2) mem list (made faster by looking up into the set)
+ 
+ 3) should be able to access the list of true formula in the branch 
+ splits instead of just being a set. 
+ 4) should be able to have fast membership for that set.
+ 5) unit propagation/modus ponens 
+    (do not really work in non-clausal form but eventually the thing would be clausal)
+ 6) is_literal
+ 7) cut (by a or not a)
+ 8) prove primitive 
+ 
+ *)
+ 
+ 
+ 
+
+end (* struct *)
