@@ -65,6 +65,13 @@ sig
   val search_arcagi_ex : unit -> int -> kernel.arcagi list
   val arcagispec : (unit, int, kernel.arcagi list) smlParallel.extspec
   
+  (* searching for qprove programs *)
+  val search_qprove_branchl : 
+    unit -> (prog list * real) list -> (prog list * (prog * int)) list
+  val qprovespec : 
+    (unit, (prog list * real) list, (prog list * (prog * int)) list) 
+    smlParallel.extspec
+  
   (* train from a isol *)
   val trainf_isol : string -> (int * kernel.prog) list -> unit
   

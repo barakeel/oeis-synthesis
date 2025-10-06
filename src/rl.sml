@@ -36,6 +36,9 @@ val maxgen = ref NONE
 val tnndir = selfdir ^ "/tnn_in_c"
 val modeldir = selfdir ^ "/model"
 
+fun write_unit (_:string) () = ()
+fun read_unit (_:string) = ()
+
 (* -------------------------------------------------------------------------
    Files
    ------------------------------------------------------------------------- *)
@@ -133,7 +136,18 @@ fun write_arcagisol_atomic ngen arcagisol =
     OS.FileSys.rename {old = oldfile, new = newfile}
   end  
   
+(* qprove experiment *)
+fun read_qprovesol ngen = qprove.read_qprove (itsol_file ngen)
 
+fun write_qprovesol_atomic ngen sol = 
+  let
+    val newfile = itsol_file ngen
+    val oldfile = newfile ^ "_temp"
+  in
+    qprove.write_qprove oldfile sol;
+    OS.FileSys.rename {old = oldfile, new = newfile}
+  end
+  
 (* -------------------------------------------------------------------------
    Training
    ------------------------------------------------------------------------- *)
@@ -192,6 +206,20 @@ fun trainf_arcagi datadir pid =
   let
     val arcagisol = read_arcagisol (find_last_itsol ())
     val progl = map #2 arcagisol
+    val progset = shuffle progl
+    val _ = print_endline ("programs " ^ its (length progset))
+    val ex = create_exl_progset progset
+    val nex = length ex
+    val _ = print_endline (its (length ex) ^ " examples created")
+  in
+    if nex < 10 then raise ERR "too few examples" "" else
+    export_traindata datadir num_epoch learning_rate dim_glob ex
+  end  
+  
+fun trainf_qprove datadir pid =
+  let
+    val sol = read_qprovesol (find_last_itsol ())
+    val progl = map (fst o snd) sol
     val progset = shuffle progl
     val _ = print_endline ("programs " ^ its (length progset))
     val ex = create_exl_progset progset
@@ -274,7 +302,8 @@ fun trainf_start pid =
     val _ = print_endline "exporting training data"
   in
     (* if !smartselect_flag then ... else ... *)
-    if !pgen_flag then trainf_pgen datadir pid
+    if !qprove_flag then trainf_qprove datadir pid
+    else if !pgen_flag then trainf_pgen datadir pid
     else if !ramsey_flag then trainf_ramsey datadir pid    
     else if !hanabi_flag orelse !rams_flag then trainf_hanabi datadir pid
     else if !arcagi_flag then trainf_arcagi datadir pid  
@@ -845,8 +874,8 @@ val hanabispec : (unit, (prog list * real) list, hanabi list) extspec =
      "rl.auto_load_ob ()"]
     ^ ")"),
   function = search_hanabi_branchl,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
+  write_param = write_unit,
+  read_param = read_unit,
   write_arg = write_proglrl,
   read_arg = read_proglrl,
   write_result = write_hanabil,
@@ -872,7 +901,6 @@ fun string_of_hanabisol ((sc,p),h) = String.concatWith ", "
 
 fun stats_hanabi dir hanabisol =
   writel (dir ^ "/best") (map string_of_hanabisol (rev hanabisol))
-
 
 (* -------------------------------------------------------------------------
    Searching for arcagi programs
@@ -911,8 +939,8 @@ val arcagispec : (unit, int, arcagi list) extspec =
      "rl.auto_load_ob ()"]
     ^ ")"),
   function = search_arcagi_ex,
-  write_param = let fun f _ () = () in f end,
-  read_param = let fun f _ = () in f end,
+  write_param = write_unit,
+  read_param = read_unit,
   write_arg = write_int,
   read_arg = read_int,
   write_result = write_arcagil,
@@ -936,6 +964,54 @@ fun string_of_arcagisol (exi,p,b,sc) = String.concatWith ", "
 fun stats_arcagi dir arcagisol =
   writel (dir ^ "/stats") (map string_of_arcagisol arcagisol)
 
+
+(* -------------------------------------------------------------------------
+   Searching for qprove programs
+   ------------------------------------------------------------------------- *)
+
+fun search_qprove_branchl () btiml =
+  (
+  search.randsearch_flag := (!ngen_glob = 0); 
+  qprove.checkinit_qprove ();
+  app (fn (board,tim) => search.search_board (0, tim) board) btiml;
+  qprove.checkfinal_qprove ()
+  )
+
+val qprovespec : (unit, (prog list * real) list, 
+  (prog list * (prog * int)) list) extspec =
+  {
+  self_dir = selfdir,
+  self = "rl.qprovespec",
+  parallel_dir = selfdir ^ "/cube_search",
+  reflect_globals = (fn () => "(" ^
+    String.concatWith "; "
+    ["smlExecScripts.buildheap_dir := " ^ mlquote (!buildheap_dir), 
+     "kernel.expname := " ^ mlquote (!expname),
+     "kernel.ngen_glob := " ^ its (!ngen_glob),
+     "qprove.init_formulal_glob ()",
+     "rl.auto_load_ob ()"]
+    ^ ")"),
+  function = search_qprove_branchl,
+  write_param = write_unit,
+  read_param = read_unit,
+  write_arg = write_proglrl,
+  read_arg = read_proglrl,
+  write_result = qprove.write_qprove,
+  read_result = qprove.read_qprove
+  }
+
+fun search_qprove () = 
+  let
+    val tree = start_cube (ncore * 8)
+    val l1 = 
+      [([],10.0)] :: 
+      sort_cube (regroup_cube [] 0.0 (shuffle (get_boardsc tree)))
+  in
+    smlParallel.parmap_queue_extern ncore qprovespec () l1
+  end
+
+fun stats_qprove dir sol =
+  writel (dir ^ "/stats") (map qprove.human_qprove_one sol)
 
 (* -------------------------------------------------------------------------
    Statistics
@@ -1088,7 +1164,21 @@ fun rl_search_only_arcagi ngen =
     write_arcagisol_atomic ngen newarcagisol;
     stats_arcagi (!buildheap_dir) newarcagisol
   end  
-  
+ 
+fun rl_search_only_qprove ngen =
+  let 
+    val (qprovesol,t) = add_time search_qprove ()
+    val _ = log ("search time: " ^ rts_round 6 t)
+    val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
+    val newqprovesol = qprove.merge_qprove (List.concat qprovesol) oldfileo 
+    val _ = log ("qprove solutions: " ^ its (length newqprovesol))
+    val sc = sum_int (map (snd o snd) newqprovesol)
+    val aversc = int_div sc (length newqprovesol)
+    val _ = log ("average score: " ^ rts_round 2 aversc)
+  in 
+    write_qprovesol_atomic ngen newqprovesol;
+    stats_qprove (!buildheap_dir) newqprovesol
+  end
 
 fun rl_search_only ngen =
   let 
@@ -1102,7 +1192,8 @@ fun rl_search_only ngen =
       (string_to_int (dfind "search_memory" configd) 
          handle NotFound => 8000) 
   in
-    if !pgen_flag then rl_search_only_pgen ngen
+    if !qprove_flag then rl_search_only_qprove ngen
+    else if !pgen_flag then rl_search_only_pgen ngen
     else if !ramsey_flag then rl_search_only_ramsey ngen
     else if !hanabi_flag orelse !rams_flag then rl_search_only_hanabi ngen
     else if !arcagi_flag then rl_search_only_arcagi ngen
@@ -1151,7 +1242,6 @@ fun rl_search ngen =
 and rl_train ngen = 
   (
   rl_train_only ngen;
-  PolyML.fullGC ();
   rl_search (ngen + 1)
   )
 
@@ -1166,8 +1256,7 @@ fun rl_search_cont_nowait () =
   let val n = ((find_last_itsol () + 1) handle HOL_ERR _ => 0) in
     rl_search_only n
   end;
-  rl_search_cont_nowait ();
-  PolyML.fullGC ()
+  rl_search_cont_nowait ()
   )
 
 fun rl_search_cont () = 
@@ -1177,8 +1266,7 @@ fun rl_search_cont () =
     if n = 1 then (print_endline "waiting for tnn"; wait_tnn ()) else ();
     rl_search_only n
   end;
-  rl_search_cont ();
-  PolyML.fullGC ()
+  rl_search_cont ()
   )
 
 fun wait_itsol b = 

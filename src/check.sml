@@ -121,7 +121,7 @@ fun merge_arcagi arcagil fileo =
   in
     app update_arcagid (arcagil @ arcagilold);
     checkfinal_arcagi ()
-  end   
+  end
       
 (* -------------------------------------------------------------------------
    hanabi check: to do move to its own file
@@ -511,9 +511,10 @@ fun checkfinal_matchback () = dlist (!matchbackd)
 fun checkonline_smt p = ()
 
 fun checkonline nnvalue (p,exec) = 
-  if !pow_flag then checkf_pow p
-  else if !smt_flag then checkonline_smt p
-  else if !arcagi_flag then checkonline_arcagi p
+  if !qprove_flag then qprove.checkonline_qprove p else
+  if !pow_flag then checkf_pow p else 
+  if !smt_flag then checkonline_smt p else
+  if !arcagi_flag then checkonline_arcagi p
   else if !ramsey_flag then checkonline_ramsey (p,exec)
   else if !hanabi_flag then checkonline_hanabi p
   else if !rams_flag then checkonline_hanabi p

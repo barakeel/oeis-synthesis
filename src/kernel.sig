@@ -60,7 +60,6 @@ sig
   val select_random : bool ref
   val select_number : int
   val reprocess_select_flag : bool ref
-  val nooeis_flag : bool ref
   val revamp_flag : bool ref
   val push_limit : int
   val prnn_flag : bool ref
@@ -88,6 +87,7 @@ sig
   val matchback_flag : bool ref
   val yenum_flag : bool ref
   val pow_flag : bool ref
+  val qprove_flag : bool ref
   
   (* flags not read from config *)
   val expname : string ref

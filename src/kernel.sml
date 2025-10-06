@@ -100,7 +100,7 @@ val reprocess_flag = bflag "reprocess_flag"
 
 (* other flag *)
 val reprocess_select_flag = bflag "reprocess_select_flag"
-val nooeis_flag = bflag "nooeis_flag"
+
 
 (* beamsearch experiment *)
 val beam_flag = bflag "beam_flag"
@@ -131,6 +131,7 @@ val hanabi_short = bflag "hanabi_short"
 val arcagi_flag = bflag "arcagi_flag"
 val nooeisdata_flag = bflag "nooeisdata_flag"
 val pow_flag = bflag "pow_flag"
+val qprove_flag = bflag "qprove_flag"
 
 (* smt flag *)
 val smt_flag = bflag "smt_flag"
@@ -297,6 +298,11 @@ val pow_operl = [("zero",0),("one",0),("two",0),
   ("addi",2),("diff",2),("mult",2),("divi",2),("modu",2),
   ("cond",3),("pow",2),("x",0),("ten",0)]
   
+val qprove_operl = [("x",0),("y",0),
+  ("hd",1),("tl",1),("push",2),("null",0),
+  ("is_v",1),("is_not",1),("is_or",1),("same_id",2),("dest",1),
+  ("cond",3),("while",4)]
+
 val minimal_operl = 
   [("zero",0),("x",0),("y",0),("suc",1),("pred",1),("loop",3)]
 
@@ -395,6 +401,7 @@ val extra_operl =
 val base_operl = map (fn (x,i) => mk_var (x, rpt_fun_type (i+1) alpha))
   (
   if !pow_flag then pow_operl 
+  else if !qprove_flag then qprove_operl
   else if !matchback_flag then matchback_operl
   else if !arcagi_flag then arcagi_operl 
   else if !hanabi_flag then hanabi_operl
@@ -477,11 +484,13 @@ val extra_ho_ariv =
 val ho_ariv = Vector.fromList 
   (
   if !pow_flag then List.tabulate (Vector.length operv, fn _ => 0)
+  else if !qprove_flag then 
+    List.tabulate (Vector.length operv - 1, fn _ => 0) @ [2]
   else if !matchback_flag then
     List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ [0,0,0]
   else if !arcagi_flag
-    then List.tabulate (9,fn _ => 0) @ [1,0,0,1,2] @ 
-         List.tabulate (10,fn _ => 0)
+    then List.tabulate (9, fn _ => 0) @ [1,0,0,1,2] @ 
+         List.tabulate (10, fn _ => 0)
   else if !hanabi_flag 
     then hanabi_hoargl
   else if !ramsey_flag 
