@@ -539,8 +539,18 @@ create_benchmark8 "entail_easyl8" easyl;
 load "qprove"; open qprove; open kernel aiLib;
 val ERR = mk_HOL_ERR "test";
 
+val formulal = 
+  map formula_of_string (readl (selfdir ^ "/data/entail_easyl8"));
+fun scoreo (b,tim) = if not b then raise ERR "score" "" else tim;
+val formulaltim = map_assoc (scoreo o qprove_baseline) formulal;
+print_endline (rts_round 2 (average_int (map snd formulaltim)));
+val d = dnew prog_compare formulaltim;
 
-val timd = dnew prog_compare formulaltim;
+val formulal8 = mk_batch 8 formulal;
+val formulal4 = mk_fast_set mk_batch 4 formulal;
+val formulal2 = mk_batch 2 formulal; 
+val formulal1 = mk_batch 1 formulal;  
+  
 
 load "search";
 search.randsearch_flag := true;

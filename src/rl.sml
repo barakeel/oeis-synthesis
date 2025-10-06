@@ -1171,10 +1171,15 @@ fun rl_search_only_qprove ngen =
     val _ = log ("search time: " ^ rts_round 6 t)
     val oldfileo = if ngen = 0 then NONE else SOME (itsol_file (ngen - 1))
     val newqprovesol = qprove.merge_qprove (List.concat qprovesol) oldfileo 
-    val _ = log ("qprove solutions: " ^ its (length newqprovesol))
-    val sc = sum_int (map (snd o snd) newqprovesol)
-    val aversc = int_div sc (length newqprovesol)
-    val _ = log ("average score: " ^ rts_round 2 aversc)
+    fun aver n = 
+      let val l = map (snd o snd) 
+        (filter (fn (x,_) => length x = n) newqprovesol)
+      in
+        "aver" ^ its n ^ ": " ^ 
+        rts_round 2 (average_int l) ^ " " ^ 
+        its (length l)
+      end 
+    val _ = log (String.concatWith ", " (map aver [8,4,2,1])) 
   in 
     write_qprovesol_atomic ngen newqprovesol;
     stats_qprove (!buildheap_dir) newqprovesol
