@@ -1,5 +1,7 @@
 signature qprove = sig
     
+  include Abbrev
+  
   type prog = kernel.prog
   type formula = kernel.prog
   type qprove = (formula list * (prog * int))

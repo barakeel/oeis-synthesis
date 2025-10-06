@@ -4,7 +4,7 @@
 
 structure qprove :> qprove = struct
 
-open aiLib kernel
+open HolKernel Abbrev boolLib aiLib kernel
 val ERR = mk_HOL_ERR "qprove"
 
 type prog = kernel.prog
