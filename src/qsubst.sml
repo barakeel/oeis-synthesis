@@ -54,7 +54,7 @@ fun subst_sub (Ins (i,pl)) =
   if is_var i then lookup_sub i else Ins (i, map subst_sub pl);
 
 (* -------------------------------------------------------------------------
-   Matching (with respect to sub_glob)
+   Matching
    ------------------------------------------------------------------------- *)
 
 fun match (p1 as Ins(i1,pl1), p2 as Ins(i2,pl2)) =
@@ -138,7 +138,7 @@ fun is_eq (Ins(i,pl)) = i = eqi
 fun dest_eq (Ins(i,pl)) = pair_of_list pl 
  
 fun rewrite_match_one (p1,p2) (p as (Ins(i,pl))) =
-  let fun f b = if b then inst_match_aux p2 else p in
+  let fun f b = if b then inst_aux p2 else p in
     with_match (p1,p) f
   end
   
@@ -159,7 +159,7 @@ fun is_imp (Ins(i,pl)) = i = impi
 fun dest_imp (Ins(i,pl)) = pair_of_list pl 
 
 fun mp_match_aux (p1,p2) p =
-  let fun f b = if b then inst_match_aux p2 else p in
+  let fun f b = if b then inst_aux p2 else p in
     with_match (p1,p) f
   end
 

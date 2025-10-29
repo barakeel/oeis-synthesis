@@ -10,12 +10,15 @@ signature qprove = sig
   type branch = {have : prog Redblackset.set, havel : prog list,  
                  pending : prog list}
   
+  val dbg_flag : bool ref
+  
   val or : prog -> prog -> prog
   val var : int -> prog
   val neg : prog -> prog
   val forall : prog -> prog -> prog
   
-  val dropf_glob : (branch -> bool) ref
+  val action_flag : bool ref
+  val actionf_glob : (branch -> formula list) ref
   val prove : prog list -> prog -> bool
   val refute : prog list -> bool
   
@@ -27,10 +30,14 @@ signature qprove = sig
   val sat_count : int ref
   val unsat_count : int ref
   val qprove : prog -> (formula * int) -> (bool * int)
+  val qprove_asm : prog -> ((formula list * formula) * int) -> (bool * int)
   val qprove_baseline : prog -> (bool * int)
   
   val read_true_exl : string -> term list
   val htt : term -> prog
+  
+  val human_formula : formula -> string
+  val formula_human : string -> formula
   
   val string_of_formula : formula -> string
   val formula_of_string : string -> formula
@@ -47,6 +54,9 @@ signature qprove = sig
   val write_qprove : string -> qprove list -> unit
   val read_qprove : string -> qprove list
   
+  val axiom1: formula
+  val axiom2: formula
+  val axiom3: formula
   
   
 end

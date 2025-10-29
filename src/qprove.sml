@@ -4,7 +4,7 @@
 
 structure qprove :> qprove = struct
 
-open HolKernel Abbrev boolLib aiLib kernel
+open HolKernel Abbrev boolLib aiLib kernel qsubst sexp
 val ERR = mk_HOL_ERR "qprove"
 
 type prog = kernel.prog
@@ -13,6 +13,76 @@ type qprove = (formula list * (prog * int))
 type state = prog list
 type exec = state * state -> state 
 exception Error
+val error_flag = ref false
+fun error () = if !error_flag then raise Error else ([]:formula list)
+
+val dbg_flag = ref false
+fun dbg f = if !dbg_flag then f () else ()
+
+(* idea: list of list of formulas: hd2 tl2 push2, 
+   let the LM program the outer loop *)
+(* -------------------------------------------------------------------------
+   Human interface
+   ------------------------------------------------------------------------- *) 
+
+val humanv = Vector.fromList ["not","or","forall","=","0","suc","+"]
+val humand = dnew String.compare (number_snd 0 (vector_to_list humanv));
+
+fun id_of_oper s = 
+  if hd_string s = #"v" 
+  then ~ (string_to_int (tl_string s))
+  else dfind s humand;
+  
+val zero_id = id_of_oper "0";
+val suc_id = id_of_oper "suc";
+val zero = Ins(zero_id,[])
+fun suc t = Ins(suc_id,[t])
+  
+fun mk_nat i = 
+  if i < 0 then raise ERR "mk_nat" "negative"
+  else if i = 0 then Ins (zero_id,[])
+  else suc (mk_nat (i-1))
+  
+fun sexp_to_formula phi = case phi of
+    Atom s => if Char.isDigit (hd_string s) 
+              then mk_nat (string_to_int s)
+              else Ins (id_of_oper s,[])
+  | Sexp (Atom s :: argl) => Ins (id_of_oper s, map sexp_to_formula argl)
+  | _ => raise ERR "sexp_to_formula" "";
+
+fun human_formula (Ins (i,pl)) = 
+  let val opers = 
+    if i < 0 then "v" ^ its (~i) else
+    if i >= Vector.length humanv then "f" ^ its i else 
+    Vector.sub (humanv,i) 
+  in
+    if null pl then opers else
+    "(" ^ String.concatWith " " (opers :: map human_formula pl) ^ ")"
+  end
+
+val formula_human = sexp_to_formula o string_to_sexp  
+
+(* 
+have instantiation with matching as primitive 
+can only rewrite with equalities. 
+what about !x. x>= 0 => x = x+1
+
+split affects the goal stacks and you can delay variable instantiations.
+
+idea basically an efficient version of tactictoe with programmable tactics
+use the already available rules/tactics from HOL4 by writing
+a converter
+
+separate list of goals from of list of terms
+while_goal [input_goals]
+
+an action operate over the list of goals
+
+rules list of goals to list of goals
+term goals(theorems local to the branch) theorems
+
+the only thing that can produce new list of "goals" are rules
+*)
 
 (* -------------------------------------------------------------------------
    Timer
@@ -24,6 +94,18 @@ fun timed_after y =
   if !abstimer > !timelimit then raise ProgTimeout else y
   )
 
+fun timed_prog_compare (Ins x,Ins y) =
+  (
+  incr abstimer;
+  cpl_compare Int.compare (list_compare timed_prog_compare) (x,y)
+  )
+  
+fun occurences term (formula as (Ins(id,l))) = 
+  if timed_prog_compare (formula,term) = EQUAL 
+  then 1
+  else sum_int (map (occurences term) l);
+  
+    
 fun timed_var opf fl = case fl of 
     [] => (fn x => timed_after (opf x))
   | _ => raise ERR "timed_var" ""
@@ -54,9 +136,9 @@ val timed_vary = timed_var vary
    List operations
    ------------------------------------------------------------------------- *)
 
-fun list_hd a = case a of e :: m => [e] | _ => raise Error 
-fun list_tl a = case a of e :: m => m | _ => raise Error 
-fun list_push a b = case a of e :: m => e :: b | _ => raise Error
+fun list_hd a = case a of e :: m => [e] | _ => error ()
+fun list_tl a = case a of e :: m => m | _ => error ()
+fun list_push a b = case a of e :: m => e :: b | _ => error ()
 fun list_null () = []
 
 val timed_hd = timed_unary list_hd
@@ -91,39 +173,51 @@ val or_id = 1
 
 (* first-order *)
 val forall_id = 2
+val equal_id = 3
+fun is_predicate_level (Ins(id,_)) = id >= 0 andalso id <= 3
 
-(* higher-order *)
-val app_id = 3
-val lambda_id = 4
+(* arithmetic *)
+val zero_id = 4
+val suc_id = 5
+val add_id = 6
 
 (* other constants/functions predicates: 5 and up *)
-fun var id = Ins (id,[])
+fun var id = if id < 0 then Ins (id,[]) else raise ERR "var" ""
 fun neg f = case f of
     Ins (not_id,[g]) => g
   | _     => Ins (not_id,[f])
 fun or a b = Ins (or_id,[a,b])
 fun forall v body = Ins (forall_id,[v,body])
-val fresh_var_id = ref (~1)
-fun fresh_var () = let val v = var (!fresh_var_id) in decr fresh_var_id; v end
+
+val fresh_const_id = ref 0
+fun fresh_const () = let val v = var (!fresh_const_id) 
+  in incr fresh_const_id; v end
 
 (* tests: term/thm -> bool(0/1) *)
 fun is_v (Ins(i,_)) = i < 0
 fun is_not (Ins(i,_)) = i = not_id
 fun is_or (Ins(i,_)) = i = or_id
 fun is_forall (Ins(i,_)) = i = forall_id
+fun is_equal (Ins(i,_)) = i = equal_id
 fun equal_term (a,b) = prog_compare (a,b) = EQUAL
+
+(* constructors *)
+fun mk_forall (var,body) = Ins(forall_id, [var,body])
+fun mk_equal (t1,t2) = Ins(equal_id,[t1,t2])
+val zero = Ins(zero_id,[])
+fun suc t = Ins(suc_id,[t])
+fun mk_add (t1,t2) = Ins(add_id,[t1,t2])
+
+val fh = formula_human
+val axiom1 = fh "(forall v1 (= v1 v1))"
+val axiom2 = fh "(forall v1 (= (+ v1 0) v1))"
+val axiom3 = fh "(forall v1 (forall v2 (= (+ v1 (suc v2)) (suc (+ v1 v2)))))"
 
 (* destructors *)
 fun dest_ins (Ins(id,l)) = (id,l) 
-fun get_id f = fst (dest_ins f) (* maybe not necessary *)
+fun get_id f = fst (dest_ins f)
 fun get_arg f = snd (dest_ins f)
 
-(* others *)
-fun non_lit f =  case f of
-    Ins(1,_) => true
-  | Ins(0,[Ins(1,_)]) => true
-  | _ => false
-  
 fun all_varid_aux acc f = case f of
     Ins(i,[]) => if i < 0 then acc := i :: !acc else ()
   | Ins(_,l) => app (all_varid_aux acc) l
@@ -142,11 +236,11 @@ fun subst (v,f) ftop = subst_aux (get_id v,f) ftop
 
 fun same_id x y = case (x,y) of
     (Ins (i1,_) :: _, Ins (i2,_) :: _) => if i1 = i2 then x else []
-  | _ => raise Error
+  | _ => error ()
 
 fun test_wrap test x = case x of 
     t :: m => if test t then x else []
-  | _ => raise Error
+  | _ => error ()
 
 val timed_is_v = timed_unary (test_wrap is_v)
 val timed_is_not = timed_unary (test_wrap is_not)
@@ -155,7 +249,7 @@ val timed_same_id = timed_binary same_id
 
 fun dest x = case x of 
     Ins(_,l) :: m => l @ m
-  | _ => raise Error 
+  | _ => error ()
 
 val timed_dest = timed_unary dest
 
@@ -163,23 +257,21 @@ val timed_dest = timed_unary dest
    Branch insertion: add a new fact to the branch
    ------------------------------------------------------------------------- *)
 
-type branch = {have : prog Redblackset.set, 
-               havel : prog list, 
-               pending : prog list}
+type branch = {
+              have : prog Redblackset.set, 
+              havel : prog list, 
+              pending : prog list
+              }
 
-fun timed_emem p d = 
-  (abstimer := (!abstimer) + 
-     IntInf.log2 (1 + IntInf.fromInt (elength d)) + prog_size p;
-   emem p d)
+fun is_negrefl tm = case tm of
+    Ins(0,[Ins(3,[t1,t2])]) =>
+    prog_compare (t1,t2) = EQUAL     
+  | _ => false
 
 fun insert f (br as {have, havel, pending}) =
-  if timed_emem (neg f) have then NONE else
-  if timed_emem f have then SOME br else
-    SOME {have = eadd f have, 
-          havel = f :: havel,
-          pending = if non_lit f then f :: pending else pending}
-
-(* not sure if this if non_lit apply to first-order *)
+  if emem f have then SOME br
+  else if is_negrefl f orelse emem (neg f) have then NONE
+  else SOME {have = eadd f have, havel = f :: havel, pending = f :: pending}
 
 fun insert_list fl br = case fl of 
     [] => SOME br
@@ -194,6 +286,9 @@ fun insert_list fl br = case fl of
    Branch expansion
    ------------------------------------------------------------------------- *)
 
+val hf = human_formula
+fun pe x = (append_endline (selfdir ^ "/qprove_dbg") x; print_endline x)
+
 fun expand_or l br0 brm = 
    let val newbrl = List.mapPartial (C insert br0) l in
      newbrl @ brm
@@ -206,76 +301,158 @@ fun expand_bro bro brm = case bro of
 fun expand_and l br0 brm = expand_bro (insert_list (map neg l) br0) brm
 
 fun expand_exists (v,body) br0 brm = 
-  let val newf = neg (subst (v, fresh_var ()) body) in
+  let val newf = neg (subst (v, fresh_const ()) body) in
     expand_bro (insert newf br0) brm
   end
   
-fun expand_forall (v,body) instance br0 brm =
-  let val newf = subst (v,instance) body in
-    expand_bro (insert newf br0) brm
+fun expand_forall (v,body) instancel br brm =
+  let val rl =
+    if null instancel then [] else
+    let 
+      val instance = hd instancel 
+    in
+      if is_predicate_level instance then [] else 
+      let 
+        val r = subst (v,instance) body
+        val _ = dbg (fn () =>  
+         pe ("forall: " ^ hf body ^ " at " ^ hf v ^  " -> " ^ hf r))      
+      in
+        [r]
+      end 
+    end
+  in
+    expand_bro (insert_list rl br) brm
   end
 
-fun expand_branch ({have, havel, pending}: branch) (brm: branch list) = case pending of
+(*
+todo improve rewrite to do matching on universal variables 
+use some range of positive numbers for skolem constants
+only allow rewrite with the original theorems (not the deduced ones?)
+store theorems to be access in a database (list of theorems)
+axiom1 axiom2 axiom3 as primitives?
+*)
+
+fun rewrite_aux pos (t1,t2) (t as Ins(id,l))= 
+  if !pos < 0 then t else
+  if timed_prog_compare (t,t1) = EQUAL 
+  then 
+    (
+    decr pos; 
+    if !pos < 0 then t2 else Ins (id, map (rewrite_aux pos (t1,t2)) l)
+    )
+  else 
+    Ins (id, map (rewrite_aux pos (t1,t2)) l)
+
+
+fun strip_forall formula = case formula of
+    Ins(2,[v,body]) => strip_forall body  
+  | _ => formula
+
+fun rewrite have form eql = case eql of [] => [] | qeq :: m =>
+   if not (emem qeq have) then [] else
+   let val eq = strip_forall (hd eql) in
+     dbg (fn () => pe ("rewrite: " ^ hf form ^ " with " ^ hf eq));
+     [rewrite_match (eq,form)]
+   end
+
+fun expand_rewrite have formula eql br brm = 
+  let val formulal = rewrite have formula eql in
+    expand_bro (insert_list formulal br) brm
+  end
+
+fun expand_branch {have, havel, pending} instancel brm =
+  case pending of
       [] => raise ERR "expand_branch" "empty pending"
     | f :: fm =>
-      let val br0 = {have = have, havel = havel, pending = fm} in
+      let 
+        val br = {have = have, havel = havel, pending = fm}  
+      in
         case f of
-          Ins(1,l) => expand_or l br0 brm
-        | Ins(0,[Ins(1,l)]) => expand_and l br0 brm
-        | Ins(0,[Ins(2,[v,body])]) => expand_exists (v,body) br0 brm
-        | _ => raise ERR "expand_branch" "unexpected"
+          Ins(1,l) => 
+          (
+          dbg (fn () =>  pe ("or: " ^ hf f));
+          expand_or l br brm
+          )
+        | Ins(0,[Ins(1,l)]) => 
+          (
+          dbg (fn () => pe ("and: " ^ hf f));
+          expand_and l br brm
+          )
+        | Ins(2,[v,body]) =>
+          let val br' = {have = have, havel = havel, pending = fm @ [f]} in
+            expand_forall (v,body) [] br' brm (* replace [] by instancel *)
+          end
+        | Ins(0,[Ins(2,[v,body])]) => 
+          (
+          dbg (fn () =>  pe ("exists: " ^ hf f));
+          expand_exists (v,body) br brm
+          )
+        | _ => 
+          let val br' = {have = have, havel = havel, pending = fm @ [f]} in
+            expand_rewrite have f instancel br' brm
+          end
       end
-      
-fun expand_branch_forall (br0: branch) instance brm = case #pending br0 of
-      [] => raise ERR "expand_branch_forall" "empty pending"
-    | f :: fm =>
-      (
-      case f of 
-        Ins(2,[v,body]) => expand_forall (v,body) instance br0 brm
-      | _ => raise ERR "expand_branch_forall" "not a forall"
-      )
 
 fun drop_pending ({have, havel, pending}: branch) =
-  {have = have, havel = havel, pending = tl pending}
+  {have = have, havel = havel, pending = tl pending @ [hd pending]}
 
 (* -------------------------------------------------------------------------
    Search
    ------------------------------------------------------------------------- *)
 
-val dropf_glob = ref (fn (_ : branch) => false) 
+val action_flag = ref false
+val actionf_glob = ref (fn (_ : branch) => []) 
 
 fun search br brm = 
   (
-  abstimer := (!abstimer) + 5;
+  incr abstimer;
   if null (#pending br) then false else 
-  if (!dropf_glob) br then search (drop_pending br) brm else
-  (
-  case expand_branch br brm of
-      [] => true (* no branch: unsatisfiable *)
-    | newbr :: newbrm => search newbr newbrm (* at least one branch *)
+  if not (!action_flag) then 
+    (
+    case expand_branch br [] brm of
+      [] => true (* unsatisfiable *)
+    | newbr :: newbrm => search newbr newbrm
+    )
+  else
+    case (!actionf_glob) br of
+      [] => search (drop_pending br) brm
+    | terml =>
+      (
+      case expand_branch br terml brm of
+          [] => true (* unsatisfiable *)
+        | newbr :: newbrm => search newbr newbrm
+      )
   )
-  )
-  
-fun prove (premises : prog list) (phi : prog) : bool =
-  let 
-    val start : branch = {have = eempty prog_compare, havel = [], pending = []}
-    val initial_formulas = rev ((neg phi) :: premises)
-    val _ = fresh_var_id := list_imin (List.concat (map all_varid initial_formulas)) - 1
-  in
-    case insert_list initial_formulas start of
-      NONE => true
-    | SOME br => search br []
-  end
-
+ 
 fun refute premises =
   let 
-    val start : branch = {have = eempty prog_compare, havel = [], pending = []}
-    val _ = fresh_var_id := list_imin (List.concat (map all_varid premises)) - 1
+    val _ = dbg (fn () => app pe (["start proof","start premises"] @ 
+      (map hf premises) @ ["end premises"]))
+    val start = {have = eempty timed_prog_compare, havel = [], pending = []}
+    val vl = List.concat (map all_varid premises)
+    val _ = fresh_const_id := 1000 (* high *)
+    val r = 
+    let val r' = 
+            (
+            case insert_list premises start of
+              NONE => true
+            | SOME br => search br []
+            )
+      in
+        if r' then dbg (fn () => pe "unsat") 
+              else dbg (fn () => pe "unknown"); 
+        r'
+      end
+        handle Error => (dbg (fn () => pe "error"); false) 
+             | ProgTimeout => (dbg (fn () => pe "timeout"); false)
+    val _ = dbg (fn () => pe ("abstract time: " ^ its (!abstimer)))
+    val _ = dbg (fn () => pe "end proof")
+      
   in
-    case insert_list premises start of
-      NONE => true
-    | SOME br => search br []
+    r
   end
+
+fun prove premises conjecture = refute ((neg conjecture) :: premises)
 
 (* -------------------------------------------------------------------------
    Programming primitives
@@ -299,14 +476,30 @@ fun qprove p (phi,tim) =
     val exec = mk_exec p
     val _ = abstimer := 0
     val _ = timelimit := tim
-    fun f br = null (exec (#pending br, #havel br))
-    val _ = dropf_glob := f 
+    fun f br = exec (#pending br, #havel br)
+    val _ = action_flag := true
+    val _ = actionf_glob := f 
     val b = 
       let val b' = prove [] phi in
         if b' then incr unsat_count else incr sat_count; b'
       end
-      handle Error => (incr error_count; false) 
-           | ProgTimeout => (incr timeout_count; false)
+
+  in 
+    (b,!abstimer)
+  end
+
+fun qprove_asm p ((asm,phi),tim) = 
+  let 
+    val exec = mk_exec p
+    val _ = abstimer := 0
+    val _ = timelimit := tim
+    fun f br = exec (#pending br, #havel br)
+    val _ = action_flag := true
+    val _ = actionf_glob := f 
+    val b = 
+      let val b' = prove asm phi in
+        if b' then incr unsat_count else incr sat_count; b'
+      end
   in 
     (b,!abstimer)
   end
@@ -314,7 +507,7 @@ fun qprove p (phi,tim) =
 fun qprove_baseline phi = 
   let 
     val _ = abstimer := 0
-    val _ = dropf_glob := (fn (_ : branch) => false)
+    val _ = action_flag := false
     val b = prove [] phi
   in 
     (b,!abstimer)
@@ -374,9 +567,10 @@ fun htt t =
   else if is_imp t then
     let val (a,b) = dest_imp t in or (neg (htt a)) (htt b) end
   else raise ERR "htt" "" ;
-  
+
+
 (* -------------------------------------------------------------------------
-   Input output and benchmark
+   Input/output
    ------------------------------------------------------------------------- *) 
   
 fun apply_move_formula move board =
@@ -388,20 +582,12 @@ fun apply_move_formula move board =
     then raise ERR "apply_move" "arity"
     else Ins (move, rev l1) :: l2
   end 
- 
+
 fun prog_of_tokenl tokenl = 
   let val progl = foldl (uncurry apply_move_formula) [] tokenl in
     case progl of [p] => p | _ => raise ERR "prog_of_tokenl" "not a singleton"
   end;
 
-fun human_formula (Ins (i,pl)) = 
-  if i < 0 then ("v" ^ its (~i)) else 
-  let val opers = 
-    if i = 0 then "not" else if i = 1 then "or" else "f" ^ its i
-  in
-    "(" ^ String.concatWith " " (opers :: map human_formula pl) ^ ")"
-  end
-    
 fun string_of_formula p = ilts (tokenl_of_prog p);
 fun formula_of_string s = prog_of_tokenl (stil s);
 
@@ -427,6 +613,10 @@ fun read_qprove_one s =
 
 fun read_qprove file = map read_qprove_one (readl file)
 
+(* -------------------------------------------------------------------------
+   SAT solving benchmark
+   ------------------------------------------------------------------------- *)
+
 fun create_benchmark8 name easyl =    
   let  
     val () = 
@@ -439,7 +629,18 @@ fun create_benchmark8 name easyl =
   in
     writel (selfdir ^ "/data/" ^ name) (map string_of_formula easyl8')
   end
-    
+  
+(*
+load "qprove"; load "game"; load "human"; 
+open qprove; open kernel aiLib;
+val ERR = mk_HOL_ERR "test";
+val dir = "/home/thibault/logical-entailment-dataset/data";
+val filel = listDir dir;
+val orgl = read_true_exl (dir ^ "/test_easy.txt");
+val easyl = map htt orgl;
+create_benchmark8 "entail_easyl8" easyl;
+*)
+  
 (* -------------------------------------------------------------------------
    Search
    ------------------------------------------------------------------------- *) 
@@ -512,210 +713,77 @@ fun merge_qprove newl fileo =
     checkfinal_qprove ()
   end
 
-
-(*
-fun v x = var (~x);
-val taut1 = prove [] (or (v 1) (neg (v 1)));
-val taut2 = prove [] (or (neg (v 1)) (v 2));
-val taut3 = prove [] (neg (or (neg (v 1)) (neg (v 2))));  
-*)
-
-(*
-load "qprove"; load "game"; load "human"; 
-open qprove; open kernel aiLib;
-val ERR = mk_HOL_ERR "test";
-val dir = "/home/thibault/logical-entailment-dataset/data";
-val filel = listDir dir;
-val orgl = read_true_exl (dir ^ "/test_easy.txt");
-val easyl = map htt orgl;
-create_benchmark8 "entail_easyl8" easyl;
-*)
-
 (* -------------------------------------------------------------------------
-   Example: SAT solving
-   ------------------------------------------------------------------------- *)
-   
-(*
-load "qprove"; open qprove; open kernel aiLib;
-val ERR = mk_HOL_ERR "test";
-
-val formulal = 
-  map formula_of_string (readl (selfdir ^ "/data/entail_easyl8"));
-fun scoreo (b,tim) = if not b then raise ERR "score" "" else tim;
-val formulaltim = map_assoc (scoreo o qprove_baseline) formulal;
-print_endline (rts_round 2 (average_int (map snd formulaltim)));
-val d = dnew prog_compare formulaltim;
-
-val formulal8 = mk_batch 8 formulal;
-val formulal4 = mk_fast_set mk_batch 4 formulal;
-val formulal2 = mk_batch 2 formulal; 
-val formulal1 = mk_batch 1 formulal;  
-  
-
-load "search";
-search.randsearch_flag := true;
-checkinit_qprove ();
-search.search (0,20.0);
-PolyML.print_depth 2;
-val rl = checkfinal_qprove ();
-PolyML.print_depth 40;
-
-fun f (formulal,(p,sc)) = 
-  let val oldsc = sum_int (map (fn x => dfind x timd) formulal) in
-    if oldsc < sc then 0 else oldsc - sc 
-  end;
-
-fun g (formulal,(p,sc)) = 
-  let val oldsc = sum_int (map (fn x => dfind x timd) formulal) in
-    oldsc
-  end;
-
-int_div (sum_int (map f rl)) (length rl);
-int_div (sum_int (map g rl)) (length rl);
-
-
-
-load "game";
-checkinit_qprove ();
-fun f () = checkonline_qprove (game.random_prog 40);
-fun calln n f = if n < 0 then () else (f (); calln (n-1) f);
-val (_,t) = add_time (calln 100000) f;
-
-
-    val phil = random_elem formulal8
-    val rl = map_assoc (qprove p) phil;
-    map snd rl;
-    
-
-
-
-load "qprove"; load "game"; load "human"; 
-open qprove; open kernel aiLib;
-val ERR = mk_HOL_ERR "test";
-
-val dir = "/home/thibault/logical-entailment-dataset/data";
-val filel = listDir dir;
-val orgl = read_true_exl (dir ^ "/test_easy.txt");
-val easyl8 = readl_string_of
-val dhol = dnew prog_compare (combine (easyl,orgl));
-
-
-
-
-
-val p = hd easyl8';
-val p'= prog_of_string (string_of_prog p);
-
-
-
-(* 
-run the search for a long time (easy to parallelize since the
-formula set are picked at random). run with notarget_flag and
-*)
-
-
-
-val directl = map f easyl;
-val directl1 = filter (fst o snd) directl;
-fun g (p,(b,tim)) = (p,tim);
-val directl2 = dict_sort (fst_compare prog_compare_size) directl1; 
-
-val d = ref (dempty prog_compare)
-
-
-
-
-d := dempty prog_compare;  
-val (_,t) = add_time (calln 1000000) f;
-dlength (!d);
-
-val inventl = dict_sort (fst_compare prog_compare_size) (dlist (!d));
-
-val l1 = combine (directl2,inventl);
-fun f ((phi1,(b1,tim1)),(phi2,(p2,tim2))) = 
-  if prog_compare (phi1,phi2) = EQUAL andalso b1 then
-    ((phi1,p2),tim1-tim2)
-  else raise ERR "f" "" 
-
-val l2 = dict_sort compare_imax (map f l1);
-val (l3,l4) = partition (fn x => snd x < 0) l2; length l3; length l4;
-
-fun f ((phi1,(b1,tim1)),(phi2,(p2,tim2))) = 
-  if prog_compare (phi1,phi2) = EQUAL andalso b1 then
-    ((phi1,p2),int_div tim1 tim2)
-  else raise ERR "f" "" 
-
-val l2 = dict_sort compare_rmax (map f l1);
-val ((phi,p),r) = hd l2;
-
-print_endline (human.human_trivial p);
-print_endline (term_to_string (dfind phi dhol));
-
-*)
-
-(* -------------------------------------------------------------------------
-   Example: Subsumption for R(3,3)
+   Example: arithmetic
    ------------------------------------------------------------------------- *)
 
 (*
-fun subsumes have f = case f of
-    Ins(0,[Ins(id,fl)]) => 
-    (if id < 0 then emem f have else exists (subsumes have) fl)
-  | Ins(id,fl) => 
-    (if id < 0 then emem f have else exists (subsumes have) fl)
-  
-fun f ({have,pending}: branch) = subsumes have (hd pending);
-dropf_glob := f;
 
-fun subsets_of_size 0 _ = [[]]
-  | subsets_of_size _ [] = []
-  | subsets_of_size n (x::xs) =
-    let
-      val with_x = map (fn ys => x::ys) (subsets_of_size (n-1) xs)
-      val without_x = subsets_of_size n xs
-    in
-      with_x @ without_x
-    end
+load "qprove"; load "game"; open qprove; open kernel aiLib;
+val ERR = mk_HOL_ERR "test";
 
-val cliquel = subsets_of_size 3 (List.tabulate (6,I));
-
-fun clique_of_subset_f f (subset,color) =
-  let val edgel = all_pairs (dict_sort Int.compare subset) in
-    map (fn x => (f x, color)) edgel
-  end
-
-
-fun ramsey_clauses_f f size (bluen,redn) = 
-  let
-    val bluesubsetl = subsets_of_size bluen (List.tabulate (size,I))
-    val redsubsetl = subsets_of_size redn (List.tabulate (size,I))
-    val subsetl = map_assoc (fn _ => 1) bluesubsetl @
-                  map_assoc (fn _ => 2) redsubsetl
+fun loop formula n maxn = 
+  if n >= maxn then NONE else
+  let 
+    val p = game.random_prog 12
+    val (b,t) = qprove_asm p (([axiom2,axiom3],formula),1000)
   in
-    map (clique_of_subset_f f) subsetl
-  end
+    if b then SOME (p,t,n) else loop formula (n+1) maxn 
+  end;
   
-fun ramsey_clauses_bare size (bluen,redn) = 
-  ramsey_clauses_f I size (bluen,redn)
- 
-fun edge_to_var (x,y) = 
-  if x < y then x + ((y * (y - 1)) div 2) else 
-  raise ERR "edge_to_var" (its x ^ "-" ^ its y);
-  
-fun ramsey_clauses size (bluen,redn) =
-  ramsey_clauses_f edge_to_var size (bluen,redn)
+fun loopw formula maxn =   
+  let 
+    val (ro,topt) = add_time (loop formula 0) maxn 
+    val _ = print_endline ("total time: " ^ rts_round 2 topt)
+  in
+    case ro of 
+      NONE => (print_endline "failure"; NONE)
+    | SOME (p,t,n) => 
+      (
+      print_endline ("program: " ^ human.human_trivial p); 
+      print_endline ("program time: " ^ its t);
+      print_endline ("tries: " ^ its n);
+      SOME (p,t,n)
+      )
+  end;
 
-fun list_or l = case l of [] => raise ERR "" "" | [a] => a | a :: m =>
-  or a (list_or m);
+fun get_proof phi limit =
+  let
+    val _ = dbg_flag := false;
+    val (p,t,n) = valOf (loopw phi limit);
+    val _ = dbg_flag := true;
+    val _ = erase_file (selfdir ^ "/qprove_dbg");
+    val _ = qprove_asm p (([axiom2,axiom3],phi),1000)
+  in
+    ()
+  end;
 
-fun var_of_lit (a,b) = (if b=1 then neg else I) (var ((~a) - 1));
-fun formula_of_clause clause = list_or (map var_of_lit clause);
+val formula = formula_human "(= (+ 1 1) 2)";
+val formula = formula_human "(= (+ 1 2) 3)";
 
-val clauses = ramsey_clauses 6 (3,3);
-val formulal = map formula_of_clause clauses;
-val (b,t) = add_time refute formulal;
+val formula = formula_human "(= (+ 3 3) 6)";
+
+get_proof formula 10000000;
+
+loopw formula2 1000000;
+
+
+val f1 = formula_human "(not (= (+ 0 (suc 0)) (suc 0)))";
+val f2 = formula_human "(+ 0 (suc 0))";
+occurences f2 f1;
+
+x + s(y) = s(x + y)
+
+0 + s(0) <> s(0)
+
+0 + s(0) = s(0 + 0) (* instantiate match *)
+
+s(0+0) = s(0)
+
+
 
 *)
+
 
  
  
