@@ -12,15 +12,271 @@ type formula = kernel.prog
 type qprove = (formula list * (prog * int))
 type state = prog list
 type exec = state * state -> state 
+
+exception Proof
 exception Error
-val error_flag = ref false
-fun error () = if !error_flag then raise Error else ([]:formula list)
 
 val dbg_flag = ref false
 fun dbg f = if !dbg_flag then f () else ()
 
-(* idea: list of list of formulas: hd2 tl2 push2, 
-   let the LM program the outer loop *)
+(* idea: 
+1) list of list of formulas: hd2 tl2 push2, 
+2) let the LM program the outer loop 
+3) add skolemization, 
+clausing goals by unification or matching
+rewriting using unification or matching
+4) add splitting as a primitive returning the theorem A \/ B
+*)
+
+(* rewrite rule *)
+(* need a rebuild function *)
+
+datatype obj = Thm of formula list * int | Term of formula
+
+val not_id = 0
+val or_id = 1
+val forall_id = 2
+val eq_id = 3
+
+fun error () = raise Error
+
+fun next obj = case obj of
+    Thm (x,i) :: m => Thm (x,i+1) :: m
+  | _ => error ()
+
+fun is_eq (Ins(id,_)) = id = eq_id
+
+fun find_nth test n l = case l of 
+    [] => NONE
+  | a :: m => 
+    if not (test a) then find_nth test n m else
+    if n <= 0 then SOME a else find_nth test (n-1) m
+
+(* todo: add unification *)
+fun rw_match obj1 obj2 = case (obj1,obj2) of
+      (Thm (litl1,i1) :: m1, Thm(litl2,i2) :: m2) => 
+      (
+      case find_nth is_eq i1 litl1 of 
+        SOME (Ins (3,[t1,t2])) => Thm (rwl_pos (t1,t2) (litl2,i2), 0) :: m2
+      | _ => error ()
+      )
+    | _ => error ()
+
+end (* struct *)
+
+(*
+dbg (fn () => pe ("rewrite " ^ String.concatWith " " (map hf tml2) 
+     ^ " with " ^ hf eq));
+clauses are set
+*)
+
+(*
+datatype term = Ins of int * term list
+
+fun rewrite (term,i) 
+
+
+val t =
+  Ins("f", [Ins("a", []), Ins("b", []), Ins("g", [Ins("a", [])])])
+
+val SOME (subtm,rebuild) =
+  find_nth_subterm (fn Ins(id, _) => id = "a") 1 t
+(* the second "a" *)
+
+val new_term = rebuild (Ins("x", []))
+(* result: Ins("f", [Ins("a", []), Ins("b", []), Ins("g", [Ins("x", [])])]) *)
+
+
+fun nth_tml test buildf tml n = case tml of
+    [] => NONE
+  | tm :: m =>
+    case 
+
+fun nth test buildf (Ins(id,tml) as tm, n) =
+  if test tm then 
+    if n <= 0 
+      then SOME (tm, buildf)
+      else 
+         
+  
+           
+fun rewrite eq thm = case (eq,thm) of
+    (Thm (tml1,i1) :: _, Thm (tml2,i2) :: m) =>
+    case find_nth_eq thml1 i1 of
+        NONE => error ()
+      | SOME eq => 
+      (
+
+      Thm (map (rewrite_match (eq,thm)) ,_) :: m
+      )
+      else error ()
+    end
+  | _ => error () 
+
+datatype object = Thm of formula list | Term of formula
+
+(* strip forall before applying or/and conj maybe no distinction between or
+or conj automatic skolemization *)
+
+fun tmem g gl = exists (fn x => prog_compare (g,x) = EQUAL) gl
+
+fun merge_goal gl1 gl2 =
+  let val gl2' = filter (fn x => not (tmem x gl1)) gl2 in
+    gl1 @ gl2'
+  end
+
+(* more general term is on the left *)
+
+Thm, index, next, down (moving the pointer)
+
+destruct (actually destruct at the pointer location)
+traverse term (go through all the subterms and produce something)
+push
+catch_error then () else
+
+fun f 
+
+(* should my clause be represented by an array *)
+fun next_clause (Thm(gl1a,gl1b)) = Thm (hd gl1b :: gl1a, tl gl1b)
+
+(* 
+necessary to tell where the rewrite could happen, series of instruction 
+maybe should make them unfailing
+*)
+
+fun down (Thm(gl1a,i,l)) = Thm (gl1a,i,1::l) (* the second field is the 
+
+
+fun resolve_match (Thm(gl1a,gl1b),Thm(gl2a,gl2b)) = 
+  let 
+    fun f b = if b then map inst_aux gl1 else error () 
+    val newgl1 = with_match (thm1, neg thm2) f
+    val newgl = merge_goal gl2 newgl1 
+  in
+    case newgl of
+      [] => raise Proof
+    | g :: m => Thm (g,m)
+  end
+
+fun resolve_unify (Thm (thm1,gl1)) (Thm (thm2,gl2)) = 
+  let 
+    fun f b = if b then (map inst_aux gl1, map inst_aux gl2) else error () 
+    val (newgl1,newgl2) = with_unify (thm1, neg thm2) f
+    val newgl = merge_goal newgl2 newgl1 
+  in
+    case newgl of
+      [] => raise Proof
+    | g :: m => Thm (g,m)
+  end
+
+(* 
+generalize the resolve tactic later to look for literals that could match 
+in the other theorem collect literals 
+*)
+
+
+(* to do maybe checks that free variables are *)
+fun forall thm = case thm of
+    Thm (Ins(2,[v,body]), gl) :: m => body :: m
+  | _ => error ()
+
+fun orl x = case x of
+    Thm (Ins(1,[a,b]), gl) :: m => Thm (a, b::gl) :: m
+  | _ => error ()
+
+fun orr x = case x of
+    Thm (Ins(1,[a,b]), gl) :: m => Thm (b, a::gl) :: m
+  | _ => error ()
+
+fun conjl x = case x of 
+    Thm (Ins(0,Ins(1,[a,b])),gl) :: m => Thm (Ins(0,a),gl) :: m
+  | _ => error ()
+  
+fun conjr x = case x of 
+    Thm (Ins(0,Ins(1,[a,b])),gl) :: m => Thm (Ins(0,b),gl) :: m
+  | _ => error ()
+
+fun forall thmtop ttop = case (thmtop,ttop) of
+    (Thm (Ins(2,[v,body]),gl) :: m, Term t :: _) => 
+    if is_predicate_level t then error () else 
+    Thm (subst (v,t) body, gl) :: m
+  | _ => error ()
+
+fun free_vars_aux bset fset tm = case tm of
+    Ins(2,[v,body]) => free_vars_aux (eadd v bset) body  
+  | Ins(id,argl) => 
+    (
+    if is_var id andalso not (emem id bset) 
+    then fset := eadd id (!fset)
+    else (); 
+    app (free_vars_aux bset fset argl)
+    )
+  
+fun free_vars term = 
+  let 
+    val bset = eempty Int.compare 
+    val fset = ref (eempty Int.compare)
+    val _ = free_vars_aux bset fset tm
+  in
+    elist (!fset)
+  end
+  
+fun exists objl = case objl of
+    Thm (Ins(0,[Ins(2,[v,body])]) as tm, gl) :: m =>
+    Thm (neg (subst (v, Ins (fresh_const (), free_vars tm)) body),gl) :: m
+  | _ => error ()
+
+
+
+(*
+(* useful if the input is not in the cnf format *)
+fun cnf term = case term of
+    Ins(0,Ins(1,[a,b]) => List.concat [cnf (neg a), cnf (neg b)]
+  | Ins(1,[a,b]) => 
+    let val (cnfal,cnfbl) = (cnf a, cnf b) in
+       map mk_or (cartesian_product cnfal cnfbl)
+     end            
+  | Ins(2,[v,body]) => cnf body 
+    (* assumes variables no conflict between variables *)
+  | Ins(0,[Ins(2,[v,body])]) => cnf
+    (neg (subst (v, Ins (fresh_const (), free_vars term)) body))
+  | literal => [literal]
+*)
+
+(a,bl)
+(c,bl) 
+- pointer_eq on the list instead of just testing each goals individually
+- pointer_eq on the goals before testing equality other wise
+- quadratic merge (potentially factoring)
+
+
+fun orl x = case x of
+    Thm (Ins(1,[a,b]), gl) :: m => Thm (a, b::gl) :: m
+  | _ => error ()
+
+fun orr x = case x of
+    Thm (Ins(1,[a,b]), gl) :: m => Thm (b, a::gl) :: m
+  | _ => error ()
+
+fun conjl x = case x of 
+    Thm (Ins(0,Ins(1,[a,b])),gl) :: m => Thm (Ins(0,a),gl) :: m
+  | _ => error ()
+  
+fun conjr x = case x of 
+    Thm (Ins(0,Ins(1,[a,b])),gl) :: m => Thm (Ins(0,b),gl) :: m
+  | _ => error ()
+
+fun forall thmtop ttop = case (thmtop,ttop) of
+    (Thm (Ins(2,[v,body]),gl) :: m, Term t :: _) => 
+
+
+
+(* destruct term *)
+fun dest x = case x of 
+    Thm (Ins(_,l),_) :: m => map Term l @ m
+  | Term (Ins(_,l)) :: m => map Term l @ m
+
+
 (* -------------------------------------------------------------------------
    Human interface
    ------------------------------------------------------------------------- *) 
@@ -61,28 +317,6 @@ fun human_formula (Ins (i,pl)) =
   end
 
 val formula_human = sexp_to_formula o string_to_sexp  
-
-(* 
-have instantiation with matching as primitive 
-can only rewrite with equalities. 
-what about !x. x>= 0 => x = x+1
-
-split affects the goal stacks and you can delay variable instantiations.
-
-idea basically an efficient version of tactictoe with programmable tactics
-use the already available rules/tactics from HOL4 by writing
-a converter
-
-separate list of goals from of list of terms
-while_goal [input_goals]
-
-an action operate over the list of goals
-
-rules list of goals to list of goals
-term goals(theorems local to the branch) theorems
-
-the only thing that can produce new list of "goals" are rules
-*)
 
 (* -------------------------------------------------------------------------
    Timer
@@ -154,6 +388,14 @@ fun timed_cond fl = case fl of
     [f1,f2,f3] => 
     (fn x => timed_after (if null (f1 x) then f2 x else f3 x))
   | _ => raise ERR "timed_cond" ""
+
+fun can_error f x = ((ignore f x; true) handle Error => false)
+
+fun timed_cond_error fl = case fl of
+    [f1,f2,f3] => 
+    (fn x => timed_after (if can_error f1 x then f2 x else f3 x))
+  | _ => raise ERR "timed_cond_error" ""
+
 
 fun while_aux f g x y =
   if null x then y else while_aux f g (f (x,y)) (g(x,y))
@@ -236,7 +478,7 @@ fun subst (v,f) ftop = subst_aux (get_id v,f) ftop
 
 fun same_id x y = case (x,y) of
     (Ins (i1,_) :: _, Ins (i2,_) :: _) => if i1 = i2 then x else []
-  | _ => error ()
+  | _ => error ()mateurs puissent si tu regardes les positions des joueurs pendant leurs tirs et leur passes tu vois que c'est quand mê
 
 fun test_wrap test x = case x of 
     t :: m => if test t then x else []
@@ -247,9 +489,6 @@ val timed_is_not = timed_unary (test_wrap is_not)
 val timed_is_or = timed_unary (test_wrap is_or)
 val timed_same_id = timed_binary same_id
 
-fun dest x = case x of 
-    Ins(_,l) :: m => l @ m
-  | _ => error ()
 
 val timed_dest = timed_unary dest
 
@@ -257,11 +496,21 @@ val timed_dest = timed_unary dest
    Branch insertion: add a new fact to the branch
    ------------------------------------------------------------------------- *)
 
-type branch = {
-              have : prog Redblackset.set, 
-              havel : prog list, 
-              pending : prog list
-              }
+(* there is only one local theorem per branch, the one that started
+   the branch, (could be referred to as local_thm or x) 
+
+goal list * term list * term list ->
+goal list * term list * term list
+
+(* need rules and tactics *)
+rewrite (thm1 thm2) produces a new theorem
+rewrite_tac (thm1)  (expects a theroem) 
+  produces a new goal (forget about the old one)
+
+
+commands affect the (local_thm:goal) (i.e. part of the state)
+by either rewriting it splitting it.   
+*)
 
 fun is_negrefl tm = case tm of
     Ins(0,[Ins(3,[t1,t2])]) =>
@@ -359,6 +608,27 @@ fun expand_rewrite have formula eql br brm =
   let val formulal = rewrite have formula eql in
     expand_bro (insert_list formulal br) brm
   end
+
+
+   
+(* positional rewrite rule *)   
+
+
+   
+   | _ => error ()
+   if not (emem qeq have) then [] else
+   let val eq = strip_forall (hd eql) in
+     dbg (fn () => pe ("rewrite: " ^ hf form ^ " with " ^ hf eq));
+     [rewrite_match (eq,form)]
+   end
+  
+  
+  Ins(2,[v,body]) =>
+          let val br' = {have = have, havel = havel, pending = fm @ [f]} in
+            expand_forall (v,body) [] br' brm (* replace [] by instancel *)
+          end
+        | Ins(0,[Ins(2,[v,body])]) => 
+
 
 fun expand_branch {have, havel, pending} instancel brm =
   case pending of
@@ -779,14 +1049,11 @@ x + s(y) = s(x + y)
 0 + s(0) = s(0 + 0) (* instantiate match *)
 
 s(0+0) = s(0)
-
-
-
 *)
 
 
- 
+ *)*)
  
  
 
-end (* struct *)
+

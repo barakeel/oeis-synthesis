@@ -79,9 +79,9 @@ fun with_match (p1,p2) f =
   end 
   
 (* -------------------------------------------------------------------------
-   Unification
-   ------------------------------------------------------------------------- *)
-   
+   Unification: requires distinct variables   ------------------------------------------------------------------------- *)
+
+  
 fun occur_check v (Ins(i,pl)) = v = i orelse exists (occur_check v) pl;
 
 fun unifyl bindl = case bindl of
@@ -104,8 +104,31 @@ fun unifyl bindl = case bindl of
   
 fun unify (p1,p2) = unifyl [(p1,p2)];
 
+fun rename_vd vd (Ins(id,l)) =
+  Ins (if is_var id then dfind id vd else id, map (rename_vd vd) l)
+
+(*
+fun distinct_var formula1 formula2 =  
+  let 
+    val vl1 = all_var formula1
+    val vd1 = enew Int.compare vl1 (* todo replace with a vector *) 
+    val vl2 = all_var formula2
+    val counter = ref (~1)
+    fun loop v =  
+      if not (emem (!counter) vd1) then 
+        let val r = (v,!counter) in decr counter; r end
+      else
+        (decr counter; loop v)
+    val vl2n = map loop vl2
+    val vd = dnew Int.compare vl2n
+  in
+    rename_vd vd formula2
+  end
+*)
+
 fun with_unify (p1,p2) f =
   let
+    (* val p2' = distinct_var p1 p2 *)
     val b = unify (p1,p2)
     val r = f b
     val _ = clean_sub_glob ()
@@ -136,15 +159,37 @@ fun inst_match (p1,p2,p) =
 val eqi = 3 (* todo changes to reflect the number for equality *)
 fun is_eq (Ins(i,pl)) = i = eqi
 fun dest_eq (Ins(i,pl)) = pair_of_list pl 
- 
-fun rewrite_match_one (p1,p2) (p as (Ins(i,pl))) =
-  let fun f b = if b then inst_aux p2 else p in
-    with_match (p1,p) f
+
+(* rewrite at one position *)
+fun rwl_pos_aux eq iref pl = map (rw_pos_aux eq iref) pl
+
+and rw_pos_aux (p1,p2) iref (p as Ins(i,pl)) =
+  let fun continue () = Ins(i, rwl_pos_aux (p1,p2) iref pl)
+  in 
+    if !iref < 0 then p else
+    if not (match (p1,p)) then (clean_sub_glob (); continue ()) else
+    (
+    decr iref;
+    if !iref < 0 
+      then let val r = inst_aux p2 in (clean_sub_glob (); r) end
+    else (clean_sub_glob (); continue ())
+    )
   end
   
+(* could test if the rewriting worked and raise an error if it did not *)
+fun rw_pos eq (p,i) = rw_pos_aux eq (ref i) p 
+
+fun rwl_pos eq (pl,i) = rwl_pos_aux eq (ref i) pl 
+
+(* rewrite at all positions *)
+fun rewrite_match_one (p1,p2) (p as (Ins(i,pl))) =
+  let fun f b = if b then SOME (inst_aux p2) else NONE in
+    with_match (p1,p) f
+  end
+
 fun rewrite_match_aux eqpair (p as (Ins(i,pl))) =
   let val newp = Ins(i, map (rewrite_match_aux eqpair) pl) in
-    rewrite_match_one eqpair newp
+    case rewrite_match_one eqpair newp of NONE => newp | SOME x => x
   end
 
 fun rewrite_match (eq,p) = 

@@ -3,9 +3,13 @@ signature qprove = sig
   include Abbrev
   
   type prog = kernel.prog
+
   type formula = kernel.prog
   type qprove = (formula list * (prog * int))
   type state = prog list
+  datatype obj = Thm of formula list * int | Term of formula
+  
+  (*
   type exec = state * state -> state
   type branch = {have : prog Redblackset.set, havel : prog list,  
                  pending : prog list}
@@ -57,6 +61,6 @@ signature qprove = sig
   val axiom1: formula
   val axiom2: formula
   val axiom3: formula
-  
+  *)
   
 end
