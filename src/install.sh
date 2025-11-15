@@ -33,5 +33,5 @@ elif [ -d "/opt/intel/mkl" ]; then
     exit 1
   fi 
 else
-  echo "Could not find a MKL directory. Please install MKL."
+  echo "Could not find a MKL directory."
 fi
