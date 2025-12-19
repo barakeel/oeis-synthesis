@@ -52,4 +52,7 @@ sig
   val sort_file : string -> string
   val compress_dir : string -> string
   
+  (* prime checker *)
+  val prime_match : string -> string
+  
 end

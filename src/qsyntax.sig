@@ -1,21 +1,41 @@
 signature qsyntax = sig
   
-  type formula = kernel.prog
+  type id = int * int
+  datatype formula = A of (id * formula list) 
+  datatype formulat = At of (id * bool * formulat list) 
   
+  val infix_flag : bool ref
+
+  (* timer *)
+  val checktimer : unit -> unit
+  val checktimern : int -> unit
 
   (* syntax *)
-  val not_id : int
-  val or_id : int
-  val forall_id : int
-  val eq_id : int
-  val zero_id : int
-  val suc_id : int
-  val add_id : int
+  val not_id : id
+  val or_id : id
+  val forall_id : id
+  val eq_id : id
+  val add_id : id
+  val mult_id : id
+  val is_varid : id -> bool
+  val is_skolemid : id -> bool
+  val id_compare : id * id -> order
   
   val is_eq : formula -> bool
   val is_neg : formula -> bool
-  val is_varid : int -> bool
+  val is_boolean : formula -> bool
   val neg : formula -> formula
+  val formula_compare : formula * formula -> order
+  val formula_size : formula -> int
+  val zero : formula
+  val one : formula
+  val mk_eq : formula * formula -> formula
+  val mk_add : formula * formula -> formula
+  val mk_var : int -> formula
+  val prog_to_formula : kernel.prog -> formula
+  
+  
+  val mk_exec_at : formulat -> exec.exec
   
   (* debugging *)
   val dbg_flag : bool ref
@@ -25,10 +45,12 @@ signature qsyntax = sig
   val hfc : formula list -> string
   val fh : string -> formula
   val pe : string -> unit
+
+  (* cnf *)
+  val reset_skolem_counter : unit -> unit
+  val fresh_skolemid : unit -> (int * int)
   
-  (* timer *)
-  val checktimer : unit -> unit
-  val checktimern : int -> unit
-  val timed_formula_compare : formula * formula -> order
+  val subst_one : id * formula -> formula -> formula
+  val CNF : formula -> formula list list
   
 end

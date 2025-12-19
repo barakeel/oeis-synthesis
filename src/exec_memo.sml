@@ -1116,6 +1116,47 @@ fun parallel_bcheck ncore expname =
     writel (dir ^ "/output") sl
   end
 
+(* -------------------------------------------------------------------------
+   Parallel check for primes
+   ------------------------------------------------------------------------- *)
+
+val prime_file = selfdir ^ "/primes"
+
+val primev = if exists_file prime_file 
+  then Vector.fromList (map 
+    (valOf o IntInf.fromString o snd o split_string " ") 
+    (readl (selfdir ^ "/primes")))
+  else Vector.fromList []
+
+fun catch_error f x = 
+  (SOME (f x), true) handle 
+       Empty => (NONE, false)
+     | Div => (NONE, false)
+     | Overflow => (NONE, false)
+     | Subscript => (NONE, false)
+     | ProgTimeout => (NONE, true);
+
+fun prime_match s = 
+  let
+    val p = prog_of_gpt s
+    val f = mk_exec_onev p
+    val _ = init_timer ()
+    val _ = timelimit := 100000000
+    fun loop i =
+      if i >= Vector.length primev then "Timeout " ^ its i ^ " " ^ s else
+      (
+      case catch_error f (IntInf.fromInt i) of
+        (SOME r , _) => if r = Vector.sub (primev,i) 
+                        then loop (i+1) 
+                        else "Error " ^ its i ^ " " ^ s
+      | (NONE, true) => "Timeout " ^ its i ^ " " ^ s
+      | (NONE, false) => "Error " ^ its i ^ " " ^ s
+      )
+  in
+    loop 0
+  end;
+
+
 end (* struct *)
 
 
@@ -1156,7 +1197,12 @@ val read_itprogl
 (* -------------------------------------------------------------------------
    Testing
    ------------------------------------------------------------------------- *) 
-    
+    (*
+load "kernel"; open aiLib kernel;
+val sl = List.tabulate (1000, its);
+parmap_sl 2 "kernel.test_fun" sl; 
+*)
+
 (* 
 load "exec_memo"; open exec_memo; 
 load "human"; open kernel human aiLib;
@@ -1190,7 +1236,6 @@ val (l1,t) = add_time (penum_wtime 1000000 p) (length seq);
    ------------------------------------------------------------------------- *) 
 
 (* 
-load "exec_memo"; open exec_memo;
 parallel_bcheck 40 "bfile2";
 
 cd exp/bfile1
@@ -1203,9 +1248,43 @@ grep -r "Success" output | wc -l
 grep -r "Timeout" output | wc -l
 grep -r "Failure" output | wc -l
 
-
 *)
 
+(* -------------------------------------------------------------------------
+   Simple parallel check for primes
+   ------------------------------------------------------------------------- *) 
+
+(*
+load "exec_memo"; open aiLib kernel exec_memo;
+
+val sl1 = readl (selfdir ^ "/A40_1cands.txt_no_compr");
+fun f s =
+  let
+    val (s1,s2,s3) = triple_of_list (String.tokens (fn x => x = #"|") s);
+    val p = prog_of_gpt s3;
+  in
+    gpt_of_prog p
+  end;
+val sl3 = map f sl1;
+writel (selfdir ^ "/A40prog_no_compr") sl3;
+*)
+
+(*
+load "exec_memo"; open aiLib kernel exec_memo;
+val sl0 = readl (selfdir ^ "/A40prog_no_compr");
+
+val (sl,t) = add_time (parmap_sl 10 "exec_memo.prime_match") sl0;
+
+fun f s = string_to_int (List.nth (String.tokens Char.isSpace s,1));
+val sli = map_assoc f sl;
+val slo = map fst (dict_sort compare_imax sli);
+val sl2 = filter (String.isPrefix "Timeout") slo;
+writel "prime_result_all" slo;
+writel "prime_result_success" sl2;
+
+
+
+*)
 
 
 

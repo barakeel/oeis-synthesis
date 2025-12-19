@@ -91,7 +91,7 @@ fun match_loop ((px1,fpl1),(px2,fpl2)) =
   handle HOL_ERR _ => raise ERR "match_loop" ""
   
 
-(*
+
 (* --------------------------------------------------------------------------
    Finger print a program
    -------------------------------------------------------------------------- *)
@@ -101,8 +101,9 @@ fun const_seq l = null l orelse all (fn x => x = hd l) l
 fun subprog_equalities (smallxx,fastxx) =
   let
     val (smallpl,fastpl) = (all_subprog_extra smallxx, all_subprog_extra fastxx)
-    val (smalle,faste) = (fingerprint_pxl smallpl, fingerprint_pxl fastpl)
-    val d = ref (dempty fingerprint_cmp)
+    val (smalle,faste) = (map_assoc fingerprint_px smallpl, 
+                          map_assoc fingerprint_px fastpl)
+    val d = ref (dempty (list_compare (option_compare IntInf.compare)))
     fun fsmall (progx,seq) = 
       if const_seq seq then () else
       let 
@@ -155,27 +156,79 @@ fun subprog_eq_list appl3 =
   let 
     val appl4 = List.concat (map subprog_eq_one appl3)
     val appl6 = map_snd progxpair_to_progpair appl4
-    fun test (a,(p1,p2)) = contain_loop p1 orelse contain_loop p2
-    val appl7 = filter test appl6
+    (* fun test (a,(p1,p2)) = contain_loop p1 orelse contain_loop p2 *)
+    (* val appl7 = filter test appl6 *)
   in
-    appl7
+    appl6
   end
-*) 
+
  
 (*
+(* turn on smt_flag *)
 load "smt_eval"; load "search_term";
 open kernel aiLib progx smt_eval smt_progx search_term;
 
-val appl1 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs");
-val d = enew String.compare 
-  (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
+val appl0 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs");
+val (appl0a,t) = add_time subprog_eq_list appl0;
+write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sub") appl0a;
+
+val appl1 = read_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sub");
+fun process appl1 = 
+  let 
+    val appl2 = mk_fast_set 
+       (snd_compare (cpl_compare prog_compare prog_compare)) appl1
+    val appl3 = map_assoc (fn (a,(b,c)) => prog_size b + prog_size c) appl2;
+    val appl4 = map fst (dict_sort compare_imin appl3)
+  in
+    appl4
+  end;
+
+val appl2 = process appl1;
+fun f (a,(c,d)) = a ^ ": " ^ human.humanf c ^ ", " ^ human.humanf d;
+f (hd appl2);
+
+
+fun contain_loop (Ins(i,pl)) = mem i [9,12,13] orelse 
+  exists contain_loop pl;
+fun test (a,(c,d)) = contain_loop c orelse contain_loop d;
+val appl3 = filter (not o test) appl2;
+f (hd appl3);
+
+(*
+val l = first_n 2 appl9;
+map f l;
+val l = first_n 2 appl9;
+fun f (a,(c,d)) = a ^ ": " ^ human.humanf c ^ ", " ^ human.humanf d;
+map f l;
+fun contain_loop (Ins(i,pl)) = mem i [9,12,13] orelse 
+  exists contain_loop pl;
+val d = enew String.compare (map OS.Path.base (readl "../../oeis-smt/aind_sem"));
 val appl2 = filter (fn x => emem (fst x) d) appl1;
-val appl3 = filter (good_pp o snd) appl2;
+*)
 
-val appl7 = subprog_eq_list appl3;
-length appl7;
+load "smt_reader"; open smt_reader;
 
-write_anumprogpairs (selfdir ^ "/smt_benchmark_progpairs_sub") appl7;
+fun mk_pb exp (s,x) = 
+  let 
+    val dir = selfdir ^ "/" ^ exp
+    val file = dir ^ "/" ^ s
+    val _ = mkDir_err dir
+  in
+    if depend_on_y (fst x) orelse depend_on_y (snd x) then () else
+    writel file (get_assertl (create_decl_only2 x))
+  end;
+
+app (mk_pb "smt_sub") appl2;
+app (mk_pb "smt_subnoloop") appl3;
+
+val sl = listDir (selfdir ^ "/smt_subnoloop");
+val s = random_elem sl;
+val l1 = read_smt_sexp (selfdir ^ "/smt_subnoloop/" ^ s);
+(* erases the last line *)
+val l2 = read_smt_hol (selfdir ^ "/smt_subnoloop/" ^ s);
+
+translate the problems to smt? (order them by size)
+f (random_elem appl9);
 *)  
   
 (*

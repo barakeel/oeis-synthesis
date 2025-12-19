@@ -5,6 +5,8 @@ sig
   type exec = IntInf.int * IntInf.int * IntInf.int -> IntInf.int
   
   
+  val execv : (exec list -> exec) vector
+  
   val large_arb : IntInf.int -> bool
   val large_int : IntInf.int -> bool
   val mk_exec_move : int -> exec list -> exec
