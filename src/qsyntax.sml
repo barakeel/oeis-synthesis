@@ -39,12 +39,13 @@ val cond_id = (0,8)
 val loop_id = (0,9)
 val compr_id = (0,12)
 val loop2_id = (0,13)
+val loop2h_id = (0,16)
 
 val not_id = (5,0)
 val or_id = (5,1)
 val forall_id = (5,2)
 val eq_id = (5,3)
-
+val geq_id = (5,4)
 
 val convertv = Vector.fromList
   [(1,0),(1,1),(1,2),
@@ -67,11 +68,13 @@ fun bid i = (4,i)
 
 fun is_progid i = fst i = 0
 fun is_numid i = fst i = 1
+fun is_skolemid i = fst i = 2
 fun is_varid i = fst i = 3
 fun is_logicid i = fst i = 5
 
-fun is_skolemid (ty,_) = ty = 2 
-fun is_varid (ty,_) = ty = 3
+val var_counter = ref 0
+fun fresh_var () = (incr var_counter; A((3,!var_counter),[]))
+fun reset_var_counter () = var_counter := 0
 
 val skolem_counter = ref 0
 fun fresh_skolemid () = 
@@ -82,8 +85,7 @@ fun reset_skolem_counter () = skolem_counter := 0
 
 fun id_compare (a,b) = cpl_compare Int.compare Int.compare (a,b)
 
-
-
+fun is_num (A (id,_)) = is_numid id
 fun is_eq (A (id,_)) = id = eq_id
 fun is_neg (A (id,_)) = id = not_id
 fun is_boolean (A ((ty,id),_)) = id >= 0 andalso id <= 3
@@ -94,14 +96,29 @@ fun formula_compare (A x,A y) =
   checktimer ();
   cpl_compare id_compare (list_compare formula_compare) (x,y)
   )
-
+  
 fun formula_size (A (id,l)) = 1 + sum_int (map formula_size l)
 
+fun formula_compare_size (p1,p2) = 
+  cpl_compare Int.compare formula_compare 
+  ((formula_size p1,p1), (formula_size p2,p2))
+  
 val zero = A (iid 0,[])
 val one = A (iid 1,[])
 fun mk_eq (f1,f2) = A (eq_id,[f1,f2])
+fun mk_geq (f1,f2) = A (geq_id,[f1,f2])
 fun mk_add (f1,f2) = A (add_id,[f1,f2])
+fun mk_mult (f1,f2) = A (add_id,[f1,f2])
+fun mk_diff (f1,f2) = A (diff_id,[f1,f2])
 fun mk_var i = A (vid i,[])
+fun mk_int i = A (iid i,[])
+
+fun dest_eq (A(id,l)) = 
+  if id = eq_id then pair_of_list l else raise ERR "dest_eq" ""
+
+fun eqf f x = let val (a,b) = dest_eq x in mk_eq (f a, f b) end 
+fun lhf f x = let val (a,b) = dest_eq x in mk_eq (f a, b) end 
+fun rhf f x = let val (a,b) = dest_eq x in mk_eq (a, f b) end 
 
 (* -------------------------------------------------------------------------
    Tagged formulas and evaluation
@@ -122,6 +139,8 @@ fun tag_ground (A (i,pl)) =
     At (i,b,pl') 
   end
 
+fun untag (At(i,b,pl)) = A(i,map untag pl)
+
 fun is_ground (A (i,pl)) =
   (
   checktimer ();
@@ -138,11 +157,11 @@ fun mk_exec_at (At (id,_,pl)) =
     if is_numid id then (fn _ => (checktimer (); IntInf.fromInt (snd id))) else
     if is_varid id andalso mem (snd id) [0,1] 
       then Vector.sub (exec.execv, snd id + 10) fl
-      else raise ERR "mk_exec_at" ""
+    else raise ERR "mk_exec_at" ""
   end
 
-fun eval (At (i,b,pl)) =
-  if not b orelse null pl then (At (i, b, map eval pl)) else
+fun eval_aux (At (i,b,pl)) =
+  if not b orelse null pl then (At (i, b, map eval_aux pl)) else
   let 
     val exec = mk_exec_at (At (i,b,pl)) 
     val r = exec (IntInf.fromInt 0, IntInf.fromInt 0, IntInf.fromInt 0)
@@ -150,19 +169,23 @@ fun eval (At (i,b,pl)) =
     At ((1,IntInf.toInt r),true,[])
   end
 
+(* replace all ground terms by integer value *)
+fun eval p = untag (eval_aux (tag_ground p))
+
+
 (* -------------------------------------------------------------------------
-   Human interface (todo fix)
+   Human interface
    ------------------------------------------------------------------------- *) 
 
-val somel = [("not",1),("or",2),("forall",2),("=",2),
-  ("0",0),("suc",1),("+",2),("*",2),("-",2),("div",2),("mod",2),
-  ("cond",3),("loop",3),("compr",2),("loop2",5)]
+val prognamel = ["0u","1u","2u",
+  "+","-","*","div","mod","cond","loop","xu","yu","compr","loop2","pus","pop",
+  "loop2h"]
+val prognamev = Vector.fromList prognamel
+val prognamed = dnew String.compare (number_snd 0 prognamel);
 
-val humanv = Vector.fromList (map fst somel) 
-val arityv = Vector.fromList (map snd somel)
-
-
-val humand = dnew String.compare (number_snd 0 (vector_to_list humanv));
+val logicnamel = ["not","or","forall","=",">="]
+val logicnamev = Vector.fromList logicnamel
+val logicnamed = dnew String.compare (number_snd 0 logicnamel);
 
 fun id_of_oper s = 
   if hd_string s = #"x" 
@@ -171,29 +194,32 @@ fun id_of_oper s =
     then (2, string_to_int (tl_string (tl_string s)))
   else if can string_to_int s
     then (1, string_to_int s)
-  else (0, dfind s humand handle NotFound => raise ERR "id_of_oper" s)
+  else (
+       (0, dfind s prognamed) handle NotFound =>
+         ((5, dfind s logicnamed) handle NotFound => raise ERR "id_of_oper" s)
+       )
   
 fun sexp_to_formula phi = case phi of
     Atom s => A (id_of_oper s,[])
-  | Sexp (Atom s :: argl) => 
-    let val n = id_of_oper s in 
-      if fst n = 0 andalso length argl <> Vector.sub (arityv, snd n) 
-      then raise ERR "sexp_to_formula" ("arity: " ^ s) 
-      else A (n, map sexp_to_formula argl)
-    end 
+  | Sexp (Atom s :: argl) => A (id_of_oper s, map sexp_to_formula argl)
   | _ => raise ERR "sexp_to_formula" "";
 
 val infix_flag = ref false
 
 fun human_of_formula (A ((i1,i2),pl)) = 
   let val opers = 
+    if i1 = 5 then
+      if i2 >= Vector.length logicnamev orelse i2 < 0
+      then raise ERR "human_of_formula" ("undefined logic: " ^ its i2) 
+      else Vector.sub (logicnamev,i2)
+    else
     if i1 = 3 then "x" ^ its i2 else
     if i1 = 2 then "sk" ^ its i2 else
     if i1 = 1 then its i2 else
     if i1 = 0 then
-      if i2 >= Vector.length humanv 
-      then raise ERR "human_of_formula" ("undefined constant: " ^ its i2) 
-      else Vector.sub (humanv,i2)
+      if i2 >= Vector.length prognamev orelse i2 < 0
+      then raise ERR "human_of_formula" ("undefined prog: " ^ its i2) 
+      else Vector.sub (prognamev,i2)
     else raise ERR "human_of_formula" ("undefined class: " ^ its i1) 
   in
     if null pl then opers else
@@ -232,15 +258,23 @@ fun subst_one (v,p) (A (i,pl)) =
   if i = v then p 
   else if i = compr_id then A (i, hd pl :: map (subst_one (v,p)) (tl pl))
   else if i = loop_id then A (i, hd pl :: map (subst_one (v,p)) (tl pl))
-  else if i = loop2_id then 
+  else if mem i [loop2_id, loop2h_id] then 
     let val (al,bl) = part_n 2 pl in A (i, al @  map (subst_one (v,p)) bl) end
   else A (i, map (subst_one (v,p)) pl)
   )
-  
 
-
-
-
+fun substl vpl (A (i,pl)) = 
+  (
+  checktimer ();
+  case List.find (fn (a,b) => i = a) vpl of SOME (a,b) => b | NONE =>
+    (
+    if i = compr_id then A (i, hd pl :: map (substl vpl) (tl pl))
+    else if i = loop_id then A (i, hd pl :: map (substl vpl) (tl pl))
+    else if mem i [loop2_id, loop2h_id] then 
+      let val (al,bl) = part_n 2 pl in A (i, al @  map (substl vpl) bl) end
+    else A (i, map (substl vpl) pl)
+    )
+  )
 
 fun cnf (f, pos, env) = 
   (
