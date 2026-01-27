@@ -19,286 +19,7 @@ exception Proof
 fun error () = raise Error
 
 (* -------------------------------------------------------------------------
-   Objects
-   ------------------------------------------------------------------------- *)
-
-datatype obje = Thm of formula list * int | Term of formula
-type obj = obje list
-
-fun is_thm obje = case obje of Thm _ => true | _ => false
-fun mk_thmobj tml = [Thm (tml,0)];
-fun dest_thmobj thm = case thm of
-    Thm (clause,_) :: _ => clause
-  | _ => raise ERR "dest_thmobj" "";
-
-fun size_obje x = case x of
-    Thm (tml,_) => sum_int (map formula_size tml)
-  | Term tm => formula_size tm
-
-fun size_obj x = sum_int (map size_obje x)
-
-fun hfobje x = case x of
-   Thm (c,n) => (* "Thm " ^ hfc c ^ " @ " ^ its n *) hfc c
- | Term t => "Term " ^ hf t
-
-fun hfobj obj = String.concatWith ", " (map hfobje obj);
-
-val see = pe o hfobj
-
-fun is_proof f (thml1,thml2) = (f (thml1,thml2); false) handle Proof => true
-
-fun mk_thm tml = Thm (tml,0)
-fun dest_thm thm = case thm of
-    Thm (clause,_) => clause
-  | _ => raise ERR "dest_thm" ""
-
-(* -------------------------------------------------------------------------
-   Axioms
-   ------------------------------------------------------------------------- *)
-
-
-(* -------------------------------------------------------------------------
-   Simplify and check if the proof is finished
-   ------------------------------------------------------------------------- *)
-
-fun simp clause =
-  let val r = remove_diseq (remove_conflict (factor_set clause)) in
-    if null r then raise Proof else r
-  end
-
-(* -------------------------------------------------------------------------
-   Moving index
-   ------------------------------------------------------------------------- *)
-
-fun next_obj obj =
-  case obj of
-    Thm (x,i) :: m => Thm (x,i+1) :: m
-  | _ => error ()
-
-(* -------------------------------------------------------------------------
-   Paramodulate
-   ------------------------------------------------------------------------- *)
-
-fun find_nth acc test n l = case l of
-    [] => NONE
-  | a :: m =>
-    if not (test a) then find_nth (a :: acc) test n m else
-    if n <= 0 then SOME (a,rev acc @ m) else find_nth (a :: acc) test (n-1) m
-
-fun paramodulate_obj obj1 obj2 =
-  case (obj1,obj2) of
-    (Thm (clause1,i1) :: _, Thm(clause2,i2) :: m2) =>
-    (
-    case find_nth [] is_eq i1 clause1 of
-      SOME (A ((0,3),[red,res]),clause1') =>
-      (
-      dbg 2 (fn () => "rw: " ^ hf red ^ " , " ^ hf res);
-      case paramodulate clause1' (red,res) (clause2,i2) of
-        SOME newclause =>
-        let val r = simp newclause in
-          dbg 1 (fn () => "rw: " ^ hfc r);
-          Thm (r, 0) :: m2
-        end
-      | NONE =>
-        (
-        dbg 1 (fn () => "rw: identity");
-        obj2
-        )
-      )
-      | _ => error ()
-    )
-  | _ => error ()
-
-(* -------------------------------------------------------------------------
-   Resolve
-   ------------------------------------------------------------------------- *)
-
-fun resolve_obj obj1 obj2 = case (obj1,obj2) of
-    (Thm (clause1,_) :: _, Thm thm2 :: m2) =>
-    (
-    case resolve clause1 thm2 of
-      SOME newclause => Thm (simp newclause, 0) :: m2
-    | NONE => obj2
-    )
-  | _ => error ()
-
-(* -------------------------------------------------------------------------
-   Factor
-   -------------------------------------------------------------------------*)
-
-fun factor_obj obj = case obj of
-    Thm thm :: m =>
-    (case factor thm of NONE => obj | SOME newclause =>
-     Thm (simp newclause, 0) :: m)
-  | _ => error ()
-
-(* -------------------------------------------------------------------------
-   Control flow
-   ------------------------------------------------------------------------- *)
-
-fun varx (x,y) = x
-
-fun vary (x,y) = y
-
-fun cond x f1 f2 = if null x then f2 () else f1 ()
-
-fun while2 f g x y =
-  if null x then y else while2 f g (f (x,y)) (g (x,y))
-
-fun eq_obj x y =
-  if PolyML.pointerEq (x,y) then y else
-  (
-  case (x,y) of
-    (Thm (thm1,_) :: _, Thm (thm2,_) :: _)  =>
-    if list_compare formula_compare (thm1,thm2) = EQUAL then y else []
-  | (Term t1 :: _ , Term t2 :: _) =>
-    if formula_compare (t1,t2) = EQUAL then y else []
-  | _ => []
-  )
-
-(* -------------------------------------------------------------------------
-   List operations
-   ------------------------------------------------------------------------- *)
-
-fun hd_obj a = case a of e :: m => [e] | _ => error ()
-fun tl_obj a = case a of e :: m => m | _ => error ()
-fun push_obj a b = (checktimern (length a); a @ b)
-val null_obj = []
-
-(* -------------------------------------------------------------------------
-   Term operations
-   ------------------------------------------------------------------------- *)
-
-fun same_id x y = case (x,y) of
-     (Thm _ :: _, Thm _ :: _)  => y
-   | (Term (A (i1,_)) :: _ , Term (A (i2,_)) :: _ ) =>
-     if i1 = i2 then y else []
-   | _ => []
-
-fun is_var x = case x of
-    Term (A(i,_)) :: _ => if is_varid i then x else []
-  | _ => []
-
-fun is_not x = case x of
-    Term (A(i,_)) :: _ => if i = not_id then x else []
-  | _ => []
-
-fun is_eq x = case x of
-    Term (A(i,_)) :: _ => if i = eq_id then x else []
-  | _ => []
-
-fun is_add x = case x of
-    Term (A(i,_)) :: _ => if i = add_id then x else []
-  | _ => []
-
-fun dest x = case x of
-    Thm (tml,_) :: m => map Term tml @ m
-  | Term (A(_,tml)) :: m => map Term tml @ m
-  | [] => error ()
-
-(* -------------------------------------------------------------------------
-   Induction
-   ------------------------------------------------------------------------- *)
-
-(* looks for skolems with no arguments *)
-fun nth_skoleml n skd pl = case pl of [] => NONE | p :: m =>
-  (
-  case nth_skolem n skd p of
-     SOME id => SOME id
-   | NONE => nth_skoleml n skd m
-  )
-
-and nth_skolem n skd (A(id,pl)) =
-  if is_skolemid id andalso null pl then
-    if emem id (!skd) then nth_skoleml n skd pl else
-    if elength (!skd) >= n then SOME id else
-    (skd := eadd id (!skd); nth_skoleml n skd pl)
-  else nth_skoleml n skd pl
-
-fun nth_skoleml n skd pl = case pl of [] => NONE | p :: m =>
-  (
-  case nth_skolem n skd p of
-     SOME id => SOME id
-   | NONE => nth_skoleml n skd m
-  )
-
-fun nth_skolem_thml n skd thml = case thml of [] => NONE | thm :: m =>
-  (
-  case nth_skoleml n skd (dest_thm thm) of
-    NONE => nth_skolem_thml n skd m
-  | SOME id => SOME id
-  )
-
-fun subst_one_litl (id,tm) litl = map (subst_one (id,tm)) litl
-fun subst_one_thm (id,tm) thm = Thm (subst_one_litl (id,tm) (dest_thm thm), 0)
-
-fun negate_thml thml =
-  let
-    val clausel1 = map (map neg o dest_thm) thml
-    val clausel2 = cartesian_productl clausel1
-  in
-    map mk_thm clausel2
-  end
-
-fun induct_obj f obj =
-  let
-    val _ = dbg 1 (fn () => "induction: " ^ hfobj obj)
-    val thml = filter is_thm obj
-    val n = case thml of Thm (_,n) :: _ => n | _ => error ()
-    val skold = case nth_skolem_thml n (ref (eempty id_compare)) thml of
-      NONE => error ()
-    | SOME x => x
-    val zero = A((1,0),[])
-    val p0 = map (subst_one_thm (skold,zero)) thml
-    val _ = dbg 2 (fn () => "base case: " ^ hfobj p0)
-    val sk = A(fresh_skolemid (),[])
-    val psk = map (subst_one_thm (skold,sk)) thml
-    val _ = dbg 2 (fn () => "inductive hypothesis: " ^ hfobj psk)
-    val pssk = negate_thml (map (subst_one_thm (skold, mk_add (sk,one))) thml)
-    val _ = dbg 2 (fn () => "inductive consequent: " ^ hfobj pssk)
-  in
-    if is_proof f (p0,[]) then pssk @ psk else error ()
-  end
-
-fun induct_obji obj =
-  let
-    val _ = dbg 1 (fn () => "induction: " ^ hfobj obj)
-    val thml = filter is_thm obj
-    val n = case thml of Thm (_,n) :: _ => n | _ => error ()
-    val skold = case nth_skolem_thml n (ref (eempty id_compare)) thml of
-      NONE => error ()
-    | SOME x => x
-    val zero = A((1,0),[])
-    val p0 = map (subst_one_thm (skold,zero)) thml
-    val _ = dbg 2 (fn () => "base case: " ^ hfobj p0)
-    val sk = A(fresh_skolemid (),[])
-    val psk = negate_thml (map (subst_one_thm (skold,sk)) thml)
-    val _ = dbg 2 (fn () => "inductive hypothesis: " ^ hfobj psk)
-    val pssk = map (subst_one_thm (skold, mk_add (sk,one))) thml
-    val _ = dbg 2 (fn () => "inductive consequent: " ^ hfobj pssk)
-  in
-    (p0, pssk @ psk)
-  end
-
-(* -------------------------------------------------------------------------
-   Conjecturing
-   ------------------------------------------------------------------------- *)
-
-fun conjecture_obj f thm = case thm of
-    Term tm :: m =>
-    (
-    if not (is_boolean tm) then error () else
-    let
-      val _ = dbg 1 (fn () => "conjecture: " ^ hf tm)
-      val obj = map mk_thm (CNF (neg tm))
-    in
-      if is_proof f (obj,[]) then obj @ m else error ()
-    end
-    )
-  | _ => error ()
-
-(* -------------------------------------------------------------------------
-   Polynomial normalization
+   Arithmetical reasoning
    ------------------------------------------------------------------------- *)
 
 fun add_poly (p1,p2) =
@@ -386,19 +107,56 @@ fun norm_poly (A(id,argl)) =
   else A(id, map norm_poly argl)
 
 and norm_poly_done (A(id,argl)) =
-  if id = add_id orelse id = mult_id
+  if id = add_id orelse id = mult_id orelse id = diff_id
   then A(id, map norm_poly_done argl)
   else A(id, map norm_poly argl)
 
-fun norm_poly_obj obj =
+fun addzero_asmk_left n gl = case gl of
+    [] => raise Proof
+  | (asm,w) :: m =>
+    let
+      val (a,b) = dest_eq (List.nth (asm,n))
+      fun f x = mk_add (mk_diff (b,a),x)
+    in
+      (asm, lhf f w) :: m
+    end;
+
+
+fun simp_poly (p1,p2) =
   (
-  dbg 1 (fn () => "norm: " ^ hfobj obj);
-  case obj of
-    Thm (clause,_) :: m => Thm (simp (map norm_poly clause), 0) :: m
-  | _ => error ()
-  )
-  
-  
+  checktimer ();
+  case (p1,p2) of
+    ([],_) => (p1,p2)
+  | (_,[]) => (p1,p2)
+  | ((m1,c1) :: ms1, (m2,c2):: ms2) =>
+    (
+    case list_compare formula_compare (m1,m2) of
+      EQUAL =>
+      let val c = c1 - c2 in
+        if c = 0 then simp_poly (ms1, ms2) else 
+         let val (newp1,newp2) = simp_poly (ms1, ms2) in
+           ((m1,c) :: newp1, newp2)
+         end
+      end
+    | LESS => 
+      let val (newp1,newp2) = simp_poly (ms1, p2) in
+        ((m1,c1) :: newp1, newp2)
+      end
+    | GREATER =>
+      let val (newp1,newp2) = simp_poly (p1, ms2) in
+        (newp1, (m2, c2) :: newp2)
+      end
+    )
+  )  
+
+fun simp formula = 
+  if not (is_eq formula) then formula else 
+  let 
+    val (a,b) = dest_eq formula; 
+    val (c,d) = simp_poly (formula_to_poly a,formula_to_poly b)
+  in
+    mk_eq (poly_to_formula c, poly_to_formula d)
+  end;
 
 (* -------------------------------------------------------------------------
    Unfolding loops
@@ -460,7 +218,7 @@ fun unfold_num_one p = case p of
     A ((0,9),[pa,pb,pc]) =>
     let val pb' = eval pb in
       if not (is_num pb') then p else
-      if is_greater0 pb then
+      if is_greater0 pb' then
         let
           val xrep = A ((0,9),[pa, mk_diff (pb',one), pc])
           val yrep = pb
@@ -513,31 +271,46 @@ fun decouple_one v p =  case p of
 fun decouple p =
   let val v = fresh_var () in replace_atl (decouple_one v) p end
 
+(* -------------------------------------------------------------------------
+   Loop definitions
+   ------------------------------------------------------------------------- *)
+
+val defd = ref (dempty Int.compare)
+val idefd = ref (dempty formula_compare)
+val def_counter = ref 0
+
+fun add_key key argl =
+  case dfindo key (!idefd) of 
+    SOME oldn => A ((6,oldn),argl) 
+  | NONE => 
+    let 
+      val value = !def_counter
+      val _ = incr def_counter
+    in
+      idefd :=  dadd key value (!idefd); 
+      defd := dadd value key (!defd); 
+      A ((6,value),argl)  
+    end 
+
+fun def_one p =  case p of
+    A ((0,9),[pa,pb,pc]) => add_key (A ((0,9),[pa])) [pb,pc]
+  | A (id,[pa,pb,pc,pd,pe]) =>
+    if not (mem id [(0,13),(0,16)]) then raise ERR "def_one" "" else
+    add_key (A (id,[pa,pb])) [pc,pd,pe]
+  | _ => raise ERR "def_one" ""
+  
+fun undef_one p = case p of
+    A ((6,n),argl) => 
+    (
+    case dfindo n (!defd) of NONE => p | SOME (A (id,hoargl)) => 
+      if not (mem id [(0,9),(0,13),(0,16)]) then p
+      else A (id, hoargl @ argl)
+    )
+    | _ => p
 
 (* -------------------------------------------------------------------------
    Parsing the conjecture
    ------------------------------------------------------------------------- *)
-
-fun rename sexp = case sexp of
-    Atom "*" => Atom "."
-  | Atom "x" => Atom "x0"
-  | Atom x => Atom x
-  | Sexp l => Sexp (map rename l);
-
-fun find_body e = case e of
-    Sexp [Atom "assert",Sexp [Atom "forall",_,Sexp [Atom "=",_,body]]]
-     => SOME body
-  | _ => NONE;
-
-fun conjecture_of dir pbs =
-  let
-    val l1 = smt_hol.read_smt_sexp (dir ^ "/" ^ pbs);
-    val l2 = List.mapPartial find_body l1;
-    val (s1,s2) = pair_of_list (map (sexp_to_string o rename) l2)
-  in
-    "(forall x0 (= " ^ s1 ^ " "  ^ s2 ^ "))"
-  end
-  handle HOL_ERR {message = s, ...} => raise (ERR pbs s);
 
 val posx0 = mk_geq (mk_var 0, zero)
 
@@ -560,46 +333,19 @@ fun get_problems () =
   end
 
 (* -------------------------------------------------------------------------
-   Induction and reasoning over equality between programs
+   Induction
    ------------------------------------------------------------------------- *)
 
-type eq = formula * formula
-
-fun pairmap f (x1,x2) = (f x1, f x2);
-fun pairfst f (x1,x2) = (f x1, x2);
 val xid = (3,0);
 val xplusone = mk_add (mk_var 0, one);
 val xplustwo = mk_add (mk_var 0, A ((1,2),[]));
-
-fun base_case x = pairmap (subst_one (xid,zero)) x;
 
 fun rep_id bref (oldid,newid) (A(id,pl)) =
   if !bref then A(id,pl) else
   if id = oldid then (bref := true; A(newid,pl)) else
   A(id, map (rep_id bref (oldid,newid)) pl);
 
-fun find_bound2_aux bref rref (A(id,pl)) =
-  if !bref then () else
-  if id = loop2_id then (bref := true; rref := SOME (List.nth (pl,2)))
-  else app (find_bound2_aux bref rref) pl;
-
-fun find_bound2 p =
-  let val rref = ref NONE in find_bound2_aux (ref false) rref p;
-    valOf (!rref)
-  end;
-
 fun replace_id ii p = rep_id (ref false) ii p;
-
-fun equality_help x = pairmap (replace_id (loop2_id,loop2h_id)) x
-
-fun induct_case_both_loop2 x =
-  let
-    val concl1 = pairmap (subst_one (xid,xplusone)) x
-    val concl2 = equality_help concl1
-    val hyp2 = equality_help x
-  in
-    (base_case x,(x,hyp2),(concl1,concl2))
-  end;
 
 fun induct gl = case gl of
     [] => raise ERR "induct" "empty"
@@ -638,19 +384,9 @@ fun induct2_2 gl = case gl of
     [([],w0),([],w1),([posx0,w,ws],wss)] @ gm
   end
 
-fun induct_help x invl =
-  let
-    val l = x :: invl
-    val concll = map (pairmap (subst_one (xid,xplusone))) l
-  in
-    (map base_case l,l,concll)
-  end;
-
-fun refl_eq r = if fst r = snd r then raise Proof else r;
-
-fun eval_eq y = refl_eq (pairmap eval y)
-
-fun hf_eq (x1,x2) = pe (hf x1 ^ " = " ^ hf x2);
+(* -------------------------------------------------------------------------
+   Wrappers
+   ------------------------------------------------------------------------- *)
 
 fun repeat f x =
   (
@@ -667,6 +403,10 @@ fun apply_concl f gl = case gl of
 fun apply_asm f gl = case gl of
     [] => raise Proof
   | (asm,w) :: m => (map f asm, w) :: m
+
+fun apply_all f gl = case gl of
+    [] => raise Proof
+  | (asm,w) :: m => (map f asm, f w) :: m;
 
 fun pg (asm,w) =
   if null asm then pe (hf w) else
@@ -722,22 +462,7 @@ fun apply_asmk k f gl = case gl of
     [] => raise Proof
   | (asm,w) :: m => (mapk k f asm, w) :: m;
 
-fun addzero_asmk_left n gl = case gl of
-    [] => raise Proof
-  | (asm,w) :: m =>
-    let
-      val (a,b) = dest_eq (List.nth (asm,n))
-      fun f x = mk_add (mk_diff (b,a),x)
-    in
-      (asm, lhf f w) :: m
-    end;
-
-fun apply_all f gl = case gl of
-    [] => raise Proof
-  | (asm,w) :: m => (map f asm, f w) :: m;
-
 fun auto x = repeat (apply_concl (norm_poly o eqf unfold_num)) x
-
 
 (* -------------------------------------------------------------------------
    Find identical loops on both side of the equation and replace them by
@@ -786,6 +511,24 @@ fun constant_loop2h p = case p of
     A((0,16),[a,b,c,d,e]) => if b = A((3,1),[]) then e else p
   | _ => p ;
 
+fun imitate (gl:goal list) = 
+  (
+  checktimer ();
+  case gl of [] => raise Proof | ((asm,w) :: m) => 
+  (
+  if not (is_eq w) then gl else
+  case dest_eq w of
+    (A((0,9),[pa,pb,pc]),A((0,9),[pa',pb',pc'])) => 
+    (rev [(asm, mk_eq (pa,pa')), (asm, mk_eq (pb,pb')), (asm, mk_eq (pc,pc'))]) 
+    @ m
+  | (A((0,13),[pa,pb,pc,pd,pe]),A((0,13),[pa',pb',pc',pd',pe'])) => 
+    (rev [(asm, mk_eq (pa,pa')), (asm, mk_eq (pb,pb')), (asm, mk_eq (pc,pc')),
+     (asm, mk_eq (pd,pd')), (asm, mk_eq (pe,pe'))]) @ m
+  | _ => gl
+  )
+  );
+
+
 (* -------------------------------------------------------------------------
    Goal management
    ------------------------------------------------------------------------- *)
@@ -796,7 +539,7 @@ fun execute tac =
     pgl gl; stack := gl :: !stack
   end;
 fun init_proof gl =
-  (pgl gl; reset_var_counter (); abstimer := 0; stack := [gl]);
+  (reset_var_counter (); def_counter := 0; abstimer := 0; stack := [gl]);
 
 infixr >>;
 fun op >> (f: tactic, g: tactic) x = g (apply_all norm_poly (f x));
@@ -805,7 +548,6 @@ fun is_proof tac gl = (init_proof gl; tac gl; false)
   handle Proof => true | _ => false;
 
 fun test_pb tac pb = is_proof tac (snd pb);
-
 
 (* -------------------------------------------------------------------------
    Shortcuts (at the end of the file to prevent conflicts)
@@ -820,100 +562,3 @@ val poly = norm_poly;
 
 end (* struct *)
 
-(* -------------------------------------------------------------------------
-   Problems from the benchmark (manual)
-   ------------------------------------------------------------------------- *)
-
-(*
-load "qlang"; load "human"; load "smt_progx"; load "smt_hol";
-open aiLib kernel qsyntax qrule qlang sexp;
-val ERR = mk_HOL_ERR "test";
-val pbl = map_snd (fn x => (abstimer := 0; aall poly x)) (get_problems ());
-val _ = infix_flag := true;
-val _ = x_flag := true;
-val _ = abstimer := 0;
-
-val (anum,gl) = List.nth (pbl,0); init_proof gl;
-val proof1 = ac decouple >> induct2 >> auto >> refl >>
- (ac unfold) >> (replace_asm 2 o replace_asm 1) >> refl >>
- (ac unfold) >> (replace_asm 2 o replace_asm 1) >> refl;
-val (pbl1,pbl2) = partition (test_pb proof1) pbl; length pbl1; (* 62 *)
-
-val (anum,gl) = List.nth (pbl2,4); init_proof gl;
-val proof2 = ac decouple >> induct >> auto >> refl >>
- ac unfold >> replace_asm 1 >> ac (replace_atl constant_loop2h) >>
- refl;
-val (pbl5,pbl6) = partition (test_pb proof2) pbl2; length pbl5; (* 43 *)
-
-val (anum,gl) = List.nth (pbl6,0); init_proof gl;
-val proof4 = induct >> auto >> refl >>
-  ac unfold >> replace_asm 1 >> ac gen_idloop >> drop_asm >> induct >>
-  repeat (ac unfold) >> refl >>
-  ac unfold >> replace_asm 1 >> refl;
-val (pbl7,pbl8) = partition (test_pb proof4) pbl6; length pbl7; (* 2 *)
-
-val (anum,gl) = List.nth (pbl8,0); init_proof gl;
-val proof5 = induct2_2 >> auto >> refl >> auto >> refl >>
-  ac unfold >> ac (lhf unfold) >> apply_asmk 2 (lhf unfold) >>
-  addzero_asmk_left 2 >> replace_asm 1 >> ac (rhf (argf 1 unfold)) >> refl;
-val (pbl9,pbl10) = partition (test_pb proof5) pbl8; length pbl9; (* 17 *)
-
-val (anum,gl) = List.nth (pbl10,0); init_proof gl;
-val proof6 = auto >> refl;
-val (pbl11,pbl12) = partition (test_pb proof6) pbl10; length pbl11; (* 618 *)
-
-val (anum,gl) = List.nth (pbl12,0); init_proof gl;
-val proof7 = induct >> auto >> refl >> 
-  ac unfold >> replace_asm 1 >> ac gen_idloop >> drop_asm >> induct
-  auto >> refl
-
-
-fun simplify 
-
-
-
-
-
-
-v(x) = 2^(n+1)
-u(x) = 2^x * u(x-1) + u(x-1)
-
-1 3 15 135
-
-u(x) = 2^x * u(x-1) + u(x-1)
-1 2^n*1
-
-x 1
-
-
-
-
-u(x+1) = v(x) + 2
-v(x+1) = u(x)+ v(x)
-
-u(x+2) = u(x) + v(x) + 2
-       = u(x) + u(x+1)
-
-1 2
-4 3
-5 7
-9 12
-14 21
-
-u(x+2) = u(x+1) + u(x)
-1 3
-4 1
-5 4
-9 5
-14
-
-
-
-
-
-e induct2;
-
-
-
-
-*)

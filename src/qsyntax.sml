@@ -206,24 +206,26 @@ fun sexp_to_formula phi = case phi of
 
 val infix_flag = ref false
 
-fun human_of_formula (A ((i1,i2),pl)) = 
-  let val opers = 
-    if i1 = 5 then
-      if i2 >= Vector.length logicnamev orelse i2 < 0
-      then raise ERR "human_of_formula" ("undefined logic: " ^ its i2) 
-      else Vector.sub (logicnamev,i2)
-    else
-    if i1 = 3 then "x" ^ its i2 else
-    if i1 = 2 then "sk" ^ its i2 else
-    if i1 = 1 then its i2 else
-    if i1 = 0 then
-      if i2 >= Vector.length prognamev orelse i2 < 0
-      then raise ERR "human_of_formula" ("undefined prog: " ^ its i2) 
-      else Vector.sub (prognamev,i2)
-    else raise ERR "human_of_formula" ("undefined class: " ^ its i1) 
-  in
+fun human_of_id (i1,i2) = 
+  if i1 = 5 then
+    if i2 >= Vector.length logicnamev orelse i2 < 0
+    then raise ERR "human_of_formula" ("undefined logic: " ^ its i2) 
+    else Vector.sub (logicnamev,i2)
+  else
+  if i1 = 6 then "u" ^ its i2 else
+  if i1 = 3 then "x" ^ its i2 else
+  if i1 = 2 then "sk" ^ its i2 else
+  if i1 = 1 then its i2 else
+  if i1 = 0 then
+    if i2 >= Vector.length prognamev orelse i2 < 0
+    then raise ERR "human_of_formula" ("undefined prog: " ^ its i2) 
+    else Vector.sub (prognamev,i2)
+  else raise ERR "human_of_formula" ("undefined class: " ^ its i1) 
+
+fun human_of_formula (A (id,pl)) = 
+  let val opers = human_of_id id in
     if null pl then opers else
-    if !infix_flag andalso length pl = 2 
+    if !infix_flag andalso length pl = 2 andalso fst id <> 6
     then "(" ^ human_of_formula (hd pl) ^ " " ^ opers ^ " " ^
                human_of_formula (hd (tl pl)) ^ ")"
     else "(" ^ String.concatWith " " (opers :: map human_of_formula pl) ^ ")"
@@ -249,7 +251,7 @@ fun dbg n f =
   else ()
 
 (* -------------------------------------------------------------------------
-   CNF converter
+   Substitution
    ------------------------------------------------------------------------- *)
  
 fun subst_one (v,p) (A (i,pl)) = 
@@ -275,26 +277,5 @@ fun substl vpl (A (i,pl)) =
     else A (i, map (substl vpl) pl)
     )
   )
-
-fun cnf (f, pos, env) = 
-  (
-  checktimer ();
-  case f of
-    A((5,0),[f0]) => cnf (f0, not pos, env)
-  | A((5,1),[f0,f1]) => 
-    if pos then 
-      map (fn (a,b) => (checktimer (); a @ b))
-      (cartesian_product (cnf (f0, pos, env)) (cnf (f1, pos, env)))
-    else cnf (f0, pos, env) @ cnf (f1, pos, env)      
-  | A((5,2),[v as A(xid,[]),f0]) =>
-    if pos then cnf (f0, pos, v :: env) else
-    let val skterm = A(fresh_skolemid (), env) in
-      cnf (subst_one (xid,skterm) f0, pos, env)
-    end
-  | _ => [[if pos then f else neg f]]
-  )
- 
-fun CNF f = cnf (f, true, [])
-
   
 end

@@ -67,12 +67,8 @@ signature qsyntax = sig
   val fh : string -> formula
   val pe : string -> unit
 
-  (* cnf *)
-  val reset_skolem_counter : unit -> unit
-  val fresh_skolemid : unit -> (int * int)
-  
+  (* cnf *) 
   val subst_one : id * formula -> formula -> formula
   val substl : (id * formula) list -> formula -> formula
-  val CNF : formula -> formula list list
   
 end
