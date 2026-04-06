@@ -71,6 +71,8 @@ fun is_numid i = fst i = 1
 fun is_skolemid i = fst i = 2
 fun is_varid i = fst i = 3
 fun is_logicid i = fst i = 5
+fun is_loopid id = mem id [(0,9),(0,13),(0,16)];
+
 
 val var_counter = ref 0
 fun fresh_var () = (incr var_counter; A((3,!var_counter),[]))
@@ -91,10 +93,14 @@ fun is_neg (A (id,_)) = id = not_id
 fun is_boolean (A ((ty,id),_)) = id >= 0 andalso id <= 3
 fun neg f = case f of A ((0,0),[g]) => g | _ => A (not_id,[f])
 
+
 fun formula_compare (A x,A y) =
+  cpl_compare id_compare (list_compare formula_compare) (x,y)
+
+fun formula_compare_timed (A x,A y) =
   (
   checktimer ();
-  cpl_compare id_compare (list_compare formula_compare) (x,y)
+  cpl_compare id_compare (list_compare formula_compare_timed) (x,y)
   )
   
 fun formula_size (A (id,l)) = 1 + sum_int (map formula_size l)
@@ -108,7 +114,7 @@ val one = A (iid 1,[])
 fun mk_eq (f1,f2) = A (eq_id,[f1,f2])
 fun mk_geq (f1,f2) = A (geq_id,[f1,f2])
 fun mk_add (f1,f2) = A (add_id,[f1,f2])
-fun mk_mult (f1,f2) = A (add_id,[f1,f2])
+fun mk_mult (f1,f2) = A (mult_id,[f1,f2])
 fun mk_diff (f1,f2) = A (diff_id,[f1,f2])
 fun mk_var i = A (vid i,[])
 fun mk_int i = A (iid i,[])
@@ -199,17 +205,15 @@ fun id_of_oper s =
          ((5, dfind s logicnamed) handle NotFound => raise ERR "id_of_oper" s)
        )
   
-fun sexp_to_formula phi = case phi of
+fun sexp_to_formula sexp = case sexp of
     Atom s => A (id_of_oper s,[])
   | Sexp (Atom s :: argl) => A (id_of_oper s, map sexp_to_formula argl)
   | _ => raise ERR "sexp_to_formula" "";
 
-val infix_flag = ref false
-
-fun human_of_id (i1,i2) = 
+fun oper_of_id (i1,i2) = 
   if i1 = 5 then
     if i2 >= Vector.length logicnamev orelse i2 < 0
-    then raise ERR "human_of_formula" ("undefined logic: " ^ its i2) 
+    then raise ERR "oper_of_id" ("undefined logic: " ^ its i2) 
     else Vector.sub (logicnamev,i2)
   else
   if i1 = 6 then "u" ^ its i2 else
@@ -218,12 +222,19 @@ fun human_of_id (i1,i2) =
   if i1 = 1 then its i2 else
   if i1 = 0 then
     if i2 >= Vector.length prognamev orelse i2 < 0
-    then raise ERR "human_of_formula" ("undefined prog: " ^ its i2) 
+    then raise ERR "oper_of_id" ("undefined prog: " ^ its i2) 
     else Vector.sub (prognamev,i2)
-  else raise ERR "human_of_formula" ("undefined class: " ^ its i1) 
+  else raise ERR "oper_of_id" ("undefined class: " ^ its i1) 
+
+fun formula_to_sexp (A(id,pl)) = case pl of 
+    [] => Atom (oper_of_id id)
+  | _ => Sexp (Atom (oper_of_id id) :: map formula_to_sexp pl)
+
+
+val infix_flag = ref true
 
 fun human_of_formula (A (id,pl)) = 
-  let val opers = human_of_id id in
+  let val opers = oper_of_id id in
     if null pl then opers else
     if !infix_flag andalso length pl = 2 andalso fst id <> 6
     then "(" ^ human_of_formula (hd pl) ^ " " ^ opers ^ " " ^
@@ -249,6 +260,8 @@ fun dbg n f =
     then pe (String.concat (List.tabulate(n, fn _ => "  ")) ^ f ())
     else ()
   else ()
+
+fun dbgf f = if !debug_flag then f () else ();
 
 (* -------------------------------------------------------------------------
    Substitution

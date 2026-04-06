@@ -20,9 +20,12 @@ signature qsyntax = sig
   val mult_id : id
   val div_id : id
   val mod_id : id
+  val loop_id : id
   val loop2_id : id
+  val compr_id : id
   val loop2h_id : id
   val is_varid : id -> bool
+  val is_loopid : id -> bool
   val is_skolemid : id -> bool
   val id_compare : id * id -> order
   
@@ -30,8 +33,10 @@ signature qsyntax = sig
   val is_eq : formula -> bool
   val is_neg : formula -> bool
   val is_boolean : formula -> bool
+  
   val neg : formula -> formula
   val formula_compare : formula * formula -> order
+  val formula_compare_timed : formula * formula -> order
   val formula_compare_size : formula * formula -> order
   val formula_size : formula -> int
   val zero : formula
@@ -57,10 +62,14 @@ signature qsyntax = sig
   val fresh_var : unit -> formula
   val reset_var_counter : unit -> unit
 
+  (* input/output *)
+  val formula_to_sexp : formula -> sexp.sexp
+  val sexp_to_formula : sexp.sexp -> formula
   
   (* debugging *)
   val dbg_flag : bool ref
   val dbg_level : int ref
+  val dbgf : (unit -> unit) -> unit
   val dbg : int -> (unit -> string) -> unit
   val hf : formula -> string
   val hfc : formula list -> string
